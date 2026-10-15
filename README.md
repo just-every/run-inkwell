@@ -4,6 +4,8 @@ Send a fixed PDF for ordered electronic signatures and keep the executed file,
 certificate and audit trail in your own Cloudflare account. MIT licensed.
 [First-release jobs](ACCEPTANCE.md) define this seed's scope.
 
+The public website and run guide are at [run-inkwell.com](https://run-inkwell.com).
+
 ## Clone and run
 
 ```sh
