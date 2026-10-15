@@ -37,3 +37,5 @@ try {
   const removed = await fetch(`${endpoint}/${tail.id}`, { method: 'DELETE', headers });
   if (!removed.ok) throw Error(`Tail cleanup failed: HTTP ${removed.status}`);
 }
+// Node's WebSocket transport can retain idle handles after the tail is deleted.
+process.exit(0);
