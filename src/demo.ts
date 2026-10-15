@@ -50,7 +50,10 @@ export async function seedDemo(env: Bindings, { ownerEmail, now }: { ownerEmail:
       blobs.push(...blobWrites(env.DB, id, 'signed', signed), ...blobWrites(env.DB, id, 'certificate', certificate))
     }
     if (sample.status === 'voided') await event('envelope.voided', owner.id, at(createdDay + 1), { reason: 'Replaced by the revised agreement after the project scope changed.' })
-    const signers = sample.status === 'awaiting_signature' ? await Promise.all(envelope.signers.map(async (_, signer) => env.DB.prepare('INSERT INTO iw_signers(envelope_id,signer,token_hash) VALUES(?,?,?) ON CONFLICT DO NOTHING').bind(id, signer, await sha256(`${id}:${signer}:demo-invitation`)))) : []
+    const signers = sample.status === 'awaiting_signature' ? await Promise.all(envelope.signers.map(async (_, signer) => {
+      const token = await sha256(`${id}:${signer}:demo-invitation`)
+      return env.DB.prepare('INSERT INTO iw_signers(envelope_id,signer,token_hash) VALUES(?,?,?) ON CONFLICT DO NOTHING').bind(id, signer, await sha256(token))
+    })) : []
     await env.DB.batch([
       env.DB.prepare('INSERT INTO iw_envelopes(id,version,data) VALUES(?,1,?) ON CONFLICT DO NOTHING').bind(id, JSON.stringify(envelope)),
       ...blobs,

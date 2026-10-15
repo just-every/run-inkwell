@@ -87,7 +87,7 @@
       "executable": false
     },
     "deploy-demo.json": {
-      "sha256": "242cf7d732ea9822ec0d86c4f4a053e1ea1d6152b44bcd94723ecedad9bbd411",
+      "sha256": "5b1eaacc9a94299ce615b944b8ace71b51a1c79f6cf0d83c1b1a4bd10f155659",
       "executable": false
     },
     "deploy-site.json": {
@@ -479,7 +479,7 @@
       "executable": false
     },
     "src/demo.ts": {
-      "sha256": "4c7766d842392a288777c181bc51b1f885771e5032840f4937e288b33d543eac",
+      "sha256": "d55c398347a0f2e28087bdc0a585232caa53f0bd39b20d9cebd687a7576af2fa",
       "executable": false
     },
     "src/demo/documents.ts": {
@@ -2247,7 +2247,7 @@
       "executable": false
     },
     "src/ui/signer-app.tsx": {
-      "sha256": "4c445ee616be253a7acb48c28507922a5e114a08f927edf5c9a6e476243566d4",
+      "sha256": "1bde789a6a6c70f203fbc3cc0cb5072a2bb39ce57d756d3c30f54f182e43bc4c",
       "executable": false
     },
     "src/ui/styles.ts": {
