@@ -6,5 +6,5 @@
     "MAIL_FROM": "Inkwell <signing@demo.invalid>",
     "MAIL_PROVIDER": "resend"
   },
-  "instanceType": "standard-1"
+  "instanceType": "standard-2"
 }
