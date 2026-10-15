@@ -1,0 +1,10 @@
+{
+  "name": "inkwell",
+  "repository": "https://github.com/just-every/run-inkwell",
+  "clone": "git clone https://github.com/just-every/run-inkwell.git",
+  "folder": "run-inkwell",
+  "requirements": "Needs Node 22 or later and pnpm 10.12.4, on macOS, Linux or Windows with WSL2.",
+  "licence": "MIT",
+  "docs": false,
+  "hosted": []
+}

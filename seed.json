@@ -1,0 +1,84 @@
+{
+  "id": "inkwell",
+  "name": "Inkwell",
+  "version": "0.1.0",
+  "maturity": "first-release-seed",
+  "category": "electronic-signatures",
+  "spine": {
+    "id": "envelope",
+    "record": "A fixed PDF with ordered signers and retained evidence"
+  },
+  "description": "Prepare and approve fixed PDFs for ordered signatures, then keep and verify the signed file and its audit trail.",
+  "capabilities": [
+    {
+      "id": "http-dispatch",
+      "clauses": [
+        "HTTP-001"
+      ]
+    }
+  ],
+  "nonGoals": [
+    "Qualified signatures, notarisation or KYC",
+    "Legal eligibility advice or universal validity",
+    "Live provider calls in local mode",
+    "Direct external handoff calls"
+  ],
+  "externals": [
+    {
+      "id": "cloudflare",
+      "required": true,
+      "why": "Worker hosting",
+      "data": [
+        "HTTP requests"
+      ],
+      "adapters": []
+    }
+  ],
+  "env": [],
+  "deploy": {
+    "healthPath": "/health",
+    "publicPaths": [
+      "/",
+      "/health",
+      "/signin"
+    ],
+    "notes": "Native owner sessions guard /app; unknown paths return real 404s; the development outbox is local-only."
+  },
+  "extensionPoints": {
+    "contributions": [],
+    "policies": [],
+    "events": [],
+    "slots": [],
+    "adapters": []
+  },
+  "limits": {
+    "status": "unmeasured"
+  },
+  "accessibility": {
+    "level": "WCAG 2.2 AA",
+    "status": "target; unaudited"
+  },
+  "operatingCost": {
+    "status": "unmeasured"
+  },
+  "composition": {
+    "base": "base",
+    "family": "signatures",
+    "edition": "inkwell",
+    "modules": [
+      "job-queue",
+      "release",
+      "deploy-kit",
+      "container",
+      "demo-host",
+      "integrations",
+      "mail",
+      "ai",
+      "portability",
+      "erasure",
+      "dependencies",
+      "operator-auth",
+      "owner-claim"
+    ]
+  }
+}

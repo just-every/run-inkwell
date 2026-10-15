@@ -1,0 +1,129 @@
+{
+  "provider": "docuseal",
+  "account": "synthetic-example-account",
+  "submissions": [
+    {
+      "id": 1001,
+      "name": "Example completed agreement",
+      "source": "api",
+      "submitters_order": "preserved",
+      "slug": "fixture-completed-submission",
+      "status": "completed",
+      "completed_at": "2026-10-14T11:00:00.000Z",
+      "audit_log_url": "https://docuseal.example/file/fixture/audit.pdf",
+      "combined_document_url": null,
+      "expire_at": null,
+      "variables": {},
+      "created_at": "2026-10-14T09:00:00.000Z",
+      "updated_at": "2026-10-14T11:00:00.000Z",
+      "archived_at": null,
+      "submitters": [
+        {
+          "id": 1,
+          "submission_id": 1001,
+          "uuid": "00000000-0000-4000-8000-000000000001",
+          "name": "Alex Example",
+          "email": "alex@example.com",
+          "role": "First Party",
+          "slug": "fixture-party-1",
+          "phone": null,
+          "external_id": null,
+          "status": "completed",
+          "sent_at": "2026-10-14T09:00:00.000Z",
+          "opened_at": "2026-10-14T10:00:00.000Z",
+          "completed_at": "2026-10-14T10:00:00.000Z",
+          "declined_at": null,
+          "created_at": "2026-10-14T09:00:00.000Z",
+          "updated_at": "2026-10-14T10:00:00.000Z",
+          "metadata": {},
+          "preferences": {},
+          "values": [
+            {
+              "field": "Full Name",
+              "value": "Alex Example"
+            }
+          ],
+          "documents": [
+            {
+              "name": "signed",
+              "url": "https://docuseal.example/file/fixture/signed.pdf"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "submission_id": 1001,
+          "uuid": "00000000-0000-4000-8000-000000000002",
+          "name": "Casey Example",
+          "email": "casey@example.com",
+          "role": "Second Party",
+          "slug": "fixture-party-2",
+          "phone": null,
+          "external_id": null,
+          "status": "completed",
+          "sent_at": "2026-10-14T09:00:00.000Z",
+          "opened_at": "2026-10-14T11:00:00.000Z",
+          "completed_at": "2026-10-14T11:00:00.000Z",
+          "declined_at": null,
+          "created_at": "2026-10-14T09:00:00.000Z",
+          "updated_at": "2026-10-14T11:00:00.000Z",
+          "metadata": {},
+          "preferences": {},
+          "values": [
+            {
+              "field": "Full Name",
+              "value": "Casey Example"
+            }
+          ],
+          "documents": [
+            {
+              "name": "signed",
+              "url": "https://docuseal.example/file/fixture/signed.pdf"
+            }
+          ]
+        }
+      ],
+      "template": {
+        "id": 10,
+        "name": "Example agreement",
+        "external_id": null,
+        "folder_name": "Default",
+        "created_at": "2026-10-14T08:00:00.000Z",
+        "updated_at": "2026-10-14T08:00:00.000Z"
+      },
+      "created_by_user": {
+        "id": 1,
+        "first_name": "Owner",
+        "last_name": "Example",
+        "email": "owner@example.com"
+      },
+      "submission_events": [
+        {
+          "id": 1,
+          "submitter_id": 1,
+          "event_type": "view_form",
+          "event_timestamp": "2026-10-14T09:59:00.000Z",
+          "data": {}
+        }
+      ],
+      "documents": [
+        {
+          "name": "signed",
+          "url": "https://docuseal.example/file/fixture/signed.pdf"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "url": "https://docuseal.example/file/fixture/signed.pdf",
+      "name": "signed.pdf",
+      "base64": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFs0IDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nID4+CmVuZG9iago0IDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDUgMCBSID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggMjkzID4+CnN0cmVhbQpCVCAvRjEgMTAgVGYgMTQgVEwgNTYgNzg2IFRkCihTeW50aGV0aWMgY29tcGxldGVkIGFncmVlbWVudCkgVGogVCoKKCkgVGogVCoKKEZpeHR1cmUgb25seTogQWxleCBFeGFtcGxlIGFuZCBDYXNleSBFeGFtcGxlIGNvbXBsZXRlZCB0aGlzIGRvY3VtZW50LikgVGogVCoKKE5vIHJlYWwgc2lnbmF0dXJlIG9yIGFncmVlbWVudCBpcyByZXByZXNlbnRlZC4pIFRqIFQqCkVUCkJUIC9GMSA4IFRmIDU2IDI4IFRkIChEb2N1U2VhbCBkb2N1bWVudGVkLXNoYXBlIHRlc3QgZml4dHVyZSAtIHBhZ2UgMSBvZiAxKSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDU4IDAwMDAwIG4gCjAwMDAwMDAxMTUgMDAwMDAgbiAKMDAwMDAwMDIxMiAwMDAwMCBuIAowMDAwMDAwMzM4IDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgNiAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKNjgyCiUlRU9GCg=="
+    },
+    {
+      "url": "https://docuseal.example/file/fixture/audit.pdf",
+      "name": "audit.pdf",
+      "base64": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFs0IDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhIC9FbmNvZGluZyAvV2luQW5zaUVuY29kaW5nID4+CmVuZG9iago0IDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL01lZGlhQm94IFswIDAgNTk1IDg0Ml0gL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgMyAwIFIgPj4gPj4gL0NvbnRlbnRzIDUgMCBSID4+CmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggMzQ3ID4+CnN0cmVhbQpCVCAvRjEgMTAgVGYgMTQgVEwgNTYgNzg2IFRkCihTeW50aGV0aWMgdXBzdHJlYW0gYXVkaXQgUERGKSBUaiBUKgooKSBUaiBUKgooRml4dHVyZSBvbmx5LikgVGogVCoKKEFsZXggRXhhbXBsZTogMjAyNi0xMC0xNFQxMDowMDowMC4wMDBaKSBUaiBUKgooQ2FzZXkgRXhhbXBsZTogMjAyNi0xMC0xNFQxMTowMDowMC4wMDBaKSBUaiBUKgooVGhpcyBmaWxlIGlzIHByb3ZpZGVyIGV2aWRlbmNlIGZvciBhbiBpbXBvcnRlciBmaXh0dXJlLCBub3QgYW4gSW5rd2VsbCBjZXJ0aWZpY2F0ZS4pIFRqIFQqCkVUCkJUIC9GMSA4IFRmIDU2IDI4IFRkIChTeW50aGV0aWMgZml4dHVyZSAtIHBhZ2UgMSBvZiAxKSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDU4IDAwMDAwIG4gCjAwMDAwMDAxMTUgMDAwMDAgbiAKMDAwMDAwMDIxMiAwMDAwMCBuIAowMDAwMDAwMzM4IDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgNiAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKNzM2CiUlRU9GCg=="
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "id": 1001,
+  "name": "Example completed agreement",
+  "source": "api",
+  "submitters_order": "preserved",
+  "slug": "fixture-completed-submission",
+  "status": "completed",
+  "completed_at": "2026-10-14T11:00:00.000Z",
+  "audit_log_url": "https://docuseal.example/file/fixture/audit.pdf",
+  "combined_document_url": null,
+  "expire_at": null,
+  "variables": {},
+  "created_at": "2026-10-14T09:00:00.000Z",
+  "updated_at": "2026-10-14T11:00:00.000Z",
+  "archived_at": null,
+  "submitters": [
+    {
+      "id": 1,
+      "submission_id": 1001,
+      "uuid": "00000000-0000-4000-8000-000000000001",
+      "name": "Alex Example",
+      "email": "alex@example.com",
+      "role": "First Party",
+      "slug": "fixture-party-1",
+      "phone": null,
+      "external_id": null,
+      "status": "completed",
+      "sent_at": "2026-10-14T09:00:00.000Z",
+      "opened_at": "2026-10-14T10:00:00.000Z",
+      "completed_at": "2026-10-14T10:00:00.000Z",
+      "declined_at": null,
+      "created_at": "2026-10-14T09:00:00.000Z",
+      "updated_at": "2026-10-14T10:00:00.000Z",
+      "metadata": {},
+      "preferences": {},
+      "values": [
+        {
+          "field": "Full Name",
+          "value": "Alex Example"
+        }
+      ],
+      "documents": [
+        {
+          "name": "signed",
+          "url": "https://docuseal.example/file/fixture/signed.pdf"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "submission_id": 1001,
+      "uuid": "00000000-0000-4000-8000-000000000002",
+      "name": "Casey Example",
+      "email": "casey@example.com",
+      "role": "Second Party",
+      "slug": "fixture-party-2",
+      "phone": null,
+      "external_id": null,
+      "status": "completed",
+      "sent_at": "2026-10-14T09:00:00.000Z",
+      "opened_at": "2026-10-14T11:00:00.000Z",
+      "completed_at": "2026-10-14T11:00:00.000Z",
+      "declined_at": null,
+      "created_at": "2026-10-14T09:00:00.000Z",
+      "updated_at": "2026-10-14T11:00:00.000Z",
+      "metadata": {},
+      "preferences": {},
+      "values": [
+        {
+          "field": "Full Name",
+          "value": "Casey Example"
+        }
+      ],
+      "documents": [
+        {
+          "name": "signed",
+          "url": "https://docuseal.example/file/fixture/signed.pdf"
+        }
+      ]
+    }
+  ],
+  "template": {
+    "id": 10,
+    "name": "Example agreement",
+    "external_id": null,
+    "folder_name": "Default",
+    "created_at": "2026-10-14T08:00:00.000Z",
+    "updated_at": "2026-10-14T08:00:00.000Z"
+  },
+  "created_by_user": {
+    "id": 1,
+    "first_name": "Owner",
+    "last_name": "Example",
+    "email": "owner@example.com"
+  },
+  "submission_events": [
+    {
+      "id": 1,
+      "submitter_id": 1,
+      "event_type": "view_form",
+      "event_timestamp": "2026-10-14T09:59:00.000Z",
+      "data": {}
+    }
+  ],
+  "documents": [
+    {
+      "name": "signed",
+      "url": "https://docuseal.example/file/fixture/signed.pdf"
+    }
+  ]
+}
