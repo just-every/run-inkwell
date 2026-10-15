@@ -45,3 +45,4 @@ export async function stageRevisions(context: D1ImportContext, stages: StepStage
 }
 
 export const progress = (row: StepControl, state: ImportPreparationStep['state'], records = row.records): ImportPreparationStep => ({ id: row.id, state, records, total: row.total });
+

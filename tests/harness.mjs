@@ -11,9 +11,10 @@ import { unstable_splitSqlQuery } from 'wrangler'
 export async function harness() {
  const socket = createServer(); await new Promise(r => socket.listen(0,'127.0.0.1',r)); const port = socket.address().port; await new Promise(r => socket.close(r))
  const origin = `http://127.0.0.1:${port}`, directory = await mkdtemp(join(tmpdir(),'inkwell-test-'))
- const bundle = await build({entryPoints:['tests/api-worker.ts'],bundle:true,write:false,format:'esm',platform:'neutral',mainFields:['module','main'],conditions:['workerd','worker','browser'],external:['node:*'],target:'es2023'})
+ const bundle = await build({entryPoints:['tests/api-worker.ts'],bundle:true,write:false,format:'esm',platform:'neutral',mainFields:['module','main'],conditions:['workerd','worker','browser'],external:['node:*','cloudflare:*'],target:'es2023'})
  const bootstrapToken = randomBytes(32).toString('hex')
- const mf = new Miniflare({...convertV4MiniflareOptions({host:'127.0.0.1',port,modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'inkwell'},bindings:{AUTH_ORIGIN:origin,AUTH_LOCAL:'true',OWNER_EMAIL:'owner@harbour.example',SESSION_SECRET:randomBytes(32).toString('hex'),SETUP_TOKEN:bootstrapToken,MAIL_PROVIDER:'development',MAIL_FROM:'Inkwell <inkwell@harbour.example>'}}),resourcePersistencePath:directory})
+ const capturedMail = []
+ const mf = new Miniflare({...convertV4MiniflareOptions({host:'127.0.0.1',port,outboundService:async request=>{ if(new URL(request.url).hostname!=='api.resend.com') throw new Error('Unexpected test network request'); capturedMail.push(await request.json()); return Response.json({id:crypto.randomUUID()}) },modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'inkwell'},bindings:{AUTH_ORIGIN:origin,AUTH_LOCAL:'true',OWNER_EMAIL:'owner@harbour.example',SESSION_SECRET:randomBytes(32).toString('hex'),SETUP_TOKEN:bootstrapToken,MAIL_PROVIDER:'resend',MAIL_API_KEY:'test-mail-edge',MAIL_FROM:'Inkwell <inkwell@harbour.example>'}}),resourcePersistencePath:directory})
  try {
   const db = await mf.getD1Database('DB')
   for(const file of (await readdir('migrations/core')).filter(f=>f.endsWith('.sql')).sort()) await db.batch(unstable_splitSqlQuery(await readFile('migrations/core/'+file,'utf8')).map(sql=>db.prepare(sql)))
@@ -29,8 +30,7 @@ export async function harness() {
   const post = async(path,body,cookie=owner,status=200,headers={})=>{const r=await send(path,body,cookie,headers);assert.equal(r.status,status,`${path.replace(/\/sign\/[^/]+/,'/sign/[private]')}: ${typeof r.value==='object'?JSON.stringify(r.value):'unexpected response'}`);return r}
   const command=async(command,input={},cookie=owner,status=200,commandId=crypto.randomUUID())=> (await post('/api/inkwell/commands',{command,input,commandId},cookie,status)).value
   const mail=async(email,kind)=>{
-   const rows=await db.prepare('SELECT message FROM rer_mail_development_outbox ORDER BY sequence DESC').all()
-   return rows.results.map(r=>JSON.parse(r.message)).find(m=>m.to.includes(email)&&(!kind||m.subject.includes(kind)))
+   return [...capturedMail].reverse().find(m=>m.to.includes(email)&&(!kind||m.subject.includes(kind)))
   }
   const invite=async(email,role)=>{
    await post('/auth/invite',{email,displayName:email.split('@')[0],role},owner,202)

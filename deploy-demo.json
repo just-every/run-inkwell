@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "domain": "run-inkwell.com",
+  "name": "Inkwell",
+  "settings": {
+    "MAIL_FROM": "Inkwell <signing@demo.invalid>",
+    "MAIL_PROVIDER": "resend"
+  }
+}
