@@ -3,8 +3,9 @@
   "domain": "run-inkwell.com",
   "name": "Inkwell",
   "settings": {
-    "MAIL_FROM": "Inkwell <signing@demo.invalid>",
-    "MAIL_PROVIDER": "resend"
+    "MAIL_FROM": "Inkwell <signing@cedarhouse.example>",
+    "MAIL_PROVIDER": "development"
   },
-  "instanceType": "basic"
+  "instanceType": "basic",
+  "ownerEmail": "maya@cedarhouse.example"
 }
