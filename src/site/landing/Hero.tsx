@@ -13,6 +13,7 @@ export function Hero() {
         <p className="ik-alt">100% free, open source alternative to <strong>DocuSign</strong>, <strong>Dropbox Sign</strong> and <strong>PandaDoc</strong></p>
         <div className="ik-actions">
           <a className="ik-pill" href="/run">Run Inkwell <span aria-hidden="true">→</span></a>
+          <a className="ik-pill" href="https://demo.run-inkwell.com/">Try the demo</a>
           <a className="ik-link" href="/docs">Read the docs</a>
         </div>
         <p className="ik-small">Free and open source, MIT licensed.</p>
