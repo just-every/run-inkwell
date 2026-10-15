@@ -9,17 +9,17 @@ certificate and audit trail in your own Cloudflare account. MIT licensed.
 ```sh
 git clone https://github.com/just-every/run-inkwell.git
 cd run-inkwell
-npx --yes @runeditrun/rer@0.2.15 install
-npx --yes @runeditrun/rer@0.2.15 dev
+npx --yes @runeditrun/rer@0.2.17 install
+npx --yes @runeditrun/rer@0.2.17 dev
 ```
 
-If `rer` is installed, use `rer dev`. The checkout pins rer **0.2.15**, Node
+If `rer` is installed, use `rer dev`. The checkout pins rer **0.2.17**, Node
 **22.20.0** and pnpm **10.12.4**. Rer installs the pinned dependencies and selects
 the pinned tools itself. First launch builds and migrates the local D1 database.
 Open the private `RER_OPEN` URL printed by the command. It signs in the local
 owner; complete the setup page, then open the workspace. Do not share this URL.
 No external email is sent in local mode. Stop with `rer dev --stop` (or
-`npx --yes @runeditrun/rer@0.2.15 dev --stop`).
+`npx --yes @runeditrun/rer@0.2.17 dev --stop`).
 
 For ordinary email-link sign-in, use `rer dev --login`, open the local outbox
 address it prints, and follow the newest sign-in message. Confirm the link.

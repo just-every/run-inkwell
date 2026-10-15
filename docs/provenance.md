@@ -2,7 +2,7 @@
 
 Inkwell was generated from the committed runeditrun/base foundation at
 `fc0e1041efa55771142bbb57c4ab4743147e264d`, composed as `signatures/inkwell`, then
-converted to package mode with published `@runeditrun/rer` 0.2.15. The generated
+converted to package mode with published `@runeditrun/rer` 0.2.17. The generated
 `foundation.lock.json`/`composition.lock.json` record its starting provenance;
 product files are now edition-owned. Base's auth, D1, theme, mail, onboarding,
 import-kit and portability supply the shared mechanisms.
@@ -31,9 +31,4 @@ A separate certificate and JSON event trail preserve the process. Imported
 DocuSeal PDFs retain their upstream provenance and are never represented as
 signatures witnessed by Inkwell.
 
-The pnpm patch for rer 0.2.15 gives macOS socket inspection a bounded 30 seconds
-and surfaces a timeout explicitly. On this shared Mac, lsof took 10 seconds;
-the upstream three-second timeout incorrectly reported an unowned listener.
-The ownership guard remains enforced before credentials are sent.
-The same patch reads pnpm’s patch-hash importer suffix separately from the
-published version when checking the exact pin and its locked SHA-512 integrity.
+The exact published RER 0.2.17 package supplies bounded, nonblocking macOS listener ownership inspection. No local RER patches are applied.
