@@ -21,6 +21,6 @@ export async function command<T>(name: string, input: unknown): Promise<T> {
 export function fileBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1]); reader.onerror = () => reject(new Error('Could not read the file.')); reader.readAsDataURL(file) })
 }
-export const dateTime = (value: string) => new Date(value).toLocaleString()
+export const dateTime = (value: string) => new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 export const canEdit = (actor: Actor) => ['owner', 'admin'].includes(actor.role)
 export const canApprove = (actor: Actor) => ['owner', 'admin'].includes(actor.role)

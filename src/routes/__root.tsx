@@ -11,7 +11,9 @@ export const Route = createRootRoute({
   notFoundComponent: () => <h1>Not found</h1>,
   component: () => <html lang="en"><head>
     {fontLinks.map(link => <link key={link.href} {...link} />)}
+    <link rel="icon" href="/brand/mark.svg" />
     <link rel="stylesheet" href="/rer-theme.css" />
+    <link rel="stylesheet" href="/tokens.css" />
     <HeadContent />
     <script dangerouslySetInnerHTML={{ __html: introGuardScript }} />
     <style>{introCss}</style>

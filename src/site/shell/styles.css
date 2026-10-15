@@ -1,0 +1,53 @@
+/* The run site's frame: ink on warm paper, Libre Caslon Display headings over DM Sans. Tokens and fonts come from
+   /tokens.css and /rer-theme.css, linked in every page's head. Colour lives only in the drawings and the marbling. */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 18px/1.55 var(--font-body); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+h1, h2, h3, p, ol, ul, dl, dd, figure { margin: 0; padding: 0; }
+ol, ul { list-style: none; }
+a { color: inherit; }
+img { display: block; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+.ik-site { overflow-x: clip; }
+
+.ik-header, .ik-footer { display: flex; align-items: center; justify-content: space-between; gap: 24px; width: min(1200px, 100% - 32px); margin: 0 auto; }
+.ik-header { height: 82px; border-bottom: 1px solid var(--hairline); }
+.ik-brand { display: inline-flex; align-items: center; gap: 12px; font-size: 27px; font-weight: 400; letter-spacing: -0.01em; text-decoration: none; }
+.ik-header nav, .ik-footer nav { display: flex; gap: 44px; font-size: 19px; }
+.ik-header nav a, .ik-footer nav a { text-decoration: none; }
+.ik-header nav a:hover, .ik-footer nav a:hover, .ik-header nav a[aria-current=page] { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 6px; }
+
+.ik-footer { min-height: 120px; border-top: 1px solid var(--hairline); }
+.ik-footer-brand { display: flex; align-items: center; gap: 12px; font-size: 24px; }
+.ik-footer-line { color: var(--muted); font-size: 16px; }
+.ik-footer-line::before { content: "·"; margin-right: 10px; }
+.ik-footer nav { font-size: 16px; gap: 36px; }
+
+.ik-pill { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 56px; padding: 16px 32px; border-radius: 999px; background: var(--ink); color: #FFFFFF; font-size: 18px; font-weight: 500; text-decoration: none; transition: background-color .15s; }
+.ik-pill:hover { background: #3A3637; }
+.ik-pill:focus-visible { border-radius: 999px; }
+.ik-link { color: var(--ink); font-size: 18px; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px; }
+.ik-link:hover { text-decoration-thickness: 2px; }
+.ik-eyebrow { color: var(--muted); font: 500 13px/1.4 var(--font-body); letter-spacing: .24em; text-transform: uppercase; }
+
+.ik-marble { background: var(--band) center top / 1440px 300px repeat; }
+.ik-check { flex: none; width: 22px; height: 22px; }
+.ik-check circle { fill: var(--plum); }
+.ik-check path { fill: none; stroke: #FFFFFF; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+@media (max-width: 760px) {
+  body { font-size: 16px; }
+  .ik-header { height: 64px; }
+  .ik-brand { gap: 10px; font-size: 22px; }
+  .ik-brand img { width: 24px; height: 24px; }
+  .ik-header nav { gap: 28px; font-size: 16px; }
+  .ik-footer { flex-direction: column; align-items: flex-start; justify-content: center; gap: 14px; min-height: 0; padding: 28px 0 32px; }
+  .ik-footer-brand { flex-wrap: wrap; gap: 6px 10px; font-size: 20px; }
+  .ik-footer-brand img { width: 24px; height: 24px; }
+  .ik-footer-line { flex-basis: 100%; font-size: 15px; }
+  .ik-footer-line::before { content: none; }
+  .ik-footer nav { gap: 28px; font-size: 15px; }
+  .ik-pill { min-height: 52px; font-size: 17px; }
+  .ik-link { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

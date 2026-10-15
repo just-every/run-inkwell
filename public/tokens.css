@@ -1,0 +1,33 @@
+/* Inkwell's design tokens, defined once: the app (public/app/*.css), the run site's
+   landing and docs read them. Plum is the one accent; olive appears only in the
+   completed pill and inside the marbling. The --rer-* tokens Base pages read
+   are in rer-theme.css. */
+:root {
+  --paper: #FCFBF7;
+  --surface: #FFFFFF;
+  --ink: #1C1A1B;
+  --muted: #5F5B5C;
+  --hairline: #E8E4DF;
+  --control: #948E89;
+  --plum: #6E2A4A;
+  --plum-hover: #5A1F3B;
+  --plum-tint: #EEE2E6;
+  --plum-ink: #5A1F3B;
+  --olive-tint: #E9EBDF;
+  --olive-ink: #46502A;
+  --grey-tint: #EEEDEB;
+  --danger: #8E2B2B;
+  --danger-tint: #F6E8E6;
+  --marble-plum: #7A3A55;
+  --marble-olive: #6E6F47;
+  --marble-cream: #D9C5A2;
+  --focus: #1C1A1B;
+  --font-heading: 'Libre Caslon Display', Georgia, serif;
+  --font-body: 'DM Sans', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --shadow-card: 0 1px 2px #1C1A1B0D, 0 16px 40px #1C1A1B14;
+  --shadow-panel: 0 1px 2px #0000000A, 0 10px 28px #00000010;
+  --radius-card: 14px;
+  --radius-field: 10px;
+  --band: url('/brand/band.svg');
+}

@@ -1,5 +1,3 @@
-# Move a completed DocuSeal archive into Inkwell
-
 An owner can import completed submissions as an archive library. Imported evidence
 stays separate from documents signed in Inkwell. Inkwell preserves the uploaded
 PDF bytes, provider metadata and event history; it does not certify historical

@@ -1,5 +1,3 @@
-# Source and boundaries
-
 Inkwell was generated from the committed runeditrun/base foundation at
 `fc0e1041efa55771142bbb57c4ab4743147e264d`, composed as `signatures/inkwell`, then
 converted to package mode with published `@runeditrun/rer` 0.2.17. The generated
@@ -31,4 +29,4 @@ A separate certificate and JSON event trail preserve the process. Imported
 DocuSeal PDFs retain their upstream provenance and are never represented as
 signatures witnessed by Inkwell.
 
-The exact published RER 0.2.17 package supplies bounded, nonblocking macOS listener ownership inspection. No local RER patches are applied.
+Inkwell now pins the exact published RER 0.2.19 package, which supplies bounded, nonblocking macOS listener ownership inspection. No local RER patches are applied.

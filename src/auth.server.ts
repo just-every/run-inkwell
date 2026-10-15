@@ -8,8 +8,10 @@ import { operatorMail } from './mail.server.mjs'
 import { createD1DevelopmentOutbox, createDevelopmentOutboxHandler } from './modules/mail/src/development/index.mjs'
 import branding from './branding.json'
 
-// The edition's declared theme (public/rer-theme.css), as Base frames link it.
-const theme = { href: '/rer-theme.css', productName: branding.name, accentColor: branding.primaryColor }
+// What the Base frames (sign-in, /setup, outbox) link as their theme:
+// public/frame.css imports the declared rer-theme.css and Inkwell's tokens,
+// then lays the frames out in the setup look.
+const theme = { href: '/frame.css', productName: branding.name, accentColor: branding.primaryColor }
 
 export interface Bindings {
  DB: D1Database

@@ -26,7 +26,7 @@ function Page({ page, index, fields, values, onPlace }: { page: PDFPageProxy; in
   const aspect = page.getViewport({ scale: 1 })
   return <div className="iw-page-wrap"><p className="iw-caption">Page {index + 1}</p><div ref={container} className={`iw-pdf-page ${onPlace ? 'iw-placeable' : ''}`} style={{ aspectRatio: `${aspect.width} / ${aspect.height}` }} role={onPlace ? 'button' : undefined} tabIndex={onPlace ? 0 : undefined} aria-label={onPlace ? `Place field on page ${index + 1}; press Enter to place at center` : `Document page ${index + 1}`} onKeyDown={event => { if (onPlace && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onPlace(index, .38, .45) } }} onClick={event => { if (!onPlace) return; const rect = event.currentTarget.getBoundingClientRect(); onPlace(index, (event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height) }}>
     <canvas ref={canvas} />
-    {fields?.filter(field => field.page === index).map(field => <div key={field.id} className={`iw-field iw-field-${field.signer % 5}`} style={{ left: `${field.x * 100}%`, top: `${field.y * 100}%`, width: `${field.width * 100}%`, height: `${field.height * 100}%` }}><span>{values?.[field.id] || `${field.signer + 1}: ${field.label}`}</span></div>)}
+    {fields?.filter(field => field.page === index).map(field => <div key={field.id} className="iw-field" style={{ left: `${field.x * 100}%`, top: `${field.y * 100}%`, width: `${field.width * 100}%`, height: `${field.height * 100}%` }}><span>{values?.[field.id] || `${field.signer + 1}: ${field.label}`}</span></div>)}
   </div><ErrorNotice error={error} /></div>
 }
 export function PdfViewer(props: Props) {

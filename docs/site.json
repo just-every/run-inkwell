@@ -1,0 +1,35 @@
+{
+  "sections": [
+    {
+      "title": "Start here",
+      "pages": [
+        { "slug": "overview", "title": "Overview", "file": "overview.md", "summary": "What Inkwell is, how an envelope moves from prepared to completed, and who can do what." },
+        { "slug": "getting-started", "title": "Getting started", "file": "getting-started.md", "summary": "Install rer, start Inkwell on your computer with rer dev, and finish setup as the owner." },
+        { "slug": "deploy", "title": "Deploy to Cloudflare", "file": "deploy.md", "summary": "Put Inkwell on your own Cloudflare account with a mail provider for invitations." }
+      ]
+    },
+    {
+      "title": "Agreements",
+      "pages": [
+        { "slug": "send-an-agreement", "title": "Send an agreement", "file": "send-an-agreement.md", "summary": "Upload a PDF, add recipients in order, place fields, approve and send." },
+        { "slug": "signing", "title": "What signers see", "file": "signing.md", "summary": "How a recipient confirms their email, reviews the document and signs." },
+        { "slug": "verify-and-download", "title": "Verify and download the record", "file": "verify-and-download.md", "summary": "Download the executed PDF, certificate and audit trail, and recheck every fingerprint." }
+      ]
+    },
+    {
+      "title": "Your records",
+      "pages": [
+        { "slug": "move-in", "title": "Move in from DocuSeal", "file": "move-in.md", "summary": "Import signed PDFs and their provider evidence from a DocuSeal archive, and undo it if you change your mind." },
+        { "slug": "backup-and-restore", "title": "Back up and restore", "file": "backup-and-restore.md", "summary": "Download a full archive, restore it into a fresh Inkwell, and keep erased envelopes erased." }
+      ]
+    },
+    {
+      "title": "Reference",
+      "pages": [
+        { "slug": "agent-preparation", "title": "Agent preparation", "file": "agent-commands.md", "summary": "The preparation token and the request an agent sends to prepare an envelope for your approval." },
+        { "slug": "import-format", "title": "DocuSeal import format", "file": "import-docuseal.md", "summary": "The archive file Move in reads, and the HTTP flow behind preview, apply, resume and undo." },
+        { "slug": "provenance", "title": "Source and boundaries", "file": "provenance.md", "summary": "Where Inkwell's code comes from, and what its fingerprints and certificate do and do not prove." }
+      ]
+    }
+  ]
+}

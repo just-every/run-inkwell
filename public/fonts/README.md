@@ -1,16 +1,15 @@
 # Fonts
 
-Outfit is self-hosted under the SIL Open Font License 1.1 in
-`outfit/LICENSE.txt`. The Latin and Latin Extended WOFF2 subsets come from
-Fontsource's Outfit distribution; upstream: https://github.com/Outfitio/Outfit-Fonts.
+Two families, both self-hosted under the SIL Open Font License 1.1:
 
-The root document links `/fonts/fonts.css` once, outside the temporary dev SSR
-stylesheet, and preloads only the primary Latin file. Do not import this CSS
-from a component. Every body-font stack uses `--font-body`, including the local
-`Outfit Fallback` before generic fallback fonts; controls inherit it.
+- `libre-caslon-display/`: Libre Caslon Display 400 by Pablo Impallari,
+  headings only. Latin and Latin Extended WOFF2 subsets from Fontsource
+  (`@fontsource/libre-caslon-display` 5.3.0).
+- `dm-sans/`: DM Sans by the DM Sans Project Authors, variable weight, upright
+  and italic (the typed signature). Latin and Latin Extended WOFF2 subsets from
+  Fontsource (`@fontsource-variable/dm-sans` 5.3.0).
 
-Fallback scales use Outfit/Arial advance-width ratios over A-Z, a-z and 0-9
-at weights 400, 500 and 700. Ascent, descent and line gap match Outfit's
-1000, -260 and 0 per 1000 units, divided by each scale. Matching metrics reduces
-layout movement; different glyph designs cannot have identical widths in every
-piece of text. Recalculate the fallback and preload when changing the brand font.
+`public/rer-theme.css` declares every `@font-face`, so every page that links
+the theme (app, sign-in, `/setup`, the Lobby, the run site) gets both families
+and makes no third-party request. `src/base/font-head.ts` preloads the two
+Latin files the first paint uses.

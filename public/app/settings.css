@@ -1,0 +1,25 @@
+/* Inkwell app: the owner's Archive, Agent access and Move in tabs. */
+.iw-content > .iw-stack > .iw-panel h2, .iw-content > .iw-panel > h2, .iw-content > .iw-panel .iw-section-head h2 { font-size: 30px; }
+.iw-content > .iw-panel > h3 { margin-top: 12px; padding-top: 24px; border-top: 1px solid var(--hairline); font-size: 21px; font-weight: 400; }
+.iw-content .iw-panel > p { margin-top: -8px; font-size: 17px; }
+
+.iw-token-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 16px; padding: 14px 18px; border: 1px solid var(--hairline); border-radius: var(--radius-field); }
+.iw-token-row code { overflow-wrap: anywhere; }
+.iw-token-row p { margin-top: 2px; font-size: 14px; }
+
+.iw-import-job { padding: 18px 20px; border: 1px solid var(--hairline); border-radius: var(--radius-field); }
+.iw-import-job strong { font-weight: 500; }
+.iw-chips { gap: 8px; }
+.iw-chips .iw-button { min-height: 36px; padding: 6px 14px; border-color: transparent; background: var(--grey-tint); font-size: 14px; font-weight: 400; overflow-wrap: anywhere; }
+
+@media (max-width: 760px) {
+  .iw-content > .iw-stack > .iw-panel h2, .iw-content > .iw-panel > h2, .iw-content > .iw-panel .iw-section-head h2 { font-size: 24px; }
+  .iw-content .iw-panel > p { font-size: 16px; }
+  .iw-content .iw-panel > .iw-primary { width: 100%; }
+  .iw-token-row { grid-template-columns: minmax(0, 1fr) auto; padding: 12px 14px; }
+  .iw-token-row > button { grid-column: 1 / -1; justify-self: start; }
+  .iw-import-job { padding: 14px; }
+  .iw-import-job code { font-size: 11px; overflow-wrap: anywhere; }
+  .iw-file { flex-wrap: wrap; padding: 8px 10px 8px 14px; }
+  .iw-app .iw-file input[type=file] { flex-basis: 100%; min-width: 0; text-align: left; }
+}

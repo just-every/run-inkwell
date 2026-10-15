@@ -102,9 +102,12 @@ flags, private state, deployment inputs and remote limitations.
 
 ## Work on this foundation
 
-This edition implements the jobs in ACCEPTANCE.md. Use Base theme components;
-visual design is a separate release round. Preserve signing, approval and custody
-boundaries when extending it.
+This edition implements the jobs in ACCEPTANCE.md. Its look (plum ink on paper,
+Libre Caslon Display over DM Sans, the marbled endpaper) lives in
+`public/rer-theme.css`, `public/tokens.css`, `public/frame.css` (Base's sign-in
+and setup frames) and `public/app/`; the run site is `src/site/` with docs from
+`docs/site.json`. Preserve signing, approval and custody boundaries when
+extending it.
 
 When adding private HTTP routes or Start functions, reuse native sessions and
 enforce authorization in every server function handler, including direct

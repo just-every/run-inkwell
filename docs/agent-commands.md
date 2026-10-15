@@ -1,5 +1,3 @@
-# Agent-facing preparation
-
 `POST /api/inkwell/agent/prepare` takes a bearer preparation token issued by the
 owner. It prepares only; the human approval command requires a native signed-in
 owner/admin session. An agent token has no approval or signer authority.

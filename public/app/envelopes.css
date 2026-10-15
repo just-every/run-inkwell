@@ -1,0 +1,111 @@
+/* Inkwell app: the envelope list, the empty state and one envelope's detail. */
+.iw-list-panel { padding: 30px 28px 10px; }
+.iw-list-panel > .iw-section-head { padding: 0 2px 24px; border-bottom: 1px solid var(--hairline); }
+.iw-list-panel h2 { font-size: 32px; }
+.iw-list-panel .iw-actions { gap: 20px; }
+.iw-list-panel .iw-actions button { min-width: 146px; }
+
+.iw-app .iw-envelope-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.2fr) minmax(0, .95fr) minmax(0, .9fr) 24px;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  min-height: 80px;
+  padding: 18px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 0;
+  background: none;
+  font-weight: 400;
+  text-align: left;
+}
+.iw-app .iw-envelope-row:last-child { border-bottom: 0; }
+.iw-app .iw-envelope-row:hover { background: color-mix(in srgb, var(--plum-tint) 35%, transparent); }
+.iw-envelope-row strong { font-size: 20px; font-weight: 400; overflow-wrap: anywhere; }
+.iw-row-names { font-size: 18px; overflow-wrap: anywhere; }
+.iw-envelope-row small { color: var(--muted); font-size: 17px; }
+.iw-row-go { justify-self: end; font-size: 22px; }
+
+.iw-empty { display: flex; flex-direction: column; align-items: center; max-width: 760px; margin: 0 auto; padding: 44px 20px 36px; text-align: center; }
+.iw-empty .iw-roundel { width: 64px; height: 64px; margin-bottom: 22px; }
+.iw-app .iw-empty h3 { font: 400 44px/1.1 var(--font-heading); letter-spacing: -0.02em; text-wrap: balance; }
+.iw-empty p { margin: 14px 0 28px; font-size: 19px; }
+
+/* One envelope. */
+.iw-detail { gap: 0; padding: 32px 36px 28px; }
+.iw-detail > * + * { margin-top: 24px; }
+.iw-detail > .iw-section-head { align-items: flex-start; }
+.iw-detail h1, .iw-prepare h1 { margin: 10px 0 6px; font-size: 52px; }
+.iw-detail .iw-section-head p { color: var(--muted); font-size: 19px; }
+.iw-detail .iw-section-head > button { margin-top: 44px; min-width: 140px; }
+
+.iw-signers { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--hairline); }
+.iw-signers li { display: grid; grid-template-columns: 40px minmax(0, .9fr) minmax(0, 1.3fr) minmax(0, 1.1fr); align-items: center; gap: 20px; min-height: 76px; padding: 14px 0; border-bottom: 1px solid var(--hairline); font-size: 19px; }
+.iw-signers strong { font-weight: 400; overflow-wrap: anywhere; }
+.iw-signers li > span:not(.iw-order) { overflow-wrap: anywhere; }
+.iw-signers small { display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 18px; }
+.iw-order { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--grey-tint); font-size: 17px; font-weight: 400; }
+.iw-artifacts { gap: 12px 16px; padding-bottom: 24px; border-bottom: 1px solid var(--hairline); }
+.iw-artifacts > button, .iw-artifacts > .iw-button { flex: 1 1 auto; }
+
+.iw-integrity { display: grid; grid-template-columns: minmax(0, 1.2fr) auto minmax(0, 1fr); align-items: center; gap: 12px 40px; padding-bottom: 24px; border-bottom: 1px solid var(--hairline); }
+.iw-integrity > h3 { grid-column: 1 / -1; font-size: 22px; font-weight: 400; }
+.iw-integrity > .iw-error { grid-column: 1 / -1; }
+.iw-hashes { display: grid; grid-template-columns: auto auto; justify-content: start; gap: 6px 48px; margin: 0; font-size: 17px; }
+.iw-hashes dt { color: var(--muted); }
+.iw-hashes dd { margin: 0; font: 16px/1.6 var(--font-mono); overflow-wrap: anywhere; }
+.iw-hashes > div { display: contents; }
+.iw-result { display: flex; align-items: flex-start; gap: 16px; }
+.iw-result .iw-check-mark { width: 30px; height: 30px; }
+.iw-result h3 { font-size: 18px; font-weight: 400; }
+.iw-result p { margin-top: 4px; font-size: 15px; }
+.iw-result details { margin-top: 4px; font-size: 14px; }
+.iw-result ul { margin: 6px 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+.iw-result-failed h3 { color: var(--danger); }
+
+.iw-audit-trail { padding-bottom: 20px; border-bottom: 1px solid var(--hairline); }
+.iw-audit-trail > summary { display: flex; align-items: center; gap: 16px; list-style: none; font-size: 21px; font-weight: 400; }
+.iw-audit-trail > summary::-webkit-details-marker { display: none; }
+.iw-audit-trail > summary::before { content: ""; width: 10px; height: 10px; margin: 0 6px 0 4px; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: rotate(-45deg); transition: transform .15s; }
+.iw-audit-trail[open] > summary::before { transform: rotate(45deg); }
+.iw-audit { position: relative; display: grid; gap: 10px; margin: 16px 0 0; padding: 0 0 0 34px; list-style: none; }
+.iw-audit::before { content: ""; position: absolute; top: 10px; bottom: 10px; left: 8px; border-left: 1px dotted var(--plum); }
+.iw-audit li { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 20px; }
+.iw-audit li::before { content: ""; position: absolute; top: 7px; left: -31px; width: 11px; height: 11px; border-radius: 50%; background: var(--plum); }
+.iw-audit strong { font: 400 14px/1.6 var(--font-mono); overflow-wrap: anywhere; }
+.iw-audit time { color: var(--muted); font-size: 14px; }
+.iw-audit span, .iw-audit p { grid-column: 1 / -1; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.iw-quiet > button { min-height: 40px; padding: 7px 22px; color: var(--muted); font-size: 15px; }
+.iw-quiet > form { margin-top: 14px; }
+
+@media (max-width: 760px) {
+  .iw-list-panel { padding: 22px 16px 4px; }
+  .iw-list-panel > .iw-section-head { padding-bottom: 18px; }
+  .iw-list-panel h2 { font-size: 26px; }
+  .iw-list-panel .iw-actions { width: 100%; flex-wrap: nowrap; gap: 12px; }
+  .iw-list-panel .iw-inline-label { flex: 1; }
+  .iw-inline-label select { width: 100%; }
+  .iw-list-panel .iw-actions button { min-width: 0; }
+  .iw-app .iw-envelope-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "title pill" "names names" "date go"; gap: 6px 12px; padding: 16px 0; }
+  .iw-envelope-row strong { grid-area: title; font-size: 18px; }
+  .iw-row-names { grid-area: names; font-size: 16px; }
+  .iw-envelope-row > span:nth-child(3) { grid-area: pill; }
+  .iw-envelope-row small { grid-area: date; font-size: 15px; }
+  .iw-row-go { grid-area: go; font-size: 18px; }
+  .iw-empty { padding: 32px 4px 24px; }
+  .iw-app .iw-empty h3 { font-size: 32px; }
+  .iw-empty p { font-size: 16px; }
+  .iw-detail { padding: 22px 16px 20px; }
+  .iw-detail > .iw-section-head { flex-wrap: nowrap; }
+  .iw-detail h1, .iw-prepare h1 { font-size: 32px; }
+  .iw-detail .iw-section-head p { font-size: 16px; }
+  .iw-detail .iw-section-head > button { margin-top: 0; min-width: 0; }
+  .iw-signers li { grid-template-columns: 32px minmax(0, 1fr); gap: 2px 14px; min-height: 0; font-size: 17px; }
+  .iw-signers .iw-order { grid-row: span 3; align-self: start; width: 32px; height: 32px; font-size: 15px; }
+  .iw-signers li > span:not(.iw-order), .iw-signers small { font-size: 15px; }
+  .iw-artifacts > button, .iw-artifacts > .iw-button { flex: 1 1 40%; padding-inline: 12px; }
+  .iw-integrity { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .iw-hashes { gap: 4px 16px; font-size: 15px; }
+  .iw-hashes dd { font-size: 14px; }
+}

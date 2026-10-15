@@ -6,4 +6,4 @@
 - The owner previews a documented-shape DocuSeal archive, approves its fingerprint, imports its signed PDFs and provider evidence, reads the durable journal, and undoes the import.
 - The owner exports/restores document custody into an empty installation, erases a native envelope, and carries the later erasure archive to prevent an older backup restoring it.
 
-Not needed: a domain or run site, brand redesign, live mail/provider calls for local use, payment processing, qualified signatures, notarisation, KYC, legal advice, universal validity claims or direct Locket/Chest network delivery. Imported signatures retain their provider provenance. Independent release review is a later round.
+Not needed: live mail/provider calls for local use, payment processing, qualified signatures, notarisation, KYC, legal advice, universal validity claims or direct Locket/Chest network delivery. Imported signatures retain their provider provenance. Independent release review is a later round.

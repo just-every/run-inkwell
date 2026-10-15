@@ -9,17 +9,17 @@ certificate and audit trail in your own Cloudflare account. MIT licensed.
 ```sh
 git clone https://github.com/just-every/run-inkwell.git
 cd run-inkwell
-npx --yes @runeditrun/rer@0.2.17 install
-npx --yes @runeditrun/rer@0.2.17 dev
+npx --yes @runeditrun/rer@0.2.19 install
+npx --yes @runeditrun/rer@0.2.19 dev
 ```
 
-If `rer` is installed, use `rer dev`. The checkout pins rer **0.2.17**, Node
+If `rer` is installed, use `rer dev`. The checkout pins rer **0.2.19**, Node
 **22.20.0** and pnpm **10.12.4**. Rer installs the pinned dependencies and selects
 the pinned tools itself. First launch builds and migrates the local D1 database.
 Open the private `RER_OPEN` URL printed by the command. It signs in the local
 owner; complete the setup page, then open the workspace. Do not share this URL.
 No external email is sent in local mode. Stop with `rer dev --stop` (or
-`npx --yes @runeditrun/rer@0.2.17 dev --stop`).
+`npx --yes @runeditrun/rer@0.2.19 dev --stop`).
 
 For ordinary email-link sign-in, use `rer dev --login`, open the local outbox
 address it prints, and follow the newest sign-in message. Confirm the link.
@@ -162,5 +162,13 @@ hosted output and hydration. GitHub runs one Verify workflow per main commit.
 The suite stays below the [200-test budget](test-budget.json).
 
 Started from Base `fc0e1041efa55771142bbb57c4ab4743147e264d`; see
-[reuse and trust boundaries](docs/provenance.md). Base's theme and components are
-used as shipped. Visual design and independent release review come later.
+[reuse and trust boundaries](docs/provenance.md). The look (plum ink, Libre Caslon
+Display over DM Sans, the marbled endpaper in `public/brand/band.svg`) is defined in
+`public/rer-theme.css` and `public/tokens.css`; the app's styles are in `public/app/`.
+
+## Run site
+
+`rer build --site` writes the static run site to `dist/site`: the homepage
+(`src/site/landing/`), the Run page at `/run`, and the docs at `/docs`, built from
+`docs/site.json` and the Markdown beside it. Edit those Markdown files to change the
+docs; the build fails on a broken docs link or a missing page.
