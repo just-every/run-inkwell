@@ -1,6 +1,6 @@
 // Run only in the run-demo environment; retain admissions, never request headers or cookies.
 import { appendFileSync } from 'node:fs';
-import { demoPlan } from '@runeditrun/rer/modules/demo-host/plan.mjs';
+import { demoPlan } from '@runeditrun/rer/internal/modules/demo-host/plan.mjs';
 import { readFileSync } from 'node:fs';
 const account = process.env.CLOUDFLARE_ACCOUNT_ID;
 if (account !== 'b20c0ca9cab0c2b70e13d7cf724b89bd') throw Error('Expected RunEditRun account');
