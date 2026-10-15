@@ -35,3 +35,5 @@ The pnpm patch for rer 0.2.15 gives macOS socket inspection a bounded 30 seconds
 and surfaces a timeout explicitly. On this shared Mac, lsof took 10 seconds;
 the upstream three-second timeout incorrectly reported an unowned listener.
 The ownership guard remains enforced before credentials are sent.
+The same patch reads pnpm’s patch-hash importer suffix separately from the
+published version when checking the exact pin and its locked SHA-512 integrity.
