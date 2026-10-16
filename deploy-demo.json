@@ -6,6 +6,6 @@
     "MAIL_FROM": "Inkwell <signing@cedarhouse.example>",
     "MAIL_PROVIDER": "development"
   },
-  "instanceType": "basic",
+  "instanceType": "standard-1",
   "ownerEmail": "maya@cedarhouse.example"
 }
