@@ -4,7 +4,7 @@
       "title": "Start here",
       "pages": [
         { "slug": "overview", "title": "Overview", "file": "overview.md", "summary": "What Inkwell is, how an envelope moves from prepared to completed, and who can do what." },
-        { "slug": "getting-started", "title": "Getting started", "file": "getting-started.md", "summary": "Install rer, start Inkwell on your computer with rer dev, and finish setup as the owner." },
+        { "slug": "getting-started", "title": "Getting started", "file": "getting-started.md", "summary": "Start Inkwell on your computer with one line, and finish setup as the owner." },
         { "slug": "deploy", "title": "Deploy to Cloudflare", "file": "deploy.md", "summary": "Put Inkwell on your own Cloudflare account with a mail provider for invitations." }
       ]
     },
