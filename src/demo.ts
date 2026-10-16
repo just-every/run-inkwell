@@ -10,6 +10,8 @@ import { seedImported } from './demo/imported'
 export async function seedDemo(env: Bindings, { ownerEmail, now }: { ownerEmail: string; now: Date }) {
   const owner = await env.DB.prepare("SELECT id FROM oa_operators WHERE email=? AND role='owner' AND status='active'").bind(ownerEmail).first<{ id: string }>()
   if (!owner) throw new Error('Demo owner must exist before sample records are loaded')
+  // The owner claim names the owner "Owner"; the sample workspace belongs to Maya Chen.
+  await env.DB.prepare("UPDATE oa_operators SET display_name='Maya Chen' WHERE id=? AND display_name='Owner'").bind(owner.id).run()
   const at = (days: number, hours = 0) => new Date(now.getTime() + days * 86400000 + hours * 3600000).toISOString()
   for (const [index, sample] of agreements.entries()) {
     const id = `demo-envelope-${String(index + 1).padStart(2, '0')}`
