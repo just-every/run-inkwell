@@ -111,7 +111,7 @@
       "executable": false
     },
     "docs/getting-started.md": {
-      "sha256": "afc98725f0d54314600306d3ecc3cba7e28eab05fa0ef3483f65a8d21da23b0e",
+      "sha256": "8e34eb08ed2d50c02bcb31246d092ffe12174c4b08c0d789cf12b0461d918828",
       "executable": false
     },
     "docs/import-docuseal.md": {
@@ -139,7 +139,7 @@
       "executable": false
     },
     "docs/site.json": {
-      "sha256": "73cdf7926da84421f99be26c370884337653d539c99ff2ba4e7c01da3f5a8e12",
+      "sha256": "6ef554b293dd6f1c391ebd393ee6890bb27f1bcb65f7a45c3150fb9773424302",
       "executable": false
     },
     "docs/verify-and-download.md": {
@@ -319,7 +319,7 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "6851c3218b7b9407439b1644c2968eeb4694a28a8e4fc1dcb9203434f34cb684",
+      "sha256": "aa37b92a5bd076a5a044112ca75dbfab36ca81b1e11896eb4b5825ea25c0b4e8",
       "executable": false
     },
     "rer-setup.json": {
@@ -563,7 +563,7 @@
       "executable": false
     },
     "src/inkwell/model.ts": {
-      "sha256": "6545ee80fd892beb913f66552b438424b20f1fc57cb438c10de84d250f901eae",
+      "sha256": "423a29b83db9b0e1e15958a8c405b557e33a5f143850444010612c7a252e7373",
       "executable": false
     },
     "src/inkwell/pdf.ts": {
@@ -571,7 +571,7 @@
       "executable": false
     },
     "src/inkwell/signing.ts": {
-      "sha256": "42c3df86dd6a1ff21cbab1323988e271e66dbd5dbac0dfb80016036ed213b15d",
+      "sha256": "646f82e80c34f9f44ca607ff00c4df70a809ae22771c78a88d9777d92bd27372",
       "executable": false
     },
     "src/inkwell/storage.ts": {
@@ -711,7 +711,7 @@
       "executable": false
     },
     "src/modules/dependencies/logout.mjs": {
-      "sha256": "3bfa236ead120187b96da5f05e94861da682eb8419954a97ac594ff2de49ceb0",
+      "sha256": "f14396cff53f6052c65cbe2465d30a5e94d1e30169601450b90f1137b128f687",
       "executable": false
     },
     "src/modules/dependencies/native.mjs": {
@@ -2199,7 +2199,7 @@
       "executable": false
     },
     "src/site/run.json": {
-      "sha256": "e46deb82dc7e93d756c1c21af5d85fec1b40606185f070f178caab4aa5679558",
+      "sha256": "e7d806cc2663d8df31261487f3ac2daa1beaa21c15790f863cae69b8fa2a0827",
       "executable": false
     },
     "src/site/shell/Check.tsx": {

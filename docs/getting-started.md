@@ -1,4 +1,4 @@
-Run Inkwell on your own computer in two steps. It is free and needs no account anywhere.
+Run Inkwell on your own computer with one line. It is free and needs no account anywhere.
 
 ## What you need
 
@@ -6,27 +6,13 @@ Run Inkwell on your own computer in two steps. It is free and needs no account a
 - Node 22 or later and pnpm 10.12.4. `rer` selects the exact Node version Inkwell pins for
   you, so you do not need to change your global Node.
 
-## 1. Install rer
-
-`rer` is the Run Edit Run command. Install it once per computer:
+## Get Inkwell and start it
 
 ```sh
-curl -fsSL https://runeditrun.com/install.sh | sh
-export PATH="$HOME/.local/bin:$PATH"
+npx -y @runeditrun/rer dev just-every/run-inkwell
 ```
 
-Or, with npm:
-
-```sh
-npm install -g @runeditrun/rer
-```
-
-## 2. Get Inkwell and start it
-
-```sh
-git clone https://github.com/just-every/run-inkwell.git
-cd run-inkwell && rer dev
-```
+That one line installs `rer`, the Run Edit Run command, clones Inkwell and starts it. To start it again later, run `cd run-inkwell && rer dev`.
 
 The first start installs dependencies, builds Inkwell and creates its local database, so
 it can take a few minutes. When it is ready, `rer dev` prints two lines:
