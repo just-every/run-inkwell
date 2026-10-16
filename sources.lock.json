@@ -331,7 +331,7 @@
       "executable": false
     },
     "scripts/demo/observe-admissions.mjs": {
-      "sha256": "c04a371d360403da5df4599b57bc3cdf471083f8230005200385ac559633d8b7",
+      "sha256": "0fbaca2d97e6ca8d5549388f077c0a9bc308c4cc9f6ab2cb7ca08e71c48dc651",
       "executable": false
     },
     "scripts/edition-authoring/base-copies.mjs": {
