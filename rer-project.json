@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "projectId": "signatures/inkwell",
+  "name": "Inkwell",
+  "sourceRepository": "https://github.com/just-every/run-inkwell",
+  "license": "MIT"
+}
