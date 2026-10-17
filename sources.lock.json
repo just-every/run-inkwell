@@ -111,7 +111,7 @@
       "executable": false
     },
     "docs/getting-started.md": {
-      "sha256": "8e34eb08ed2d50c02bcb31246d092ffe12174c4b08c0d789cf12b0461d918828",
+      "sha256": "6859ba56858d79adf54880d39db058f079aff410d9ab7f2ac398fee5b5d358f7",
       "executable": false
     },
     "docs/import-docuseal.md": {
@@ -227,7 +227,7 @@
       "executable": false
     },
     "ONBOARDING.md": {
-      "sha256": "fdbfd832168f2a05e187ea2385c4675f0efce246278e6f720ba403fdc754bbf7",
+      "sha256": "1864337dfaacda3d54e4b544b3e16b0e4c3ad6e2787f3bbc2b3ca0cb55e70961",
       "executable": false
     },
     "OPERATIONS.json": {
@@ -235,7 +235,7 @@
       "executable": false
     },
     "OPERATIONS.md": {
-      "sha256": "a08fb441d70fc487ecd94f14ac22e8b7dff2ec39962a395f1a6a8cf37b4bfb87",
+      "sha256": "c7c87d9197c9216595c8baa8a6f628a09bb36e0527c92534c4e4328ab9b9ac2a",
       "executable": false
     },
     "package.json": {
@@ -319,7 +319,7 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "aa37b92a5bd076a5a044112ca75dbfab36ca81b1e11896eb4b5825ea25c0b4e8",
+      "sha256": "067b272a55a35ea391babe60537e9378a87ad68971d530b8fb1331245cc952e6",
       "executable": false
     },
     "rer-setup.json": {
@@ -327,7 +327,7 @@
       "executable": false
     },
     "RUN-LOCALLY.md": {
-      "sha256": "29adb460d4940159dc56fbe527e1d40c36e8dc59d0c7c12dc32849bf41b9e4ed",
+      "sha256": "ab66853e13d153405e16e8498afa11f0d027106fc132d939e29117dfe4426c9f",
       "executable": false
     },
     "scripts/edition-authoring/base-copies.mjs": {
@@ -1543,7 +1543,7 @@
       "executable": false
     },
     "src/modules/mail/src/core/validation.mjs": {
-      "sha256": "a6db031bcfb94718c6a42975990f904c8dd97115448e5a8b90c6e5f3513116c2",
+      "sha256": "b636ff3c9775d7a0505430b3edcc244f6f4ebb106d42e036fbbd09f48076a3bc",
       "executable": false
     },
     "src/modules/mail/src/development/index.d.mts": {
@@ -1623,7 +1623,7 @@
       "executable": false
     },
     "src/modules/mail/src/inbound/headers.mjs": {
-      "sha256": "79673d562647f4e15e7fe10ca3b13241acd5b2cc25a651a32918cee45e02235c",
+      "sha256": "6921838a98c4a32da089bec85e5893ee53fca49dcd67d2fc4c1290496228eb1e",
       "executable": false
     },
     "src/modules/mail/src/inbound/index.mjs": {
