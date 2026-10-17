@@ -3,8 +3,7 @@ Run Inkwell on your own computer with one line. It is free and needs no account 
 ## What you need
 
 - macOS, Linux, or Windows with WSL2.
-- Node 22 or later and pnpm 10.12.4. `rer` selects the exact Node version Inkwell pins for
-  you, so you do not need to change your global Node.
+- Nothing to install first. `rer` selects the exact Node version Inkwell pins for you, so you do not need to change your global Node.
 
 ## Get Inkwell and start it
 
@@ -12,7 +11,7 @@ Run Inkwell on your own computer with one line. It is free and needs no account 
 npx -y @runeditrun/rer dev just-every/run-inkwell
 ```
 
-That one line installs `rer`, the Run Edit Run command, clones Inkwell and starts it. To start it again later, run `cd run-inkwell && rer dev`.
+That one line installs `rer`, the Run Edit Run command, clones Inkwell and starts it. Without Node, `curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-inkwell` does the same. To start it again later, run `cd run-inkwell && rer dev`.
 
 The first start installs dependencies, builds Inkwell and creates its local database, so
 it can take a few minutes. When it is ready, `rer dev` prints two lines:

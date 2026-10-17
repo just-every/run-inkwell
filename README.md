@@ -12,7 +12,7 @@ The public website and run guide are at [run-inkwell.com](https://run-inkwell.co
 npx -y @runeditrun/rer dev just-every/run-inkwell
 ```
 
-To start it again later, run `cd run-inkwell && rer dev`. The checkout pins rer **0.2.19**, Node
+Without Node, `curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-inkwell` does the same. To start it again later, run `cd run-inkwell && rer dev`. The checkout pins rer **0.2.19**, Node
 **22.20.0** and pnpm **10.12.4**. Rer installs the pinned dependencies and selects
 the pinned tools itself. First launch builds and migrates the local D1 database.
 Open the private `RER_OPEN` URL printed by the command. It signs in the local
@@ -23,8 +23,7 @@ No external email is sent in local mode. Stop with `rer dev --stop` (or
 For ordinary email-link sign-in, use `rer dev --login`, open the local outbox
 address it prints, and follow the newest sign-in message. Confirm the link.
 The outbox requires the local browser key granted by RER_OPEN; a public request
-cannot read it. To install for a real owner, use `rer setup --owner-email
-YOU@YOUR-DOMAIN`, then `rer dev`; use the same saved owner on setup reruns.
+cannot read it. To install for a real owner, run `npx -y @runeditrun/rer install just-every/run-inkwell`, then from the checkout `rer setup --owner-email YOU@YOUR-DOMAIN` and `rer dev`; use the same saved owner on setup reruns.
 
 ## Send an agreement
 
