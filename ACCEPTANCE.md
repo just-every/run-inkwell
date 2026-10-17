@@ -1,6 +1,6 @@
 # Acceptance
 
-Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed here, run through a public door: the browser at 1440 and 390 pixels wide, the HTTP API, a signing link, or a provider fake at the paid or network edge. Status is the contract's, judged at commit `e1c3a8c` (17 October 2026); a build round moves a clause to done by making its journey pass, and an independent release review follows.
+Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed here, run through a public door: the browser at 1440 and 390 pixels wide, the HTTP API, a signing link, or a provider fake at the paid or network edge. Status is the contract's, judged at commit `a78e38f` (17 October 2026); a build round moves a clause to done by making its journey pass, and an independent release review follows.
 
 ## First release
 
@@ -28,16 +28,19 @@ Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed her
 - **PREP-007 — Text tags and existing PDF form fields** (missing). A DOCX with text tags and a fillable IRS W-9 PDF both prepare with no manual placement, and the W-9's named fields prefill through the API.
 - **PREP-008 — Prefill from business data** (missing). Send from a template with a HubSpot-fake deal; company, address and amount prefill with their source shown in the record, and the signer cannot change the locked amount.
 - **PREP-009 — Messages, drafts and scheduled sending** (partial). Save a draft, reopen it, add private messages, schedule it for the next business day at 9:00 America/Chicago and show it sends then with each recipient seeing only their own private message.
+- **PREP-010 — Copy an envelope** (missing). Copy a completed envelope; the draft has the unsigned documents, the same recipients and fields and no signed values; send it, and its record names the source envelope.
 
 ### Templates
 
 - **TMPL-001 — Reusable templates with saved roles** (missing). Create a template with three roles, send it twice to different people, and show each envelope inherited fields, routing, reminders and expiry with no placement.
 - **TMPL-002 — Shared team templates** (missing). A member sees and uses a shared template but cannot edit it; an editor changes it; a member without access cannot find it through the UI or API.
 - **TMPL-003 — Template versions that never change sent envelopes** (missing). Send from version 1, edit the template, send again; the first envelope still shows version 1 fields and the second version 2; saving the first as a template reproduces its fields and roles.
+- **TMPL-004 — Several templates in one envelope** (missing). An NDA template (role Client, order 1) and a W-9 template (role Client, order 1) go out as one envelope; the client signs both in one session and the certificate lists both template versions; a third template whose Client role sits at order 2 is shown as a separate recipient in the preview before sending; when the W-9 template requires an SMS code and the NDA an email code, the preview names the conflict and proposes the SMS code.
+- **TMPL-005 — Template matching on upload** (missing). Upload a fresh copy of the W-9 a template uses; the match is offered and applying it places every template field; an unrelated agreement is offered nothing.
 
 ### Recipients and routing
 
-- **ROUTE-001 — Any number of recipients and roles** (partial). Send to eight signers, one approver, one form filler and three copy recipients; each sees only their own actions; copy recipients receive only the completed record.
+- **ROUTE-001 — Any number of recipients and roles** (partial). Send to eight signers, one approver, one form filler and three copy recipients, where signer 1 must have a witness; each sees only their own actions; signer 1 nominates a witness who is invited only after signer 1 signs and before order 2; copy recipients receive only the completed record.
 - **ROUTE-002 — Sequential, parallel and mixed order** (partial). Recipients at orders 1, 2, 2 and 3; both order-2 recipients are invited together after order 1, and order 3 is invited only after both finish.
 - **ROUTE-003 — Conditional routing** (missing). Two envelopes from one template with amounts of 5,000 and 25,000 USD; only the second routes to the finance director, and the first's certificate names the skipped step and its rule.
 - **ROUTE-004 — Internal approval before sending** (missing). A sender's envelope above the rule's threshold waits for the approver; a rejection returns it to the sender with the reason; an approval sends it.
@@ -45,6 +48,10 @@ Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed her
 - **ROUTE-006 — Delegation and reassignment** (missing). A signer reassigns to a colleague; the colleague verifies and signs; the original link refuses; a disallowed reassignment is refused.
 - **ROUTE-007 — Hosted in-person signing** (missing). An admin hosts an in-person signer at 768 pixels, the signer signs, and the certificate records the host, the attestation and the device.
 - **ROUTE-008 — Contacts and recent recipients** (missing). Import 200 contacts from CSV, autocomplete a recipient by company, and show a CRM-fake contact appears after sync.
+- **ROUTE-009 — Sign it yourself** (missing). A member self-signs a three-page PDF and the mail fake records no message; the certificate names session authentication and the sign-in method; the member downloads the executed PDF and certificate and sends the completed copy to two addresses; a second self-signed document reuses the saved signature without adopting it again; on another envelope the sender at order 1 signs in the app right after approval, and the order-2 signer is invited only after that signature.
+- **ROUTE-010 — Witnesses nominated by their signer** (missing). Signer 1 nominates a witness while signing; the witness is invited only after signer 1 signs and order 2 waits for the witness; the witness verifies, sees only signer 1's document and their own fields, not a document visible only to signer 2, and signs; the certificate names the witness against signer 1; nominating the signer's own email as witness is refused; a declining witness returns the step to signer 1, who nominates another.
+- **ROUTE-011 — Recipients who name, edit or only view** (missing). An agent at order 1 names the order-3 signer, who is then invited; an editor at order 2 adds a field and changes a later recipient's email, and the audit trail shows both; a needs-to-view recipient blocks order 3 until they open the documents; a certified-delivery recipient's view time is on the certificate.
+- **ROUTE-012 — Document visibility per recipient** (missing). An envelope with an offer letter and a compensation memo for the hiring manager: the candidate never sees the memo while signing, in downloads, in their completed copy or through the API recipient view; the manager sees and signs both; the certificate lists each recipient's visible documents.
 
 ### Signer experience
 
@@ -55,6 +62,8 @@ Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed her
 - **SIGNX-005 — ESIGN and UETA consumer disclosure** (partial). A new signer sees and accepts the disclosure; a second signer withdraws consent and the envelope stops with the withdrawal recorded; the certificate quotes the disclosure version.
 - **SIGNX-006 — Branded sending and signing** (missing). Two brands on two templates; invitations and signing pages show each brand's logo and colours, and email headers use its reply-to and domain.
 - **SIGNX-007 — English and Spanish signing** (missing). A recipient set to Spanish receives a Spanish invitation, signs on Spanish pages and receives a Spanish completion email; the certificate shows the language used.
+- **SIGNX-008 — Signer document actions and paper signing** (partial). A signer downloads and prints the document before signing; on an envelope that allows paper signing, a signer uploads a three-page scan, the sender accepts it and the certificate marks the signature as wet ink with the scan's fingerprint; when paper signing is not allowed, the option is absent and the API refuses the upload.
+- **SIGNX-009 — Recipient comments and supplemental documents** (missing). A signer comments on page 2, the sender replies, and the next signer sees the thread when it was shared with them; a supplemental handbook must be acknowledged before the signer can finish, and the certificate lists the acknowledgement and its time.
 
 ### Signer identity
 
@@ -62,6 +71,7 @@ Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed her
 - **IDV-002 — SMS one-time codes** (missing). Through an SMS provider fake, a recipient receives and enters a code, a wrong code and an expired code are refused, and the certificate records the masked number.
 - **IDV-003 — Access codes** (missing). A recipient is refused with a wrong code, locked after five attempts, and admitted with the right one.
 - **IDV-004 — Identity document verification through a provider** (missing). Through a provider fake, a matching verification admits the signer, a failed one refuses with a retry, and the record holds only the reference and outcome.
+- **IDV-005 — Knowledge-based and phone authentication** (missing). Through provider fakes, a recipient who passes the questions is admitted, one who fails twice is locked and the sender notified; a voice-call code admits a second recipient; the record holds only the references and outcomes.
 
 ### Delivery and follow-up
 
@@ -85,6 +95,7 @@ Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed her
 - **MANAGE-002 — Folders, tags and custom envelope fields** (missing). A template adds a required cost-center field; envelopes are filtered and exported by it and the HubSpot fake receives it.
 - **MANAGE-003 — Waiting for me** (missing). An admin is the second signer of a colleague's envelope and signs from the in-app list after the first signer finishes.
 - **MANAGE-004 — Reports and exports** (missing). A fixture of 300 envelopes produces the expected counts and median turnaround, and the CSV matches the report.
+- **MANAGE-005 — Envelope detail and timeline** (partial). For an envelope with three recipients mid-routing, the detail page at 1440 and 390 pixels shows each recipient's sent, delivered, viewed and signed times matching the provider events (`DELIV-001`) and the audit trail, and its remind action sends one reminder to the current signer only.
 
 ### Execution evidence
 
@@ -101,6 +112,7 @@ Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed her
 - **ADMIN-004 — Account defaults and sending policies** (missing). Change each default and show new envelopes inherit it; a templates-only policy refuses an ad hoc upload by a sender.
 - **ADMIN-005 — Account audit log** (missing). Change a template, a role and an integration; the log shows all three with before and after values and exports them.
 - **ADMIN-006 — Transparent usage and cost** (missing). With an SMS cap of 5 USD, sending past the cap warns, then stops SMS codes while email codes continue, and the usage page shows the totals.
+- **ADMIN-007 — First-day setup and readiness** (partial). In a fresh installation the owner claims it; with a DNS fake missing the DKIM record, the readiness screen shows DKIM failing with the exact record to add and a real send is refused; after the record is added the check passes and the send goes.
 
 ### Developer platform
 
@@ -114,8 +126,8 @@ Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed her
 - **INTEG-001 — HubSpot** (missing). Through a HubSpot fake, send from a deal, complete it and show the deal's properties, timeline event and attached PDF updated once.
 - **INTEG-002 — Salesforce** (missing). Through a Salesforce fake, send from an Opportunity, complete it and show field write-back and the attached file.
 - **INTEG-003 — Orbit** (missing). Through Orbit's API in a test installation, send from a deal and show the completed record on it.
-- **INTEG-004 — Google Workspace** (missing). Through a Google fake, send a Drive document and show the completed PDF and certificate in the configured folder.
-- **INTEG-005 — Microsoft 365** (missing). Through a Microsoft Graph fake, send a OneDrive document and show the completed record filed in the SharePoint folder.
+- **INTEG-004 — Google Workspace** (missing). Through a Google fake, send a Drive document and show the completed PDF and certificate in the configured folder; pick a Google Doc and show it arrives as a converted PDF whose fingerprint the envelope binds; in the Gmail add-on test harness, open a message with a PDF attachment from a client with one person on Cc, see the attachment and both participants proposed as recipients, and send; from another message, sign the attached PDF yourself with no mail sent to you.
+- **INTEG-005 — Microsoft 365** (missing). Through a Microsoft Graph fake, send a OneDrive document and show the completed record filed in the SharePoint folder; in the Outlook add-in test harness, open a message with a PDF attachment and two participants, see the attachment and both participants proposed as recipients, and send; sign another message's attachment yourself with no mail sent to you; in the Word add-in test harness, send the open document and show the envelope binds the converted PDF's fingerprint.
 - **INTEG-006 — Box and Dropbox** (missing). Through Box and Dropbox fakes, a completion files the PDF and certificate once each, and a retry does not duplicate.
 - **INTEG-007 — Chest** (missing). In a test installation of Chest, a completion appears in the configured Chest folder with its fingerprint.
 - **INTEG-008 — Locket handoff** (partial). A Locket-initiated envelope completes and Locket shows the executed record against the approved revision; a downloaded handoff manifest still verifies offline.
@@ -126,21 +138,22 @@ Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed her
 ### Mobile
 
 - **MOBILE-001 — Responsive sending and tracking** (partial). At 390 pixels, send from a template, remind a signer and void an envelope.
-- **MOBILE-002 — Native iOS and Android apps** (missing). On iOS and Android simulators, scan a two-page document, send it and receive a push notification on completion.
+- **MOBILE-002 — Native iOS and Android apps** (missing). On iOS and Android simulators, sign a received envelope with a drawn signature using guided Next; send from a template, track its recipients and send a reminder; scan a two-page document and send it; and receive a push notification on each signature and on completion.
 
 ### Migration and portability
 
-- **MOVE-002 — Docusign move-in** (missing). Through a Docusign API fake with 50 envelopes and five templates, preview, import, open an imported certificate and send from an imported template; the unmapped list names each skipped field type.
-- **MOVE-003 — Adobe Acrobat Sign move-in** (missing). Through an Acrobat Sign API fake, import agreements and a library template and send from it.
-- **MOVE-004 — Dropbox Sign move-in** (missing). Through a Dropbox Sign API fake, import requests and templates and send from one.
-- **MOVE-005 — Documenso move-in** (missing). Through a Documenso fake, import documents and a template and send from it.
-- **MOVE-006 — Cutover of in-flight envelopes** (missing). A fake with two in-flight envelopes; one completes after cutover and is imported, the other is voided upstream and is listed as voided.
+- **MOVE-002 — Docusign move-in** (missing). Through a Docusign API fake with two senders, 50 envelopes, five templates in a shared folder, two signing groups and 120 contacts, preview and import; each sender sees only their own imported envelopes in the UI and API while an admin sees all; the shared folder's settings carry over, so a member with use access can send from a template but not edit it; an imported signing group sends as one recipient; contacts autocomplete; a third Docusign user with no member is on the unmapped list and their envelopes belong to the named admin; open an imported certificate and send from an imported template; the unmapped list names each skipped field type.
+- **MOVE-003 — Adobe Acrobat Sign move-in** (missing). Through an Acrobat Sign API fake with two senders, import agreements and a library template, show each sender owns only their own agreements, and send from the template.
+- **MOVE-004 — Dropbox Sign move-in** (missing). Through a Dropbox Sign API fake with two senders, import requests and templates, show each sender owns only their own requests, and send from one.
+- **MOVE-005 — Documenso move-in** (missing). Through a Documenso fake with two senders, import documents and a template, show each sender owns only their own documents, and send from it.
+- **MOVE-006 — Cutover of in-flight envelopes** (missing). A fake with two in-flight envelopes; one completes after cutover and is imported under its sender, the other is voided upstream and is listed as voided; the fake's call log shows neither envelope polled twice within 15 minutes.
 - **MOVE-007 — API compatibility for common calls** (missing). A client written against the incumbent's documented requests runs unchanged against the compatibility layer for create, send, status, download and void.
+- **MOVE-008 — Throttled, resumable imports at account size** (partial). A Docusign fake with 18,000 envelopes and a 3,000-call hourly limit, with the clock advanced: the import returns the hourly-limit error mid-import, pauses, resumes after the window and finishes; the job is killed mid-batch and resumed, and exactly 18,000 envelopes exist with no duplicates; the fake's call log shows no hour over the limit and no resource polled twice within 15 minutes.
 - **PORT-002 — Self-service export at any size** (partial). Export 2 GB of envelopes, interrupt and resume, and restore into an empty installation with every fingerprint verified.
 
 ### Compliance profiles
 
-- **COMPLY-001 — 21 CFR Part 11 signing profile** (missing). With the profile on, a signer re-authenticates and picks a reason; the executed PDF shows the manifestation; the validation package lists the tests run.
+- **COMPLY-001 — 21 CFR Part 11 signing profile** (missing). With the profile on, a signer re-authenticates and picks a reason; the executed PDF shows the manifestation; the validation package for the installed version contains IQ, OQ and PQ scripts with executed results, and every traceability-matrix row cites a test that passed in that run.
 - **COMPLY-002 — HIPAA-ready installation** (missing). In the profile, logs contain no field values or document text after a full signing journey, and the access review report lists every member's last access.
 
 ## Push further

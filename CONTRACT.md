@@ -16,16 +16,16 @@ Inkwell is the owned electronic signature platform a US business buys instead of
 
 A buyer replacing an incumbent needs the whole job, so the target is the whole job:
 
-- **Prepare.** PDF and Word uploads, multi-document envelopes, the complete field set with validation, conditional and calculated fields, AI field and recipient detection, text tags and prefill from business data (`PREP-*`), and reusable shared templates with saved roles (`TMPL-*`).
-- **Route.** Any number of signers, approvers, form fillers, witnesses and copy recipients; sequential, parallel, mixed and conditional order; signing groups, delegation, in-person signing and a contact book (`ROUTE-*`).
-- **Sign.** Guided, accessible, mobile-first signing with drawn, typed or uploaded signatures and initials, ESIGN/UETA consumer disclosure, decline, branding and Spanish (`SIGNX-*`), with email code, access code, SMS code and provider identity verification (`IDV-*`), and payment at signing through Stripe (`INTEG-010`).
+- **Prepare.** PDF and Word uploads, multi-document envelopes, the complete field set with validation, conditional and calculated fields, AI field and recipient detection, text tags and prefill from business data (`PREP-*`), copying an earlier envelope, and reusable shared templates with saved roles, combined several to an envelope and matched on upload (`TMPL-*`).
+- **Route.** Signing your own document with nobody else involved; any number of signers, approvers, form fillers, witnesses, editors, specify-recipients agents, viewers and copy recipients, each seeing only their own documents; sequential, parallel, mixed and conditional order; signing groups, delegation, in-person signing and a contact book (`ROUTE-*`).
+- **Sign.** Guided, accessible, mobile-first signing with drawn, typed or uploaded signatures and initials, ESIGN/UETA consumer disclosure, decline, download, print and paper signing, comments and supplemental documents, branding and Spanish (`SIGNX-*`), with email code, access code, SMS code, knowledge-based and phone authentication and provider identity verification (`IDV-*`), and payment at signing through Stripe (`INTEG-010`).
 - **Follow through.** Delivery status, bounce handling, automatic reminders, configurable expiry, resend by email or SMS, envelope correction, completed copies to every party and sender notifications (`DELIV-*`).
 - **Scale.** Bulk send from a spreadsheet and public signing web forms (`BULK-001`, `FORM-001`).
-- **Keep the record.** An envelope dashboard with search, folders, custom fields and reports (`MANAGE-*`); a certificate of completion with per-recipient evidence, a sealed PDF, public verification and retention rules (`RECORD-*`).
-- **Administer.** Roles, envelope sharing, SSO and SCIM, account defaults, an account audit log and transparent usage (`ADMIN-*`), with optional compliance profiles (`COMPLY-*`).
+- **Keep the record.** An envelope dashboard with search, folders, custom fields, reports and a per-recipient timeline (`MANAGE-*`); a certificate of completion with per-recipient evidence, a sealed PDF, public verification and retention rules (`RECORD-*`).
+- **Administer.** Roles, envelope sharing, SSO and SCIM, account defaults, an account audit log, transparent usage and a first-day readiness check (`ADMIN-*`), with optional compliance profiles (`COMPLY-*`).
 - **Connect.** A REST API, webhooks, embedded signing and sending, SDKs and a test mode (`API-*`); HubSpot, Salesforce, Orbit, Google Workspace, Microsoft 365, Box, Dropbox, Chest, Locket, Zapier, Make, Power Automate, n8n and Crank (`INTEG-*`).
 - **Anywhere.** The responsive web app and native iOS and Android apps (`MOBILE-*`).
-- **Move in and out.** Docusign, Adobe Acrobat Sign, Dropbox Sign, Documenso and DocuSeal imports, cutover of in-flight envelopes, API compatibility for common calls, and complete exports (`MOVE-*`, `PORT-*`).
+- **Move in and out.** Docusign, Adobe Acrobat Sign, Dropbox Sign, Documenso and DocuSeal imports with ownership carried over, throttled and resumable at real account size, cutover of in-flight envelopes, API compatibility for common calls, and complete exports (`MOVE-*`, `PORT-*`).
 - **Push further.** Agents that assemble the envelope from CRM and email context, fill what is missing, chase stalled signers under the sender's rules, verify that every party signed the intended revision and then update the CRM, contract repository and next task (`AGENT-*`).
 
 ### Neighbouring products stay separate
@@ -104,17 +104,23 @@ Inkwell is one product. Where the market sells a neighbouring product separately
 
 - **PREP-009 — Messages, drafts and scheduled sending.** The sender sets the email subject and message for the envelope and a private message per recipient, saves a draft and returns to it, and schedules sending for a future date and time in a US time zone. **Acceptance evidence:** save a draft, reopen it, add private messages, schedule it for the next business day at 9:00 America/Chicago and show it sends then with each recipient seeing only their own private message.
 
+- **PREP-010 — Copy an envelope.** From any sent, completed, declined, voided or expired envelope the sender can see, Copy creates a new draft with the same documents (the original, unsigned bytes), recipients, fields, messages and settings, without any entered values or signatures; the new envelope records the envelope it was copied from. **Acceptance evidence:** copy a completed envelope; the draft has the unsigned documents, the same recipients and fields and no signed values; send it, and its record names the source envelope.
+
 ### Templates
 
-- **TMPL-001 — Reusable templates with saved roles.** A template holds documents, fields, roles (for example Client and Company Signer) with routing order, messages, reminders, expiry and identity settings; sending from it asks only for each role's name and email and any sender fields. **Acceptance evidence:** create a template with three roles, send it twice to different people, and show each envelope inherited fields, routing, reminders and expiry with no placement.
+- **TMPL-001 — Reusable templates with saved roles.** A template holds documents, fields, roles (for example Client and Company Signer) with routing order, messages, reminders, expiry and identity settings; sending from it asks only for each role's name and email and any sender fields. Several templates can be combined in one envelope (`TMPL-004`). **Acceptance evidence:** create a template with three roles, send it twice to different people, and show each envelope inherited fields, routing, reminders and expiry with no placement.
 
 - **TMPL-002 — Shared team templates.** Templates live in personal or shared folders with an owner, can be shared with people or groups to use or to edit, and are searchable by name and tag. **Acceptance evidence:** a member sees and uses a shared template but cannot edit it; an editor changes it; a member without access cannot find it through the UI or API.
 
 - **TMPL-003 — Template versions that never change sent envelopes.** Editing a template creates a new version; envelopes already sent keep the version they were sent from, and the record names it. A sent envelope can be saved as a new template. **Acceptance evidence:** send from version 1, edit the template, send again; the first envelope still shows version 1 fields and the second version 2; saving the first as a template reproduces its fields and roles.
 
+- **TMPL-004 — Several templates in one envelope.** A sender applies two or more templates to one envelope in a chosen order, alongside any ad hoc documents (`PREP-002`). Recipients whose role name and routing order match across templates merge into one recipient, and a preview shows the merged recipient list before sending. When templates disagree (a role at different orders, different identity methods, reminders or expiry), the preview names the conflict and the sender chooses; without a choice, envelope-level settings follow the first template and identity follows the stricter method. Each template's fields stay on its own documents. The record and certificate name every template and version used. **Acceptance evidence:** an NDA template (role Client, order 1) and a W-9 template (role Client, order 1) go out as one envelope; the client signs both in one session and the certificate lists both template versions; a third template whose Client role sits at order 2 is shown as a separate recipient in the preview before sending; when the W-9 template requires an SMS code and the NDA an email code, the preview names the conflict and proposes the SMS code.
+
+- **TMPL-005 — Template matching on upload.** When a sender uploads a document that matches a template's document (by fingerprint or by page-text similarity), Inkwell offers that template's fields and roles, with the match confidence; the sender applies or ignores the offer, and nothing is placed without their choice. **Acceptance evidence:** upload a fresh copy of the W-9 a template uses; the match is offered and applying it places every template field; an unrelated agreement is offered nothing.
+
 ### Recipients and routing
 
-- **ROUTE-001 — Any number of recipients and roles.** An envelope has up to 100 recipients, each with a role: signer, approver (approves without signing), form filler, witness, in-person signer, or receives a copy. Copy recipients receive the completed record and no action link. **Acceptance evidence:** send to eight signers, one approver, one form filler and three copy recipients; each sees only their own actions; copy recipients receive only the completed record.
+- **ROUTE-001 — Any number of recipients and roles.** An envelope has up to 100 recipients, each with a role: signer, approver (approves without signing), form filler, witness (nominated by the signer they witness, `ROUTE-010`), in-person signer, specify-recipients agent, editor, needs to view (`ROUTE-011`), or receives a copy. Copy recipients receive the completed record and no action link; each recipient sees only their own actions and only the documents visible to them (`ROUTE-012`). **Acceptance evidence:** send to eight signers, one approver, one form filler and three copy recipients, where signer 1 must have a witness; each sees only their own actions; signer 1 nominates a witness who is invited only after signer 1 signs and before order 2; copy recipients receive only the completed record.
 
 - **ROUTE-002 — Sequential, parallel and mixed order.** Recipients share or differ in routing order: equal numbers act in parallel, higher numbers wait for all lower ones to finish. **Acceptance evidence:** recipients at orders 1, 2, 2 and 3; both order-2 recipients are invited together after order 1, and order 3 is invited only after both finish.
 
@@ -130,11 +136,19 @@ Inkwell is one product. Where the market sells a neighbouring product separately
 
 - **ROUTE-008 — Contacts and recent recipients.** Senders pick recipients from a shared contact book and recent recipients, with name, email, phone and company; contacts can be imported from CSV and synced from the CRM. **Acceptance evidence:** import 200 contacts from CSV, autocomplete a recipient by company, and show a CRM-fake contact appears after sync.
 
+- **ROUTE-009 — Sign it yourself.** A signed-in member signs their own document with nobody else involved: they upload it (or pick it from a connected store or mailbox add-in, `INTEG-004`, `INTEG-005`), place their own fields, and sign in the app with no invitation and no mailbox code, because their signed-in session (and its sign-in method: password, passkey or SSO) is the authentication, which the certificate records. They then download the executed PDF and certificate, file them, and optionally send the completed copy to other people. A member's adopted signature and initials are saved to their profile and reused for later self-signing and in-app signing (`MANAGE-003`) until they change them. When the sender is also a recipient at the first routing order of their own envelope, they sign in the app immediately after approving it, with no email to themselves, and only then is the next order invited. **Acceptance evidence:** a member self-signs a three-page PDF and the mail fake records no message; the certificate names session authentication and the sign-in method; the member downloads the executed PDF and certificate and sends the completed copy to two addresses; a second self-signed document reuses the saved signature without adopting it again; on another envelope the sender at order 1 signs in the app right after approval, and the order-2 signer is invited only after that signature.
+
+- **ROUTE-010 — Witnesses nominated by their signer.** The sender requires or allows up to two witnesses for a signer. The signer nominates each witness by name and email while signing (or the sender names them in advance), and a witness cannot be the signer or another recipient of the envelope. A witness is invited only after their signer signs and before any later routing order proceeds, authenticates with the method the sender set (`IDV-001`), sees only the documents their signer signed with that signer's completed signature and their own witness fields (signature, printed name, date and, when set, address), and signs. If a witness declines, the step returns to the signer to nominate someone else. The certificate links each witness to the signer they witnessed, with both parties' authentication evidence. **Acceptance evidence:** signer 1 nominates a witness while signing; the witness is invited only after signer 1 signs and order 2 waits for the witness; the witness verifies, sees only signer 1's document and their own fields, not a document visible only to signer 2, and signs; the certificate names the witness against signer 1; nominating the signer's own email as witness is refused; a declining witness returns the step to signer 1, who nominates another.
+
+- **ROUTE-011 — Recipients who name, edit or only view.** Besides signers and approvers, a recipient can be a specify-recipients agent, who enters the names and emails of later recipients the sender left open; an editor, who may change later recipients, their fields and the messages before passing the envelope on, with every change audited; needs to view, who must open the documents before routing continues; or certified delivery, who must open them and whose opening is recorded as proof of delivery. **Acceptance evidence:** an agent at order 1 names the order-3 signer, who is then invited; an editor at order 2 adds a field and changes a later recipient's email, and the audit trail shows both; a needs-to-view recipient blocks order 3 until they open the documents; a certified-delivery recipient's view time is on the certificate.
+
+- **ROUTE-012 — Document visibility per recipient.** In a multi-document envelope the sender chooses which documents each recipient may see; by default a recipient sees every document, and an account policy can hide documents in which a recipient has no fields. Hidden documents are absent from that recipient's signing view, downloads, completed copy, embedded view and API recipient view, and the certificate states which documents each recipient was shown. **Acceptance evidence:** an envelope with an offer letter and a compensation memo for the hiring manager: the candidate never sees the memo while signing, in downloads, in their completed copy or through the API recipient view; the manager sees and signs both; the certificate lists each recipient's visible documents.
+
 ### Signer experience
 
 - **SIGNX-001 — Guided mobile-first signing.** Signing works on a phone at 360 pixels without zooming: a Start and Next button walks the signer through every required field, a progress count shows what remains, the document pages render sharply and load progressively, and the signer can finish later from the same link. **Acceptance evidence:** a signer completes a ten-field, five-page envelope at 390 pixels using only Next, leaves halfway, returns and finishes; the journey records time to first page under 3 seconds on a throttled mobile profile.
 
-- **SIGNX-002 — Draw, type or upload signatures and initials.** The signer adopts a signature and initials by typing (choice of styles), drawing with finger or mouse, or uploading an image; the adopted marks are applied to every signature and initials field, and the record keeps the adoption method. **Acceptance evidence:** one signer draws on a touch screen, another types and a third uploads; all three appear in the executed PDF and the certificate records each method.
+- **SIGNX-002 — Draw, type or upload signatures and initials.** The signer adopts a signature and initials by typing (choice of styles), drawing with finger or mouse, or uploading an image; the adopted marks are applied to every signature and initials field, and the record keeps the adoption method. A signed-in member's adopted marks are saved and reused (`ROUTE-009`). **Acceptance evidence:** one signer draws on a touch screen, another types and a third uploads; all three appear in the executed PDF and the certificate records each method.
 
 - **SIGNX-003 — Accessible signing.** Signing and preparation meet WCAG 2.2 AA: keyboard-only completion, screen-reader labels for every field and its state, visible focus, 200% zoom without loss, and sufficient contrast in both themes. **Acceptance evidence:** an automated accessibility scan with no serious violations on the signing and preparation pages, plus a keyboard-only and a screen-reader journey that complete an envelope.
 
@@ -146,6 +160,10 @@ Inkwell is one product. Where the market sells a neighbouring product separately
 
 - **SIGNX-007 — English and Spanish signing.** Signing pages, emails, disclosures and the certificate are available in English and Spanish, chosen per recipient or by the signer. **Acceptance evidence:** a recipient set to Spanish receives a Spanish invitation, signs on Spanish pages and receives a Spanish completion email; the certificate shows the language used.
 
+- **SIGNX-008 — Signer document actions and paper signing.** Before and after signing, a signer can download and print the documents visible to them (`ROUTE-012`). When the sender allows it, a signer can choose to sign on paper instead: they download the documents, sign them by hand, and upload a scan or phone photo; the sender reviews and accepts or rejects the upload, and the record marks that recipient's signature as wet ink with the uploaded pages' fingerprint, which the certificate states. **Acceptance evidence:** a signer downloads and prints the document before signing; on an envelope that allows paper signing, a signer uploads a three-page scan, the sender accepts it and the certificate marks the signature as wet ink with the scan's fingerprint; when paper signing is not allowed, the option is absent and the API refuses the upload.
+
+- **SIGNX-009 — Recipient comments and supplemental documents.** Recipients and the sender exchange comments on a document while it is out for signature, threaded and anchored to a page, visible to the parties the author chooses and kept in the record. The sender attaches supplemental documents (terms, policies, a handbook) that recipients must view or acknowledge but do not sign; each acknowledgement is recorded. **Acceptance evidence:** a signer comments on page 2, the sender replies, and the next signer sees the thread when it was shared with them; a supplemental handbook must be acknowledged before the signer can finish, and the certificate lists the acknowledgement and its time.
+
 ### Signer identity
 
 - **IDV-001 — Per-recipient authentication choice.** For each recipient the sender chooses none (link only), email code, access code, SMS code or identity verification, with account defaults and template settings; the certificate records the method and outcome. **Acceptance evidence:** one envelope with four recipients using four different methods; each must pass their own method, and the certificate lists each method and result.
@@ -155,6 +173,8 @@ Inkwell is one product. Where the market sells a neighbouring product separately
 - **IDV-003 — Access codes.** The sender sets an access code shared out of band; the recipient must enter it before seeing the document, with attempt limits. **Acceptance evidence:** a recipient is refused with a wrong code, locked after five attempts, and admitted with the right one.
 
 - **IDV-004 — Identity document verification through a provider.** A recipient verifies a government photo ID and a selfie through Persona or Stripe Identity before signing; Inkwell stores only the provider's verification reference, result and name match, never the ID images. **Acceptance evidence:** through a provider fake, a matching verification admits the signer, a failed one refuses with a retry, and the record holds only the reference and outcome.
+
+- **IDV-005 — Knowledge-based and phone authentication.** For US recipients the sender can require knowledge-based authentication (questions from public and credit records through an identity provider such as LexisNexis Risk Solutions) or phone authentication (a code delivered by voice call or SMS through Twilio to a number the sender sets). Attempts are limited, a failed recipient is locked with a notice to the sender, and Inkwell stores only the provider's reference and pass or fail, never the questions or answers. **Acceptance evidence:** through provider fakes, a recipient who passes the questions is admitted, one who fails twice is locked and the sender notified; a voice-call code admits a second recipient; the record holds only the references and outcomes.
 
 ### Delivery and follow-up
 
@@ -190,6 +210,8 @@ Inkwell is one product. Where the market sells a neighbouring product separately
 
 - **MANAGE-004 — Reports and exports.** Reports show envelopes sent, completed, declined and expired, time to complete, and per sender and per template turnaround over a date range, with CSV export. **Acceptance evidence:** a fixture of 300 envelopes produces the expected counts and median turnaround, and the CSV matches the report.
 
+- **MANAGE-005 — Envelope detail and timeline.** Each envelope has a detail page showing its documents, every recipient's place in routing and timeline (sent, delivered, viewed, authenticated, signed, declined or bounced, with times in the account's US time zone and UTC), what each recipient is waiting on, and the actions available to the viewer (remind, resend, correct, void, copy, download), next to the audit trail. **Acceptance evidence:** for an envelope with three recipients mid-routing, the detail page at 1440 and 390 pixels shows each recipient's sent, delivered, viewed and signed times matching the provider events (`DELIV-001`) and the audit trail, and its remind action sends one reminder to the current signer only.
+
 ### Execution evidence
 
 - **RECORD-002 — Per-recipient certificate evidence.** The certificate of completion lists for every recipient their authentication method and result, IP address, user agent, adopted signature and method, disclosure acceptance, and every timestamp in UTC and the account's US time zone, plus every document's fingerprint. **Acceptance evidence:** complete an envelope with email-code and SMS-code signers and show each item on the certificate matches the audit trail.
@@ -214,6 +236,8 @@ Inkwell is one product. Where the market sells a neighbouring product separately
 
 - **ADMIN-006 — Transparent usage and cost.** There are no envelope quotas or seat fees from Inkwell; the account shows envelopes sent and provider usage that costs the buyer money (SMS, identity checks, storage, AI) in USD with optional monthly caps that warn and then stop the paid feature. **Acceptance evidence:** with an SMS cap of 5 USD, sending past the cap warns, then stops SMS codes while email codes continue, and the usage page shows the totals.
 
+- **ADMIN-007 — First-day setup and readiness.** On the buyer's own Cloudflare account, the owner claims the installation and a setup checklist covers the app domain, the sending domain's SPF, DKIM and DMARC records (checked live, showing any record to add), the mail and SMS provider connections with a test message, the identity, payment and AI provider checks the account uses, the brand (`SIGNX-006`) and the consumer disclosure (`SIGNX-005`). A readiness screen shows every check as passing or failing, and the first real send is refused until mail is ready, unless the owner records an explicit override. **Acceptance evidence:** in a fresh installation the owner claims it; with a DNS fake missing the DKIM record, the readiness screen shows DKIM failing with the exact record to add and a real send is refused; after the record is added the check passes and the send goes.
+
 ### Developer platform
 
 - **API-001 — Public REST API.** A documented OpenAPI REST API with scoped API keys and OAuth 2.0 lets an application create envelopes from templates or files, set recipients, fields and prefill, send, read status, download artifacts, correct, resend, void and list, with idempotency keys and rate limits. **Acceptance evidence:** a client creates, sends, polls, downloads and voids envelopes using only the published OpenAPI document; a repeated idempotency key returns the first result; a key without the send scope is refused.
@@ -232,9 +256,9 @@ Inkwell is one product. Where the market sells a neighbouring product separately
 
 - **INTEG-003 — Orbit.** The same send, prefill and write-back for Orbit deals and contacts through Orbit's API. **Acceptance evidence:** through Orbit's API in a test installation, send from a deal and show the completed record on it.
 
-- **INTEG-004 — Google Workspace.** Pick sources from Google Drive and Google Docs, file completed envelopes to a chosen Drive folder per template, and send a Gmail attachment for signature from a Gmail add-on. **Acceptance evidence:** through a Google fake, send a Drive document and show the completed PDF and certificate in the configured folder.
+- **INTEG-004 — Google Workspace.** Pick sources from Google Drive and Google Docs (a Google Doc is exported to PDF and converted and fingerprinted as in `PREP-001`), file completed envelopes to a chosen Drive folder per template, and use the Gmail add-on: from an open message with an attachment, see the attachment and the message's participants (sender, To and Cc) proposed as recipients, then send it for signature or sign it yourself (`ROUTE-009`). **Acceptance evidence:** through a Google fake, send a Drive document and show the completed PDF and certificate in the configured folder; pick a Google Doc and show it arrives as a converted PDF whose fingerprint the envelope binds; in the Gmail add-on test harness, open a message with a PDF attachment from a client with one person on Cc, see the attachment and both participants proposed as recipients, and send; from another message, sign the attached PDF yourself with no mail sent to you.
 
-- **INTEG-005 — Microsoft 365.** Pick sources from OneDrive and SharePoint, file completed envelopes there, and send from Outlook and Word add-ins. **Acceptance evidence:** through a Microsoft Graph fake, send a OneDrive document and show the completed record filed in the SharePoint folder.
+- **INTEG-005 — Microsoft 365.** Pick sources from OneDrive and SharePoint and file completed envelopes there; use the Outlook add-in, which from an open message with an attachment shows the attachment and the message's participants (sender, To and Cc) proposed as recipients, then sends it for signature or lets you sign it yourself (`ROUTE-009`); and use the Word add-in, which sends the open document (converted as in `PREP-001`) for signature. **Acceptance evidence:** through a Microsoft Graph fake, send a OneDrive document and show the completed record filed in the SharePoint folder; in the Outlook add-in test harness, open a message with a PDF attachment and two participants, see the attachment and both participants proposed as recipients, and send; sign another message's attachment yourself with no mail sent to you; in the Word add-in test harness, send the open document and show the envelope binds the converted PDF's fingerprint.
 
 - **INTEG-006 — Box and Dropbox.** File completed envelopes automatically to a Box or Dropbox folder per template. **Acceptance evidence:** through Box and Dropbox fakes, a completion files the PDF and certificate once each, and a retry does not duplicate.
 
@@ -252,27 +276,29 @@ Inkwell is one product. Where the market sells a neighbouring product separately
 
 - **MOBILE-001 — Responsive sending and tracking.** Senders send from templates, track status, remind, correct and void from a phone browser at 390 pixels, with the app installable as a PWA. **Acceptance evidence:** at 390 pixels, send from a template, remind a signer and void an envelope.
 
-- **MOBILE-002 — Native iOS and Android apps.** Native apps sign, send from templates, track and receive push notifications, and scan paper pages with the camera into a PDF to send. **Acceptance evidence:** on iOS and Android simulators, scan a two-page document, send it and receive a push notification on completion.
+- **MOBILE-002 — Native iOS and Android apps.** Native apps sign, send from templates, track and remind, receive push notifications, and scan paper pages with the camera into a PDF to send. **Acceptance evidence:** on iOS and Android simulators, sign a received envelope with a drawn signature using guided Next; send from a template, track its recipients and send a reminder; scan a two-page document and send it; and receive a push notification on each signature and on completion.
 
 ### Migration and portability
 
-- **MOVE-002 — Docusign move-in.** Through the Docusign eSignature REST API with the buyer's OAuth grant, Inkwell imports completed envelopes with their documents and certificates of completion, templates with roles, fields and routing, and custom fields, previewing first and listing what did not map. **Acceptance evidence:** through a Docusign API fake with 50 envelopes and five templates, preview, import, open an imported certificate and send from an imported template; the unmapped list names each skipped field type.
+- **MOVE-002 — Docusign move-in.** Through the Docusign eSignature REST API with the buyer's OAuth grant, Inkwell imports completed, declined and voided envelopes with their documents, certificates of completion, recipients and custom fields; templates with roles, fields, routing and their shared folders; signing groups with their members (`ROUTE-005`); and the account's address book (`ROUTE-008`). Ownership carries over: Docusign users are matched to Inkwell members by email, each imported envelope belongs to its original sender and stays private to them under `ADMIN-001` (and shared as it was in Docusign), each template keeps its owner, and each shared folder keeps its people, groups and use or edit permissions (`TMPL-002`). Users with no matching member go on the unmapped list and their items go to an admin the owner names, who can reassign them later (`ADMIN-002`). The import previews first, with counts per sender, and lists what did not map; it runs throttled and resumable at real account size (`MOVE-008`). **Acceptance evidence:** through a Docusign API fake with two senders, 50 envelopes, five templates in a shared folder, two signing groups and 120 contacts, preview and import; each sender sees only their own imported envelopes in the UI and API while an admin sees all; the shared folder's settings carry over, so a member with use access can send from a template but not edit it; an imported signing group sends as one recipient; contacts autocomplete; a third Docusign user with no member is on the unmapped list and their envelopes belong to the named admin; open an imported certificate and send from an imported template; the unmapped list names each skipped field type.
 
-- **MOVE-003 — Adobe Acrobat Sign move-in.** Agreements with their audit reports and library templates import through the Acrobat Sign API with the same preview and unmapped list. **Acceptance evidence:** through an Acrobat Sign API fake, import agreements and a library template and send from it.
+- **MOVE-003 — Adobe Acrobat Sign move-in.** Agreements with their audit reports and library templates import through the Acrobat Sign API with the same preview, unmapped list, ownership mapping by email as `MOVE-002`, and the throttled, resumable job of `MOVE-008`. **Acceptance evidence:** through an Acrobat Sign API fake with two senders, import agreements and a library template, show each sender owns only their own agreements, and send from the template.
 
-- **MOVE-004 — Dropbox Sign move-in.** Signature requests with their files and audit trails and templates import through the Dropbox Sign API. **Acceptance evidence:** through a Dropbox Sign API fake, import requests and templates and send from one.
+- **MOVE-004 — Dropbox Sign move-in.** Signature requests with their files and audit trails and templates import through the Dropbox Sign API, with the preview, unmapped list and ownership mapping of `MOVE-002` and the job of `MOVE-008`. **Acceptance evidence:** through a Dropbox Sign API fake with two senders, import requests and templates, show each sender owns only their own requests, and send from one.
 
-- **MOVE-005 — Documenso move-in.** Documents with their audit logs and templates import from Documenso's API or export. **Acceptance evidence:** through a Documenso fake, import documents and a template and send from it.
+- **MOVE-005 — Documenso move-in.** Documents with their audit logs and templates import from Documenso's API or export, with the preview, unmapped list and ownership mapping of `MOVE-002` and the job of `MOVE-008`. **Acceptance evidence:** through a Documenso fake with two senders, import documents and a template, show each sender owns only their own documents, and send from it.
 
-- **MOVE-006 — Cutover of in-flight envelopes.** Envelopes still waiting in the incumbent at cutover are listed and tracked read-only until they complete there, then imported automatically; nothing is re-sent to signers. **Acceptance evidence:** a fake with two in-flight envelopes; one completes after cutover and is imported, the other is voided upstream and is listed as voided.
+- **MOVE-006 — Cutover of in-flight envelopes.** Envelopes still waiting in the incumbent at cutover are listed under their mapped sender and tracked read-only until they complete there, then imported automatically; nothing is re-sent to signers. Tracking uses the incumbent's completion webhooks (Docusign Connect) where the grant allows and otherwise polls no more often than the incumbent permits (`MOVE-008`). **Acceptance evidence:** a fake with two in-flight envelopes; one completes after cutover and is imported under its sender, the other is voided upstream and is listed as voided; the fake's call log shows neither envelope polled twice within 15 minutes.
 
 - **MOVE-007 — API compatibility for common calls.** A compatibility layer accepts the most common Docusign and Dropbox Sign API calls (create from template, send, status, download, void, completion webhooks) so an existing integration switches by changing its base URL and key. **Acceptance evidence:** a client written against the incumbent's documented requests runs unchanged against the compatibility layer for create, send, status, download and void.
+
+- **MOVE-008 — Throttled, resumable imports at account size.** Every API import (`MOVE-002` to `MOVE-006`) runs as a background job sized for real accounts (tens of thousands of envelopes over many years). It stays under the incumbent's published limits, reading the limit headers (for Docusign, the account's hourly limit, 3,000 calls by default, and the burst limit, and never polling one resource more than once every 15 minutes); on a rate-limit response (`HOURLY_APIINVOCATION_LIMIT_EXCEEDED`, HTTP 429) it pauses until the window resets. It checkpoints after every batch, so an interruption, a restart or an expired grant resumes from the last checkpoint, and it is idempotent on the incumbent's envelope and template IDs, so a resumed or repeated import creates no duplicate. The job shows progress, an estimated finish time, counts per state and the unmapped list, and the owner can pause or cancel it. **Acceptance evidence:** a Docusign fake with 18,000 envelopes and a 3,000-call hourly limit, with the clock advanced: the import returns the hourly-limit error mid-import, pauses, resumes after the window and finishes; the job is killed mid-batch and resumed, and exactly 18,000 envelopes exist with no duplicates; the fake's call log shows no hour over the limit and no resource polled twice within 15 minutes.
 
 - **PORT-002 — Self-service export at any size.** Admins export all or selected envelopes as PDFs, certificates, audit JSON and a CSV index, streamed in chunks without the 24 MiB browser limit, and a whole-installation archive restores at that size. **Acceptance evidence:** export 2 GB of envelopes, interrupt and resume, and restore into an empty installation with every fingerprint verified.
 
 ### Compliance profiles
 
-- **COMPLY-001 — 21 CFR Part 11 signing profile.** An optional profile for life-science buyers requires re-authentication at each signature, a signing reason, the signature manifestation (printed name, date and meaning) on the document, and a validation package. **Acceptance evidence:** with the profile on, a signer re-authenticates and picks a reason; the executed PDF shows the manifestation; the validation package lists the tests run.
+- **COMPLY-001 — 21 CFR Part 11 signing profile.** An optional profile for life-science buyers requires re-authentication at each signature, a signing reason, the signature manifestation (printed name, date and meaning) on the document, and a validation package: installation, operational and performance qualification (IQ, OQ and PQ) scripts with their executed results for the installed version, a traceability matrix from each Part 11 requirement (11.10, 11.50, 11.70, 11.100, 11.200 and 11.300) to the feature and test that meets it, and the change log since the last validated version. **Acceptance evidence:** with the profile on, a signer re-authenticates and picks a reason; the executed PDF shows the manifestation; the validation package for the installed version contains IQ, OQ and PQ scripts with executed results, and every traceability-matrix row cites a test that passed in that run.
 
 - **COMPLY-002 — HIPAA-ready installation.** Healthcare buyers can run Inkwell with logging that excludes document content, access reviews, and a documented shared-responsibility guide for their Cloudflare account; a business associate agreement is the buyer's arrangement with their providers. **Acceptance evidence:** in the profile, logs contain no field values or document text after a full signing journey, and the access review report lists every member's last access.
 
@@ -317,24 +343,24 @@ How the owner-approved scope for Inkwell (16 October 2026) maps to clauses.
 
 | Scope item | Clauses |
 | --- | --- |
-| Reusable templates with saved roles, AI field detection on uploaded PDF and DOCX, and multi-document envelopes | `TMPL-001` to `TMPL-003`, `PREP-001`, `PREP-002`, `PREP-006`, `PREP-007` |
-| Arbitrary recipient counts with sequential, parallel, CC, approver and conditional routing | `ROUTE-001` to `ROUTE-008` |
+| Reusable templates with saved roles, AI field detection on uploaded PDF and DOCX, and multi-document envelopes | `TMPL-001` to `TMPL-005`, `PREP-001`, `PREP-002`, `PREP-006`, `PREP-007`, `PREP-010` |
+| Arbitrary recipient counts with sequential, parallel, CC, approver and conditional routing | `ROUTE-001` to `ROUTE-012` |
 | Automatic reminders, expiry, bounce handling, resend, recipient correction and decline | `DELIV-001` to `DELIV-008`, `SIGNX-004` |
 | Bulk send and public signing web forms | `BULK-001`, `FORM-001` |
 | REST API, embedded signing, completion webhooks, HubSpot, Salesforce, Google Drive, OneDrive and Locket | `API-001` to `API-004`, `INTEG-001` to `INTEG-011` |
-| SMS OTP, access code, ID verification, mobile-first signing with initials, dates, checkboxes and payments | `IDV-001` to `IDV-004`, `SIGNX-001` to `SIGNX-007`, `PREP-003`, `INTEG-010`, `MOBILE-001`, `MOBILE-002` |
-| Import from each named incumbent and up-and-comer | `MOVE-001` to `MOVE-007` |
+| SMS OTP, access code, ID verification, mobile-first signing with initials, dates, checkboxes and payments | `IDV-001` to `IDV-005`, `SIGNX-001` to `SIGNX-009`, `PREP-003`, `INTEG-010`, `MOBILE-001`, `MOBILE-002` |
+| Import from each named incumbent and up-and-comer | `MOVE-001` to `MOVE-008` |
 | Push further: assemble, fill, chase, verify and complete downstream work | `AGENT-001` to `AGENT-009` |
 
 ## Status
 
-Judged from the code and tests at commit `e1c3a8ca0859b8747c78795f18654173ae53628c` (17 October 2026).
+Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a33e` (17 October 2026).
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 10 | 0 | 0 | 10 |
-| Target and push further | 0 | 26 | 64 | 90 |
-| All | 10 | 26 | 64 | 100 |
+| Target and push further | 0 | 30 | 73 | 103 |
+| All | 10 | 30 | 73 | 113 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -357,9 +383,12 @@ Judged from the code and tests at commit `e1c3a8ca0859b8747c78795f18654173ae5362
 | `PREP-007` | Text tags and existing PDF form fields | target | missing |  | No text tags or AcroForm field import |
 | `PREP-008` | Prefill from business data | target | missing |  | No sender, CRM or API prefill |
 | `PREP-009` | Messages, drafts and scheduled sending | target | partial | `src/inkwell/envelopes.ts` | A prepared envelope is saved before approval but cannot be edited; no subject, messages or scheduled sending |
+| `PREP-010` | Copy an envelope | target | missing |  | No envelope copy |
 | `TMPL-001` | Reusable templates with saved roles | target | missing |  | No templates |
 | `TMPL-002` | Shared team templates | target | missing |  | No shared templates |
 | `TMPL-003` | Template versions that never change sent envelopes | target | missing |  | No template versions |
+| `TMPL-004` | Several templates in one envelope | target | missing |  | No templates, so no combining several in one envelope |
+| `TMPL-005` | Template matching on upload | target | missing |  | No template matching on upload |
 | `ROUTE-001` | Any number of recipients and roles | target | partial | `src/inkwell/envelopes.ts` | One to five signers only; no approver, form filler, witness, in-person or copy roles |
 | `ROUTE-002` | Sequential, parallel and mixed order | target | partial | `src/inkwell/signing.ts`; `tests/api.test.mjs` | Sequential order only; no parallel or mixed order |
 | `ROUTE-003` | Conditional routing | target | missing |  | No conditional routing |
@@ -368,6 +397,10 @@ Judged from the code and tests at commit `e1c3a8ca0859b8747c78795f18654173ae5362
 | `ROUTE-006` | Delegation and reassignment | target | missing |  | No delegation or reassignment |
 | `ROUTE-007` | Hosted in-person signing | target | missing |  | No hosted in-person signing |
 | `ROUTE-008` | Contacts and recent recipients | target | missing |  | No contact book |
+| `ROUTE-009` | Sign it yourself | target | missing |  | Members cannot sign in the app; every signer verifies a mailbox code from an invitation, and no signature is saved |
+| `ROUTE-010` | Witnesses nominated by their signer | target | missing |  | No witness role |
+| `ROUTE-011` | Recipients who name, edit or only view | target | missing |  | No specify-recipients, editor, needs-to-view or certified-delivery recipients |
+| `ROUTE-012` | Document visibility per recipient | target | missing |  | One document per envelope; no per-recipient visibility |
 | `SIGNX-001` | Guided mobile-first signing | target | partial | `src/ui/signer-app.tsx` | Responsive signing page only; no guided Next flow, progress count or mobile journey test |
 | `SIGNX-002` | Draw, type or upload signatures and initials | target | partial | `src/inkwell/pdf.ts` | Typed signature only; no drawn or uploaded signature, no initials, no adoption record |
 | `SIGNX-003` | Accessible signing | target | partial | `src/ui/signer-app.tsx` | Labelled form controls only; no WCAG audit, keyboard or screen-reader journey |
@@ -375,10 +408,13 @@ Judged from the code and tests at commit `e1c3a8ca0859b8747c78795f18654173ae5362
 | `SIGNX-005` | ESIGN and UETA consumer disclosure | target | partial | `src/inkwell/signing.ts` | Explicit consent statement only; no versioned ESIGN disclosure, withdrawal or paper-copy request |
 | `SIGNX-006` | Branded sending and signing | target | missing |  | No customer branding |
 | `SIGNX-007` | English and Spanish signing | target | missing |  | English only |
+| `SIGNX-008` | Signer document actions and paper signing | target | partial | `src/inkwell/signing.ts`; `src/ui/signer-app.tsx` | The verified signer reviews every page in the viewer; no download or print action before signing and no paper-signing path |
+| `SIGNX-009` | Recipient comments and supplemental documents | target | missing |  | No comments or supplemental documents |
 | `IDV-001` | Per-recipient authentication choice | target | partial | `src/inkwell/signing.ts` | Email code is the only method and is always required |
 | `IDV-002` | SMS one-time codes | target | missing |  | No SMS codes |
 | `IDV-003` | Access codes | target | missing |  | No access codes |
 | `IDV-004` | Identity document verification through a provider | target | missing |  | No identity verification provider |
+| `IDV-005` | Knowledge-based and phone authentication | target | missing |  | No knowledge-based or phone authentication |
 | `DELIV-001` | Live delivery with per-message status | target | partial | `src/inkwell/mail.ts` | Sent and uncertain states only; no delivered, opened or bounced events from provider webhooks |
 | `DELIV-002` | Bounces and bad addresses | target | missing |  | No bounce handling |
 | `DELIV-003` | Automatic reminders | target | missing |  | No reminders |
@@ -393,6 +429,7 @@ Judged from the code and tests at commit `e1c3a8ca0859b8747c78795f18654173ae5362
 | `MANAGE-002` | Folders, tags and custom envelope fields | target | missing |  | No folders, tags or custom fields |
 | `MANAGE-003` | Waiting for me | target | missing |  | No in-app waiting-for-me list |
 | `MANAGE-004` | Reports and exports | target | missing |  | No reports |
+| `MANAGE-005` | Envelope detail and timeline | target | partial | `src/ui/envelope-detail.tsx` | Detail page lists signers with signed times and the audit trail; no delivered or viewed timeline, waiting state, remind, resend, correct or copy actions |
 | `RECORD-002` | Per-recipient certificate evidence | target | partial | `src/inkwell/pdf.ts` | Certificate lists signers, times and event hashes; no IP, per-recipient authentication, adoption method, disclosure version or local time zone |
 | `RECORD-003` | Sealed PDFs | target | missing |  | No PDF digital seal; the certificate says it is not one |
 | `RECORD-004` | Public verification | target | partial | `src/inkwell/envelopes.ts`; `tests/api.test.mjs` | Fingerprint verification for signed-in members only; no public upload-to-verify page |
@@ -403,6 +440,7 @@ Judged from the code and tests at commit `e1c3a8ca0859b8747c78795f18654173ae5362
 | `ADMIN-004` | Account defaults and sending policies | target | missing |  | No account defaults or sending policies |
 | `ADMIN-005` | Account audit log | target | missing |  | No account audit log |
 | `ADMIN-006` | Transparent usage and cost | target | missing |  | No usage page or cost caps |
+| `ADMIN-007` | First-day setup and readiness | target | partial | `src/base/setup.ts`; `src/base/setup-state.ts` | Owner claim and first-run confirmation only; no domain, SPF, DKIM or DMARC checks, provider tests or readiness gate |
 | `API-001` | Public REST API | target | partial | `src/inkwell/api.ts`; `tests/api.test.mjs` | Agent preparation endpoint with idempotent command IDs only; no API keys, OAuth, OpenAPI or send, status and download for API clients |
 | `API-002` | Signed webhooks with retries | target | missing |  | No webhooks |
 | `API-003` | Embedded signing and sending | target | missing |  | No embedded signing or sending |
@@ -426,6 +464,7 @@ Judged from the code and tests at commit `e1c3a8ca0859b8747c78795f18654173ae5362
 | `MOVE-005` | Documenso move-in | target | missing |  | No Documenso import |
 | `MOVE-006` | Cutover of in-flight envelopes | target | missing |  | No in-flight cutover |
 | `MOVE-007` | API compatibility for common calls | target | missing |  | No API compatibility layer |
+| `MOVE-008` | Throttled, resumable imports at account size | target | partial | `src/inkwell/imports/index.ts`; `src/modules/import-kit/src/d1/index.ts` | Checkpointed, resumable apply for archive imports only; no remote API pull, rate-limit pause or duplicate-free resume of a remote import |
 | `PORT-002` | Self-service export at any size | target | partial | `src/inkwell/archive.ts` | Whole-installation archive capped at 24 MiB in the browser; no selective export, CSV index or resumable streaming |
 | `COMPLY-001` | 21 CFR Part 11 signing profile | target | missing |  | No Part 11 profile |
 | `COMPLY-002` | HIPAA-ready installation | target | missing |  | No HIPAA-ready profile |
