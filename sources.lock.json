@@ -71,7 +71,7 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "3cab3c4b6688c46fb3d75f4f995cb569e91cb81e8c8ec611e98a5de8c55e5825",
+      "sha256": "531e0a9759c903376b3b41164277152c6903e2048398767b6ede7848dd506fdb",
       "executable": false
     },
     "composition.lock.json": {
@@ -715,7 +715,7 @@
       "executable": false
     },
     "src/modules/dependencies/logout.mjs": {
-      "sha256": "f14396cff53f6052c65cbe2465d30a5e94d1e30169601450b90f1137b128f687",
+      "sha256": "d2760dc2d9143094ddf9a883cf54f98ed7818c471e7ca99d5e195f524b2ae8b1",
       "executable": false
     },
     "src/modules/dependencies/native.mjs": {
@@ -1547,7 +1547,7 @@
       "executable": false
     },
     "src/modules/mail/src/core/validation.mjs": {
-      "sha256": "b636ff3c9775d7a0505430b3edcc244f6f4ebb106d42e036fbbd09f48076a3bc",
+      "sha256": "742a3ca756c15a6e7973ab48cd3c46ee697ab62d44b78ceae59a8fb7ec524f4d",
       "executable": false
     },
     "src/modules/mail/src/development/index.d.mts": {
@@ -1627,7 +1627,7 @@
       "executable": false
     },
     "src/modules/mail/src/inbound/headers.mjs": {
-      "sha256": "6921838a98c4a32da089bec85e5893ee53fca49dcd67d2fc4c1290496228eb1e",
+      "sha256": "7f97376f6817e84940503dcc29d9e99ad4490d3260c142700538ec941b8bfc4f",
       "executable": false
     },
     "src/modules/mail/src/inbound/index.mjs": {
