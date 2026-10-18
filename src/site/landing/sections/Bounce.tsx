@@ -1,8 +1,8 @@
 import { CheckDot, Cursor, Eyebrow, Heading, Pill, Sparks, Sticky, Tick } from '../parts'
 
 const correction = [
-  ['Before', 'mellis@brightwatermd.example'],
-  ['After', 'mellis@brightwatermed.example'],
+  ['Before', 'mellis@brightwatermed.co'],
+  ['After', 'mellis@brightwatermed.com'],
   ['By', 'Rosa Delgado · 9:05 am'],
   ['Old link', 'stopped'],
 ]
@@ -20,18 +20,18 @@ export function Bounce() {
         <div className="ik-bounce-row">
           <article className="ik-card ik-invite">
             <h3 className="ik-card-title">Invitation to Mark Ellis</h3>
-            <Pill tone="red"><s>Bounced: mellis@brightwatermd.example</s></Pill>
+            <Pill tone="red"><s>Bounced: mellis@brightwatermed.co</s></Pill>
             <p>Domain not found · 3:48 pm</p>
             <p>Reminders paused</p>
-            <Sticky className="ik-bounce-sticky" underline={false}>md → med</Sticky>
+            <Sticky className="ik-bounce-sticky" underline={false}>.co → .com</Sticky>
           </article>
           <span className="ik-arrow-dots" aria-hidden="true" />
           <article className="ik-card ik-card--agent ik-typo">
             <p className="ik-agent-pill"><span className="ik-live" />Agent</p>
             <h3 className="ik-card-title">Likely typo</h3>
-            <p>HubSpot contact: <strong>mellis@brightwatermed.example</strong></p>
-            <p>Amy Chen signed from <strong>@brightwatermed.example</strong></p>
-            <p className="ik-suggest"><CheckDot />Suggest <span>brightwatermed</span></p>
+            <p>HubSpot contact: <strong>mellis@brightwatermed.com</strong></p>
+            <p>Amy Chen signed from <strong>@brightwatermed.com</strong></p>
+            <p className="ik-suggest"><CheckDot />Suggest <span>.com</span></p>
           </article>
           <span className="ik-arrow-dots" aria-hidden="true" />
           <div className="ik-correction-col">

@@ -10,12 +10,14 @@
 .ik-split--flip .ik-split-grid { grid-template-columns: minmax(0, 1fr) var(--copy); }
 .ik-prepare .ik-split-grid { --copy: calc(520 * var(--u)); }
 .ik-route .ik-split-grid { --copy: calc(620 * var(--u)); }
-.ik-sign .ik-split-grid { --copy: calc(640 * var(--u)); gap: calc(40 * var(--u)); }
+/* 06 keeps its copy 120 px from the window edge, so its first heading line wraps in balance beside the wide phone stage. */
+.ik-sign .ik-split-grid { --copy: calc(500 * var(--u)); gap: calc(30 * var(--u)); padding-right: calc(50 * var(--u)); }
+.ik-sign .ik-h2 .ik-line:first-child { white-space: normal; text-wrap: balance; }
 .ik-sealing .ik-split-grid { --copy: calc(590 * var(--u)); gap: calc(20 * var(--u)); }
 .ik-bulk .ik-split-grid { --copy: calc(520 * var(--u)); }
 .ik-webform .ik-split-grid { --copy: calc(580 * var(--u)); }
 .ik-movein .ik-split-grid { --copy: calc(770 * var(--u)); gap: calc(40 * var(--u)); }
-.ik-movein .ik-h2 { font-size: calc(64 * var(--u)); }
+.ik-movein .ik-h2, .ik-webform .ik-h2 { font-size: calc(64 * var(--u)); }
 .ik-stage { position: relative; }
 
 /* 01 Hero: copy at the drawn position on the left, the collage in its own 800 x 960 box on the right. */
@@ -64,7 +66,7 @@
 .ik-hc--cert p { color: #2c323d; }
 .ik-hero-mascot { position: absolute; z-index: 1; left: calc(169 * var(--u)); top: calc(566 * var(--u)); width: calc(460 * var(--u)); height: auto; }
 .ik-hero-sticky { left: calc(494 * var(--u)); top: calc(728 * var(--u)); width: calc(182 * var(--u)); transform: rotate(-8deg); font-size: calc(26 * var(--u)); }
-.ik-hero-jamal { left: calc(712 * var(--u)); top: calc(352 * var(--u)); }
+.ik-hero-jamal { left: calc(676 * var(--u)); top: calc(352 * var(--u)); }
 .ik-hero-rosa { left: calc(680 * var(--u)); top: calc(544 * var(--u)); }
 .ik-hs--1 { left: calc(58 * var(--u)); top: calc(76 * var(--u)); transform: rotate(-30deg); }
 .ik-hs--2 { left: calc(722 * var(--u)); top: calc(110 * var(--u)); transform: rotate(40deg); }

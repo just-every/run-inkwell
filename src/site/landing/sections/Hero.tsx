@@ -38,8 +38,8 @@ export function Hero() {
           </ol>
         </article>
         <article className="ik-card ik-hc ik-hc--bounce">
-          <Pill tone="red"><s>Bounced: mellis@brightwatermd.example</s></Pill>
-          <p>→ typo corrected · resent Wed Oct 14, 9:06 am <Tick /></p>
+          <Pill tone="red"><s>Bounced: mellis@brightwatermed.co</s></Pill>
+          <p>→ corrected to .com · resent Wed Oct 14, 9:06 am <Tick /></p>
           <Pill tone="green"><strong>Mark Ellis signed on iPhone</strong> · Thu Oct 15, 11:20 am <Tick /></Pill>
         </article>
         <article className="ik-card ik-hc ik-hc--crm">
