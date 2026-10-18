@@ -1,0 +1,34 @@
+/* Base's Run, contract and not-found pages on the run site (src/site/pages.tsx links this after Base's own style):
+   the homepage's grid paper, its heavy Geist headings and hairline step cards. Base's markup is unchanged. */
+body { background: linear-gradient(#eff2f5 1px, transparent 1px) 0 0 / 84px 84px, linear-gradient(90deg, #eff2f5 1px, transparent 1px) 0 0 / 84px 84px, #fff; }
+.bar { max-width: 1440px; padding: 22px 46px 0; }
+.brand { gap: 14px; font-weight: 800; font-size: 40px; letter-spacing: -.045em; }
+.brand span { padding-block: .14em; margin-block: -.14em; }
+.brand img { width: 58px; height: auto; margin-inline: -3px; }
+.bar nav { gap: 44px; font-size: 18px; }
+h1 { padding-block: .08em .12em; margin-block: -.08em -.12em; font-weight: 900; letter-spacing: -.05em; }
+.intro h1 { font-size: 64px; }
+.hero h1 { font-size: 72px; }
+.sub { color: #434a58; }
+.step { border-radius: 20px; background: #fff; border-color: #e6e9ee; box-shadow: 0 1px 2px rgb(16 24 40 / 5%), 0 14px 34px -10px rgb(16 24 40 / 14%); backdrop-filter: none; }
+.num { background: #e2f7ea; color: #0b7a3e; font-weight: 800; }
+.step h2 { font-weight: 750; letter-spacing: -.025em; }
+.btn { border-radius: 18px; background: #12161f; }
+.art { opacity: .95; }
+/* Below 900 px the commands wrap above their Copy button instead of scrolling under it. */
+@media (max-width: 900px) {
+  .code pre { padding: 46px 14px 14px; white-space: pre-wrap; word-break: break-all; }
+  .copy { top: 8px; right: 8px; transform: none; }
+}
+@media (max-width: 760px) {
+  .bar { padding: 16px 16px 0; }
+  .brand { font-size: 28px; gap: 9px; }
+  .brand img { width: 38px; }
+  .bar nav { gap: 20px; font-size: 15.5px; }
+  .intro h1, .hero h1 { font-size: 42px; }
+}
+@media (max-width: 400px) {
+  .brand { font-size: 26px; }
+  .brand img { width: 34px; }
+  .bar nav { gap: 14px; }
+}

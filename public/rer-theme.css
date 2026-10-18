@@ -1,61 +1,84 @@
-/* Inkwell's declared theme: plum ink on warm paper, Libre Caslon Display for
-   headings and DM Sans for everything else (both SIL OFL 1.1, self-hosted under
-   public/fonts). The Lobby, the run site's Run page, sign-in, /setup, the
-   installer and the app read these --rer-* tokens; the theme grammar allows
-   only them and @font-face rules. Inkwell's own design tokens are in
-   public/tokens.css; the Base frames' layout is in public/frame.css. */
-@font-face {
-  font-family: 'DM Sans';
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url('/fonts/dm-sans/dm-sans-latin-wght-normal.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'DM Sans';
-  font-style: normal;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url('/fonts/dm-sans/dm-sans-latin-ext-wght-normal.woff2') format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: 'DM Sans';
-  font-style: italic;
-  font-weight: 100 900;
-  font-display: swap;
-  src: url('/fonts/dm-sans/dm-sans-latin-wght-italic.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'Libre Caslon Display';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/libre-caslon-display/libre-caslon-display-latin-400-normal.woff2') format('woff2');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-@font-face {
-  font-family: 'Libre Caslon Display';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/libre-caslon-display/libre-caslon-display-latin-ext-400-normal.woff2') format('woff2');
-  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
+/* Inkwell's tokens, defined once. The app, the run site, the installer, sign-in, /setup, the Lobby and Base's Run,
+   contract and not-found pages all read this file.
+   Inkwell's look (design desk, 18 Oct 2026, the Chest family in Inkwell's colours): a crisp white page with a faint
+   square grid, near-black Geist headings whose second line runs emerald to blue, white hairline cards, mint signed
+   pills, soft red bounce pills, and the smiling jade envelope mascot as the logo. */
+@import url('/fonts/fonts.css');
+
 :root {
-  --rer-font-body: 'DM Sans', Arial, sans-serif;
-  --rer-font-heading: 'Libre Caslon Display', Georgia, serif;
-  --rer-page: #FCFBF7;
-  --rer-surface: #FFFFFF;
-  --rer-text: #1C1A1B;
-  --rer-muted: #5F5B5C;
-  --rer-border: #948E89;
-  --rer-focus: #1C1A1B;
-  --rer-link: #6E2A4A;
-  --rer-accent: #6E2A4A;
-  --rer-accent-text: #FFFFFF;
-  --rer-radius: 14px;
+  --rer-font-body: 'Geist', Arial, sans-serif;
+  --rer-font-heading: 'Geist', Arial, sans-serif;
+  --rer-font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --rer-page: #ffffff;
+  --rer-surface: #ffffff;
+  --rer-text: #0b0d12;
+  --rer-muted: #4a5261;
+  --rer-border: #8a93a3;
+  --rer-focus: #0a7cff;
+  --rer-link: #0b0d12;
+  --rer-radius: 16px;
+  --rer-button-radius: 18px;
+  --rer-accent: #12161f;
+  --rer-accent-text: #ffffff;
+  --rer-code-background: #12161f;
+  --rer-code-text: #e8ecf2;
+  --rer-wordmark-weight: 800;
+  --rer-wordmark-tracking: -.04em;
   --rer-logo: url('/brand/mark.svg');
+  /* Base's /contract page: done in the signed green, partial in the reminder amber, missing in quiet slate. */
+  --rer-done: #12a150;
+  --rer-done-ink: #0b7a3e;
+  --rer-on-done: #ffffff;
+  --rer-partial: #f3c64b;
+  --rer-partial-ink: #8a5a00;
+  --rer-missing: #9aa1ad;
+  --rer-missing-ink: #5b6372;
+
+  /* The run site's own tokens. */
+  --paper: var(--rer-page);
+  --surface: var(--rer-surface);
+  --ink: var(--rer-text);
+  --body: #434a58;
+  --soft: #6b7280;
+  --faint: #9aa1ad;
+  --line: #e6e9ee;
+  --line-strong: #d6dbe2;
+  --grid: #eff2f5;
+  --row: #f6f8fa;
+  --button: var(--rer-accent);
+  --jade: #00c98b;
+  --jade-deep: #0a9e6c;
+  --jade-band: #2bd9a2;
+  --mascot-ink: #07211a;
+  --tongue: #f26f8a;
+  --grad-a: #02a36b;
+  --grad-b: #008dfa;
+  --gradient: linear-gradient(90deg, var(--grad-a) 0%, #00a3a0 45%, var(--grad-b) 100%);
+  --green: #12a150;
+  --green-ink: #0b7a3e;
+  --green-tint: #e2f7ea;
+  --green-wash: #f3fbf6;
+  --blue: #0a7cff;
+  --blue-ink: #0466d6;
+  --blue-tint: #e6f1ff;
+  --blue-wash: #f4f8ff;
+  --red: #e5322d;
+  --red-ink: #c42420;
+  --red-tint: #fde4e4;
+  --amber-ink: #8a5a00;
+  --amber-tint: #fdf0b0;
+  --amber-wash: #fff8e1;
+  --violet-ink: #4b3fcf;
+  --violet-tint: #e7e4fd;
+  --rose-ink: #c2412f;
+  --rose-tint: #fee4e3;
+  --sticky: #ffe98c;
+  --sticky-ink: #1d1f22;
+  --code: var(--rer-code-background);
+  --code-text: var(--rer-code-text);
+  --font-hand: 'Kalam', 'Comic Sans MS', cursive;
+  --font-sign: 'Mrs Saint Delafield', 'Allura', cursive;
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 5%), 0 14px 34px -10px rgb(16 24 40 / 14%);
+  --shadow-lift: 0 2px 4px rgb(16 24 40 / 6%), 0 22px 48px -14px rgb(16 24 40 / 20%);
+  --radius-card: 18px;
 }

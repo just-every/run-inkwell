@@ -1,3 +1,5 @@
+<p><img src="public/brand/mark.svg" width="72" height="66" alt=""></p>
+
 # Inkwell
 
 Send a fixed PDF for ordered electronic signatures and keep the executed file,
@@ -9,16 +11,19 @@ The public website and run guide are at [run-inkwell.com](https://run-inkwell.co
 ## Clone and run
 
 ```sh
-npx -y @runeditrun/rer dev just-every/run-inkwell
+curl -fsSL https://runeditrun.com/install.sh | sh
+rer dev just-every/run-inkwell
 ```
 
-Without Node, `curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-inkwell` does the same. To start it again later, run `cd run-inkwell && rer dev`. The checkout pins rer **0.2.19**, Node
+The first line installs `rer` for you alone (with its own Node if you have no Node 22 or later); the second clones,
+installs and starts Inkwell. Already have Node 22 or later? `npx -y @runeditrun/rer dev just-every/run-inkwell` does
+both in one line. To start it again later, run `cd run-inkwell && rer dev`. The checkout pins rer **0.2.45**, Node
 **22.20.0** and pnpm **10.12.4**. Rer installs the pinned dependencies and selects
 the pinned tools itself. First launch builds and migrates the local D1 database.
 Open the private `RER_OPEN` URL printed by the command. It signs in the local
 owner; complete the setup page, then open the workspace. Do not share this URL.
 No external email is sent in local mode. Stop with `rer dev --stop` (or
-`npx --yes @runeditrun/rer@0.2.19 dev --stop`).
+`npx --yes @runeditrun/rer@0.2.45 dev --stop`).
 
 For ordinary email-link sign-in, use `rer dev --login`, open the local outbox
 address it prints, and follow the newest sign-in message. Confirm the link.
@@ -56,7 +61,7 @@ refused with an explanation; the original PDF can retain its own embedded fonts.
 qualified cryptographic PDF signature or establish legal eligibility for you.
 Do not use it for documents excluded from electronic signing. The certificate
 records the actual email-code check, consent and sequence; it is not KYC or
-notarisation. An unfinished envelope can be voided with a recorded reason.
+notarization. An unfinished envelope can be voided with a recorded reason.
 
 Owner/admin roles can prepare, approve and void. Members can read native
 records. Only the owner manages agent credentials, move-in, backup/restore and
@@ -160,9 +165,10 @@ hosted output and hydration. GitHub runs one Verify workflow per main commit.
 The suite stays below the [200-test budget](test-budget.json).
 
 Started from Base `fc0e1041efa55771142bbb57c4ab4743147e264d`; see
-[reuse and trust boundaries](docs/provenance.md). The look (plum ink, Libre Caslon
-Display over DM Sans, the marbled endpaper in `public/brand/band.svg`) is defined in
-`public/rer-theme.css` and `public/tokens.css`; the app's styles are in `public/app/`.
+[reuse and trust boundaries](docs/provenance.md). The run site's look (the design desk's
+Inkwell look of 18 Oct 2026: white grid paper, heavy Geist headings with an emerald-to-blue second line, white hairline
+cards and the smiling jade envelope mark in `public/brand/`) is defined in `public/rer-theme.css`, with fonts in
+`public/fonts/`; the app's styles are in `public/tokens.css` and `public/app/`.
 
 ## Run site
 

@@ -102,8 +102,8 @@ flags, private state, deployment inputs and remote limitations.
 
 ## Work on this foundation
 
-This edition implements the jobs in ACCEPTANCE.md. Its look (plum ink on paper,
-Libre Caslon Display over DM Sans, the marbled endpaper) lives in
+This edition implements the jobs in ACCEPTANCE.md. Its look (white grid paper, heavy Geist headings with an emerald-to-blue second
+line, the smiling jade envelope mark in `public/brand/`) lives in
 `public/rer-theme.css`, `public/tokens.css`, `public/frame.css` (Base's sign-in
 and setup frames) and `public/app/`; the run site is `src/site/` with docs from
 `docs/site.json`. Preserve signing, approval and custody boundaries when

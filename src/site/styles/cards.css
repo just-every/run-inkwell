@@ -1,0 +1,83 @@
+/* The drawn product: white hairline cards and everything on them (pills, chips, initials, check dots), the collaborator
+   cursors, sticky notes and spark doodles. */
+.ik-card { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: calc(18 * var(--u)); box-shadow: var(--shadow-card); padding: calc(22 * var(--u)) calc(26 * var(--u)); color: var(--ink); font-size: calc(16.5 * var(--u)); line-height: 1.45; }
+.ik-card h3, .ik-card-title { color: var(--ink); font-size: calc(21 * var(--u)); font-weight: 650; line-height: 1.25; letter-spacing: -.012em; }
+.ik-card-title { font-size: calc(25 * var(--u)); letter-spacing: -.02em; }
+.ik-card p { color: var(--body); }
+.ik-card--agent { background: var(--green-wash); border-color: #cdeedb; }
+.ik-card-eyebrow { color: #4f5765 !important; font-size: calc(13.5 * var(--u)); font-weight: 600; letter-spacing: .18em; text-transform: uppercase; }
+.ik-mono { font-family: var(--rer-font-mono); font-size: .92em; color: var(--soft) !important; letter-spacing: .01em; }
+
+.ik-pill { display: inline-block; width: fit-content; padding: calc(6 * var(--u)) calc(14 * var(--u)); border-radius: 999px; font-size: calc(15.5 * var(--u)); font-weight: 550; line-height: 1.3; white-space: nowrap; }
+.ik-pill .ik-tick { margin-left: .2em; }
+.ik-pill--lg { padding: calc(10 * var(--u)) calc(20 * var(--u)); font-size: calc(18 * var(--u)); }
+.ik-pill--grey { background: #f1f3f6; color: #374151; }
+.ik-pill--green { background: var(--green-tint); color: var(--green-ink) !important; }
+.ik-pill--green strong { font-weight: 650; }
+.ik-pill--blue { background: var(--blue-tint); color: var(--blue-ink); }
+.ik-pill--red { background: var(--red-tint); color: var(--red-ink); }
+.ik-pill--red s { text-decoration-thickness: 1.5px; }
+.ik-pill--amber { background: var(--amber-tint); color: var(--amber-ink); }
+.ik-chip { display: inline-flex; align-items: center; gap: calc(5 * var(--u)); width: fit-content; padding: calc(5 * var(--u)) calc(12 * var(--u)); border-radius: calc(10 * var(--u)); background: #f1f3f6; color: #2f3642; font-size: calc(15 * var(--u)); font-weight: 500; line-height: 1.35; white-space: nowrap; }
+.ik-chip--blue { background: var(--blue-tint); color: var(--blue-ink); }
+.ik-chip--green { background: var(--green-tint); color: var(--green-ink); }
+
+.ik-avatar { display: inline-grid; place-items: center; flex: none; width: calc(46 * var(--u)); height: calc(46 * var(--u)); border-radius: 50%; font-size: calc(17 * var(--u)); font-weight: 600; letter-spacing: .02em; }
+.ik-avatar--green { background: var(--green-tint); color: var(--green-ink); }
+.ik-avatar--blue { background: var(--blue-tint); color: var(--blue-ink); }
+.ik-avatar--violet { background: var(--violet-tint); color: var(--violet-ink); }
+.ik-avatar--rose { background: var(--rose-tint); color: var(--rose-ink); }
+
+.ik-checkdot { flex: none; display: inline-block; vertical-align: middle; }
+.ik-checkdot circle { fill: var(--green); }
+.ik-checkdot--blue circle { fill: var(--blue); }
+.ik-checkdot path { fill: none; stroke: #fff; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
+.ik-tick { display: inline-block; flex: none; width: .95em; height: .95em; vertical-align: -.1em; fill: none; stroke: var(--green); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.ik-icon { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ik-live { display: inline-block; flex: none; width: calc(12 * var(--u)); height: calc(12 * var(--u)); border-radius: 50%; background: var(--green); }
+.ik-live--blue { background: var(--blue); }
+.ik-live--lg { width: calc(30 * var(--u)); height: calc(30 * var(--u)); }
+
+.ik-doc-tile { display: grid; place-items: center; flex: none; width: calc(46 * var(--u)); height: calc(56 * var(--u)); border-radius: calc(8 * var(--u)); background: var(--green); color: #fff; padding: calc(8 * var(--u)); }
+.ik-doc-tile--round { width: calc(76 * var(--u)); height: calc(76 * var(--u)); border-radius: 50%; background: var(--green-tint); color: var(--green); padding: calc(18 * var(--u)); }
+.ik-doc-tile--sm { width: calc(48 * var(--u)); height: calc(48 * var(--u)); border-radius: 50%; background: var(--green-tint); color: var(--green); padding: calc(11 * var(--u)); }
+.ik-doc-tile--slate { background: #eef0f4; color: #4b5565; }
+.ik-round-tile { display: grid; place-items: center; flex: none; width: calc(60 * var(--u)); height: calc(60 * var(--u)); border-radius: 50%; background: #eef0f6; color: #4b5880; padding: calc(15 * var(--u)); }
+.ik-icon-square { display: grid; place-items: center; flex: none; width: calc(66 * var(--u)); height: calc(66 * var(--u)); border-radius: calc(16 * var(--u)); background: #f1f3f6; color: #2f3642; padding: calc(16 * var(--u)); }
+.ik-icon-square--blue { width: calc(48 * var(--u)); height: calc(48 * var(--u)); padding: calc(11 * var(--u)); background: var(--blue-tint); color: var(--blue); border-radius: calc(12 * var(--u)); }
+.ik-line-icon { display: block; flex: none; width: calc(50 * var(--u)); height: calc(50 * var(--u)); color: #2f3642; }
+.ik-line-icon .ik-icon { stroke-width: 1.6; }
+.ik-brand-tile { display: grid; place-items: center; flex: none; width: calc(46 * var(--u)); height: calc(46 * var(--u)); border-radius: 50%; color: #fff; font-size: calc(21 * var(--u)); font-weight: 750; }
+.ik-brand-tile--orange { background: #ff7a45; }
+.ik-seal { flex: none; width: calc(58 * var(--u)); height: calc(58 * var(--u)); }
+.ik-seal path:first-child { fill: var(--green); }
+.ik-seal path:last-child { fill: none; stroke: #fff; stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; }
+.ik-seal--lg { width: calc(84 * var(--u)); height: calc(84 * var(--u)); }
+.ik-dot-red, .ik-dot-blue, .ik-dot-green, .ik-dot-grey { display: inline-block; flex: none; width: calc(14 * var(--u)); height: calc(14 * var(--u)); border-radius: 50%; background: var(--red); }
+.ik-dot-blue { background: var(--blue); }
+.ik-dot-green { background: var(--green); }
+.ik-dot-grey { background: #9aa1ad; }
+.ik-qr { flex: none; width: calc(70 * var(--u)); height: calc(70 * var(--u)); }
+
+/* People drawn on the page. */
+.ik-cursor { position: absolute; z-index: 6; display: block; width: calc(130 * var(--u)); height: calc(74 * var(--u)); pointer-events: none; }
+.ik-cursor svg { width: calc(34 * var(--u)); height: calc(34 * var(--u)); }
+.ik-cursor path { fill: #0b0d12; stroke: #fff; stroke-width: 1.6; stroke-linejoin: round; }
+.ik-cursor span { position: absolute; left: calc(26 * var(--u)); top: calc(28 * var(--u)); padding: calc(6 * var(--u)) calc(15 * var(--u)); border-radius: 999px; color: #fff; font-size: calc(17 * var(--u)); font-weight: 600; line-height: 1.25; box-shadow: 0 6px 14px -6px rgb(11 13 18 / 45%); }
+.ik-cursor--rosa span { background: var(--green); }
+.ik-cursor--jamal span { background: var(--blue); }
+.ik-signature { padding: .28em .1em; margin: -.28em -.1em; font-family: var(--font-sign); font-weight: 400; color: #14171c; line-height: 1; white-space: nowrap; }
+.ik-signature--kenji { font-family: 'Allura', var(--font-sign); }
+
+.ik-sticky { position: absolute; z-index: 5; display: block; width: fit-content; padding: calc(16 * var(--u)) calc(22 * var(--u)) calc(14 * var(--u)); background: var(--sticky); color: var(--sticky-ink) !important; font-family: var(--font-hand); font-size: calc(25 * var(--u)); font-weight: 400; line-height: 1.18; box-shadow: 0 1px 1px rgb(120 90 0 / 15%), 0 14px 22px -10px rgb(60 45 0 / 35%); }
+.ik-sticky span { display: block; padding-block: .16em; margin-block: -.16em; }
+.ik-sticky-line { width: 70%; height: calc(12 * var(--u)); margin: calc(4 * var(--u)) 0 0 auto; }
+.ik-sticky-line path { fill: none; stroke: var(--sticky-ink); stroke-width: 2.6; stroke-linecap: round; }
+.ik-sparks { position: absolute; z-index: 1; width: calc(44 * var(--u)); height: calc(44 * var(--u)); pointer-events: none; }
+.ik-sparks path { fill: none; stroke-width: 4; stroke-linecap: round; }
+.ik-sparks--green path { stroke: var(--green); }
+.ik-sparks--blue path { stroke: var(--blue); }
+.ik-dots { position: relative; display: block; }
+.ik-dots--v { width: 2px; height: calc(52 * var(--u)); background: repeating-linear-gradient(to bottom, #20242c 0 3px, transparent 3px 8px); }
+.ik-arrow-dots { position: relative; align-self: center; display: block; height: 2px; background: repeating-linear-gradient(90deg, #20242c 0 3px, transparent 3px 8px); }
+.ik-arrow-dots::after { content: ""; position: absolute; right: -2px; top: -5px; border: 6px solid transparent; border-left: 9px solid #20242c; border-right: 0; }

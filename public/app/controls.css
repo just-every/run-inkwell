@@ -62,15 +62,16 @@ body:has(.iw-app) { padding: 0; background: var(--paper); }
   color: var(--ink);
   font: 400 16px/1.4 var(--font-body);
 }
-/* Single-choice selects: chevron 14px in from the border, in --rer-muted; multiple and size>1 lists stay native. */
+/* Single-choice selects: Base #247's chevron, two gradient strokes in --muted ending 14px in from the border (no data:
+   URI, which the theme frame's img-src 'self' blocks); multiple and size>1 lists stay native. */
 .iw-app select:not([multiple]):not([size]), .iw-app select[size="1"]:not([multiple]) {
   -webkit-appearance: none;
   appearance: none;
-  padding-right: 40px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%235F5B5C' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  padding-inline-end: 40px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
   background-repeat: no-repeat;
-  background-position: right 14px center;
-  background-size: 12px 8px;
+  background-position: right 20px center, right 14px center;
+  background-size: 6px 6px, 6px 6px;
 }
 .iw-app textarea { min-height: 96px; resize: vertical; }
 .iw-app input[type=checkbox] { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--plum); }
@@ -94,7 +95,7 @@ body:has(.iw-app) { padding: 0; background: var(--paper); }
 .iw-inline-label select { width: 204px; }
 .iw-check { display: flex !important; align-items: flex-start; gap: 14px !important; font-weight: 400 !important; }
 .iw-file { display: flex !important; align-items: center; gap: 12px !important; padding: 6px 6px 6px 16px; border: 1px solid var(--control); border-radius: var(--radius-field); color: var(--muted); font-weight: 400 !important; }
-.iw-file::before { content: ""; flex: none; width: 18px; height: 18px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235F5B5C' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M20 11.5l-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8'/%3E%3C/svg%3E") center / contain no-repeat; }
+.iw-file::before { content: ""; flex: none; width: 18px; height: 18px; background: url("/app/paperclip.svg") center / contain no-repeat; }
 .iw-app .iw-file input[type=file] { flex: 1; min-height: 0; margin-left: auto; padding: 0; border: 0; text-align: right; }
 
 /* Status pills: lowercase text labels, so colour never carries meaning alone. */
@@ -116,7 +117,7 @@ body:has(.iw-app) { padding: 0; background: var(--paper); }
 .iw-check-mark { flex: none; width: 22px; height: 22px; }
 .iw-check-mark circle { fill: var(--plum); }
 .iw-check-mark path { fill: none; stroke: #FFFFFF; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.iw-roundel { display: block; border-radius: 50%; }
+.iw-roundel { display: block; }
 
 /* Notices. */
 .iw-error { padding: 12px 16px; border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); border-radius: var(--radius-field); background: var(--danger-tint); color: var(--danger) !important; overflow-wrap: anywhere; }

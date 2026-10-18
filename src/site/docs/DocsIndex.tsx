@@ -10,8 +10,8 @@ export function DocsIndex() {
       <DocsSidebar />
       <main className="docs-main docs-main--index">
         <header className="docs-page-head">
-          <p className="ik-eyebrow">Inkwell</p>
-          <h1>Docs</h1>
+          <p className="ik-eyebrow">Inkwell docs</p>
+          <h1 className="docs-title">Docs</h1>
           <p className="docs-lead">{docsLead}</p>
         </header>
         {docsSections.map((section, index) => (

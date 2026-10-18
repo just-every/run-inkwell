@@ -40,7 +40,7 @@ export function renderMarkdown(markdown: string): RenderedPage {
         const language = (lang ?? '').trim().split(/\s+/)[0].toLowerCase();
         if (!language) problems.push('has a code block without a language');
         const name = languageNames[language] ?? language.toUpperCase();
-        const head = `<div class="docs-code-head"><span class="docs-code-lang">${escapeHtml(name || 'Code')}</span></div>`;
+        const head = `<div class="docs-code-head"><span class="docs-code-lang">${escapeHtml(name || 'Code')}</span><button class="docs-copy" type="button" hidden>Copy</button></div>`;
         const className = language ? ` class="language-${escapeHtml(language)}"` : '';
         return `<div class="docs-code">${head}<pre><code${className}>${escapeHtml(text.replace(/\n$/, ''))}</code></pre></div>\n`;
       },

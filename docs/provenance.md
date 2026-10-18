@@ -20,7 +20,7 @@ Adapted sibling code (MIT; sibling repositories were not changed):
 An audit hash proves consistency of the retained bytes and event chain. A person
 with direct control of the database could replace both data and hashes; this is
 not an external timestamp authority. Email codes establish access to the named
-mailbox, not government identity. No qualified signature, KYC, notarisation or
+mailbox, not government identity. No qualified signature, KYC, notarization or
 universal validity is claimed. The owner determines document eligibility.
 
 Original PDFs are immutable after preparation. Typed signature marks are added

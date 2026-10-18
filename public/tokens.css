@@ -22,9 +22,9 @@
   --marble-olive: #6E6F47;
   --marble-cream: #D9C5A2;
   --focus: #1C1A1B;
-  --font-heading: 'Libre Caslon Display', Georgia, serif;
-  --font-body: 'DM Sans', Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-heading: 'Geist', Arial, sans-serif;
+  --font-body: 'Geist', Arial, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --shadow-card: 0 1px 2px #1C1A1B0D, 0 16px 40px #1C1A1B14;
   --shadow-panel: 0 1px 2px #0000000A, 0 10px 28px #00000010;
   --radius-card: 14px;

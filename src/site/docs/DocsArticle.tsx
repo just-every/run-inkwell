@@ -17,7 +17,7 @@ export function DocsArticle({ slug }: { slug: string }) {
         <article aria-labelledby="docs-title">
           <header className="docs-page-head">
             <p className="ik-eyebrow">{page.section}</p>
-            <h1 id="docs-title">{page.title}</h1>
+            <h1 className="docs-title" id="docs-title">{page.title}</h1>
           </header>
           <div className="docs-prose" dangerouslySetInnerHTML={{ __html: page.html }} />
         </article>

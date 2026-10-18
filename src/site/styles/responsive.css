@@ -1,0 +1,337 @@
+/* Below 1181 px the compositions stack: copy first, then the drawing at its design size where it fits. At 760 px and
+   below (the 390 plan) every collage becomes a column of cards, the reminders calendar becomes one card per week and
+   the bulk table a list. */
+@media (max-width: 1180px) {
+  .ik-site { --gutter: 32px; }
+  .ik-header { padding: 0 24px; }
+  .ik-home .ik-header { margin-bottom: 0; }
+  .ik-hero { height: auto; padding: 40px 0 0; }
+  .ik-hero-copy { position: relative; left: auto; top: auto; width: var(--wrap); margin: 0 auto; }
+  .ik-hero-art { --u: min(1px, (100vw - 40px) / 810); position: relative; left: auto; margin: 10px auto 0; }
+  .ik-section { padding: 88px 0; }
+  .ik-split-grid, .ik-split--flip .ik-split-grid { grid-template-columns: minmax(0, 1fr); gap: 48px; }
+  .ik-split--flip .ik-copy { order: -1; }
+  .ik-copy .ik-body { max-width: 640px; }
+  .ik-stage { justify-self: center; }
+  .ik-sign-stage { width: 840px; max-width: 100%; }
+  .ik-bounce-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px 28px; }
+  .ik-bounce-row > .ik-arrow-dots { display: none; }
+  .ik-bounce-row > .ik-correction-col { grid-column: 1 / -1; max-width: 520px; justify-self: center; }
+  .ik-invite, .ik-typo { margin-top: 0; }
+  .ik-timeline { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 36px; }
+  .ik-timeline::before { display: none; }
+  .ik-file-stage { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .ik-file-links { display: none; }
+  .ik-file-center { grid-column: 1 / -1; grid-row: 1; height: 420px; }
+  .ik-remind-head { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .ik-remind-agent { position: relative; right: auto; top: auto; width: auto; margin-top: 20px; transform: none; }
+  .ik-webform-stage { width: 760px; max-width: 100%; }
+  .ik-closing { padding-top: 150px; }
+  .ik-line { white-space: normal; }
+  .ik-seal-stage { width: 100%; max-width: 760px; }
+  .ik-certificate { width: auto; margin-left: 0; }
+  .ik-seal-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 18px; margin-left: 0; }
+  .ik-verify > div { min-width: 0; }
+  .ik-verify p { overflow-wrap: anywhere; }
+  .ik-webform-stage { display: grid; gap: 22px; padding: 0; }
+  .ik-browser { width: auto; margin-left: 0; }
+  .ik-embed, .ik-submission { position: relative; left: auto; right: auto; bottom: auto; width: auto; max-width: 520px; transform: none; }
+  .ik-wf-link { display: none; }
+  .ik-import header { padding-right: 120px; }
+  .ik-closing-path, .ik-env-mini--2, .ik-env-mini--3, .ik-cl-spark--1, .ik-cl-spark--2 { display: none; }
+  .ik-env-mini--1 { left: 24px; top: 36px; width: 84px; }
+  .ik-plane { right: 24px; top: 14px; width: 150px; }
+
+  /* 09 Remind: below 1181 px the two-week calendar becomes one card per week. */
+  .ik-calendar-card { padding: 20px 16px; transform: none; }
+  .ik-calendar-head { flex-wrap: wrap; gap: 10px; }
+  .ik-calendar-head .ik-card-title { font-size: 21px; }
+  .ik-calendar-head .ik-card-title span { display: block; color: var(--body); font-weight: 400; font-size: 17px; }
+  .ik-calendar { display: none; }
+  .ik-weeks { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .ik-week { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .ik-week-days { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 1.3fr); border-bottom: 1px solid var(--line); }
+  .ik-week:last-child .ik-week-days { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .ik-week-days > span { display: grid; justify-items: center; gap: 2px; padding: 10px 2px; border-left: 1px solid var(--line); color: var(--body); font-size: 13.5px; }
+  .ik-week-days > span:first-child { border-left: 0; }
+  .ik-week-days b { color: var(--ink); font-size: 17px; font-weight: 600; }
+  .ik-week-days .is-on { background: var(--blue-wash); color: var(--blue-ink); }
+  .ik-week:last-child .ik-week-days .is-on { background: var(--green-wash); color: var(--green-ink); }
+  .ik-week-days i { width: 12px; height: 12px; }
+  .ik-week-days > span { min-width: 0; }
+  .ik-week-days .ik-week-skip { overflow-wrap: anywhere; place-items: center; background: repeating-linear-gradient(135deg, #f4f6f8 0 6px, #fbfcfd 6px 12px); color: var(--soft); font-size: 13px; text-align: center; }
+  .ik-week ul { display: grid; gap: 12px; padding: 14px 14px 16px; }
+  .ik-week li { display: flex; align-items: center; gap: 12px; color: var(--body); font-size: 15px; }
+  .ik-week li b { color: var(--ink); font-weight: 650; }
+  .ik-week-events li { align-items: flex-start; }
+  .ik-week-events li > div span { display: block; color: var(--soft); }
+  .ik-week-events .ik-icon { flex: none; width: 26px; height: 26px; color: var(--green-ink); }
+  .ik-week-events .is-off { color: var(--faint); }
+  .ik-week-events .is-off .ik-icon { color: var(--faint); }
+  .ik-rules { flex-direction: column; border-top: 0; padding-top: 0; }
+  .ik-rules li { width: fit-content; font-size: 15.5px; background: var(--green-wash); }
+  .ik-remind-sticky-m { position: relative; display: block; margin: 26px auto 6px; transform: rotate(-5deg); }
+
+}
+
+@media (max-width: 860px) {
+  .ik-hero-art { --u: min(1px, (100vw - 24px) / 810); }
+  .ik-remind .ik-calendar-card { overflow-x: clip; }
+}
+
+@media (max-width: 760px) {
+  .ik-site { --gutter: 16px; --u: 1px; font-size: 16px; }
+  .ik-header { height: 72px; padding: 0 16px; }
+  .ik-header nav { gap: 20px; padding: 0; font-size: 15.5px; }
+  .ik-lockup { gap: 9px; }
+  .ik-lockup img { width: 48px; }
+  .ik-lockup span { font-size: 31px; }
+  .ik-h1 { font-size: 50px; line-height: 1.04; }
+  .ik-h2 { font-size: 41px; line-height: 1.06; }
+  .ik-closing .ik-h2 { font-size: 44px; }
+  .ik-line { white-space: normal; }
+  .ik-eyebrow { font-size: 13px; letter-spacing: .2em; }
+  .ik-lead { font-size: 19px; }
+  .ik-body { font-size: 18.5px; }
+  .ik-run { min-height: 56px; padding: 0 28px; font-size: 19px; border-radius: 18px; }
+  .ik-text-link { font-size: 18px; }
+  .ik-actions { gap: 16px 26px; }
+  .ik-card { padding: 18px; font-size: 15px; transform: none !important; }
+  .ik-card h3, .ik-card-title { font-size: 18.5px; }
+  .ik-card-title { font-size: 21px; }
+  .ik-card-eyebrow { font-size: 13px; }
+  .ik-pill, .ik-chip { font-size: 14px; white-space: normal; }
+  .ik-pill--lg { font-size: 15.5px; padding: 9px 16px; }
+  .ik-sticky { font-size: 21px !important; }
+  .ik-cursor { transform: scale(.85); transform-origin: top left; }
+  .ik-section { padding: 64px 0; }
+  .ik-copy { gap: 16px; }
+  .ik-split-grid, .ik-split--flip .ik-split-grid { gap: 36px; }
+  .ik-stage { justify-self: stretch; width: 100%; }
+  .ik-sparks { display: none; }
+
+  /* 01 Hero: copy, the mascot with its sticky, then the cards as a strip. */
+  .ik-hero { padding-top: 28px; }
+  .ik-hero-sub { margin-top: 22px; font-size: 18px; }
+  .ik-hero-alt { margin-top: 16px; font-size: 17px; }
+  .ik-hero .ik-actions { margin-top: 26px; }
+  .ik-hero-art { --u: 1px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; width: var(--wrap); height: auto; margin: 36px auto 0; }
+  .ik-hero-links, .ik-hero .ik-cursor { display: none; }
+  .ik-hc { position: relative; left: auto !important; top: auto !important; width: auto !important; }
+  .ik-hc p { font-size: 14.5px; }
+  .ik-hero-mascot { position: relative; left: auto; top: auto; grid-column: 1 / -1; grid-row: 1; width: 300px; margin: 0 auto -6px; }
+  .ik-hero-sticky { position: relative; left: auto; top: auto; grid-column: 1 / -1; grid-row: 2; justify-self: center; width: auto; margin: -34px 0 8px 150px; transform: rotate(-6deg) !important; }
+  .ik-hc--envelope, .ik-hc--bounce { grid-column: 1 / -1; }
+  .ik-hc--template, .ik-hc--form, .ik-hc--cert { flex-direction: column; align-items: flex-start; }
+  .ik-hc--crm { grid-column: 1 / -1; }
+  .ik-hc--cert { grid-column: 1 / -1; flex-direction: row; }
+  .ik-hc--bounce .ik-pill { white-space: normal; }
+  .ik-qr { width: 56px; height: 56px; }
+
+  /* 02 Overview: a vertical timeline. */
+  .ik-overview { padding-top: 56px; }
+  .ik-head-sparks .ik-line { margin-inline: auto; }
+  .ik-timeline-card { margin-top: 52px; padding: 44px 18px 18px; }
+  .ik-ov-sticky { right: 6px; top: -38px; font-size: 19px !important; }
+  .ik-timeline { grid-template-columns: minmax(0, 1fr); row-gap: 0; }
+  .ik-timeline::before { display: block; left: 15px; right: auto; top: 16px; bottom: 30px; width: 2px; height: auto; }
+  .ik-stop { display: grid; grid-template-columns: 32px minmax(0, 1fr); column-gap: 16px; padding: 0 0 22px; }
+  .ik-node { grid-row: 1 / span 4; margin: 0; }
+  .ik-stop-day { font-size: 13px; }
+  .ik-stop-time { margin-top: 2px; font-size: 21px; }
+  .ik-stop-line { margin-top: 4px; font-size: 15.5px; }
+  .ik-ov-rosa { display: none; }
+  .ik-timeline-foot { flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 8px; font-size: 15.5px; }
+
+  /* 03 to 07: cards in a column, connectors turned down. */
+  .ik-prepare-stage, .ik-route-stage { padding: 0; justify-items: stretch; }
+  .ik-deal, .ik-draft, .ik-gaps, .ik-template, .ik-signer, .ik-mini, .ik-mini + .ik-mini, .ik-certificate, .ik-import, .ik-preview, .ik-batch, .ik-form-card, .ik-browser { width: auto; margin-left: 0; margin-right: 0; }
+  .ik-deal { align-items: flex-start; }
+  .ik-icon-square { width: 48px; height: 48px; padding: 11px; }
+  .ik-deal-jamal { right: 4px; top: auto; bottom: -46px; }
+  .ik-prepare-dots-1, .ik-prepare-dots-2 { margin: 6px auto; transform: none; height: 32px; }
+  .ik-draft .ik-card-title { font-size: 23px; }
+  .ik-fields > div { grid-template-columns: 74px minmax(0, 1fr); row-gap: 2px; padding: 10px 0; }
+  .ik-fields dt { grid-row: 1 / span 2; padding-left: 0; font-size: 14.5px; }
+  .ik-fields dd { font-size: 15px; }
+  .ik-source { justify-self: start; font-size: 12.5px !important; }
+  .ik-draft-sticky { right: -4px; top: -30px; }
+  .ik-draft .ik-card-eyebrow { padding-right: 128px; }
+  .ik-hc--form h3 { white-space: normal; }
+  .ik-gap-rows li { grid-template-columns: minmax(0, 1fr) auto; font-size: 14.5px; }
+  .ik-gap-rows li span:nth-child(2) { display: none; }
+  .ik-gap-rows li span:nth-child(3) { grid-column: 1; }
+  .ik-gap-rows .ik-tick { grid-column: 2; grid-row: 1 / span 2; }
+  .ik-template li { font-size: 17px; flex-wrap: wrap; gap: 10px 14px; }
+  .ik-template .ik-chip { font-size: 14.5px; }
+  .ik-route-list { padding-left: 48px; gap: 18px; }
+  .ik-route-list::before { left: 15px; bottom: -120px; }
+  .ik-route-num { left: -48px; width: 32px; height: 32px; font-size: 15px; }
+  .ik-signer header { flex-wrap: wrap; }
+  .ik-signer header div { flex: 1 1 180px; min-width: 0; }
+  .ik-signer header .ik-chip { margin-left: 58px; }
+  .ik-signer .ik-avatar { width: 42px; height: 42px; font-size: 15px; }
+  .ik-signer header p { font-size: 14.5px; }
+  .ik-signer .ik-chip { font-size: 13.5px; }
+  .ik-signer-done { align-items: flex-start; font-size: 14.5px; }
+  .ik-signer-note { font-size: 15px; padding-left: 0; }
+  .ik-route-rosa { right: 6px; top: auto; bottom: -44px; }
+  .ik-route-branch { padding-left: 48px; }
+  .ik-mini::before { left: -34px; width: 30px; }
+  .ik-mini + .ik-mini::before { left: -34px; width: 30px; }
+  .ik-mini p:last-child { font-size: 15px; }
+  .ik-bounce-row { grid-template-columns: minmax(0, 1fr); gap: 36px; margin-top: 40px; }
+  .ik-bounce-row > .ik-correction-col { grid-column: auto; max-width: none; }
+  .ik-invite .ik-pill { font-size: 14px; }
+  .ik-bounce-sticky { left: auto; right: 10px; bottom: -40px; }
+  .ik-typo > p:not(.ik-agent-pill):not(.ik-suggest) { font-size: 14.5px; overflow-wrap: anywhere; }
+  .ik-kv > div { grid-template-columns: 98px minmax(0, 1fr); font-size: 14.5px; }
+  .ik-resent, .ik-opened { font-size: 15px; }
+  .ik-opened { margin-left: 0; }
+  .ik-bounce-rosa { right: 8px; bottom: -40px; }
+
+  .ik-sign-stage { height: auto; display: grid; gap: 18px; justify-items: center; }
+  .ik-phone { position: relative; left: auto; top: auto; width: 300px; height: 590px; padding: 9px; border-radius: 48px; transform: none; }
+  .ik-phone-screen { padding: 12px 18px; border-radius: 40px; }
+  .ik-phone-status { font-size: 13px; height: 30px; }
+  .ik-phone-island { width: 84px; height: 24px; }
+  .ik-phone-top { margin-top: 14px; }
+  .ik-phone-top strong { font-size: 13.5px; }
+  .ik-phone-top span { font-size: 13px; }
+  .ik-phone-step { margin-top: 22px; font-size: 18px; }
+  .ik-phone-doc { margin-top: 14px; padding: 14px; }
+  .ik-phone-doc p { font-size: 13px; }
+  .ik-phone-doc .ik-phone-doc-title { font-size: 15px; }
+  .ik-phone-sign { height: 118px; margin-top: 14px; }
+  .ik-phone-flag { font-size: 13px; }
+  .ik-signature--mark { left: 20px; bottom: 26px; font-size: 50px; }
+  .ik-phone-buttons span { height: 42px; font-size: 14px; }
+  .ik-phone-foot { margin-top: 18px; font-size: 13px; }
+  .ik-verified, .ik-assistant { position: relative; left: auto; top: auto; width: 100%; }
+  .ik-sign-link { display: none; }
+  .ik-sign-pill { font-size: 15px !important; }
+
+  .ik-certificate header { flex-wrap: wrap; }
+  .ik-seal--lg { width: 56px; height: 56px; }
+  .ik-certificate h3 { font-size: 23px; }
+  .ik-certificate header p { font-size: 15px; }
+  .ik-seal-rosa { display: none; }
+  .ik-cert-table .ik-cert-head { display: none; }
+  .ik-cert-table > div { grid-template-columns: minmax(0, 1fr); gap: 2px; font-size: 14.5px; }
+  .ik-cert-table > div > span:not(:first-child) { padding-left: 0; border-left: 0; color: var(--body); }
+  .ik-certificate footer { flex-wrap: wrap; gap: 10px; }
+  .ik-certificate footer .ik-mono { font-size: 14.5px; }
+  .ik-seal-row { grid-template-columns: minmax(0, 1fr); gap: 18px; margin-left: 0; }
+  .ik-verify { margin-top: 0; align-items: flex-start; }
+  .ik-doc-tile--round { width: 52px; height: 52px; padding: 12px; }
+  .ik-check-title { font-size: 19px; }
+  .ik-check p:not(.ik-check-title), .ik-verify p { font-size: 15px; }
+  .ik-verify h3 { font-size: 19px; }
+
+  /* 08 File: the mascot, then the five places in one column. */
+  .ik-file-stage { grid-template-columns: minmax(0, 1fr); gap: 18px; margin-top: 28px; }
+  .ik-file-col, .ik-file-col:last-child { gap: 18px; }
+  .ik-file-center { grid-column: 1; height: 330px; }
+  .ik-sealed { top: 10px; width: 280px; }
+  .ik-file-sticky { left: 4px; top: 214px; font-size: 20px !important; }
+  .ik-file-card { gap: 16px; padding: 18px; }
+  .ik-line-icon { width: 38px; height: 38px; }
+  .ik-file-card h3 { font-size: 16.5px; flex-wrap: wrap; }
+  .ik-file-card p, .ik-file-card li { font-size: 15px; flex-wrap: wrap; }
+  .ik-file-card ul { width: auto; }
+  .ik-file-card > div { min-width: 0; flex: 1; }
+  .ik-avatar { width: 38px; height: 38px; font-size: 14px; }
+  .ik-file-rosa { left: auto; right: 8px; bottom: -40px; }
+  .ik-file-jamal { right: 8px; bottom: -40px; }
+
+  .ik-weeks { grid-template-columns: minmax(0, 1fr); }
+
+  /* 10 Bulk: the table becomes a list. */
+  .ik-preview { padding: 18px; }
+  .ik-preview header .ik-doc-tile, .ik-batch-head .ik-doc-tile { display: grid; }
+  .ik-preview h3 { font-size: 17px; }
+  .ik-preview header p { font-size: 14.5px; }
+  .ik-preview li { padding: 8px 10px; border-radius: 10px; background: var(--red-tint); font-size: 14.5px; }
+  .ik-preview ul { border-bottom: 0; padding-bottom: 0; }
+  .ik-ready { width: 100%; font-size: 15.5px; }
+  .ik-batch { margin: 18px 0 0; padding: 18px; }
+  .ik-batch h3 { font-size: 21px; }
+  .ik-batch-head { align-items: flex-start; padding-right: 104px; }
+  .ik-batch-head p { font-size: 14.5px; }
+  .ik-batch-count { font-size: 15.5px; }
+  .ik-batch-count span { display: block; }
+  .ik-filters { display: flex; gap: 8px; margin-top: 18px; }
+  .ik-filters span { padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line); font-size: 14px; font-weight: 600; }
+  .ik-filters b { color: var(--soft); font-weight: 500; }
+  .ik-filters .is-signed { background: var(--green-tint); color: var(--green-ink); border-color: transparent; }
+  .ik-filters .is-waiting { background: var(--amber-wash); color: var(--amber-ink); border-color: transparent; }
+  .ik-vendors { margin-top: 8px; }
+  .ik-vendors .ik-vendors-head { display: none; }
+  .ik-vendors > div { grid-template-columns: auto minmax(0, 1fr); row-gap: 6px; column-gap: 10px; padding: 12px 0; font-size: 15px; }
+  .ik-vendors > div > span:first-child { grid-column: 1 / -1; font-weight: 600; }
+  .ik-vendors > div > span:last-child { font-size: 14px; }
+  .ik-status { padding: 3px 10px; font-size: 13.5px; }
+  .ik-status svg, .ik-status .ik-icon { display: block; width: 14px; height: 14px; }
+  .ik-status .ik-tick { stroke: currentColor; }
+  .ik-show-all { display: block; padding: 12px 0; border-bottom: 1px solid var(--line); color: var(--body) !important; font-size: 15px; text-align: center; }
+  .ik-saved { margin-top: 12px; font-size: 14.5px; }
+  .ik-bulk-sticky { right: -6px; top: -26px; width: 112px; font-size: 18px !important; padding: 10px 14px; }
+  .ik-bulk-rosa { display: none; }
+
+  /* 11 Web form */
+  .ik-form-card { margin-top: 8px; transform: none; }
+  .ik-form-card h3 { font-size: 19px; }
+  .ik-webform-stage { padding: 0; display: grid; gap: 18px; }
+  .ik-browser-page { padding: 16px 16px 20px; }
+  .ik-site-nav { flex-wrap: wrap; gap: 6px 16px; font-size: 13.5px; }
+  .ik-site-nav strong { flex-basis: 100%; font-size: 17px; }
+  .ik-nda-title { margin-top: 20px; padding-left: 0; font-size: 30px !important; }
+  .ik-nda-sub { padding-left: 0; font-size: 15.5px; }
+  .ik-nda-form { margin: 14px 0 0; padding: 14px; }
+  .ik-nda-pair { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .ik-nda-label { font-size: 13.5px; }
+  .ik-nda-field { font-size: 15px; }
+  .ik-nda-email { flex-wrap: wrap; }
+  .ik-nda-email .ik-nda-field { flex: 1 1 210px; }
+  .ik-signature--kenji { font-size: 36px; }
+  .ik-embed, .ik-submission { position: relative; left: auto; right: auto; bottom: auto; width: auto; transform: none; }
+  .ik-embed code { font-size: 13.5px; }
+  .ik-submission p:not(.ik-card-eyebrow) { font-size: 15.5px; flex-wrap: wrap; }
+  .ik-wf-link { display: none; }
+  .ik-wf-rosa { right: 8px; top: auto; bottom: -40px; }
+
+  /* 12 Moving in */
+  .ik-terminal { padding: 14px 16px 16px; }
+  .ik-terminal pre { font-size: 14px; }
+  .ik-movein-stage { padding: 0; }
+  .ik-import h3 { font-size: 18px; }
+  .ik-import-rows > div { flex-wrap: wrap; gap: 4px 10px; padding: 8px 0; font-size: 15px; }
+  .ik-import-rows .ik-chip { font-size: 13.5px; }
+  .ik-import-note { align-items: flex-start; font-size: 14.5px; padding: 10px 12px; }
+  .ik-movein-sticky { right: -4px; top: -74px; width: 140px; font-size: 19px !important; }
+  .ik-import header { padding-right: 96px; }
+  .ik-movein-jamal { display: none; }
+  .ik-mv-link { display: none; }
+
+  /* 13 Closing */
+  .ik-closing { padding-top: 120px; }
+  .ik-closing-sub { font-size: 19px; margin-top: 16px; }
+  .ik-closing .ik-actions { margin-top: 28px; }
+  .ik-closing-path { display: none; }
+  .ik-env-mini { width: 60px; }
+  .ik-env-mini--1 { left: 14px; top: 34px; }
+  .ik-env-mini--2 { left: auto; right: 16px; top: 420px; }
+  .ik-env-mini--3 { display: none; }
+  .ik-plane { right: 12px; top: 18px; width: 120px; }
+  .ik-peek { width: 180px; height: 156px; margin-top: 48px; }
+  .ik-footer { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .ik-footer-brand { flex-wrap: wrap; gap: 8px 16px; font-size: 15.5px; }
+  .ik-footer nav { gap: 24px; font-size: 15.5px; }
+}
+
+/* The narrowest phones: a smaller lockup so Docs, Contract and Source keep their room. */
+@media (max-width: 400px) {
+  .ik-header nav { gap: 14px; font-size: 15px; }
+  .ik-lockup img { width: 40px; }
+  .ik-lockup span { font-size: 26px; }
+}

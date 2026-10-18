@@ -16,7 +16,7 @@ Once the PDF is chosen, its pages appear beside **Place fields**.
 1. Choose the **Recipient** and the **Field type**: signature, text or date.
 2. Adjust the **Field label**, **Width (%)** and **Height (%)** if you need to.
 3. Click the page where the field belongs. With a keyboard, focus a page and press Enter
-   to place the field at its centre.
+   to place the field at its center.
 
 Every recipient needs at least one signature field. Each field shows its recipient's
 number, such as `2: Signature`. Remove a misplaced field with **×** in the list and place

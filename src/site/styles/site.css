@@ -1,0 +1,64 @@
+/* The run site's frame: the white page with its faint square grid, the header and footer lockups, the two-line headings
+   with the emerald-to-blue second line, and the Run Inkwell button. Every size is in --u, one design pixel at 1440 wide:
+   between 1181 and 1439 px the whole composition scales with the window, so the collages keep their drawn positions. */
+.ik-site {
+  --u: 1px;
+  --gutter: calc(48 * var(--u));
+  --wrap: min(calc(1300 * var(--u)), 100% - 2 * var(--gutter));
+  min-height: 100vh;
+  overflow-x: clip;
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / calc(84 * var(--u)) calc(84 * var(--u)),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / calc(84 * var(--u)) calc(84 * var(--u)),
+    var(--paper);
+  color: var(--ink);
+  font: 400 calc(17 * var(--u)) / 1.5 var(--rer-font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+@media (min-width: 1181px) and (max-width: 1439.98px) { .ik-site { --u: calc(100vw / 1440) } }
+html, body { margin: 0; background: var(--paper); }
+.ik-site *, .ik-site *::before, .ik-site *::after { box-sizing: border-box; }
+:where(.ik-site) :where(h1, h2, h3, p, ol, ul, dl, dd, figure, pre) { margin: 0; padding: 0; }
+:where(.ik-site) :where(ol, ul) { list-style: none; }
+:where(.ik-site) a { color: inherit; }
+.ik-site a:focus-visible { outline: 3px solid var(--rer-focus); outline-offset: 3px; border-radius: 6px; }
+:where(.ik-site) :where(img, svg) { display: block; }
+.ik-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.ik-wrap { width: var(--wrap); margin-inline: auto; }
+
+/* Header and footer: the mark beside the heavy wordmark. */
+.ik-header { position: relative; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 24px; max-width: calc(1440 * var(--u)); height: calc(100 * var(--u)); margin: 0 auto; padding: 0 calc(46 * var(--u)) 0 calc(46 * var(--u)); }
+.ik-header nav { display: flex; gap: calc(44 * var(--u)); padding-right: calc(10 * var(--u)); font-size: calc(18.5 * var(--u)); font-weight: 500; }
+.ik-header nav a { text-decoration: none; }
+.ik-header nav a:hover, .ik-header nav a[aria-current=page] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 6px; }
+.ik-lockup { display: inline-flex; align-items: center; gap: calc(14 * var(--u)); text-decoration: none; }
+.ik-lockup img { width: calc(72 * var(--u)); height: auto; margin-inline: calc(-4 * var(--u)); }
+.ik-lockup span { padding-block: .14em; margin-block: -.14em; font-weight: 800; font-size: calc(50 * var(--u)); line-height: 1; letter-spacing: -.045em; color: var(--ink); }
+.ik-lockup--footer img { width: calc(52 * var(--u)); }
+.ik-lockup--footer span { font-size: calc(29 * var(--u)); letter-spacing: -.035em; }
+.ik-footer { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 24px; width: min(calc(1300 * var(--u)), 100% - 2 * var(--gutter)); margin: 0 auto; padding: calc(26 * var(--u)) 0 calc(34 * var(--u)); border-top: 1px solid var(--line-strong); }
+.ik-footer-brand { display: flex; align-items: center; gap: calc(24 * var(--u)); color: var(--soft); font-size: calc(19 * var(--u)); }
+.ik-footer nav { display: flex; gap: calc(36 * var(--u)); font-size: calc(19 * var(--u)); color: #3b4250; }
+.ik-footer nav a { text-decoration: none; }
+.ik-footer nav a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 5px; }
+
+/* Type. */
+.ik-eyebrow { color: #4a5261; font-size: calc(15.5 * var(--u)); font-weight: 600; letter-spacing: .24em; line-height: 1.3; text-transform: uppercase; }
+.ik-h1, .ik-h2 { color: var(--ink); font-weight: 900; letter-spacing: -.052em; }
+.ik-h1 { font-size: calc(96 * var(--u)); line-height: 1.05; }
+.ik-h2 { font-size: calc(70 * var(--u)); line-height: 1.06; }
+.ik-line { display: block; width: fit-content; padding-block: .08em .12em; margin-block: -.08em -.12em; white-space: nowrap; }
+.ik-grad { background: var(--gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.ik-lead { color: var(--body); font-size: calc(27 * var(--u)); line-height: 1.4; }
+.ik-body { color: var(--body); font-size: calc(25 * var(--u)); line-height: 1.5; text-wrap: pretty; }
+.ik-body strong { color: var(--ink); font-weight: 500; }
+
+/* Run Inkwell and the text links beside it. */
+.ik-actions { display: flex; flex-wrap: wrap; align-items: center; gap: calc(18 * var(--u)) calc(36 * var(--u)); }
+.ik-run { display: inline-flex; align-items: center; justify-content: center; gap: calc(12 * var(--u)); min-height: calc(62 * var(--u)); padding: 0 calc(38 * var(--u)); border-radius: calc(22 * var(--u)); background: var(--button); color: #fff; font-size: calc(22.5 * var(--u)); font-weight: 600; letter-spacing: -.01em; text-decoration: none; box-shadow: 0 1px 0 rgb(255 255 255 / 16%) inset, 0 14px 26px -14px rgb(11 13 18 / 70%); transition: transform .15s, box-shadow .15s; }
+.ik-run:hover { transform: translateY(-1px); box-shadow: 0 1px 0 rgb(255 255 255 / 16%) inset, 0 18px 30px -14px rgb(11 13 18 / 80%); }
+.ik-run svg { width: calc(22 * var(--u)); height: calc(22 * var(--u)); fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.ik-text-link { color: var(--ink); font-size: calc(21.5 * var(--u)); font-weight: 500; text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: calc(7 * var(--u)); }
+.ik-text-link:hover { text-decoration-thickness: 2.5px; }

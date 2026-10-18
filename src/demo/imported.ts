@@ -15,7 +15,7 @@ export async function seedImported(env: Bindings, now: Date, ownerId: string) {
     if (result.state !== 'completed') throw new Error('Demo archive import did not complete')
     return
   }
-  const titles = ['Maple Studio - Annual retainer', 'Harbour Coffee - Original lease', 'Willow Clinic - Records policy', 'Cedar House - Initial brief']
+  const titles = ['Maple Studio - Annual retainer', 'Harbor Coffee - Original lease', 'Willow Clinic - Records policy', 'Cedar House - Initial brief']
   const names = ['Maya Chen', 'Oliver Grant']
   const submissions = [], files = []
   for (const [index, title] of titles.entries()) {
