@@ -2,16 +2,18 @@ import type { Bindings } from './auth.server'
 import { canonical, sha256, type Envelope, type AuditEvent } from './inkwell/model'
 import { blobWrites } from './inkwell/blobs'
 import { signedPdf, certificatePdf } from './inkwell/pdf'
-import { agreements, emailFor, OWNER, type When } from './demo/records'
+import { agreements, datesAt, emailFor, OWNER, type When } from './demo/records'
 import { agreementPdf } from './demo/documents'
 import { seedImported } from './demo/imported'
 
 const ZONE = 'America/New_York'
-/** The instant of a demo moment: minutes before now, or a wall-clock time in Columbus some days before today. */
+/** The instant of a demo moment: minutes before now, or a wall-clock time in Columbus some days before today or on a
+ * fixed date. */
 export function demoTime(now: Date, when: When) {
   if (typeof when === 'number') return new Date(now.getTime() - when * 60_000)
-  const [daysAgo, clock] = when
-  const day = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: ZONE, year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(new Date(now.getTime() - daysAgo * 86400000)).map(part => [part.type, part.value]))
+  const [date, clock] = when
+  const day = typeof date === 'string' ? Object.fromEntries(['year', 'month', 'day'].map((type, index) => [type, date.split('-')[index]]))
+    : Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: ZONE, year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(new Date(now.getTime() - date * 86400000)).map(part => [part.type, part.value]))
   const [hour, minute] = clock.split(':').map(Number)
   const wall = Date.UTC(Number(day.year), Number(day.month) - 1, Number(day.day), hour, minute)
   const offset = (instant: number) => { const name = new Intl.DateTimeFormat('en-US', { timeZone: ZONE, timeZoneName: 'longOffset' }).formatToParts(new Date(instant)).find(part => part.type === 'timeZoneName')?.value ?? 'GMT-05:00'; const [, sign, h, m] = /GMT([+-])(\d{2}):?(\d{2})?/.exec(name) ?? ['', '-', '05', '00']; return (sign === '-' ? -1 : 1) * (Number(h) * 60 + Number(m ?? 0)) * 60_000 }
@@ -27,7 +29,8 @@ export async function seedDemo(env: Bindings, { ownerEmail, now }: { ownerEmail:
   // The preparation agent's token record. Its secret was never kept, so it can only be listed and revoked.
   const agentId = 'demo-agent-01'
   await env.DB.prepare('INSERT INTO iw_agents(id,owner_id,owner_version,token_hash,created_at) VALUES(?,?,?,?,?) ON CONFLICT DO NOTHING').bind(agentId, owner.id, owner.version, await sha256(`${agentId}:${crypto.randomUUID()}`), demoTime(now, [5, '08:30']).toISOString()).run()
-  for (const [index, sample] of agreements.entries()) {
+  for (const [index, record] of agreements.entries()) {
+    const sample = datesAt(record, now, when => demoTime(now, when))
     const id = `demo-envelope-${String(index + 1).padStart(2, '0')}`
     if (await env.DB.prepare('SELECT 1 FROM iw_envelopes WHERE id=?').bind(id).first()) continue
     const at = (when: When) => demoTime(now, when).toISOString()

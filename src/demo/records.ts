@@ -1,7 +1,9 @@
 import type { Envelope } from '../inkwell/model'
 
-/** A moment in Columbus time: [days ago, 'HH:MM' Eastern], or minutes ago for this morning's work. */
-export type When = [number, string] | number
+/** A moment in Columbus time: [days ago, 'HH:MM' Eastern], minutes ago for this morning's work, or a fixed
+ * ['YYYY-MM-DD', 'HH:MM'] Eastern for a record the homepage tells. */
+export type When = [number | string, string] | number
+type Dates = Pick<Agreement, 'prepared' | 'approved' | 'signed'>
 export interface Agreement {
   title: string
   /** Signers in order; the owner signs as herself (OWNER) with her own sign-in address. */
@@ -14,12 +16,14 @@ export interface Agreement {
   voided?: { at: When; reason: string }
   /** Prepared by the workspace's preparation agent rather than a person. */
   agent?: true
+  /** The homepage's own dates for this record, used instead of the moving ones once they are all in the past. */
+  homepage?: Dates
 }
 export const OWNER = 'Rosa Delgado'
 
 // Harborline Facility Services, a commercial cleaning firm in Columbus, Ohio: the fortnight the run site tells, as the
-// operations manager Rosa Delgado sees it on a Monday morning. Lakeshore Dental and Brightwater Medical keep the
-// homepage's own records.
+// operations manager Rosa Delgado sees it on a Monday morning. Every date moves with the demo's clock, except that
+// Lakeshore Dental and Brightwater Medical keep the homepage's own dates once those have passed.
 export const agreements: Agreement[] = [
   { title: 'Cedar Row Property Mgmt · Service Agreement + W-9', signers: ['Luis Ortega', 'Dana Whitfield', OWNER], status: 'prepared', prepared: 49, agent: true },
   { title: 'Maya Ortiz · Offer letter', signers: [OWNER, 'Maya Ortiz'], status: 'awaiting_signature', prepared: 110, approved: 96 },
@@ -30,8 +34,10 @@ export const agreements: Agreement[] = [
   { title: 'Buckeye Staffing · Subcontractor agreement', signers: ['Marcus Hill', OWNER], status: 'awaiting_signature', prepared: [4, '15:10'], approved: [4, '15:30'] },
   { title: 'Keystone Supply Co · Mutual NDA', signers: ['Erin Walsh', OWNER], status: 'awaiting_signature', prepared: [5, '14:00'], approved: [5, '14:05'] },
   { title: 'Jordan Reyes · W-9 packet', signers: ['Jordan Reyes'], status: 'completed', prepared: [4, '16:00'], approved: [4, '16:02'], signed: [[1, '19:15']] },
-  { title: 'Brightwater Medical · Service Agreement + W-9', signers: ['Dr. Amy Chen', 'Mark Ellis', OWNER], status: 'completed', prepared: [7, '16:10'], approved: [6, '09:12'], signed: [[6, '13:30'], [4, '11:20'], [4, '14:41']] },
-  { title: 'Lakeshore Dental · NDA', signers: ['Dr. Priya Raman'], status: 'completed', prepared: [12, '09:00'], approved: [12, '09:05'], signed: [[6, '10:14']] },
+  { title: 'Brightwater Medical · Service Agreement + W-9', signers: ['Dr. Amy Chen', 'Mark Ellis', OWNER], status: 'completed', prepared: [7, '16:30'], approved: [6, '09:12'], signed: [[6, '15:47'], [4, '11:20'], [4, '14:41']],
+    homepage: { prepared: ['2026-10-12', '16:30'], approved: ['2026-10-13', '09:12'], signed: [['2026-10-13', '15:47'], ['2026-10-15', '11:20'], ['2026-10-15', '14:41']] } },
+  { title: 'Lakeshore Dental · NDA', signers: ['Dr. Priya Raman'], status: 'completed', prepared: [12, '10:25'], approved: [12, '10:30'], signed: [[6, '10:14']],
+    homepage: { prepared: ['2026-10-07', '10:25'], approved: ['2026-10-07', '10:30'], signed: [['2026-10-13', '10:14']] } },
   { title: 'German Village Lofts · Window cleaning agreement', signers: ['Nina Castillo', OWNER], status: 'completed', prepared: [13, '10:30'], approved: [13, '10:35'], signed: [[11, '15:45'], [10, '09:10']] },
   { title: 'Polaris Fitness · Service agreement', signers: ['Derek Holt', OWNER], status: 'completed', prepared: [14, '11:00'], approved: [14, '11:05'], signed: [[13, '16:30'], [12, '08:55']] },
   { title: 'Franklin County Library · Custodial services renewal', signers: ['Janet Moore', 'Victor Shah', OWNER], status: 'completed', prepared: [17, '09:30'], approved: [17, '09:40'], signed: [[14, '13:15'], [13, '10:20'], [12, '09:05']] },
@@ -42,3 +48,11 @@ export const agreements: Agreement[] = [
 ]
 
 export const emailFor = (name: string) => name.toLowerCase().replace(/^dr\.\s+/, '').replace(/[^a-z]+/g, '.') + '@example.com'
+
+/** A record's dates for a demo started at `now`: the homepage's once every one of them has passed, else the moving ones. */
+export function datesAt(sample: Agreement, now: Date, instant: (when: When) => Date): Agreement {
+  const pinned = sample.homepage
+  if (!pinned) return sample
+  const all = [pinned.prepared, ...(pinned.approved ? [pinned.approved] : []), ...(pinned.signed ?? [])]
+  return all.every(when => instant(when).getTime() <= now.getTime()) ? { ...sample, ...pinned } : sample
+}

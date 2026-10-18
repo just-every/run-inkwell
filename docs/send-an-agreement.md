@@ -52,6 +52,15 @@ Creating a replacement revokes the previous link, code and signing session. The 
 and code are shown manually only when mail is suppressed; with a configured provider,
 the existing emailed-link and code flow remains in place.
 
+## Sign your own turn
+
+When you are a recipient and it is your turn, the envelope reads **Waiting for you** and
+its next action is **Your turn to sign**. Open it and choose **Review and sign**. Inkwell
+opens your own signing page with a fresh private link, which replaces the one you were
+sent. With mail configured, choose **Email me a code** there as any recipient would; with
+mail suppressed, the owner's code is filled in for you. Verify the code, review the
+document and sign.
+
 ## Void an envelope
 
 To stop an envelope that is not finished, open it and choose **Void envelope…**, enter the

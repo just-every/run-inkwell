@@ -1,14 +1,22 @@
 /* Inkwell app: one envelope in the right-hand panel. */
-.iw-detail { display: flex; flex-direction: column; max-height: calc(100vh - 124px); overflow-y: auto; padding: 18px 20px 24px; border: 1px solid var(--line); border-radius: 16px; background: rgb(255 255 255 / 92%); box-shadow: 0 6px 15px rgb(38 66 97 / 3%); overscroll-behavior: contain; }
+/* The body scrolls inside the sticky panel; the foot holds the decision and never leaves view. */
+.iw-detail { display: flex; flex-direction: column; max-height: calc(100vh - 124px); overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: rgb(255 255 255 / 92%); box-shadow: 0 6px 15px rgb(38 66 97 / 3%); }
+.iw-detail-body { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; padding: 18px 20px 20px; overscroll-behavior: contain; }
+.iw-detail-records { display: flex; flex-direction: column; }
+.iw-detail-foot { display: grid; flex: none; gap: 12px; padding: 14px 20px 18px; border-top: 1px solid var(--line); background: #fff; }
+.iw-detail > .iw-error { margin: 0 20px 12px; }
 .iw-detail-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .iw-detail-top .iw-pill-rose { padding: 6px 11px; border: 1px solid #ffc4ce; background: #fff8f9; color: #df0030; font-size: 14px; font-weight: 700; }
 .iw-app .iw-detail-top .iw-icon-button { margin: -6px -8px 0 0; }
 .iw-app .iw-detail h2 { margin: 18px 0 4px; font-size: clamp(22px, 1.6vw, 26px); font-weight: 800; letter-spacing: -.04em; line-height: 1.14; overflow-wrap: anywhere; }
-.iw-detail-sub { color: #485672 !important; font-size: 16px; overflow-wrap: anywhere; }
+.iw-detail-sub { display: flex; flex-wrap: wrap; column-gap: 6px; color: #485672 !important; font-size: 16px; }
+.iw-detail-sub > span:not(.iw-detail-date) { overflow-wrap: anywhere; }
+.iw-detail-sub > span:not(.iw-detail-date)::after { content: " ·"; }
+.iw-detail-date { white-space: nowrap; }
 .iw-app .iw-detail h3 { margin: 22px 0 14px; font-size: 16px; font-weight: 750; }
 
 .iw-signers { margin: 0; padding: 0; list-style: none; }
-.iw-signers li { position: relative; display: flex; gap: 14px; min-height: 56px; padding-bottom: 14px; }
+.iw-signers li { position: relative; display: flex; gap: 14px; min-height: 52px; padding-bottom: 10px; }
 .iw-signers li:not(:last-child)::after { content: ""; position: absolute; top: 34px; bottom: 2px; left: 15px; border-left: 1px solid #abb6c7; }
 .iw-signers li.iw-signed:not(:last-child)::after { border-color: #78e6be; }
 .iw-order { z-index: 1; display: grid; place-items: center; flex: none; width: 31px; height: 31px; border-radius: 50%; background: linear-gradient(120deg, #edf1f5, #cfd5db); color: var(--ink); font-size: 16px; font-weight: 700; }
@@ -28,9 +36,12 @@
 .iw-alert strong { font-weight: 700; }
 .iw-app .iw-alert p { color: #790026; }
 .iw-decision > p { font-size: 14px; }
-.iw-decision .iw-check { margin-top: 14px; font-size: 14px; }
-.iw-decision-actions { display: flex; gap: 9px; margin-top: 16px; }
-.iw-app .iw-decision-actions button { flex: 1 1 0; min-height: 52px; padding: 8px 12px; border-radius: 26px; font-size: 14px; line-height: 1.25; }
+.iw-detail-foot .iw-check { font-size: 13.5px; }
+.iw-alert-turn { border-color: #ffe08a; background: var(--amber-wash); color: var(--amber-ink); }
+.iw-app .iw-alert-turn p { color: var(--amber-ink); }
+.iw-alert-turn .iw-alert-mark { background: linear-gradient(#ffc93d, #f0a400); }
+.iw-decision-actions { display: flex; gap: 9px; }
+.iw-app .iw-decision-actions button { flex: 1 1 0; min-height: 50px; padding: 8px 12px; border-radius: 26px; font-size: 14px; line-height: 1.25; }
 .iw-app .iw-decision-actions button:not(.iw-primary) { border-color: #67748d; }
 .iw-app .iw-decision-actions .iw-primary { flex-grow: 1.7; }
 
@@ -78,6 +89,10 @@
 /* The selected envelope takes the page when the list and panel cannot sit side by side. */
 @media (max-width: 1180px) {
   .iw-detail { max-height: none; overflow: visible; padding: 18px 18px 22px; }
+  .iw-detail-body, .iw-detail-records { display: contents; }
+  .iw-detail-records > *, .iw-detail > .iw-error { order: 2; }
+  .iw-detail-foot { order: 1; margin-top: 16px; padding: 0; border: 0; background: none; }
+  .iw-detail > .iw-error { margin: 12px 0 0; }
 }
 @media (max-width: 860px) {
   .iw-app .iw-detail h2 { font-size: 23px; }
