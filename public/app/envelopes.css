@@ -44,6 +44,12 @@
 .iw-app .iw-empty h3 { font: 900 34px/1.1 var(--rer-font-heading); letter-spacing: -.045em; text-wrap: balance; }
 .iw-empty p { margin: 12px 0 24px; font-size: 16px; }
 
+/* Below the pick's own 1536 frame the list column narrows: tighter chips and a wider next-action column keep one line. */
+@media (max-width: 1500px) {
+  .iw-chips { gap: 7px; }
+  .iw-app .iw-chip { min-height: 38px; padding: 0 6px 0 11px; font-size: 13.5px; }
+  .iw-table-head, .iw-app .iw-row { grid-template-columns: minmax(0, 34fr) minmax(0, 12fr) minmax(0, 18fr) minmax(0, 22fr) minmax(0, 12fr); }
+}
 @media (max-width: 1180px) and (min-width: 861px) {
   .iw-cell-envelope { gap: 10px; }
 }

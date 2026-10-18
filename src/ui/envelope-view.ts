@@ -43,7 +43,7 @@ export function pill(envelope: Envelope, actor: Actor): { label: string; tone: T
 export function nextAction(envelope: Envelope, actor: Actor): { label: string; urgent: boolean } {
   switch (envelope.status) {
     case 'prepared': return canApprove(actor) ? { label: 'Approve and send', urgent: true } : { label: 'Waiting for approval', urgent: false }
-    case 'awaiting_signature': return myTurn(envelope, actor) ? { label: 'Sign from your email', urgent: true } : { label: `Waiting on ${envelope.signers[nextSigner(envelope)]?.name ?? 'the next signer'}`, urgent: false }
+    case 'awaiting_signature': return myTurn(envelope, actor) ? { label: 'Your turn to sign', urgent: true } : { label: `Waiting on ${envelope.signers[nextSigner(envelope)]?.name ?? 'the next signer'}`, urgent: false }
     case 'completed': return { label: 'Executed PDF ready', urgent: false }
     case 'expired': return { label: 'Prepare a new one', urgent: true }
     case 'voided': return { label: 'Voided', urgent: false }

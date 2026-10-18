@@ -255,15 +255,15 @@
       "executable": false
     },
     "public/app/detail.css": {
-      "sha256": "e9d3ca127e20c3a72899cf95c8b0718f4b3e28189016bc694247986a40d82251",
+      "sha256": "c3e6731f2fa85131870d4c5e26095b6daf72a18849e690a8d6abb8e53137d69d",
       "executable": false
     },
     "public/app/editor.css": {
-      "sha256": "cab966380811cc2d72b6d191df5c3aabee42f8faaf6e6425a5afbfe93a159bcc",
+      "sha256": "74cff20ad0c3771519d92b1db6cb00ed7b6153b67c831cd13d392295ccbdb5c0",
       "executable": false
     },
     "public/app/envelopes.css": {
-      "sha256": "c0559367c02eb5a29c4133bb4163d2e2020d744e25f4558ef6ae0c9a70739d96",
+      "sha256": "76394b637c4ae1b550ed6a2a6f560a1745aaf0d4a17203f901445bfdd76fe49c",
       "executable": false
     },
     "public/app/paperclip.svg": {
@@ -2443,7 +2443,7 @@
       "executable": false
     },
     "src/ui/envelope-view.ts": {
-      "sha256": "0891ab85de593dfea5bc0416a1ff2e5c12ac8a3842f8b60e223edbd14ce89cda",
+      "sha256": "dd5ac9082695f633268ca5d8440f631bf52bbae6a0c5e9ba364248b1ed95ef6c",
       "executable": false
     },
     "src/ui/feedback.tsx": {
