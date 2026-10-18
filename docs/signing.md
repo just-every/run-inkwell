@@ -2,17 +2,22 @@ Each recipient signs from their own private link. They need no account.
 
 ## Open the invitation
 
-The invitation email holds a link to the signing page. It shows the document title and who
-the request is for. If an earlier recipient has not signed yet, the page says **Waiting for
+The invitation email holds a link to the signing page. When mail is not set up, the sender
+shares the private link and verification code directly. The page shows the document title
+and who the request is for. If an earlier recipient has not signed yet, the page says **Waiting for
 your turn.** and **Check status** refreshes it.
 
 ## Confirm the email address
 
-Before anyone can view or sign, they prove they can read the invited mailbox:
+With mail set up, recipients verify access to the invited mailbox before viewing or signing:
 
 1. Choose **Email me a code**.
 2. Enter the six-digit code from the separate verification email and choose
    **Verify code**.
+
+When mail is not set up, enter the six-digit verification code the sender shared with your
+link and choose **Verify code**. The code lasts 10 minutes. If it expires, ask the sender
+for a new link and code; the old link will stop working.
 
 ## Review and sign
 
