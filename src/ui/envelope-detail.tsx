@@ -9,6 +9,9 @@ import { Check, Pill } from './marks'
 import { Icon } from './icons'
 import { nextSigner, pill, preparedByAgent, titleParts } from './envelope-view'
 
+type Invitation = { url: string; code: string; recipient: string; expiresAt: string }
+type InvitationResult = { invitation?: Invitation }
+
 export function EnvelopeDetail({ envelope, actor, refresh, onClose }: { envelope: Envelope; actor: Actor; refresh: () => Promise<void>; onClose: () => void }) {
   const action = useAction()
   const [eligible, setEligible] = useState(false)
@@ -17,8 +20,17 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose }: { envelope
   const [erasing, setErasing] = useState(false)
   const [confirmation, setConfirmation] = useState('')
   const [showPdf, setShowPdf] = useState(false)
+  const [invitation, setInvitation] = useState<Invitation>()
+  const [copied, setCopied] = useState(false)
   const base = `/api/inkwell/envelopes/${encodeURIComponent(envelope.id)}`
   const finished = ['completed', 'voided', 'expired', 'imported'].includes(envelope.status)
+  const currentRecipient = envelope.signers.find(signer => !signer.signedAt)?.email
+  const privateInvitation = envelope.manualInvitationAvailable && !finished && invitation?.recipient === currentRecipient ? invitation : undefined
+  async function saveInvitation(result: InvitationResult) {
+    setCopied(false)
+    setInvitation(actor.role === 'owner' ? result.invitation : undefined)
+    await refresh()
+  }
   const state = pill(envelope, actor), { name, detail } = titleParts(envelope.title), turn = nextSigner(envelope)
   const me = (email: string) => email.toLowerCase() === actor.email.toLowerCase()
   return <section className="iw-detail" aria-label={envelope.title}>
@@ -36,7 +48,18 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose }: { envelope
       <h3>Human approval</h3>
       <p>Review the document and recipients before sending invitations. Signatures are collected sequentially.</p>
       <label className="iw-check"><input type="checkbox" checked={eligible} onChange={event => setEligible(event.target.checked)} />I reviewed this envelope, confirm it is eligible for electronic signature, and authorize the first invitation.</label>
-      <div className="iw-decision-actions"><button className="iw-primary" disabled={!eligible || action.busy} onClick={() => void action.run(async () => { await command('envelope.approve', { id: envelope.id, eligible: true }); await refresh() })}>{action.busy ? 'Sending…' : 'Approve and invite first recipient'}</button><button onClick={onClose}>Keep as is</button></div>
+      <div className="iw-decision-actions"><button className="iw-primary" disabled={!eligible || action.busy} onClick={() => void action.run(async () => { await saveInvitation(await command<InvitationResult>('envelope.approve', { id: envelope.id, eligible: true })) })}>{action.busy ? 'Sending…' : 'Approve and invite first recipient'}</button><button onClick={onClose}>Keep as is</button></div>
+    </div>}
+
+    {actor.role === 'owner' && (privateInvitation || envelope.manualInvitationAvailable) && <div className="iw-manual-invitation">
+      <p>Email was not sent because mail is not set up.</p>
+      {privateInvitation && <>
+        <div className="iw-invitation-link"><span>For {privateInvitation.recipient}:</span><a href={privateInvitation.url}>{privateInvitation.url}</a><button aria-live="polite" disabled={action.busy} onClick={() => void action.run(async () => { await navigator.clipboard.writeText(privateInvitation.url); setCopied(true) })}>{copied ? 'Copied' : 'Copy link'}</button></div>
+        <p>Verification code: <strong>{privateInvitation.code}</strong> · valid for 10 minutes.</p>
+        <p>Share this link and code privately with the recipient. The link expires {dateTime(privateInvitation.expiresAt)}.</p>
+      </>}
+      <p>If the link is lost or the code expires, create a new link. This replaces the previous link, code, and signing session.</p>
+      {envelope.manualInvitationAvailable && <button className="iw-fit" disabled={action.busy} onClick={() => void action.run(async () => { setInvitation(undefined); setCopied(false); await saveInvitation(await command<InvitationResult>('envelope.invite', { id: envelope.id })) })}>{action.busy ? 'Creating…' : 'Create new signing link'}</button>}
     </div>}
 
     <h3>Document</h3>

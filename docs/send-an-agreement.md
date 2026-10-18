@@ -34,12 +34,23 @@ Open the prepared envelope from the list.
    eligible for electronic signature.
 3. Choose **Approve and invite first recipient**.
 
-Inkwell emails the first recipient their private link. The envelope is now
-`awaiting signature`. Each later recipient is invited automatically after the one before
-them signs.
+The envelope is now `awaiting signature`. When a mail provider is configured, Inkwell
+emails the first recipient their private signing link. The recipient requests a verification
+code from the signing page. Each later recipient is invited automatically after the one before them signs.
 
-When you run Inkwell locally, the messages go to the development outbox instead of real
-inboxes; see [Getting started](/docs/getting-started#signing-in-with-an-email-link).
+When mail is suppressed in development or no provider is configured, no email or
+development outbox message is created. The agreement detail page shows the owner a
+recipient-bound private signing link once, with **Copy link**, and a sender-provided
+six-digit verification code valid for 10 minutes. Copy the link and code and share both
+privately with that recipient. The link expires with the agreement, seven days after the
+envelope was prepared; reissuing a link does not extend that deadline. The recipient opens the link, enters the code, and consents to sign. Inkwell clearly says
+when no mail provider is configured.
+
+If the link is lost, or the code expires, create a new signing link from the agreement
+detail page for the current unsigned recipient and share the new link and code privately.
+Creating a replacement revokes the previous link, code and signing session. The link
+and code are shown manually only when mail is suppressed; with a configured provider,
+the existing emailed-link and code flow remains in place.
 
 ## Void an envelope
 

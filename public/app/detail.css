@@ -34,6 +34,14 @@
 .iw-app .iw-decision-actions button:not(.iw-primary) { border-color: #67748d; }
 .iw-app .iw-decision-actions .iw-primary { flex-grow: 1.7; }
 
+/* With mail not set up, the owner hands the current signer a private link and code. */
+.iw-manual-invitation { display: grid; gap: 8px; min-width: 0; margin-top: 18px; padding: 14px; border: 1px solid #cfe5ff; border-radius: 13px; background: var(--blue-wash); font-size: 13.5px; }
+.iw-app .iw-manual-invitation p { color: #24334e; overflow-wrap: anywhere; }
+.iw-invitation-link { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; }
+.iw-invitation-link > span { overflow-wrap: anywhere; }
+.iw-invitation-link > a { flex: 1 1 200px; min-width: 0; color: var(--blue-ink); font: 12.5px/1.45 var(--rer-font-mono); overflow-wrap: anywhere; }
+.iw-app .iw-invitation-link > button, .iw-app .iw-manual-invitation > button { flex: 0 0 auto; min-height: 34px; padding: 6px 14px; font-size: 13px; }
+
 .iw-artifacts { display: flex; flex-wrap: wrap; gap: 8px; }
 .iw-app .iw-artifacts > button, .iw-app .iw-artifacts > .iw-button { min-height: 34px; padding: 6px 12px; font-size: 13px; }
 .iw-detail .iw-pdf-viewer { margin-top: 12px; padding: 10px; }

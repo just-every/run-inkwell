@@ -39,12 +39,13 @@ the confirmation box and choose **Finish setup**; the workspace opens on **Envel
 Until setup is finished, the installation's home page shows **Finish setup**; afterwards it
 shows **Sign in**.
 
-## Signing in with an email link
+## Signing in
 
-To sign in the ordinary way, start with `rer dev --login`. Locally no email leaves your
-computer: `rer dev --login` prints the address of the development outbox, where every
-message Inkwell would send is kept. Open the newest sign-in message, follow its link and
-choose **Confirm**.
+`rer dev` prints `RER_OPEN`, a private link that signs you in as the owner on this
+computer. Inkwell does not capture mail in a development outbox. When mail is suppressed
+locally or no provider is configured, the agreement detail page gives you a private
+signing link and verification code after approval; share both privately with the
+recipient. See [Send an agreement](/docs/send-an-agreement#approve-and-send).
 
 ## Stop and start again
 
