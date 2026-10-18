@@ -46,7 +46,8 @@
 .docs-copy { min-height: 30px; padding: 0 12px; border: 1px solid rgb(232 236 242 / 30%); border-radius: 999px; background: transparent; color: var(--code-text); font: 500 13px/1 var(--rer-font-body); letter-spacing: 0; text-transform: none; cursor: pointer; }
 .docs-copy:hover { background: rgb(232 236 242 / 12%); }
 .docs-copy:focus-visible { outline: 3px solid var(--rer-focus); outline-offset: 2px; }
-.docs-code pre { margin: 0; padding: 8px 18px 18px; overflow-x: auto; font: 15px/1.7 var(--rer-font-mono); }
+/* Commands wrap inside the card at every width, so no part of one is ever hidden behind a scroll. */
+.docs-code pre { margin: 0; padding: 8px 18px 18px; font: 15px/1.7 var(--rer-font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 .docs-table { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
 .docs-table table { width: 100%; border-collapse: collapse; font-size: 16px; }
 .docs-table th, .docs-table td { padding: 12px 16px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
@@ -93,7 +94,7 @@
   .docs-card h3 { font-size: 19px; }
   .docs-prose { margin-top: 24px; font-size: 16.5px; }
   .docs-prose h2 { margin-top: 40px; padding-top: 22px; font-size: 27px; }
-  .docs-code pre { font-size: 13.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .docs-code pre { font-size: 13.5px; }
   .docs-table table { font-size: 15px; }
   .docs-pager { grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: 48px; }
   .docs-pager-card--next { grid-column: 1; }
