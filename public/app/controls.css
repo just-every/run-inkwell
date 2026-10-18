@@ -62,10 +62,15 @@ body:has(.iw-app) { padding: 0; background: var(--paper); }
   color: var(--ink);
   font: 400 16px/1.4 var(--font-body);
 }
-.iw-app select {
+/* Single-choice selects: chevron 14px in from the border, in --rer-muted; multiple and size>1 lists stay native. */
+.iw-app select:not([multiple]):not([size]), .iw-app select[size="1"]:not([multiple]) {
+  -webkit-appearance: none;
   appearance: none;
   padding-right: 40px;
-  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%231C1A1B' stroke-width='1.5'/%3E%3C/svg%3E") right 16px center / 12px 8px no-repeat;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%235F5B5C' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 12px 8px;
 }
 .iw-app textarea { min-height: 96px; resize: vertical; }
 .iw-app input[type=checkbox] { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--plum); }
