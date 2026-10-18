@@ -40,7 +40,7 @@ export function Route() {
             </li>
           </ol>
           <div className="ik-route-branch">
-            <article className="ik-card ik-mini"><p className="ik-card-eyebrow">Gets a copy</p><p>ap@brightwatermed.example · completed record only</p></article>
+            <article className="ik-card ik-mini"><p className="ik-card-eyebrow">Gets a copy</p><p>ap@brightwatermed.com · completed record only</p></article>
             <article className="ik-card ik-mini"><p className="ik-card-eyebrow">Who sees what</p><p>W-9 · Mark Ellis and Rosa only</p></article>
           </div>
         </div>

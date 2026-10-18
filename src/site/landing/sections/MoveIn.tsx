@@ -31,7 +31,7 @@ export function MoveIn() {
             <dl className="ik-import-rows">
               {carried.map(([name, value]) => <div key={name}><dt>{name}</dt><dd><span className="ik-chip ik-chip--green">{value} <Tick /></span></dd></div>)}
             </dl>
-            <p className="ik-import-note ik-import-note--amber"><WarnIcon /><span><b>Unmapped</b> · 1 · tlee@harborline.example (no member) → items to Rosa</span></p>
+            <p className="ik-import-note ik-import-note--amber"><WarnIcon /><span><b>Unmapped</b> · 1 · tlee@harborline.com (no member) → items to Rosa</span></p>
             <p className="ik-import-note ik-import-note--blue"><InfoIcon /><span><b>Still out in Docusign</b> · 6 · tracked until signed, then imported</span></p>
             <Sticky className="ik-movein-sticky">swap the old form link</Sticky>
             <Cursor name="Jamal" className="ik-movein-jamal" />

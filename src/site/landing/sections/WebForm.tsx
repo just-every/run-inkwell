@@ -29,7 +29,7 @@ export function WebForm() {
                   <div><span className="ik-nda-label">Company</span><span className="ik-nda-field">Riverside Property Group</span></div>
                 </div>
                 <span className="ik-nda-label">Email</span>
-                <div className="ik-nda-email"><span className="ik-nda-field">kenji@riversidepg.example</span><span className="ik-chip ik-chip--green">verified <Tick /></span></div>
+                <div className="ik-nda-email"><span className="ik-nda-field">kenji@riversidepg.com</span><span className="ik-chip ik-chip--green">verified <Tick /></span></div>
                 <span className="ik-nda-sign"><span className="ik-signature ik-signature--kenji">Kenji Watanabe</span></span>
                 <span className="ik-nda-button">Sign</span>
               </div>
