@@ -2,6 +2,8 @@
 /* The body scrolls inside the sticky panel; the foot holds the decision and never leaves view. */
 .iw-detail { display: flex; flex-direction: column; max-height: calc(100vh - 124px); overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: rgb(255 255 255 / 92%); box-shadow: 0 6px 15px rgb(38 66 97 / 3%); }
 .iw-detail-body { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; padding: 18px 20px 20px; overscroll-behavior: contain; }
+/* Scroll shadows: a soft edge shows above or below the body only while there is more to scroll that way. */
+.iw-detail-body { background: linear-gradient(#fff 30%, rgb(255 255 255 / 0)) center top / 100% 36px no-repeat local, linear-gradient(rgb(255 255 255 / 0), #fff 70%) center bottom / 100% 36px no-repeat local, radial-gradient(farthest-side at 50% 0, rgb(38 66 97 / 14%), transparent) center top / 100% 10px no-repeat scroll, radial-gradient(farthest-side at 50% 100%, rgb(38 66 97 / 14%), transparent) center bottom / 100% 10px no-repeat scroll; }
 .iw-detail-records { display: flex; flex-direction: column; }
 .iw-detail-foot { display: grid; flex: none; gap: 12px; padding: 14px 20px 18px; border-top: 1px solid var(--line); background: #fff; }
 .iw-detail > .iw-error { margin: 0 20px 12px; }
