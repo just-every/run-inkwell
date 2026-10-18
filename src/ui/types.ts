@@ -21,6 +21,14 @@ export async function command<T>(name: string, input: unknown): Promise<T> {
 export function fileBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1]); reader.onerror = () => reject(new Error('Could not read the file.')); reader.readAsDataURL(file) })
 }
-export const dateTime = (value: string) => new Date(value).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })
+// US dates in the viewer's own time zone: "Thu Oct 15" in lists, "Thu Oct 15, 3:12 pm" beside an action, with the year
+// only when it is not this year.
+const parts = (value: string | Date, options: Intl.DateTimeFormatOptions) => Object.fromEntries(new Intl.DateTimeFormat('en-US', options).formatToParts(new Date(value)).map(part => [part.type, part.value]))
+export function shortDay(value: string) {
+  const day = parts(value, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+  return `${day.weekday} ${day.month} ${day.day}${day.year === String(new Date().getFullYear()) ? '' : `, ${day.year}`}`
+}
+export const clockTime = (value: string | Date) => { const time = parts(value, { hour: 'numeric', minute: '2-digit' }); return `${time.hour}:${time.minute} ${time.dayPeriod.toLowerCase()}` }
+export const dateTime = (value: string) => `${shortDay(value)}, ${clockTime(value)}`
 export const canEdit = (actor: Actor) => ['owner', 'admin'].includes(actor.role)
 export const canApprove = (actor: Actor) => ['owner', 'admin'].includes(actor.role)

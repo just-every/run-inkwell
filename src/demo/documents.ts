@@ -7,7 +7,7 @@ export async function agreementPdf(title: string, names: string[], date: string)
   const page = document.addPage([595, 842]), font = await document.embedFont(StandardFonts.Helvetica)
   const lines = [
     'INKWELL / AGREEMENT', '', title.replaceAll('·', '-'), '', `Prepared ${date.slice(0, 10)}`,
-    '', `Between ${names[0]} and ${names[1]}.`, '',
+    '', names.length > 1 ? `Between ${names.slice(0, -1).join(', ')} and ${names.at(-1)}.` : `For ${names[0]}.`, '',
     '1. Scope', 'The parties agree to the services and deliverables in the approved project brief.',
     'Changes to scope, delivery dates or fees require written approval by both parties.', '',
     '2. Payment and delivery', 'Invoices are payable within 30 days. The parties will review progress together',

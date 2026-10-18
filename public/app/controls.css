@@ -1,128 +1,158 @@
-/* Inkwell app: type, buttons, fields, pills and marks. Tokens: /tokens.css. */
-body:has(.iw-app) { padding: 0; background: var(--paper); }
+/* Inkwell app: type, buttons, fields, pills and marks. Every token is in /rer-theme.css. */
+body:has(.iw-app) { margin: 0; padding: 0; background: var(--paper); }
 .iw-app {
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
   color: var(--ink);
-  font: 400 16px/1.55 var(--font-body);
+  font: 400 15px/1.5 var(--rer-font-body);
   -webkit-font-smoothing: antialiased;
+  /* White ground with the faint square grid, as on the run site. */
+  background:
+    linear-gradient(var(--app-grid) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(90deg, var(--app-grid) 1px, transparent 1px) 0 0 / 48px 48px,
+    var(--paper);
 }
 .iw-app *, .iw-app *::before, .iw-app *::after { box-sizing: border-box; }
 .iw-app h1, .iw-app h2, .iw-app h3, .iw-app p { margin: 0; }
-.iw-app h1 { font: 400 64px/1.02 var(--font-heading); letter-spacing: -0.02em; text-wrap: balance; }
-.iw-app h2 { font: 400 26px/1.25 var(--font-body); letter-spacing: -0.01em; }
-.iw-app h3 { font: 500 19px/1.35 var(--font-body); }
-.iw-app p { color: var(--muted); text-wrap: pretty; }
+.iw-app h1 { font: 900 80px/1 var(--rer-font-heading); letter-spacing: -.055em; text-wrap: balance; }
+.iw-app h2 { font: 800 24px/1.2 var(--rer-font-heading); letter-spacing: -.03em; }
+.iw-app h3 { font: 700 16px/1.35 var(--rer-font-heading); letter-spacing: -.01em; }
+.iw-app p { color: var(--body); text-wrap: pretty; }
 .iw-app a { color: inherit; }
-.iw-app code { font: 14px/1.5 var(--font-mono); }
+.iw-app code { font: 13px/1.5 var(--rer-font-mono); }
 .iw-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.iw-icon { flex: none; display: block; }
+.iw-grad { background: var(--app-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
-/* Buttons: outlined pills; the primary is plum. */
+/* Buttons: quiet outlined pills; the primary is ink. */
 .iw-app button, .iw-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
-  padding: 9px 22px;
-  border: 1px solid color-mix(in srgb, var(--ink) 35%, transparent);
+  min-height: 40px;
+  padding: 8px 18px;
+  border: 1px solid var(--line-strong);
   border-radius: 999px;
   background: var(--surface);
   color: var(--ink);
-  font: 500 15px/1.3 var(--font-body);
+  font: 500 14px/1.3 var(--rer-font-body);
   text-align: center;
   text-decoration: none;
   cursor: pointer;
-  transition: background-color .15s, border-color .15s;
+  transition: background-color .15s, border-color .15s, box-shadow .15s;
 }
-.iw-app button:hover, .iw-button:hover { background: var(--grey-tint); border-color: color-mix(in srgb, var(--ink) 55%, transparent); }
-.iw-app button:disabled, .iw-app input:disabled, .iw-app select:disabled { cursor: not-allowed; opacity: .55; }
-.iw-app .iw-primary { min-height: 52px; padding: 12px 30px; border-color: var(--plum); background: var(--plum); color: #FFFFFF; font-size: 17px; }
-.iw-app .iw-primary:hover { border-color: var(--plum-hover); background: var(--plum-hover); }
-.iw-app .iw-danger { border-color: var(--danger); background: var(--danger); color: #FFFFFF; }
-.iw-app .iw-danger:hover { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 85%, black); }
-.iw-app .iw-text-button { min-height: 44px; padding: 0 8px; border: 0; background: none; color: var(--plum); font-weight: 400; }
-.iw-app .iw-text-button:hover { background: none; text-decoration: underline; text-underline-offset: 4px; }
-.iw-app :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.iw-app button:hover, .iw-button:hover { border-color: var(--app-field-hover); background: var(--app-wash); }
+.iw-app button:disabled, .iw-app input:disabled, .iw-app select:disabled, .iw-app textarea:disabled { cursor: not-allowed; opacity: .5; }
+.iw-app .iw-primary { min-height: 46px; padding: 10px 24px; border-color: var(--button); border-radius: 16px; background: var(--button); color: #fff; font-size: 15px; font-weight: 600; box-shadow: 0 10px 22px -14px rgb(11 13 18 / 70%); }
+.iw-app .iw-primary:hover { border-color: #000; background: #000; }
+.iw-app .iw-danger { border-color: var(--red); background: var(--red); color: #fff; }
+.iw-app .iw-danger:hover { border-color: var(--red-ink); background: var(--red-ink); }
+.iw-app .iw-text-button, .iw-app .iw-link { min-height: 32px; padding: 0 4px; border: 0; border-radius: 6px; background: none; color: var(--blue-ink); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+.iw-app .iw-text-button:hover, .iw-app .iw-link:hover { background: none; color: var(--ink); }
+.iw-app .iw-icon-button { width: 36px; min-height: 36px; padding: 0; border-color: transparent; background: none; color: var(--soft); }
+.iw-app .iw-icon-button:hover { border-color: var(--line); background: var(--app-wash); color: var(--ink); }
+.iw-app :focus-visible { outline: 2px solid var(--rer-focus); outline-offset: 2px; }
 .iw-app .iw-fit { align-self: flex-start; width: auto; }
 
-/* Fields. */
-.iw-app label { display: grid; gap: 6px; min-width: 0; font-size: 15px; font-weight: 500; }
-.iw-app label small { color: var(--muted); font-weight: 400; }
-.iw-app input:not([type=checkbox]), .iw-app select, .iw-app textarea {
+/* Fields: thin, quiet hairlines; focus draws the blue ring. */
+.iw-app label { display: grid; gap: 6px; min-width: 0; color: var(--ink); font-size: 14px; font-weight: 600; }
+.iw-app label small { color: var(--soft); font-weight: 400; }
+.iw-app input:not([type=checkbox]):not([type=radio]), .iw-app select, .iw-app textarea {
   display: block;
   width: 100%;
   min-width: 0;
-  min-height: 46px;
-  padding: 10px 14px;
-  border: 1px solid var(--control);
-  border-radius: var(--radius-field);
+  min-height: 42px;
+  padding: 9px 13px;
+  border: 1px solid var(--app-field);
+  border-radius: var(--app-radius-field);
   background: var(--surface);
   color: var(--ink);
-  font: 400 16px/1.4 var(--font-body);
+  font: 400 15px/1.4 var(--rer-font-body);
+  transition: border-color .15s, box-shadow .15s;
 }
-/* Single-choice selects: Base #247's chevron, two gradient strokes in --muted ending 14px in from the border (no data:
+.iw-app input:not([type=checkbox]):not([type=radio]):hover, .iw-app select:hover, .iw-app textarea:hover { border-color: var(--app-field-hover); }
+.iw-app input:not([type=checkbox]):not([type=radio]):focus, .iw-app select:focus, .iw-app textarea:focus { border-color: var(--rer-focus); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--rer-focus) 18%, transparent); }
+.iw-app input::placeholder { color: var(--faint); }
+/* Single-choice selects: Base #247's chevron, two gradient strokes in --soft ending 14px in from the border (no data:
    URI, which the theme frame's img-src 'self' blocks); multiple and size>1 lists stay native. */
 .iw-app select:not([multiple]):not([size]), .iw-app select[size="1"]:not([multiple]) {
   -webkit-appearance: none;
   appearance: none;
   padding-inline-end: 40px;
-  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-image: linear-gradient(45deg, transparent 50%, var(--soft) 50%), linear-gradient(135deg, var(--soft) 50%, transparent 50%);
   background-repeat: no-repeat;
   background-position: right 20px center, right 14px center;
   background-size: 6px 6px, 6px 6px;
 }
 .iw-app textarea { min-height: 96px; resize: vertical; }
-.iw-app input[type=checkbox] { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--plum); }
-.iw-app input[type=file] { padding: 8px 10px; font-size: 15px; }
+.iw-app input[type=checkbox] { flex: none; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--ink); }
+.iw-app input[type=file] { padding: 7px 10px; font-size: 14px; }
 .iw-app input::file-selector-button {
-  margin-right: 14px;
-  padding: 6px 16px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--grey-tint);
+  margin-right: 12px;
+  padding: 5px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
   color: var(--ink);
-  font: 500 14px/1.4 var(--font-body);
+  font: 500 13px/1.4 var(--rer-font-body);
   cursor: pointer;
 }
 .iw-app fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
-.iw-app legend { margin-bottom: 12px; padding: 0; font-size: 17px; font-weight: 500; }
-.iw-app legend span { color: var(--muted); font-weight: 400; }
-.iw-app summary { padding: 8px 0; font-weight: 500; cursor: pointer; }
-.iw-app details[open] > p { margin: 10px 0; }
-.iw-inline-label { display: flex !important; align-items: center; gap: 12px !important; font-weight: 400 !important; }
-.iw-inline-label select { width: 204px; }
-.iw-check { display: flex !important; align-items: flex-start; gap: 14px !important; font-weight: 400 !important; }
-.iw-file { display: flex !important; align-items: center; gap: 12px !important; padding: 6px 6px 6px 16px; border: 1px solid var(--control); border-radius: var(--radius-field); color: var(--muted); font-weight: 400 !important; }
+.iw-app legend { margin-bottom: 12px; padding: 0; font-size: 16px; font-weight: 700; }
+.iw-app legend span { color: var(--soft); font-weight: 400; }
+.iw-app summary { padding: 6px 0; font-weight: 600; cursor: pointer; }
+.iw-app details[open] > p { margin: 8px 0; }
+.iw-check { display: flex !important; align-items: flex-start; gap: 12px !important; color: var(--body) !important; font-weight: 400 !important; line-height: 1.45; }
+.iw-file { display: flex !important; align-items: center; gap: 12px !important; padding: 5px 5px 5px 14px; border: 1px solid var(--app-field); border-radius: var(--app-radius-field); background: var(--surface); color: var(--body) !important; font-weight: 500 !important; }
 .iw-file::before { content: ""; flex: none; width: 18px; height: 18px; background: url("/app/paperclip.svg") center / contain no-repeat; }
-.iw-app .iw-file input[type=file] { flex: 1; min-height: 0; margin-left: auto; padding: 0; border: 0; text-align: right; }
+.iw-app .iw-file input[type=file] { flex: 1; min-height: 0; margin-left: auto; padding: 0; border: 0; box-shadow: none; text-align: right; }
 
-/* Status pills: lowercase text labels, so colour never carries meaning alone. */
-.iw-status {
-  display: inline-block;
-  padding: 6px 14px;
-  border-radius: 999px;
-  background: var(--grey-tint);
-  color: var(--ink);
-  font: 500 14px/1.2 var(--font-body);
+/* Pills: a text label always, so colour never carries meaning alone. */
+.iw-pill, .iw-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 11px;
+  border-radius: 13px;
+  background: #eef1f4;
+  color: var(--body);
+  font: 600 13px/1.25 var(--rer-font-body);
   white-space: nowrap;
 }
-.iw-status-completed { background: var(--olive-tint); color: var(--olive-ink); }
-.iw-status-awaiting_signature, .iw-status-active { background: var(--plum-tint); color: var(--plum-ink); }
-.iw-status-voided, .iw-status-expired { background: var(--danger-tint); color: var(--danger); }
-.iw-count { display: inline-grid; place-items: center; min-width: 34px; height: 34px; margin-left: 10px; padding: 0 8px; border-radius: 6px; background: var(--grey-tint); font-size: 17px; vertical-align: 3px; }
+.iw-pill .iw-icon { stroke-width: 2.4; }
+.iw-pill-rose, .iw-status-expired, .iw-status-voided, .iw-status-revoked { background: #ffe1e8; color: #d0003a; }
+.iw-pill-amber { background: #fff3cc; color: #a34f00; }
+.iw-pill-blue { background: #e4f1ff; color: #0063f0; }
+.iw-pill-mint, .iw-status-completed, .iw-status-active { background: #d9fbee; color: #00804f; }
+.iw-pill-grey { background: #eef1f4; color: var(--soft); }
 
 /* Marks. */
 .iw-check-mark { flex: none; width: 22px; height: 22px; }
-.iw-check-mark circle { fill: var(--plum); }
-.iw-check-mark path { fill: none; stroke: #FFFFFF; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.iw-check-mark circle { fill: var(--green); }
+.iw-check-mark path { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .iw-roundel { display: block; }
 
 /* Notices. */
-.iw-error { padding: 12px 16px; border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); border-radius: var(--radius-field); background: var(--danger-tint); color: var(--danger) !important; overflow-wrap: anywhere; }
-.iw-muted { color: var(--muted); font-size: 15px; }
-.iw-mono { font: 13px/1.5 var(--font-mono); overflow-wrap: anywhere; }
-.iw-json { max-height: 400px; margin: 0; padding: 16px; overflow: auto; border-radius: var(--radius-field); background: var(--grey-tint); font: 13px/1.5 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.iw-error { padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--red) 30%, transparent); border-radius: var(--app-radius-field); background: var(--rose-tint); color: var(--red-ink) !important; overflow-wrap: anywhere; }
+.iw-muted { color: var(--soft); font-size: 14px; }
+.iw-mono { font: 12px/1.5 var(--rer-font-mono); overflow-wrap: anywhere; }
+.iw-json { max-height: 400px; margin: 0; padding: 14px; overflow: auto; border: 1px solid var(--line); border-radius: var(--app-radius-field); background: var(--app-wash); font: 12px/1.5 var(--rer-font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.iw-stack { display: flex; flex-direction: column; gap: 16px; }
+.iw-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.iw-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.iw-actions p { flex: 1; min-width: 190px; font-size: 13px; }
+.iw-callout { padding: 16px 18px; border: 1px solid var(--line); border-radius: var(--app-radius); background: var(--app-wash); }
+.iw-callout > p + button { margin-top: 14px; }
+.iw-callout h2 { font-size: 20px; }
+.iw-callout h2 + p { margin-top: 6px; }
+.iw-card { border: 1px solid var(--line); border-radius: var(--app-radius); background: var(--surface); box-shadow: var(--app-shadow); }
+.iw-panel { padding: 24px; border: 1px solid var(--line); border-radius: 16px; background: rgb(255 255 255 / 92%); box-shadow: var(--app-shadow); }
+.iw-section-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.iw-section-head p { margin-top: 4px; }
 
+@media (max-width: 760px) {
+  .iw-app h1 { font-size: 52px; }
+  .iw-two { grid-template-columns: minmax(0, 1fr); }
+  .iw-panel { padding: 18px 16px; }
+}
 @media (prefers-reduced-motion: reduce) { .iw-app * { transition: none !important; scroll-behavior: auto !important; } }

@@ -15,7 +15,6 @@ export const Route = createRootRoute({
     <link rel="icon" type="image/svg+xml" href="/brand/favicon-32.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="stylesheet" href="/rer-theme.css" />
-    <link rel="stylesheet" href="/tokens.css" />
     <HeadContent />
     <script dangerouslySetInnerHTML={{ __html: introGuardScript }} />
     <style>{introCss}</style>

@@ -15,8 +15,8 @@ export async function seedImported(env: Bindings, now: Date, ownerId: string) {
     if (result.state !== 'completed') throw new Error('Demo archive import did not complete')
     return
   }
-  const titles = ['Maple Studio - Annual retainer', 'Harbor Coffee - Original lease', 'Willow Clinic - Records policy', 'Cedar House - Initial brief']
-  const names = ['Maya Chen', 'Oliver Grant']
+  const titles = ['Brightwater Medical - Original service agreement', 'Polaris Fitness - Original service agreement', 'Lakeshore Dental - Original NDA', 'Franklin County Library - Original custodial agreement']
+  const names = ['Rosa Delgado', 'Jamal Carter']
   const submissions = [], files = []
   for (const [index, title] of titles.entries()) {
     const completedAt = new Date(now.getTime() - (45 + index * 7) * 86400000).toISOString()
@@ -26,7 +26,7 @@ export async function seedImported(env: Bindings, now: Date, ownerId: string) {
     submissions.push({ id: 1001 + index, name: title, status: 'completed', completed_at: completedAt, audit_log_url: url + '/audit.pdf', documents: [{ url: url + '/signed.pdf' }], submitters: names.map((name, signer) => ({ name, email: emailFor(name), role: signer ? 'Client' : 'Supplier', status: 'completed', completed_at: completedAt })) })
     files.push({ url: url + '/signed.pdf', name: `agreement-${1001 + index}.pdf`, base64: Buffer.from(signed).toString('base64') }, { url: url + '/audit.pdf', name: `audit-${1001 + index}.pdf`, base64: Buffer.from(audit).toString('base64') })
   }
-  const { source, mapping } = await readArchive({ provider: 'docuseal', account: 'Cedar House archive', submissions, files })
+  const { source, mapping } = await readArchive({ provider: 'docuseal', account: 'Harborline Facility Services archive', submissions, files })
   const plan = await planD1Import(source, mapping, context)
   const job = await createD1ImportJob(plan, { ...context, reviewedFingerprint: plan.fingerprint })
   const result = await resumeD1Import(job.id, context)

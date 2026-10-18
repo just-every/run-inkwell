@@ -4,6 +4,7 @@ import { request, type Field } from './types'
 import { ErrorNotice, useAction } from './feedback'
 import { PdfViewer } from './pdf-viewer'
 import { Check } from './marks'
+import { Brand } from './shell'
 
 type SigningSession = { title: string; status: string; verified: boolean; signer: { name: string; email: string; signedAt?: string }; fields: Field[]; signerIndex: number; canSign: boolean; waitingForTurn: boolean; signedAt?: string; pageSizes: { width: number; height: number }[] }
 export function SignerApp({ token }: { token: string }) {
@@ -21,7 +22,7 @@ export function SignerApp({ token }: { token: string }) {
   const closed = ['voided', 'expired'].includes(session?.status || '')
   const alreadySigned = signed || Boolean(session?.signedAt || session?.signer.signedAt)
   const canSign = session?.verified && !closed && !complete && !alreadySigned && session?.canSign === true
-  return <div className="iw-app iw-signer"><HydrationUnit><header className="iw-header"><a className="iw-brand" href="/"><img src="/brand/mark.svg" width={28} height={28} alt="" /><span data-rer-name>Inkwell</span></a><span className="iw-header-note">Secure document signing</span></header></HydrationUnit><main className="iw-main">
+  return <div className="iw-app iw-signer"><HydrationUnit><header className="iw-header"><Brand href="/" /><span className="iw-header-note">Secure document signing</span></header></HydrationUnit><main className="iw-main">
     <HydrationUnit><section className="iw-page-heading"><div><p className="iw-eyebrow">Signature request</p><h1>{session?.title || 'Your document'}</h1>{session && <p>For {session.signer.name} · {session.signer.email}</p>}</div></section></HydrationUnit>
     <HydrationUnit><section className="iw-panel iw-stack"><ErrorNotice error={action.error} />{!session && !action.error && <p role="status">Loading signature request…</p>}{!session && action.error && <p>The request could not be opened. Check the invitation link or contact the sender.</p>}
       {session && closed && <div className="iw-callout"><h2>{session.status === 'voided' ? 'This envelope was voided.' : 'This invitation has expired.'}</h2><p>Contact the sender for a new invitation.</p></div>}

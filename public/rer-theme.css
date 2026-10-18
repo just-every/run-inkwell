@@ -81,4 +81,20 @@
   --shadow-card: 0 1px 2px rgb(16 24 40 / 5%), 0 14px 34px -10px rgb(16 24 40 / 14%);
   --shadow-lift: 0 2px 4px rgb(16 24 40 / 6%), 0 22px 48px -14px rgb(16 24 40 / 20%);
   --radius-card: 18px;
+
+  /* The app's own tokens (public/app/*.css, Base's frames in public/frame.css): the picked app look's
+     white cards at 14px with hairlines, quiet 10px fields, and its brighter emerald-to-azure accent pair, kept to the
+     progress bars, the selected navigation and the count of envelopes that need you. */
+  --app-grad-a: #17b26a;
+  --app-grad-b: #1489f2;
+  --app-gradient: linear-gradient(90deg, var(--app-grad-a), var(--app-grad-b));
+  --app-nav: linear-gradient(90deg, #5fd8a6, #63b7f7);
+  --app-radius: 14px;
+  --app-radius-field: 10px;
+  --app-field: #d3d8e0;
+  --app-field-hover: #aab2bf;
+  --app-shadow: 0 1px 2px rgb(16 24 40 / 4%), 0 8px 24px -12px rgb(16 24 40 / 12%);
+  --app-grid: #f1f3f6;
+  --app-wash: #f6f8fa;
+  --app-select: #eef5ff;
 }

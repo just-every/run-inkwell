@@ -1,0 +1,77 @@
+/* Inkwell app: one envelope in the right-hand panel. */
+.iw-detail { display: flex; flex-direction: column; max-height: calc(100vh - 124px); overflow-y: auto; padding: 18px 20px 24px; border: 1px solid var(--line); border-radius: 16px; background: rgb(255 255 255 / 92%); box-shadow: 0 6px 15px rgb(38 66 97 / 3%); overscroll-behavior: contain; }
+.iw-detail-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.iw-detail-top .iw-pill-rose { padding: 6px 11px; border: 1px solid #ffc4ce; background: #fff8f9; color: #df0030; font-size: 14px; font-weight: 700; }
+.iw-app .iw-detail-top .iw-icon-button { margin: -6px -8px 0 0; }
+.iw-app .iw-detail h2 { margin: 18px 0 4px; font-size: 26px; font-weight: 800; letter-spacing: -.04em; line-height: 1.14; overflow-wrap: anywhere; }
+.iw-detail-sub { color: #485672 !important; font-size: 16px; overflow-wrap: anywhere; }
+.iw-app .iw-detail h3 { margin: 22px 0 14px; font-size: 16px; font-weight: 750; }
+
+.iw-signers { margin: 0; padding: 0; list-style: none; }
+.iw-signers li { position: relative; display: flex; gap: 14px; min-height: 56px; padding-bottom: 14px; }
+.iw-signers li:not(:last-child)::after { content: ""; position: absolute; top: 34px; bottom: 2px; left: 15px; border-left: 1px solid #abb6c7; }
+.iw-signers li.iw-signed:not(:last-child)::after { border-color: #78e6be; }
+.iw-order { z-index: 1; display: grid; place-items: center; flex: none; width: 31px; height: 31px; border-radius: 50%; background: linear-gradient(120deg, #edf1f5, #cfd5db); color: var(--ink); font-size: 16px; font-weight: 700; }
+.iw-signed .iw-order { background: none; }
+.iw-signed .iw-check-mark { width: 31px; height: 31px; }
+.iw-turn .iw-order { background: linear-gradient(120deg, #e8f4ff, #b9dcff); color: #00337a; }
+.iw-signers li > div { display: grid; min-width: 0; line-height: 1.45; font-size: 14px; }
+.iw-signers strong { font-size: 15.5px; font-weight: 700; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.iw-signer-email { color: #5a6882; overflow-wrap: anywhere; }
+.iw-signers small { color: #5a6882; font-size: 13.5px; }
+.iw-signed small { color: var(--green-ink); }
+.iw-turn small { color: #0063f0; }
+
+.iw-decision { margin-top: 4px; }
+.iw-alert { display: flex; align-items: center; gap: 13px; padding: 12px; border: 1px solid #ffbfca; border-radius: 13px; background: #ffe9ed; color: #790026; font-size: 14px; line-height: 1.5; }
+.iw-alert-mark { display: grid; place-items: center; flex: none; width: 31px; height: 31px; border: 2px solid #fff; border-radius: 50%; background: linear-gradient(#ff6163, #e91432); color: #fff; font-size: 19px; font-weight: 800; }
+.iw-alert strong { font-weight: 700; }
+.iw-app .iw-alert p { color: #790026; }
+.iw-decision > p { font-size: 14px; }
+.iw-decision .iw-check { margin-top: 14px; font-size: 14px; }
+.iw-decision-actions { display: flex; gap: 9px; margin-top: 16px; }
+.iw-app .iw-decision-actions button { flex: 1 1 0; min-height: 52px; padding: 8px 12px; border-radius: 26px; font-size: 14px; line-height: 1.25; }
+.iw-app .iw-decision-actions button:not(.iw-primary) { border-color: #67748d; }
+.iw-app .iw-decision-actions .iw-primary { flex-grow: 1.7; }
+
+.iw-artifacts { display: flex; flex-wrap: wrap; gap: 8px; }
+.iw-app .iw-artifacts > button, .iw-app .iw-artifacts > .iw-button { min-height: 34px; padding: 6px 12px; font-size: 13px; }
+.iw-detail .iw-pdf-viewer { margin-top: 12px; padding: 10px; }
+
+.iw-integrity { display: grid; gap: 10px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.iw-app .iw-integrity > h3 { margin: 0; }
+.iw-hashes { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; margin: 0; font-size: 13px; }
+.iw-hashes dt { color: var(--soft); }
+.iw-hashes dd { margin: 0; font: 12.5px/1.6 var(--rer-font-mono); overflow-wrap: anywhere; }
+.iw-hashes > div { display: contents; }
+.iw-app .iw-integrity > button { min-height: 36px; font-size: 13px; }
+.iw-result { display: flex; align-items: flex-start; gap: 12px; }
+.iw-app .iw-result h3 { margin: 0; font-size: 15px; }
+.iw-result p { margin-top: 2px; font-size: 13px; }
+.iw-result details { margin-top: 2px; font-size: 13px; }
+.iw-result ul { margin: 6px 0; padding-left: 18px; color: var(--body); font-size: 13px; }
+.iw-app .iw-result-failed h3 { color: var(--red-ink); }
+
+.iw-audit-trail { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+.iw-audit-trail > summary { display: flex; align-items: center; gap: 10px; list-style: none; font-size: 15px; font-weight: 700; }
+.iw-audit-trail > summary::-webkit-details-marker { display: none; }
+.iw-audit-trail > summary::before { content: ""; width: 7px; height: 7px; margin: 0 4px 0 2px; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: rotate(-45deg); transition: transform .15s; }
+.iw-audit-trail[open] > summary::before { transform: rotate(45deg); }
+.iw-audit { position: relative; display: grid; gap: 10px; margin: 12px 0 0; padding: 0 0 0 24px; list-style: none; }
+.iw-audit::before { content: ""; position: absolute; top: 8px; bottom: 8px; left: 5px; border-left: 1px dotted var(--app-grad-b); }
+.iw-audit li { position: relative; display: grid; gap: 1px; }
+.iw-audit li::before { content: ""; position: absolute; top: 6px; left: -23px; width: 9px; height: 9px; border-radius: 50%; background: var(--app-gradient); }
+.iw-audit strong { font: 500 12.5px/1.5 var(--rer-font-mono); overflow-wrap: anywhere; }
+.iw-audit time, .iw-audit span, .iw-audit p { color: var(--soft); font-size: 12.5px; overflow-wrap: anywhere; }
+.iw-quiet { margin-top: 14px; }
+.iw-app .iw-quiet > button { min-height: 34px; padding: 6px 16px; color: var(--body); font-size: 13px; }
+.iw-quiet > form { margin-top: 12px; }
+
+/* The selected envelope takes the page when the list and panel cannot sit side by side. */
+@media (max-width: 1180px) {
+  .iw-detail { max-height: none; overflow: visible; padding: 18px 18px 22px; }
+}
+@media (max-width: 860px) {
+  .iw-app .iw-detail h2 { font-size: 23px; }
+  .iw-app .iw-decision-actions button { min-height: 48px; }
+}
