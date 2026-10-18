@@ -28,7 +28,7 @@
     "check": "rer check",
     "deps": "rer install",
     "rer": "rer",
-    "test:api": "rer queue test:api -- node --test --test-concurrency=1 tests/api.test.mjs"
+    "test:api": "rer queue test:api -- node --test --test-concurrency=1 tests/*.test.mjs"
   },
   "dependencies": {
     "@tanstack/react-router": "1.170.33",

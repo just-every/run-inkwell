@@ -8,13 +8,13 @@ import { build } from 'esbuild'
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare'
 import { unstable_splitSqlQuery } from 'wrangler'
 
-export async function harness() {
+export async function harness({ mailProvider = 'resend' } = {}) {
  const socket = createServer(); await new Promise(r => socket.listen(0,'127.0.0.1',r)); const port = socket.address().port; await new Promise(r => socket.close(r))
  const origin = `http://127.0.0.1:${port}`, directory = await mkdtemp(join(tmpdir(),'inkwell-test-'))
  const bundle = await build({entryPoints:['tests/api-worker.ts'],bundle:true,write:false,format:'esm',platform:'neutral',mainFields:['module','main'],conditions:['workerd','worker','browser'],external:['node:*','cloudflare:*'],target:'es2023'})
  const bootstrapToken = randomBytes(32).toString('hex')
  const capturedMail = []
- const mf = new Miniflare({...convertV4MiniflareOptions({host:'127.0.0.1',port,outboundService:async request=>{ if(new URL(request.url).hostname!=='api.resend.com') throw new Error('Unexpected test network request'); capturedMail.push(await request.json()); return Response.json({id:crypto.randomUUID()}) },modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'inkwell'},bindings:{AUTH_ORIGIN:origin,AUTH_LOCAL:'true',OWNER_EMAIL:'owner@harbour.example',SESSION_SECRET:randomBytes(32).toString('hex'),SETUP_TOKEN:bootstrapToken,MAIL_PROVIDER:'resend',MAIL_API_KEY:'test-mail-edge',MAIL_FROM:'Inkwell <inkwell@harbour.example>'}}),resourcePersistencePath:directory})
+ const mf = new Miniflare({...convertV4MiniflareOptions({host:'127.0.0.1',port,outboundService:async request=>{ if(new URL(request.url).hostname!=='api.resend.com') throw new Error('Unexpected test network request'); capturedMail.push(await request.json()); return Response.json({id:crypto.randomUUID()}) },modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'inkwell'},bindings:{AUTH_ORIGIN:origin,AUTH_LOCAL:'true',OWNER_EMAIL:'owner@harbour.example',SESSION_SECRET:randomBytes(32).toString('hex'),SETUP_TOKEN:bootstrapToken,...(mailProvider ? {MAIL_PROVIDER:mailProvider} : {}),MAIL_API_KEY:'test-mail-edge',MAIL_FROM:'Inkwell <inkwell@harbour.example>'}}),resourcePersistencePath:directory})
  try {
   const db = await mf.getD1Database('DB')
   for(const file of (await readdir('migrations/core')).filter(f=>f.endsWith('.sql')).sort()) await db.batch(unstable_splitSqlQuery(await readFile('migrations/core/'+file,'utf8')).map(sql=>db.prepare(sql)))
