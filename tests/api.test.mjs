@@ -617,8 +617,15 @@ const selfSign=async title=>{const id=(await h.command('envelope.prepare',{title
  assert.ok(await h.mail(recipients[1].email,'Please sign: Solo then Alex'),'order 2 is invited only after the sender signs')
 })
 // ADMIN-001: envelope shares to view or to edit; people it is shared with cannot share it on; a viewer stays a reader.
-test('ADMIN-001: two senders cannot see each other\'s envelopes until one shares; a view share reads but cannot void, an edit share voids, editors cannot re-share, and a viewer\'s edit share stays read-only',async()=>{
+test('ADMIN-001: a sender sends, corrects and voids their own envelope and a viewer cannot send; two senders cannot see each other\'s envelopes until one shares; a view share reads but cannot void, an edit share voids, editors cannot re-share, and a viewer\'s edit share stays read-only',async()=>{
  const ana=await sender('ana.share@harbour.example'),ben=await sender('ben.share@harbour.example')
+ // A sender's own envelope: sent, corrected in flight and voided by them; a viewer-role member may not prepare or send.
+ const own=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio own retainer'},ana.cookie)).result.id
+ await h.command('envelope.approve',{id:own,eligible:true},ana.cookie)
+ await h.command('envelope.correct',{id:own,signers:[recipients[0],{...recipients[1],email:'alex.morgan@harbour.example'}].map((r,i)=>({...r,order:i+1}))},ana.cookie)
+ assert.equal((await stored(own,ana.cookie)).signers[1].email,'alex.morgan@harbour.example','the sender corrects their own envelope')
+ assert.equal((await h.command('envelope.void',{id:own,reason:'Superseded'},ana.cookie)).result.status,'voided','and voids it')
+ await h.command('envelope.prepare',preparation(),member,403);await h.command('envelope.approve',{id:own,eligible:true},member,403)
  const id=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio shared retainer'},ana.cookie)).result.id
  await h.command('envelope.approve',{id,eligible:true},ana.cookie)
  const sees=async cookie=>(await h.send('/api/inkwell/envelopes?q=shared%20retainer',undefined,cookie)).value.envelopes.map(e=>e.id).includes(id)

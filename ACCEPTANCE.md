@@ -108,7 +108,7 @@ Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed her
 
 ### Team administration
 
-- **ADMIN-001 — Roles and envelope sharing** (partial). A sender sends, corrects and voids their own envelope; two senders cannot see each other's envelopes until one shares a folder, and a view-only share lets the other read but not void; a viewer can read but not send; the API enforces the same boundaries.
+- **ADMIN-001 — Roles and envelope sharing** (done). A sender sends, corrects and voids their own envelope; two senders cannot see each other's envelopes until one shares the envelope (or, once `MANAGE-002` ships folders, a folder), and a view-only share lets the other read but not void; a viewer can read but not send; the API enforces the same boundaries.
 - **ADMIN-002 — Members, groups and departures** (partial). Deactivate a sender with two in-flight envelopes; transfer them; both complete and notify the new owner. A template shared with a group is used by a group member (`TMPL-002`).
 - **ADMIN-003 — SSO and SCIM** (partial). Through IdP fakes, an OIDC and a SAML sign-in succeed, a SCIM create adds a member and a SCIM deactivate ends their sessions.
 - **ADMIN-004 — Account defaults and sending policies** (missing). Change each default and show new envelopes inherit it; a templates-only policy on the Field group refuses an ad hoc upload by its sender while another group's sender can still send ad hoc; a web-form submission sends under the web-form policy and its record names the policy and version; with that policy turned off, the next submission waits for a named person's approval.
