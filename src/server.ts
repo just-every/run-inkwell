@@ -11,7 +11,7 @@ import { identity } from './identity'
 import { api } from './inkwell/api'
 import { importResponse } from './inkwell/imports'
 import { archiveResponse } from './inkwell/archive'
-import { warnExpiring } from './inkwell/expiry'
+import { scheduledPass } from './inkwell/scheduled'
 
 // Start documents keep their own cache policy and add no-transform, so no proxy
 // rewrites the HTML React hydrates (Cloudflare's email address obfuscation
@@ -38,6 +38,6 @@ export default withDemo({
     if (lobby) return lobby
     return rejectedResponse(request, await dispatch(request, () => api.fetch(request, env, execution), async () => noTransform(await start.fetch(request))))
   },
-  // DELIV-004: the hourly pass that warns recipients and senders before an envelope expires.
-  async scheduled(controller, env) { await warnExpiring(runtimeBindings(env), controller.scheduledTime) },
+  // The hourly pass: DELIV-004 expiry warnings and DELIV-003 reminders.
+  async scheduled(controller, env) { await scheduledPass(runtimeBindings(env), controller.scheduledTime) },
 } satisfies ExportedHandler<Bindings>, { seed: seedDemo })

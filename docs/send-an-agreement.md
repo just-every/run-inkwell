@@ -69,6 +69,17 @@ by email. An accepted upload counts as that recipient's wet-ink signature: the n
 recipient is invited, the scan's pages are appended to the executed PDF, and the certificate
 marks the signature as wet ink with the scan's SHA-256 fingerprint.
 
+## Reminders
+
+Tick **Remind the recipients whose turn it is by email** while preparing to chase signers
+automatically. Set **First reminder after (business days)** and **Then every (business
+days)**, each from 1 to 30. Business days are Monday to Friday, Eastern time, and a
+reminder goes out from 9 am on the day it is due. Only recipients whose turn it is are
+reminded, from the day they were invited; reminders stop once they sign, and for everyone
+when the envelope is declined, voided or expires. A recipient whose paper scan is waiting
+for your review is not reminded. Each reminder is in the audit trail. When mail is not set
+up, no reminders are sent.
+
 ## Expiry and extensions
 
 Every envelope expires 120 days after it is prepared unless you change **Expires after

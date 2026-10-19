@@ -254,6 +254,37 @@ test('DELIV-004: an envelope set to expire in 10 days warns on day 7, is extende
  const second=await verified(lapsed[0].email)
  assert.equal((await h.post(second.path+'/sign',{values:{'signature-0':'Max Dunn'},consent:true,commandId:crypto.randomUUID()},second.cookie)).value.result.status,'completed')
 })
+test('DELIV-003: with the clock advanced, the current signer is reminded on business days 2, 4 and 6 skipping the weekend, the waiting signer never is, and reminders stop after the signature',async()=>{
+ const pair=[{name:'Kai Moss',email:'kai@harbour.example'},{name:'Lena Ortiz',email:'lena@harbour.example'}]
+ await h.command('envelope.prepare',{...preparation(),reminders:{afterDays:0,everyDays:2}},h.owner,400)
+ const id=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio retainer',signers:pair,fields:pair.map((_,signer)=>({...fields[0],id:`signature-${signer}`,signer,y:.4+signer*.15})),reminders:{afterDays:2,everyDays:2}})).result.id
+ await h.command('envelope.approve',{id,eligible:true})
+ // Eastern-time calendar arithmetic for the test clock: 14:00 local on the given local date.
+ const zone='America/New_York',local=at=>new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(at)
+ const hour=at=>Number(new Intl.DateTimeFormat('en-US',{timeZone:zone,hour:'numeric',hourCycle:'h23'}).format(at))
+ const at2pm=date=>[18,19].map(h=>Date.parse(`${date}T${h}:00:00Z`)).find(at=>hour(at)===14)
+ const start=local(Date.now()),dateAfter=n=>new Date(Date.parse(start+'T12:00:00Z')+n*86_400_000).toISOString().slice(0,10)
+ const weekend=date=>[0,6].includes(new Date(date+'T12:00:00Z').getUTCDay())
+ const reminded=async signer=>(await snapshot()).envelopes.find(e=>e.id===id).events.filter(e=>e.action==='signer.reminded'&&e.detail.signer===signer)
+ let businessDays=0,day=0,sawWeekend=false
+ while(businessDays<7){
+  day++;const date=dateAfter(day);if(weekend(date))sawWeekend=true;else businessDays++
+  await h.scheduled(at2pm(date))
+  const sent=await reminded(0)
+  assert.equal(sent.length,Math.floor(businessDays/2),`reminders after business day ${businessDays} (${date})`)
+  if(weekend(date))assert.ok(sent.every(e=>local(Date.parse(e.detail.passAt))!==date),'no reminder on a weekend')
+ }
+ assert.ok(sawWeekend,'the run crossed a weekend')
+ const sent=await reminded(0)
+ assert.deepEqual(sent.map(e=>e.detail.count),[1,2,3])
+ assert.ok((await h.mail(pair[0].email,'Reminder to sign:'))?.text.includes('Harbour Studio retainer'),'the reminder reaches the current signer')
+ assert.equal(await h.mail(pair[1].email),undefined,'the waiting signer receives nothing');assert.equal((await reminded(1)).length,0)
+ const first=await verified(pair[0].email)
+ await h.post(first.path+'/sign',{values:{'signature-0':'Kai Moss'},consent:true,commandId:crypto.randomUUID()},first.cookie)
+ for(let n=1;n<=6;n++) await h.scheduled(at2pm(dateAfter(day+n)))
+ assert.equal((await reminded(0)).length,3,'reminders stop after the signature')
+ assert.ok((await reminded(1)).length>=1,'the next signer is reminded once it is their turn')
+})
 test('SIGNX-008: a signer downloads the document before signing; a three-page paper scan is accepted as a wet-ink signature, and envelopes that do not allow paper refuse it',async()=>{
  const pair=[{name:'Nia Cole',email:'nia@harbour.example'},{name:'Oto Grant',email:'oto@harbour.example'}]
  const scan=async pages=>{const pdf=await PDFDocument.create(),font=await pdf.embedFont(StandardFonts.Helvetica);for(let n=1;n<=pages;n++)pdf.addPage([595,842]).drawText(`Scanned page ${n} - signed by hand: Nia Cole`,{x:60,y:700,size:14,font});return pdf.save()}

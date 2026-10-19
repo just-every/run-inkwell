@@ -187,7 +187,7 @@ Inkwell is one product. Where the market sells a neighbouring product separately
 
 - **DELIV-002 — Bounces and bad addresses.** A hard bounce or rejected address flags the recipient, pauses their reminders and alerts the sender, who corrects the address and resends in one step. **Acceptance evidence:** a bounce event marks the recipient, the sender is alerted, corrects the email and the corrected recipient signs.
 
-- **DELIV-003 — Automatic reminders.** Reminders start N days after a recipient's invitation and repeat every M days, only to recipients whose action is current, within the account's US time zone and business days, and stop at signature, decline, void or expiry. Account, template and envelope levels set them. **Acceptance evidence:** with the clock advanced, a current signer receives reminders on days 2, 4 and 6 skipping a weekend, a waiting signer receives none, and reminders stop after the signature.
+- **DELIV-003 — Automatic reminders.** Reminders start N days after a recipient's invitation and repeat every M days, only to recipients whose action is current, within the account's US time zone and business days, and stop at signature, decline, void or expiry. Account, template and envelope levels set them. N and M are whole business days from 1 to 30; business days are Monday to Friday in the account's time zone, which is America/New_York until the account setting of `ADMIN-004` lets the owner choose another US zone, and a due reminder goes out on the first hourly pass at or after 09:00 local time. A recipient's invitation is when the envelope was approved (first routing order) or when the last recipient at a lower order signed (`ROUTE-002`); later reminders count from the previous one. A recipient whose paper scan awaits review is not reminded (`SIGNX-008`). The reminder points to the recipient's invitation link; when mail is not set up no reminder is sent or recorded. Today the envelope level ships, set when preparing and kept by a copy (`PREP-010`); the account and template levels arrive with `ADMIN-004` and `TMPL-001`, which must set them before they ship. **Acceptance evidence:** with the clock advanced, a current signer receives reminders on days 2, 4 and 6 skipping a weekend, a waiting signer receives none, and reminders stop after the signature.
 
 - **DELIV-004 — Configurable expiry with warnings.** Expiry is set per envelope, template or account (default 120 days), recipients and the sender are warned before it, and the sender can extend it before or after expiry without re-preparing. **Acceptance evidence:** an envelope set to expire in 10 days warns on day 7, the sender extends it by 14 days, and the signer signs on day 12.
 
@@ -368,8 +368,8 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 6 | 4 | 0 | 10 |
-| Target and push further | 8 | 25 | 74 | 107 |
-| All | 14 | 29 | 74 | 117 |
+| Target and push further | 9 | 25 | 73 | 107 |
+| All | 15 | 29 | 73 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -428,7 +428,7 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `IDV-005` | Knowledge-based and phone authentication | target | missing |  | No knowledge-based or phone authentication |
 | `DELIV-001` | Live delivery with per-message status | target | partial | `src/inkwell/mail.ts` | Sent and uncertain states only; no delivered, opened or bounced events from provider webhooks |
 | `DELIV-002` | Bounces and bad addresses | target | missing |  | No bounce handling |
-| `DELIV-003` | Automatic reminders | target | missing |  | No reminders |
+| `DELIV-003` | Automatic reminders | target | done | `src/inkwell/reminders.ts`; `src/inkwell/scheduled.ts`; `src/ui/prepare-envelope.tsx`; `tests/api.test.mjs` | Per-envelope reminders after N and every M business days (Eastern time, from 09:00), current recipients only, stopping at signature, decline, void or expiry (test `DELIV-003`); account and template levels ride with `ADMIN-004` and `TMPL-001` |
 | `DELIV-004` | Configurable expiry with warnings | target | done | `tests/api.test.mjs`; `src/inkwell/expiry.ts`; `src/server.ts`; `src/ui/envelope-detail.tsx`; `src/ui/prepare-envelope.tsx` |  |
 | `DELIV-005` | Resend by email or SMS | target | missing |  | Only verification codes can be re-requested; no invitation resend or SMS |
 | `DELIV-006` | Correct an envelope in flight | target | missing |  | No in-flight correction |
