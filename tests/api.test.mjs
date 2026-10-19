@@ -532,6 +532,38 @@ const selfSign=async title=>{const id=(await h.command('envelope.prepare',{title
  assert.equal(await sign(two,{'signature-0':'Solo Signer'},'Solo Signer'),'awaiting_signature')
  assert.ok(await h.mail(recipients[1].email,'Please sign: Solo then Alex'),'order 2 is invited only after the sender signs')
 })
+// ADMIN-001: envelope shares to view or to edit; people it is shared with cannot share it on; a viewer stays a reader.
+test('ADMIN-001: two senders cannot see each other\'s envelopes until one shares; a view share reads but cannot void, an edit share voids, editors cannot re-share, and a viewer\'s edit share stays read-only',async()=>{
+ const ana=await sender('ana.share@harbour.example'),ben=await sender('ben.share@harbour.example')
+ const id=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio shared retainer'},ana.cookie)).result.id
+ await h.command('envelope.approve',{id,eligible:true},ana.cookie)
+ const sees=async cookie=>(await h.send('/api/inkwell/envelopes?q=shared%20retainer',undefined,cookie)).value.envelopes.map(e=>e.id).includes(id)
+ const opens=async cookie=>(await h.send('/api/inkwell/envelopes/'+id,undefined,cookie)).status
+ const voidIt=(cookie,status)=>h.command('envelope.void',{id,reason:'Superseded'},cookie,status)
+ assert.equal(await sees(ben.cookie),false);assert.equal(await opens(ben.cookie),403,'another sender cannot see it before a share')
+ await h.command('envelope.share',{id,email:'ben.share@harbour.example',access:'view'},ben.cookie,403)
+ await h.command('envelope.share',{id,email:'nobody@harbour.example',access:'view'},ana.cookie,404)
+ await h.command('envelope.share',{id,email:'Ben.Share@harbour.example',access:'view'},ana.cookie)
+ assert.equal(await sees(ben.cookie),true);assert.equal(await opens(ben.cookie),200,'a view share reads')
+ assert.equal((await stored(id,ben.cookie)).access,'view');assert.equal((await h.send(`/api/inkwell/envelopes/${id}/artifacts/original`,undefined,ben.cookie)).status,200)
+ await voidIt(ben.cookie,403);await h.command('envelope.extend',{id,days:7},ben.cookie,403)
+ // a viewer-role member with an edit share still only reads
+ await h.command('envelope.share',{id,email:'reader@harbour.example',access:'edit'},ana.cookie)
+ assert.equal((await stored(id,member)).access,'view');await voidIt(member,403)
+ // an edit share acts, but cannot share on
+ await h.command('envelope.share',{id,email:'ben.share@harbour.example',access:'edit'},ana.cookie)
+ assert.equal((await stored(id,ben.cookie)).access,'edit');assert.equal((await stored(id,ben.cookie)).mayShare,false)
+ const owned=await stored(id,ana.cookie);assert.equal(owned.mayShare,true);assert.deepEqual(owned.shares.map(s=>[s.email,s.access]).sort(),[['ben.share@harbour.example','edit'],['reader@harbour.example','edit']])
+ await h.command('envelope.share',{id,email:'reader@harbour.example',access:'view'},ben.cookie,403)
+ await h.command('envelope.unshare',{id,operatorId:owned.shares.find(s=>s.email==='reader@harbour.example').operatorId},ben.cookie,403)
+ // taking a share back ends it at once
+ await h.command('envelope.unshare',{id,operatorId:ben.id},ana.cookie)
+ assert.equal(await opens(ben.cookie),403);await voidIt(ben.cookie,403)
+ await h.command('envelope.share',{id,email:'ben.share@harbour.example',access:'edit'},h.owner)
+ assert.equal((await voidIt(ben.cookie)).result.status,'voided','someone it is shared with to edit voids it (SEND-002)')
+ const e=await stored(id);assert.deepEqual(e.events.filter(x=>x.action==='envelope.shared'||x.action==='envelope.unshared').map(x=>[x.action,x.detail.access??null]),[['envelope.shared','view'],['envelope.shared','edit'],['envelope.shared','edit'],['envelope.unshared',null],['envelope.shared','edit']],'every grant and removal is audited')
+ assert.equal(e.events.find(x=>x.action==='envelope.voided').actor,ben.id)
+})
 test('MANAGE-001: with 5,000 envelopes, search by recipient email answers in under a second and each status filter shows the right count',async()=>{
  const day=86_400_000,now=Date.now(),kinds=['prepared','awaiting_signature','completed','declined','voided','expired','mine'],expected={draft:0,waiting_for_me:0,waiting_for_others:0,completed:0,declined:0,voided:0,expired:0,imported:0}
  const rows=Array.from({length:5000},(_,i)=>{const kind=kinds[i%kinds.length],createdAt=new Date(now-(i+1)*60_000).toISOString(),id=`bulk-${String(i).padStart(4,'0')}`

@@ -26,7 +26,7 @@ export function pill(envelope: Envelope, actor: Actor): { label: string; tone: T
 /** The next step, with an urgent dot when it is the signed-in person's to take. */
 export function nextAction(envelope: Envelope, actor: Actor): { label: string; urgent: boolean } {
   switch (envelope.status) {
-    case 'prepared': return canApprove(actor) ? { label: 'Approve and send', urgent: true } : { label: 'Waiting for approval', urgent: false }
+    case 'prepared': return envelope.access === 'edit' ? { label: 'Approve and send', urgent: true } : { label: 'Waiting for approval', urgent: false }
     case 'awaiting_signature': return myTurn(envelope, actor) ? { label: 'Your turn to sign', urgent: true } : { label: `Waiting on ${currentSigners(envelope).map(index => envelope.signers[index].name).join(' and ') || 'the next signer'}`, urgent: false }
     case 'completed': return { label: 'Executed PDF ready', urgent: false }
     case 'declined': { const by = envelope.signers.find(signer => signer.declinedAt); return { label: `${by?.consentWithdrawn ? 'Consent withdrawn by' : 'Declined by'} ${by?.name ?? 'a signer'}`, urgent: false } }

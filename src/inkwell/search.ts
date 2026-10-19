@@ -1,5 +1,6 @@
 import { currentSigners, insist, type Actor, type Envelope, type Env } from './model'
 import { mailSuppressed } from './manual-invitations'
+import { accessFrom, mayShare, type Access } from './members'
 
 /** MANAGE-001: the envelope dashboard's search, filters and paging run in D1, so a sender with thousands of envelopes
  * gets one page and every status count without loading the rest; the Envelopes screen reads only through here. Status buckets follow the dashboard:
@@ -25,15 +26,15 @@ export async function searchEnvelopes(env: Env, actor: Actor, params: URLSearchP
   insist(Number.isInteger(limit) && limit >= 1 && limit <= 100, 'Ask for 1–100 envelopes per page.')
   insist(!preparedBy || preparedBy === 'agent', 'Filter preparedBy by agent only.')
   for (const [value, label] of [[from, 'from'], [to, 'to']]) insist(!value || !Number.isNaN(Date.parse(value)), `Provide ${label} as a date.`)
-  const where: string[] = [], values: unknown[] = [new Date().toISOString(), actor.email.toLowerCase()]
+  const where: string[] = [], values: unknown[] = [new Date().toISOString(), actor.email.toLowerCase(), actor.id]
   if (q) { where.push(`(lower(json_extract(e.data,'$.title')) LIKE ?${values.length + 1} ESCAPE '\\' OR EXISTS(SELECT 1 FROM json_each(e.data,'$.signers') s WHERE lower(json_extract(s.value,'$.email')) LIKE ?${values.length + 1} ESCAPE '\\' OR lower(json_extract(s.value,'$.name')) LIKE ?${values.length + 1} ESCAPE '\\'))`); values.push(like(q)) }
   if (preparedBy) where.push(byAgent)
   if (sender) { where.push(`json_extract(e.data,'$.createdBy')=?${values.length + 1}`); values.push(sender) }
-  // ACCESS-001: a sender finds only the envelopes they created.
-  if (actor.role === 'sender') { where.push(`json_extract(e.data,'$.createdBy')=?${values.length + 1}`); values.push(actor.id) }
+  // ACCESS-001 / ADMIN-001: a sender finds the envelopes they created and those shared with them.
+  if (actor.role === 'sender') where.push(`(json_extract(e.data,'$.createdBy')=?3 OR EXISTS(SELECT 1 FROM iw_shares x WHERE x.envelope_id=e.id AND x.operator_id=?3))`)
   if (from) { where.push(`json_extract(e.data,'$.createdAt')>=?${values.length + 1}`); values.push(new Date(from).toISOString()) }
   if (to) { where.push(`json_extract(e.data,'$.createdAt')<?${values.length + 1}`); values.push(new Date(to).toISOString()) }
-  const filtered = `SELECT e.id, e.data, json_extract(e.data,'$.createdAt') AS created, ${bucket} AS bucket FROM iw_envelopes e${where.length ? ' WHERE ' + where.join(' AND ') : ''}`
+  const filtered = `SELECT e.id, e.data, json_extract(e.data,'$.createdAt') AS created, ${bucket} AS bucket, (SELECT access FROM iw_shares x WHERE x.envelope_id=e.id AND x.operator_id=?3) AS share FROM iw_envelopes e${where.length ? ' WHERE ' + where.join(' AND ') : ''}`
   const counts = Object.fromEntries(buckets.map(b => [b, 0])) as Record<Bucket, number>
   for (const row of (await env.DB.prepare(`SELECT bucket, count(*) AS n FROM (${filtered}) GROUP BY bucket`).bind(...values).all<{ bucket: Bucket; n: number }>()).results) counts[row.bucket] = row.n
   const page: string[] = [], pageValues = [...values]
@@ -43,20 +44,20 @@ export async function searchEnvelopes(env: Env, actor: Actor, params: URLSearchP
     insist(typeof created === 'string' && typeof id === 'string', 'This page link is not valid. Start the search again.')
     page.push(`(created<?${pageValues.length + 1} OR (created=?${pageValues.length + 1} AND id<?${pageValues.length + 2}))`); pageValues.push(created, id)
   }
-  const rows = (await env.DB.prepare(`SELECT id, data, created, bucket FROM (${filtered})${page.length ? ' WHERE ' + page.join(' AND ') : ''} ORDER BY created DESC, id DESC LIMIT ${limit + 1}`).bind(...pageValues).all<{ id: string; data: string; created: string; bucket: Bucket }>()).results
+  const rows = (await env.DB.prepare(`SELECT id, data, created, bucket, share FROM (${filtered})${page.length ? ' WHERE ' + page.join(' AND ') : ''} ORDER BY created DESC, id DESC LIMIT ${limit + 1}`).bind(...pageValues).all<{ id: string; data: string; created: string; bucket: Bucket; share: string | null }>()).results
   const more = rows.length > limit, shown = rows.slice(0, limit)
   return {
-    envelopes: shown.map(row => ({ ...presentEnvelope(env, actor, JSON.parse(row.data)), bucket: row.bucket })),
+    envelopes: shown.map(row => { const envelope: Envelope = JSON.parse(row.data); return { ...presentEnvelope(env, actor, envelope, accessFrom(actor, envelope, row.share)), bucket: row.bucket } }),
     counts, total: Object.values(counts).reduce((n, c) => n + c, 0),
     next: more ? btoa(JSON.stringify([shown.at(-1)!.created, shown.at(-1)!.id])) : null,
   }
 }
 
-/** One envelope as the signed-in person reads it: expired once past its expiry, with the private-link and own-turn
- * actions they may take on it now. */
-export function presentEnvelope(env: Env, actor: Actor, envelope: Envelope) {
+/** One envelope as the signed-in person reads it: expired once past its expiry, whether they may change it (ADMIN-001)
+ * or share it, and the private-link and own-turn actions they may take on it now. */
+export function presentEnvelope(env: Env, actor: Actor, envelope: Envelope, access: Access) {
   const open = !envelope.imported && envelope.status === 'awaiting_signature' && Date.parse(envelope.expiresAt) > Date.now()
-  return { ...envelope, status: ['prepared', 'awaiting_signature'].includes(envelope.status) && Date.parse(envelope.expiresAt) <= Date.now() ? 'expired' as const : envelope.status,
+  return { ...envelope, access, mayShare: mayShare(actor, envelope), status: ['prepared', 'awaiting_signature'].includes(envelope.status) && Date.parse(envelope.expiresAt) <= Date.now() ? 'expired' as const : envelope.status,
     manualInvitationAvailable: actor.role === 'owner' && mailSuppressed(env) && open,
     ownSigningAvailable: open && currentSigners(envelope).some(i => envelope.signers[i].email.toLowerCase() === actor.email.toLowerCase()) }
 }

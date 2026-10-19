@@ -47,6 +47,14 @@ back as `cursor` for the following page. `GET /api/inkwell/envelopes/:id` reads 
 envelope. The Envelopes screen uses the same search: its status chips, Prepared from and
 to days (your own local days, both included) and, for owners and admins, the Sender filter.
 
+## Share an envelope
+
+The sender of an envelope, an owner or an admin can share it with another member under
+**Shared with** in its panel: enter the member's email and choose **Can view** or **Can view
+and edit**. A sender it is shared with to edit can approve, extend, copy, send on and void
+it, but cannot share it further. A viewer always only reads. **Remove** ends a share at
+once. Each share and removal appears in the audit trail.
+
 ## Reports
 
 **Reports** shows, for the days you choose (whole days, Eastern time, both included), how
@@ -62,7 +70,7 @@ downloads the same numbers. A sender sees only their own envelopes. The same rep
 | --- | --- |
 | Owner | Everything: prepare, approve, void, erase, move in, back up and restore, and issue agent tokens. |
 | Admin | Prepare, approve and void every envelope, and choose whether each member is a sender or a viewer. |
-| Sender | Prepare, approve, copy, extend and void their own envelopes; they see only those. |
+| Sender | Prepare, approve, copy, extend and void their own envelopes and those shared with them to edit; they also read envelopes shared with them to view, and see nothing else. |
 | Viewer | Read every envelope and download its records. |
 
 Everyone invited as a member starts as a viewer. An owner or admin makes them a sender

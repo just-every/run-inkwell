@@ -1,7 +1,7 @@
 import { appendEvent, clientEvidence, insist, now, object, randomCode, secret, sha256, text, type Client, type Envelope, type Env } from './model'
 import { atomic, commandWrite, commitEnvelope, getEnvelope, roleGuard, type Guard } from './storage'
 import { mailSuppressed } from './manual-invitations'
-import { mayChange } from './members'
+import { insistAccess } from './members'
 import { readBlob } from './blobs'
 import { envelopeArtifact } from './envelopes'
 import { copyWrite, dispatchMail } from './mail'
@@ -68,7 +68,7 @@ async function copyWrites(env: Env, after: Envelope, bytes: number, indexes: num
  * become copy recipients, within the envelope's limit of 20. */
 export async function sendCompletedCopy(env: Env, context: CommandContext, input: Record<string, unknown>) {
   const before = await getEnvelope(env.DB, text(input.id, 'an envelope ID'))
-  insist(mayChange(context.actor, before), 'You can send copies only of envelopes you may change.', 403)
+  await insistAccess(env, context.actor, before, 'edit')
   insist(before.status === 'completed' && !before.imported, 'Only a completed envelope has a completed copy to send.', 409)
   insist(!mailSuppressed(env), 'Mail is not set up. Download the executed PDF and certificate instead.', 409)
   insist(Array.isArray(input.recipients) && input.recipients.length >= 1, 'Add at least one person to send the copy to.')
