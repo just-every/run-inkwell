@@ -564,6 +564,33 @@ test('ADMIN-001: two senders cannot see each other\'s envelopes until one shares
  const e=await stored(id);assert.deepEqual(e.events.filter(x=>x.action==='envelope.shared'||x.action==='envelope.unshared').map(x=>[x.action,x.detail.access??null]),[['envelope.shared','view'],['envelope.shared','edit'],['envelope.shared','edit'],['envelope.unshared',null],['envelope.shared','edit']],'every grant and removal is audited')
  assert.equal(e.events.find(x=>x.action==='envelope.voided').actor,ben.id)
 })
+// PREP-009 (drafts and messages; scheduled sending is the next slice): a saved draft reopens with everything editable.
+test('PREP-009: a saved draft reopens and is saved again with a new PDF, recipients, fields and private messages; each recipient sees only their own private message',async()=>{
+ const first=[{name:'Dana Draft',email:'dana@harbour.example',accessCode:'MOOR-11'},{name:'Eli Early',email:'eli@harbour.example'}]
+ const id=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio draft terms',signers:first})).result.id
+ const draft=await stored(id);assert.equal(draft.status,'prepared');assert.equal(draft.signers[0].accessCode,true)
+ const pdf=await PDFDocument.create();pdf.addPage([595,842]);pdf.addPage([595,842]);const bytes=await pdf.save()
+ const revised={id,title:'Harbour Studio final terms',filename:'final.pdf',pdfBase64:Buffer.from(bytes).toString('base64'),subject:'Final terms for your signature',message:'Thanks for the call today.',
+  signers:[{name:'Dana Draft',email:'dana@harbour.example',keepAccessCode:true,message:'Dana: clause 4 is yours.'},{name:'Fay Final',email:'fay@harbour.example',order:2,message:'Fay: please check the dates.'}],
+  fields:[0,1].map(signer=>({...fields[0],id:`signature-${signer}`,signer,page:1,y:.3+signer*.2}))}
+ await h.command('envelope.update',{...revised,signers:[revised.signers[1],revised.signers[0]]},h.owner,400)
+ await h.command('envelope.update',revised,member,403)
+ await h.command('envelope.update',revised)
+ const saved=await stored(id)
+ assert.deepEqual([saved.title,saved.filename,saved.pageSizes.length,saved.subject,saved.message,saved.signers.map(s=>s.email),saved.fields.map(f=>f.page)],['Harbour Studio final terms','final.pdf',2,'Final terms for your signature','Thanks for the call today.',['dana@harbour.example','fay@harbour.example'],[1,1]])
+ assert.equal(saved.originalSha256,digest(bytes));assert.equal(digest((await h.send(`/api/inkwell/envelopes/${id}/artifacts/original`,undefined,h.owner)).bytes),digest(bytes),'the new PDF replaced the old one')
+ assert.ok(saved.events.some(e=>e.action==='envelope.updated'&&e.detail.originalSha256===digest(bytes)),'the record keeps every saved version')
+ await h.command('envelope.approve',{id,eligible:true})
+ await h.command('envelope.update',revised,h.owner,409)
+ const invite=await h.mail('dana@harbour.example','Final terms for your signature')
+ assert.match(invite.text,/Thanks for the call today\.\n\nDana: clause 4 is yours\./);assert.doesNotMatch(invite.text,/Fay:/,'only their own private message')
+ const path='/api/sign/'+new URL(invite.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)
+ await h.post(path+'/access',{accessCode:'MOOR-11'},'')
+ await h.post(path+'/code',{},'');const code=(await h.mail('dana@harbour.example','verification code')).text.match(/\b\d{6}\b/)[0]
+ const cookie=(await h.post(path+'/verify',{code},'')).cookie,view=(await h.send(path,undefined,cookie)).value
+ assert.equal(view.privateMessage,'Dana: clause 4 is yours.');assert.equal(view.message,'Thanks for the call today.')
+ assert.equal(await h.mail('eli@harbour.example','Final terms'),undefined,'a removed recipient gets nothing')
+})
 test('MANAGE-001: with 5,000 envelopes, search by recipient email answers in under a second and each status filter shows the right count',async()=>{
  const day=86_400_000,now=Date.now(),kinds=['prepared','awaiting_signature','completed','declined','voided','expired','mine'],expected={draft:0,waiting_for_me:0,waiting_for_others:0,completed:0,declined:0,voided:0,expired:0,imported:0}
  const rows=Array.from({length:5000},(_,i)=>{const kind=kinds[i%kinds.length],createdAt=new Date(now-(i+1)*60_000).toISOString(),id=`bulk-${String(i).padStart(4,'0')}`

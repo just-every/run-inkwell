@@ -16,6 +16,15 @@ Prepare an envelope, approve it, and Inkwell invites each recipient in routing o
    yourself, by phone or in person, never in the invitation email. Five wrong entries lock
    that recipient's invitation; void the envelope and prepare a new one to start again.
 
+## Edit a draft and add messages
+
+A saved envelope is a draft until someone approves it. Open it and choose **Edit draft** to
+change anything: the PDF, the title, the recipients and their order, fields, expiry,
+reminders and copy recipients. Under **Message** you can set the email subject, a message
+for everyone and a private message for each recipient, which only that person sees in
+their invitation and on their signing page. An access code you set earlier stays while
+that recipient keeps their place in the list; otherwise enter it again.
+
 ## Place fields
 
 Once the PDF is chosen, its pages appear beside **Place fields**.

@@ -34,6 +34,7 @@ export function OperatorApp() {
   const [page, setPage] = useState<Page>()
   const [tab, setTab] = useState<Tab>('envelopes')
   const [preparing, setPreparing] = useState(false)
+  const [editing, setEditing] = useState<Envelope>()
   const [selected, setSelected] = useState('')
   const [envelope, setEnvelope] = useState<Envelope>()
   const [filter, setFilter] = useState<Filter>('all')
@@ -75,11 +76,11 @@ export function OperatorApp() {
   return <div className={`iw-app iw-operator${panel ? ' iw-has-panel' : ''}`}>
     <HydrationUnit><Sidebar place={place} actor={data?.actor} waiting={summary?.counts.waiting_for_me ?? 0} onGo={go} /></HydrationUnit>
     <div className="iw-work">
-      <HydrationUnit><TopBar query={query} onQuery={value => { setQuery(value); if (tab !== 'envelopes') go('envelopes') }} onNew={data && canEdit(data.actor) ? () => { setTab('envelopes'); choose(''); setPreparing(true) } : undefined} /></HydrationUnit>
+      <HydrationUnit><TopBar query={query} onQuery={value => { setQuery(value); if (tab !== 'envelopes') go('envelopes') }} onNew={data && canEdit(data.actor) ? () => { setTab('envelopes'); choose(''); setEditing(undefined); setPreparing(true) } : undefined} /></HydrationUnit>
       <div className="iw-body">
         <main className="iw-main"><HydrationUnit>
           <ErrorNotice error={action.error} />{!data && !action.error && <p role="status">Loading workspace…</p>}{action.error && <div className="iw-actions"><button disabled={action.busy} onClick={() => void action.run(refresh)}>Try again</button><a href="/signin">Sign in</a></div>}
-          {data && tab === 'envelopes' && (preparing ? <PrepareEnvelope onCancel={() => setPreparing(false)} onSaved={async id => { await refresh(); setPreparing(false); choose(id) }} /> : <>
+          {data && tab === 'envelopes' && (preparing ? <PrepareEnvelope key={editing?.id ?? 'new'} draft={editing} onCancel={() => { setPreparing(false); setEditing(undefined) }} onSaved={async id => { setPreparing(false); setEditing(undefined); choose(id); await refresh() }} /> : <>
             {summary && <EnvelopesHeading counts={summary.counts} actor={data.actor} />}
             {agentPage && <AgentStrip prepared={agentPage} actor={data.actor} agents={data.agents ?? []} onReview={choose} onAccess={owner ? () => go('agents') : undefined} />}
             {summary?.total === 0 ? <div className="iw-card"><EmptyEnvelopes actor={data.actor} onPrepare={() => setPreparing(true)} /></div> : page && <>
@@ -92,7 +93,7 @@ export function OperatorApp() {
           {data && tab !== 'envelopes' && <section className="iw-heading"><h1>{headings[tab][0]}</h1><p className="iw-heading-line">{headings[tab][1]}</p></section>}
           {data && tab === 'reports' && <Reports />}{data && owner && tab === 'move-in' && <MoveIn />}{data && owner && tab === 'archive' && <ArchiveAccess empty={summary?.total === 0} refresh={refresh} />}{data && owner && tab === 'agents' && <AgentAccess agents={data.agents} refresh={refresh} />}{data && tab === 'settings' && <AccountSettings actor={data.actor} />}{data && tab === 'settings' && ['owner', 'admin'].includes(data.actor.role) && <PeopleRoles people={data.people ?? []} refresh={refresh} />}{data && tab === 'settings' && data.settings && <CompletedCopies key={data.settings.completedCopies} settings={data.settings} refresh={refresh} />}
         </HydrationUnit></main>
-        {panel && data && <HydrationUnit><aside className="iw-panel-col"><EnvelopeDetail key={panel.id} envelope={panel} actor={data.actor} refresh={refresh} onClose={() => choose('')} onOpen={choose} /></aside></HydrationUnit>}
+        {panel && data && <HydrationUnit><aside className="iw-panel-col"><EnvelopeDetail key={panel.id} envelope={panel} actor={data.actor} refresh={refresh} onClose={() => choose('')} onOpen={choose} onEdit={draft => { setEditing(draft); setPreparing(true) }} /></aside></HydrationUnit>}
       </div>
     </div>
   </div>

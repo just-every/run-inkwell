@@ -2,7 +2,7 @@ import { mailSuppressed } from './manual-invitations'
 import { operatorMail } from '../mail.server.mjs'
 import { id, now, insist, type Env, type Envelope } from './model'
 import { readBlob } from './blobs'
-export function mailWrite(db: D1Database, envelope: Envelope, signer: number, kind: 'invitation' | 'code', body: string) { return db.prepare('INSERT INTO iw_mail(id,envelope_id,signer,kind,recipient,subject,body,created_at) VALUES(?,?,?,?,?,?,?,?)').bind(id(),envelope.id,signer,kind,envelope.signers[signer].email,kind==='code'?'Your Inkwell verification code':`Please sign: ${envelope.title}`,body,now()) }
+export function mailWrite(db: D1Database, envelope: Envelope, signer: number, kind: 'invitation' | 'code', body: string) { return db.prepare('INSERT INTO iw_mail(id,envelope_id,signer,kind,recipient,subject,body,created_at) VALUES(?,?,?,?,?,?,?,?)').bind(id(),envelope.id,signer,kind,envelope.signers[signer].email,kind==='code'?'Your Inkwell verification code':envelope.subject??`Please sign: ${envelope.title}`,body,now()) }
 /** A notice to someone who is not the signer at `signer`, such as the sender or an earlier signer. */
 export function noticeWrite(db: D1Database, envelope: Envelope, signer: number, recipient: string, subject: string, body: string) { return db.prepare('INSERT INTO iw_mail(id,envelope_id,signer,kind,recipient,subject,body,created_at) VALUES(?,?,?,?,?,?,?,?)').bind(id(),envelope.id,signer,'notice',recipient,subject,body,now()) }
 /** DELIV-007: a party's completed copy (a secure link, or the files attached at dispatch when `token` is absent), or
@@ -13,7 +13,8 @@ export function copyWrite(env: Env, envelope: Envelope, party: number, recipient
     : ['copy', `Completed: ${envelope.title}`, `${recipient.name},\n\nEveryone has signed ${envelope.title}. Your completed copy, the executed PDF and its certificate, is attached.`, 1]
   return env.DB.prepare('INSERT INTO iw_mail(id,envelope_id,signer,kind,recipient,subject,body,created_at,attach) VALUES(?,?,?,?,?,?,?,?,?)').bind(id(), envelope.id, party, kind, recipient.email, subject, body, now(), attach)
 }
-export function invitationWrite(env: Env, envelope: Envelope, signer: number, token: string) { return mailWrite(env.DB,envelope,signer,'invitation',`${envelope.signers[signer].name},\n\nPlease review and sign ${envelope.title}.\n${new URL('/sign/'+token,env.AUTH_ORIGIN).href}\n\nThis invitation expires ${envelope.expiresAt}. You will verify your email and explicitly consent before signing.`) }
+/** An invitation: the envelope's message and only this recipient's private message (PREP-009), then the link. */
+export function invitationWrite(env: Env, envelope: Envelope, signer: number, token: string) { return mailWrite(env.DB,envelope,signer,'invitation',`${envelope.signers[signer].name},\n\n${[envelope.message,envelope.signers[signer].message].filter(Boolean).map(m=>m+'\n\n').join('')}Please review and sign ${envelope.title}.\n${new URL('/sign/'+token,env.AUTH_ORIGIN).href}\n\nThis invitation expires ${envelope.expiresAt}. You will verify your email and explicitly consent before signing.`) }
 const escape = (value: string) => value.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!))
 function htmlBody(body: string, label: string) { return body.split('\n').map(line => /^https?:\/\/[^\s]+$/.test(line) ? `<p><a href="${escape(line)}">${label}</a></p>` : `<p>${escape(line) || '&nbsp;'}</p>`).join('') }
 /** Durable jobs are claimed once. Uncertain provider responses never trigger blind retries. */
