@@ -40,6 +40,10 @@ try {
   for (const path of ['/missing', '/health/extra', '/api', '/api/missing']) {
     assert.equal((await fetch(`${origin}${path}`)).status, 404, path)
   }
+  // RECORD-004: the verification page opens signed out.
+  const verifyPage = await fetch(`${origin}/verify`, { redirect: 'manual' })
+  assert.equal(verifyPage.status, 200)
+  assert.ok((await verifyPage.text()).includes('Check a signed document'))
   console.log('HTTP-001 passed against emitted local Worker: health, the installed homepage, HTTP and document 404s')
 } finally {
   worker.kill('SIGTERM')

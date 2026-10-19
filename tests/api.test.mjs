@@ -89,6 +89,17 @@ test('executed PDF, certificate, event chain and handoff agree with recomputed f
  const handoff=await h.send(base+'/artifacts/handoff',undefined,h.owner);assert.equal(handoff.status,200)
  const verification=await h.send(base+'/verify',undefined,h.owner);assert.equal(verification.status,200);assert.equal(verification.value.ok,true)
 })
+test('RECORD-004: a signed-out visitor verifies a genuine executed PDF; altered and unrelated PDFs reveal nothing',async()=>{
+ const e=(await snapshot()).envelopes.find(e=>e.id===envelopeId),base='/api/inkwell/envelopes/'+envelopeId
+ const check=async bytes=>{const r=await h.mf.dispatchFetch(h.origin+'/api/verify',{method:'POST',headers:{'content-type':'application/pdf'},body:bytes});assert.equal(r.status,200);return r.json()}
+ const executed=(await h.send(base+'/artifacts/signed',undefined,h.owner)).bytes,certificate=(await h.send(base+'/artifacts/certificate',undefined,h.owner)).bytes
+ const genuine=await check(executed)
+ assert.equal(genuine.match,true);assert.equal(genuine.document,'executed');assert.equal(genuine.envelope.id,envelopeId);assert.equal(genuine.envelope.title,e.title);assert.equal(genuine.sha256,e.signedSha256)
+ assert.equal((await check(certificate)).document,'certificate')
+ const altered=executed.slice();altered[Math.floor(altered.length/2)]^=1
+ for(const bytes of [altered,original,await (await PDFDocument.create()).save()]) assert.deepEqual(Object.keys(await check(bytes)).sort(),['match','sha256'],'a file that matches nothing reveals nothing else')
+ assert.equal((await check(altered)).match,false)
+})
 test('agent credentials can prepare but cannot approve, sign or retain authority after revocation',async()=>{
  const issued=(await h.command('agent.issue')).result
  const headers={authorization:'Bearer '+issued.token}

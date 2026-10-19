@@ -368,8 +368,8 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 6 | 4 | 0 | 10 |
-| Target and push further | 0 | 30 | 77 | 107 |
-| All | 6 | 34 | 77 | 117 |
+| Target and push further | 1 | 29 | 77 | 107 |
+| All | 7 | 33 | 77 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -443,7 +443,7 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `MANAGE-005` | Envelope detail and timeline | target | partial | `src/ui/envelope-detail.tsx` | Detail page lists signers with signed times and the audit trail; no delivered or viewed timeline, waiting state, remind, resend, correct or copy actions |
 | `RECORD-002` | Per-recipient certificate evidence | target | partial | `src/inkwell/pdf.ts` | Certificate lists signers, times and event hashes; no IP, per-recipient authentication, adoption method, disclosure version or local time zone |
 | `RECORD-003` | Sealed PDFs | target | missing |  | No PDF digital seal; the certificate says it is not one |
-| `RECORD-004` | Public verification | target | partial | `src/inkwell/envelopes.ts`; `tests/api.test.mjs` | Fingerprint verification for signed-in members only; no public upload-to-verify page |
+| `RECORD-004` | Public verification | target | done | `tests/api.test.mjs`; `tests/runtime.mjs`; `src/inkwell/verification.ts`; `src/ui/public-verify.tsx` |  |
 | `RECORD-005` | Retention and legal hold | target | missing |  | No retention rules or legal hold |
 | `ADMIN-001` | Roles and envelope sharing | target | partial | `src/inkwell/api.ts`; `tests/api.test.mjs` | Owner, admin and member roles all see every envelope; no sender privacy, viewer role or sharing |
 | `ADMIN-002` | Members, groups and departures | target | partial | `src/modules/operator-auth/accounts/admin.mjs` | Invitations and roles from Base; no groups or transfer of a departing member's envelopes |

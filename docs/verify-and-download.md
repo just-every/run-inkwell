@@ -23,6 +23,19 @@ successful check reads **Integrity checks passed.** with the number of events in
 
 If a check fails, Inkwell says which file no longer matches.
 
+## Let anyone check a copy
+
+Anyone holding an executed PDF or certificate from this Inkwell can check it at `/verify`,
+without signing in. They choose the file and **Verify document**. Inkwell fingerprints the
+upload and looks for a completed envelope whose executed PDF or certificate has exactly that
+fingerprint, then rechecks that envelope's stored files and audit chain. A match names the
+envelope, its completion time and its signers. An altered copy, or any other PDF, reads
+**No match.** and shows nothing about any other envelope.
+
+The same check is open to scripts: `POST /api/verify` with the PDF as the body and
+`Content-Type: application/pdf` answers `{"match": false, "sha256": …}` or the matching
+envelope's title, completion time and signers.
+
 ## The audit trail
 
 **Audit trail** lists every step with its time: who prepared, approved, verified an email

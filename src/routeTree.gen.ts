@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/app'
+import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as SignTokenRouteImport } from './routes/sign.$token'
 
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyRoute = VerifyRouteImport.update({
+  id: '/verify',
+  path: '/verify',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignTokenRoute = SignTokenRouteImport.update({
@@ -25,27 +31,31 @@ const SignTokenRoute = SignTokenRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/app': typeof AppRoute
+  '/verify': typeof VerifyRoute
   '/sign/$token': typeof SignTokenRoute
 }
 export interface FileRoutesByTo {
   '/app': typeof AppRoute
+  '/verify': typeof VerifyRoute
   '/sign/$token': typeof SignTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/app': typeof AppRoute
+  '/verify': typeof VerifyRoute
   '/sign/$token': typeof SignTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/app' | '/sign/$token'
+  fullPaths: '/app' | '/verify' | '/sign/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/app' | '/sign/$token'
-  id: '__root__' | '/app' | '/sign/$token'
+  to: '/app' | '/verify' | '/sign/$token'
+  id: '__root__' | '/app' | '/verify' | '/sign/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRoute
+  VerifyRoute: typeof VerifyRoute
   SignTokenRoute: typeof SignTokenRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify': {
+      id: '/verify'
+      path: '/verify'
+      fullPath: '/verify'
+      preLoaderRoute: typeof VerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sign/$token': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRoute,
+  VerifyRoute: VerifyRoute,
   SignTokenRoute: SignTokenRoute,
 }
 export const routeTree = rootRouteImport
