@@ -94,3 +94,45 @@ test('DELIV-001: a message sent through Cloudflare Email is labelled sent with n
   assert.equal((await h.send('/api/inkwell/mail/events', [{ event: 'delivered' }])).status, 404, 'no delivery-event door exists for this provider')
  } finally { await h.close() }
 })
+
+test('DELIV-002: a bounce event flags the recipient and pauses their reminders, the sender is alerted once, corrects the email in one step, the old link refuses and the corrected recipient signs', async () => {
+ const secret = randomBytes(24), h = await harness({ bindings: { MAIL_WEBHOOK_KEY: 'whsec_' + secret.toString('base64') } })
+ try {
+  const bounce = (message, at) => { const body = JSON.stringify({ type: 'email.bounced', created_at: new Date(at).toISOString(), data: { email_id: message.id, to: message.to, subject: message.subject } }), id = 'msg_' + randomBytes(8).toString('hex'), timestamp = String(Math.floor(Date.now() / 1000)); return [body, { 'svix-id': id, 'svix-timestamp': timestamp, 'svix-signature': 'v1,' + createHmac('sha256', secret).update(`${id}.${timestamp}.${body}`).digest('base64') }] }
+  const typo = 'hal@harbour-typo.invalid', fixed = 'hal@harbour.example', title = 'Bounce check'
+  const id = (await h.command('envelope.prepare', { title, filename: 'bounce.pdf', pdfBase64: await pdf(), signers: [{ name: 'Hal Brooks', email: typo }], fields: [{ id: 'signature-0', label: 'Signature', type: 'signature', signer: 0, page: 0, x: .1, y: .6, width: .4, height: .07 }], reminders: { afterDays: 1, everyDays: 1 } })).result.id
+  await h.command('envelope.approve', { id, eligible: true })
+  const invitation = await h.mail(typo, 'Please sign:'), oldPath = '/api/sign/' + new URL(invitation.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)
+  const [body, headers] = bounce(invitation, Date.now() - 30_000)
+  assert.equal((await h.send('/api/inkwell/mail/events', JSON.parse(body), '', headers)).status, 200)
+  assert.equal((await h.send('/api/inkwell/mail/events', JSON.parse(body), '', headers)).status, 200, 'a replayed bounce is acknowledged')
+  const view = async () => (await h.send('/api/inkwell/envelopes/' + id, undefined, h.owner)).value.envelope
+  let envelope = await view()
+  assert.equal(envelope.recipients[0].bounced, true, 'the recipient is flagged'); assert.match(envelope.recipients[0].waitingOn, /bounced/)
+  assert.ok(envelope.recipients[0].steps.some(step => step.step === 'bounced'))
+  // The hourly pass on a weekday afternoon days later: the alert is not repeated and the bounced recipient is not reminded.
+  const weekday = [3, 4, 5, 6, 7].map(n => Date.now() + n * 86_400_000).find(at => ![0, 6].includes(new Date(at).getUTCDay()))
+  await h.scheduled(new Date(new Date(weekday).toISOString().slice(0, 10) + 'T19:00:00Z').getTime())
+  const alerts = h.attempted().filter(m => m.to.includes('owner@harbour.example') && m.subject === `Bounced: ${title}`)
+  assert.equal(alerts.length, 1, 'the sender is alerted once'); assert.match(alerts[0].text, new RegExp(typo.replace('.', '\\.')))
+  assert.equal(h.attempted().filter(m => m.subject.startsWith('Reminder to sign:')).length, 0, 'reminders to the bounced recipient are paused')
+  await h.command('envelope.remind', { id }, h.owner, 409)
+  envelope = await view()
+  assert.equal(envelope.events.filter(e => e.action === 'signer.bounced').length, 1)
+
+  await h.command('envelope.correct_bounced', { id, signer: 0, email: typo }, h.owner, 400)
+  await h.command('envelope.correct_bounced', { id, signer: 0, email: fixed })
+  assert.equal((await h.send(oldPath)).status, 404, 'the old link refuses')
+  const corrected = await h.mail(fixed, 'Please sign:')
+  assert.ok(corrected, 'the corrected recipient is invited in the same step')
+  envelope = await view()
+  assert.equal(envelope.signers[0].email, fixed); assert.equal(envelope.recipients[0].bounced, undefined, 'the flag clears with the new invitation')
+  assert.deepEqual(envelope.events.find(e => e.action === 'signer.corrected').detail, { signer: 0, reason: 'bounced', before: { name: 'Hal Brooks', email: typo }, after: { name: 'Hal Brooks', email: fixed } })
+  const path = '/api/sign/' + new URL(corrected.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)
+  await h.post(path + '/code', {}, '')
+  const cookie = (await h.post(path + '/verify', { code: (await h.mail(fixed, 'verification code')).text.match(/\b\d{6}\b/)[0] }, '')).cookie
+  await h.agree(path, cookie)
+  await h.post(path + '/sign', { values: { 'signature-0': 'Hal Brooks' }, consent: true, commandId: crypto.randomUUID() }, cookie)
+  assert.equal((await view()).status, 'completed', 'the corrected recipient signs and the envelope completes')
+ } finally { await h.close() }
+})

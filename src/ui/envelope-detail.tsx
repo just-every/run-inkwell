@@ -54,6 +54,8 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
   // MANAGE-005: each recipient's timeline, and the remind action for whoever's turn it is.
   const timeline = (index: number) => envelope.recipients?.find(recipient => recipient.signer === index)
   const [reminded, setReminded] = useState<string[]>()
+  // DELIV-002: the corrected address typed for each bounced recipient.
+  const [corrections, setCorrections] = useState<Record<number, string>>({})
   const state = pill(envelope, actor), { name, detail } = titleParts(envelope.title)
   const me = (email: string) => email.toLowerCase() === actor.email.toLowerCase()
   const deciding = envelope.status === 'prepared' && mayEdit, signingHere = Boolean(envelope.ownSigningAvailable)
@@ -74,6 +76,7 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
       <span className="iw-order" aria-hidden="true">{signer.signedAt ? <Check /> : routingOrder(envelope, index)}</span>
       <div><strong>{signer.name}</strong><span className="iw-signer-email">{signer.email}{signer.accessCode ? ' · access code' : ''}</span><small>{signer.declinedAt ? `${signer.consentWithdrawn ? 'Withdrew consent' : 'Declined'} ${dateTime(signer.declinedAt)} · ${signer.declineReason}` : signer.signedAt ? `${signer.paper?.status === 'accepted' ? 'Signed on paper' : 'Signed'} ${dateTime(signer.signedAt)}` : signer.paper?.status === 'pending' ? 'Paper signature to review' : envelope.status === 'declined' ? 'Not invited' : turn.includes(index) ? me(signer.email) ? 'Waiting for your signature' : 'Invited, awaiting signature' : 'Awaiting signature'}</small>
         {timeline(index)?.waitingOn && <small>Waiting on: {timeline(index)!.waitingOn}</small>}
+        {timeline(index)?.bounced && mayEdit && <form className="iw-stack iw-callout" onSubmit={event => { event.preventDefault(); void action.run(async () => { await command('envelope.correct_bounced', { id: envelope.id, signer: index, email: corrections[index] ?? '' }); setCorrections(current => ({ ...current, [index]: '' })); await refresh() }) }}><label>Corrected email for {signer.name}<input type="email" required value={corrections[index] ?? ''} onChange={event => { const value = event.target.value; setCorrections(current => ({ ...current, [index]: value })) }} /></label><button className="iw-primary iw-fit" disabled={action.busy}>Correct and resend</button></form>}
         {timeline(index)?.steps.length ? <ul className="iw-timeline" aria-label={`${signer.name} timeline`}>{timeline(index)!.steps.map(step => <li key={step.step + step.at}><strong>{steps[step.step] ?? step.step}</strong> <time dateTime={step.at}>{zonedAndUtc(step.at, envelope.timeZone ?? 'America/New_York')}</time>{step.detail && step.step !== 'sent' ? ` · ${step.detail}` : ''}</li>)}</ul> : null}</div>
     </li>)}</ol>
     {remindable && <div className="iw-actions"><button disabled={action.busy} onClick={() => void action.run(async () => { const result = await command<{ reminded: string[] }>('envelope.remind', { id: envelope.id }); setReminded(result.reminded); await refresh() })}>{action.busy ? 'Sending…' : 'Remind'}</button>{reminded && <span role="status">Reminder sent to {reminded.join(', ')}</span>}</div>}

@@ -6,10 +6,11 @@
 import { currentSigners, routingOrder, type Envelope, type Env } from './model'
 import { envelopeMessages, type Message } from './delivery'
 import { accountTimeZone } from './zone'
+import { bouncedRecipients } from './bounces'
 
 export type Step = 'sent' | 'delivered' | 'viewed' | 'authenticated' | 'signed' | 'declined' | 'bounced'
 export type Place = 'signed' | 'declined' | 'current' | 'waiting' | 'stopped'
-export interface RecipientTimeline { signer: number; order: number; place: Place; waitingOn: string | null; steps: { step: Step; at: string; detail?: string }[] }
+export interface RecipientTimeline { signer: number; order: number; place: Place; waitingOn: string | null; bounced?: boolean; steps: { step: Step; at: string; detail?: string }[] }
 
 const verifications: Record<string, string> = { 'signer.email_verified': 'emailed code', 'signer.code_verified': 'sender-provided code', 'signer.session_verified': 'signed-in session' }
 
@@ -43,6 +44,7 @@ function recipientTimeline(envelope: Envelope, messages: Message[], signer: numb
   if (envelope.status !== 'awaiting_signature' || envelope.imported || Date.parse(envelope.expiresAt) <= Date.now()) return { ...base, place: 'stopped', waitingOn: null }
   const current = currentSigners(envelope)
   if (!current.includes(signer)) return { ...base, place: 'waiting', waitingOn: `Routing order ${routingOrder(envelope, current[0])} to finish: ${current.map(i => envelope.signers[i].name).join(', ')}` }
+  if (bouncedRecipients(envelope, messages).some(entry => entry.signer === signer)) return { ...base, place: 'current', bounced: true, waitingOn: 'The sender to correct the email address: the invitation bounced' }
   const waitingOn = recipient.paper?.status === 'pending' ? 'The sender to review the uploaded paper signature'
     : !verified ? (manual && !sent ? 'The recipient to open the private link and enter the code' : 'The recipient to open the invitation and verify their email')
     : !recipient.disclosure ? 'The recipient to agree to electronic records' : 'The recipient to sign'
