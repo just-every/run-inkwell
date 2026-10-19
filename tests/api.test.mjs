@@ -2,7 +2,8 @@ import test, { before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
-import { PDFDocument, StandardFonts } from 'pdf-lib'
+import { PDFDocument, PDFName, StandardFonts } from 'pdf-lib'
+import { crc32, deflateSync } from 'node:zlib'
 import { harness } from './harness.mjs'
 
 let h, member, envelopeId, original, fullArchive, laterArchive, importedId
@@ -384,6 +385,45 @@ test('RECORD-002: the certificate lists each recipient\'s authentication, IP add
   // every event up to the one that records this certificate's own creation
   ...e.events.slice(0,e.events.findIndex(x=>x.action==='certificate.created')).map(x=>`${stamp(x.at)} ${x.action}`),
  ]) assert.ok(text.includes(line),`the certificate shows: ${line}`)
+})
+// SIGNX-002: a PNG drawn on the signing page, here a stroke drawn into RGB pixels (the browser journey draws one by touch).
+const drawnPng=(w=300,h=90)=>{const row=w*3+1,raw=Buffer.alloc(row*h,255);for(let y=0;y<h;y++)raw[y*row]=0;for(let x=8;x<w-8;x++){const y=Math.round(h/2+Math.sin(x/16)*h/4);for(let d=-1;d<=1;d++)raw.fill(30,(y+d)*row+1+x*3,(y+d)*row+4+x*3)};const chunk=(type,data)=>{const head=Buffer.alloc(4),tail=Buffer.alloc(4),body=Buffer.concat([Buffer.from(type),data]);head.writeUInt32BE(data.length);tail.writeUInt32BE(crc32(body));return Buffer.concat([head,body,tail])},ihdr=Buffer.alloc(13);ihdr.writeUInt32BE(w);ihdr.writeUInt32BE(h,4);ihdr[8]=8;ihdr[9]=2;return Buffer.concat([Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]),chunk('IHDR',ihdr),chunk('IDAT',deflateSync(raw)),chunk('IEND',Buffer.alloc(0))])}
+test('SIGNX-002: one signer draws, another types in a chosen style and a third uploads; all three marks are in the executed PDF and the certificate records each method',async()=>{
+ const trio=[{name:'Dana Reyes',email:'dana@harbour.example'},{name:'Tess Okafor',email:'tess@harbour.example'},{name:'Uma Patel',email:'uma@harbour.example'}]
+ const places=[...trio.map((_,signer)=>({...fields[0],id:`signature-${signer}`,signer,y:.25+signer*.15})),{...fields[0],id:'signature-1b',label:'Second signature',signer:1,y:.8}]
+ const id=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio three marks',signers:trio,fields:places})).result.id
+ await h.command('envelope.approve',{id,eligible:true})
+ const drawn=drawnPng(),jpeg=await readFile('tests/fixtures/signature.jpg'),b64=bytes=>Buffer.from(bytes).toString('base64')
+ const sign=(s,values,adoption,status=200)=>h.post(s.path+'/sign',{values,consent:true,adoption,commandId:crypto.randomUUID()},s.cookie,status)
+ const dana=await verified(trio[0].email)
+ // a drawn mark is a PNG, an upload a PNG or JPEG, each at most 512 KiB; anything else is refused before signing
+ await sign(dana,{'signature-0':'Dana Reyes'},{method:'drawn',imageBase64:b64(jpeg)},415)
+ await sign(dana,{'signature-0':'Dana Reyes'},{method:'uploaded',mediaType:'image/gif',imageBase64:b64(Buffer.from('GIF89a'))},415)
+ await sign(dana,{'signature-0':'Dana Reyes'},{method:'uploaded',mediaType:'image/png',imageBase64:b64(Buffer.concat([drawn,Buffer.alloc(512*1024)]))},400)
+ await sign(dana,{'signature-0':'Dana Reyes'},{method:'typed',style:'gothic'},400)
+ await sign(dana,{'signature-0':'Dana Reyes'},{method:'drawn',imageBase64:b64(drawn)})
+ const tess=await verified(trio[1].email)
+ // the adopted mark goes on every signature field, so they all carry one name
+ await sign(tess,{'signature-1':'Tess Okafor','signature-1b':'T. Okafor'},{method:'typed',style:'serif'},400)
+ await sign(tess,{'signature-1':'Tess Okafor','signature-1b':'Tess Okafor'},{method:'typed',style:'serif'})
+ const uma=await verified(trio[2].email)
+ await sign(uma,{'signature-2':'Uma Patel'},{method:'uploaded',mediaType:'image/jpeg',imageBase64:b64(jpeg)})
+ const e=await stored(id)
+ assert.equal(e.status,'completed')
+ assert.deepEqual(e.signers.map(s=>s.adoption.method),['drawn','typed','uploaded'],'the record keeps each adoption method')
+ // the executed PDF: Dana's drawing and Uma's JPEG are images placed in their own fields, Tess's name in the serif italic font
+ const signed=(await h.send(`/api/inkwell/envelopes/${id}/artifacts/signed`,undefined,h.owner)).bytes,doc=await PDFDocument.load(signed),page=doc.getPage(0),resources=page.node.Resources()
+ const xobjects=resources.lookup(PDFName.of('XObject')),images=xobjects.keys().map(k=>xobjects.lookup(k)).filter(x=>x.dict.get(PDFName.of('Subtype'))===PDFName.of('Image'))
+ const sizes=images.map(x=>`${x.dict.get(PDFName.of('Width')).asNumber()}x${x.dict.get(PDFName.of('Height')).asNumber()}`).sort()
+ assert.deepEqual(sizes,['240x80','300x90'],'the drawn PNG and the uploaded JPEG are both on the page')
+ assert.ok(Buffer.from(signed).includes(jpeg),'the uploaded JPEG is embedded as uploaded')
+ const fonts=resources.lookup(PDFName.of('Font')),baseFonts=fonts.keys().map(k=>fonts.lookup(k).get(PDFName.of('BaseFont')).decodeText?.()??fonts.lookup(k).get(PDFName.of('BaseFont')).asString())
+ assert.ok(baseFonts.includes('Times-Italic'),'the typed name uses the chosen serif italic style')
+ const content=(await pdfText(signed)).replaceAll('\n',' ')
+ assert.equal(content.split('Tess Okafor').length-1,2,'the typed mark is applied to both of Tess\'s signature fields')
+ assert.ok(!content.includes('Dana Reyes')&&!content.includes('Uma Patel'),'image marks replace the typed name on the page')
+ const text=(await pdfText((await h.send(`/api/inkwell/envelopes/${id}/artifacts/certificate`,undefined,h.owner)).bytes)).replaceAll('\n',' ')
+ for(const line of [`Adopted signature (Signature): "Dana Reyes", drawn signature, PNG SHA-256 ${digest(drawn)}`,`Adopted signature (Signature): "Tess Okafor", typed name, Serif italic style`,`Adopted signature (Second signature): "Tess Okafor", typed name, Serif italic style`,`Adopted signature (Signature): "Uma Patel", uploaded signature image, JPEG SHA-256 ${digest(jpeg)}`]) assert.ok(text.includes(line),`the certificate shows: ${line}`)
 })
 test('SIGNX-008: a signer downloads the document before signing; a three-page paper scan is accepted as a wet-ink signature, and envelopes that do not allow paper refuse it',async()=>{
  const pair=[{name:'Nia Cole',email:'nia@harbour.example'},{name:'Oto Grant',email:'oto@harbour.example'}]

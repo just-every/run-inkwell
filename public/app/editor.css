@@ -87,3 +87,16 @@
 .iw-guide-count { font-weight: 600; }
 .iw-guide-field small { margin-left: 8px; color: var(--soft); }
 .iw-field-active { border-width: 2.5px; box-shadow: 0 0 0 3px rgb(37 99 235 / 30%); }
+
+/* SIGNX-002: adopting a signature: typed styles, the drawing area and an uploaded image. */
+.iw-adopt { padding-top: 16px; border-top: 1px solid var(--line); }
+.iw-adopt-methods { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.iw-adopt-styles { display: grid; gap: 8px; }
+.iw-adopt-styles small { display: block; color: var(--soft); font-size: 12px; }
+.iw-mark-preview { font-size: 22px; line-height: 1.2; color: var(--ink); overflow-wrap: anywhere; }
+.iw-mark-sans { font-family: Helvetica, Arial, sans-serif; font-style: italic; }
+.iw-mark-serif { font-family: 'Times New Roman', Times, serif; font-style: italic; }
+.iw-mark-serif-bold { font-family: 'Times New Roman', Times, serif; font-style: italic; font-weight: 700; }
+.iw-draw-pad { display: block; width: 100%; height: 140px; border: 1px dashed var(--app-field-hover); border-radius: 12px; background: var(--paper); touch-action: none; cursor: crosshair; }
+.iw-mark-image { max-width: 100%; max-height: 120px; object-fit: contain; align-self: flex-start; }
+.iw-sign-fields .iw-adopt .iw-check { padding: 6px 0; border: 0; }

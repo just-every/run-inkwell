@@ -23,7 +23,7 @@ not an external timestamp authority. Email codes establish access to the named
 mailbox, not government identity. No qualified signature, KYC, notarization or
 universal validity is claimed. The owner determines document eligibility.
 
-Original PDFs are immutable after preparation. Typed signature marks are added
+Original PDFs are immutable after preparation. Adopted signature marks (typed, drawn or uploaded) are added
 to a derivative executed PDF; its fingerprint is distinct from the original.
 A separate certificate and JSON event trail preserve the process. Imported
 DocuSeal PDFs retain their upstream provenance and are never represented as

@@ -40,8 +40,12 @@ agree once per envelope; if the disclosure changes, the page shows the new versi
 ## Review and sign
 
 1. Read every page of the document. Each field for this recipient is outlined on its page.
-2. Under **Your fields**, type a full name into each signature field and fill any text or
-   date fields. The typed name is what Inkwell places into the PDF.
+2. Under **Your fields**, type your full name into each signature field and fill any text or
+   date fields. Then, under **Adopt your signature**, choose **Type** (and a style),
+   **Draw** (with a finger, pen or mouse) or **Upload** (a PNG or JPEG of up to 512 KB).
+   Inkwell places that signature in every signature field of the PDF, and the certificate
+   records how you adopted it. Finish later keeps your entries but not the adopted
+   signature, so adopt it again when you return.
 3. Tick the consent box: *I have reviewed this document and consent to electronic
    signatures. I intend my entries to be my legally binding signature.*
 4. Choose **Sign document**.

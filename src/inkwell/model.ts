@@ -5,7 +5,9 @@ export function insist(condition: unknown, message: string, status = 400): asser
 export type Role = 'owner' | 'admin' | 'sender' | 'viewer'
 export interface Actor { id: string; name: string; email: string; role: Role; version: number; sessionId?: string; agentId?: string }
 export interface Field { id: string; label: string; type: 'signature' | 'text' | 'date'; signer: number; page: number; x: number; y: number; width: number; height: number }
-export interface Signer { name: string; email: string; order?: number; accessCode?: boolean; signedAt?: string; values?: Record<string, string>; declinedAt?: string; declineReason?: string; consentWithdrawn?: boolean; message?: string; disclosure?: { version: string; sha256: string; acceptedAt: string }; paper?: Paper }
+export interface Signer { name: string; email: string; order?: number; accessCode?: boolean; signedAt?: string; values?: Record<string, string>; declinedAt?: string; declineReason?: string; consentWithdrawn?: boolean; message?: string; disclosure?: { version: string; sha256: string; acceptedAt: string }; paper?: Paper; adoption?: Adoption }
+/** SIGNX-002: how the signer adopted the mark applied to their signature fields (marks.ts). */
+export interface Adoption { method: 'typed' | 'drawn' | 'uploaded'; style?: 'sans' | 'serif' | 'serif-bold'; mediaType?: 'image/png' | 'image/jpeg'; sha256?: string }
 /** SIGNX-008: a hand-signed scan the recipient uploaded instead of signing electronically, and the sender's review. */
 export interface Paper { sha256: string; pages: number; mediaType: string; uploadedAt: string; status: 'pending' | 'accepted' | 'rejected'; reviewedAt?: string; reviewedBy?: string; reason?: string }
 export interface AuditEvent { action: string; at: string; actor: string; detail: Record<string, unknown>; previousHash: string; hash: string }

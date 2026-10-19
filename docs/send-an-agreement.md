@@ -124,8 +124,8 @@ recipient and place your fields. When you approve it, the button reads **Approve
 now**: it opens your signing page straight away, and no email is sent at all. The same
 happens when you are at the first routing order of your own envelope; the next order is
 invited only once you have signed. The certificate names your signed-in session and how
-you signed in. Inkwell remembers the signature you typed and fills it in next time you
-sign in the app; type a different one to replace it. Once the envelope is complete,
+you signed in. Inkwell remembers the signature you adopted (typed, drawn or uploaded) and offers it next
+time you sign in the app; adopt a different one to replace it. Once the envelope is complete,
 **Send the completed copy…** sends the executed PDF and certificate to up to 20 more
 people.
 

@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { deploymentHealth } from '../base/deployment-health'
 import { operatorAuth, runtimeBindings, type Bindings } from '../auth.server'
-import { Refusal, clientEvidence, insist, object, text, sha256, canonical, type Actor, type Role } from './model'
+import { Refusal, clientEvidence, insist, object, text, sha256, canonical, type Actor, type Env, type Role } from './model'
 import { getEnvelope, memberRoleSql, previousCommand } from './storage'
 import { insistAccess, listPeople, mayShare, setMemberRole } from './members'
 import { listShares, shareEnvelope, unshareEnvelope } from './shares'
@@ -22,6 +22,8 @@ import { envelopeReport, reportCsv } from './reports'
 import { savedSignature, sessionMember } from './saved-marks'
 import { sendCompletedCopy, completedCopyDelivery, copyArtifact, copyContext, copyView, requestCopyCode, setCompletedCopies, verifyCopyCode } from './completed-copies'
 import { signingContext, signingView, signingDocument, requestCode, verifyCode, signEnvelope, declineEnvelope, signerArtifact, enterAccessCode, acceptDisclosure, withdrawConsent } from './signing'
+/** ROUTE-009 and SIGNX-002: the member's saved name and mark, offered on their in-app signing page. */
+const savedMarkView=async(env: Env,member: string)=>{const saved=await savedSignature(env,member);return {savedSignature:saved?.signature??null,savedMark:saved?{adoption:saved.adoption,...(saved.imageBase64?{imageBase64:saved.imageBase64}:{})}:null}}
 export async function requireActor(request: Request, original: Bindings, roles: readonly Role[] = ['owner','admin','sender','viewer']):Promise<Actor> { const env=runtimeBindings(original),session=await operatorAuth(env).getSession(request);insist(session,'Sign in to continue.',401);const role=(session.operator.role==='member'?(await env.DB.prepare(`SELECT ${memberRoleSql('?')} AS role`).bind(session.operator.id).first<{role:Role}>())!.role:session.operator.role) as Role;insist(roles.includes(role),'Your role does not allow this action.',403);return{id:session.operator.id,name:session.operator.displayName,email:session.operator.email,role,version:session.operator.version,sessionId:session.id} }
 export function sameOrigin(request: Request, original: Bindings) { const env=runtimeBindings(original),origin=request.headers.get('origin');insist(origin===new URL(env.AUTH_ORIGIN).origin&&new URL(request.url).origin===new URL(env.AUTH_ORIGIN).origin,'Use this application’s own page to make changes.',403);insist(request.headers.get('sec-fetch-site')!=='cross-site','Cross-site changes are not allowed.',403) }
 /** Bound JSON reads before decoding a base64 upload. */
@@ -53,12 +55,12 @@ api.get('/api/inkwell/envelopes/:id/artifacts/:kind',async c=>{const actor=await
 api.get('/api/inkwell/envelopes/:id/verify',async c=>{const actor=await requireActor(c.req.raw,c.env),envelope=await getEnvelope(c.env.DB,c.req.param('id'));await insistAccess(c.env,actor,envelope,'view');return c.json(await verifyEnvelope(c.env,envelope))})
 api.post('/api/verify',async c=>c.json(await publicVerification(c.env,c.req.raw)))
 // ROUTE-009: a member signing with their session is offered the signature they saved.
-api.get('/api/sign/:token',async c=>{const context=await signingContext(c.env,c.req.param('token'),c.req.raw),member=context.verified?sessionMember(context.envelope,context.recipient.signer):undefined;return c.json({...signingView(context),mailSuppressed:mailSuppressed(c.env),...(member?{savedSignature:await savedSignature(c.env,member)??null}:{})})})
+api.get('/api/sign/:token',async c=>{const context=await signingContext(c.env,c.req.param('token'),c.req.raw),member=context.verified?sessionMember(context.envelope,context.recipient.signer):undefined;return c.json({...signingView(context),mailSuppressed:mailSuppressed(c.env),...(member?await savedMarkView(c.env,member):{})})})
 api.get('/api/sign/:token/document',async c=>signingDocument(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw)))
 api.post('/api/sign/:token/access',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096);return c.json(await enterAccessCode(c.env,context,body))})
 api.post('/api/sign/:token/code',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await requestCode(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw)))})
 api.post('/api/sign/:token/verify',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096),cookie=await verifyCode(c.env,context,body);c.header('set-cookie',cookie);return c.json({ok:true})})
-api.post('/api/sign/:token/sign',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,64000);return c.json({ok:true,result:await signEnvelope(c.env,context,body,c.req.raw)})})
+api.post('/api/sign/:token/sign',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,800_000);return c.json({ok:true,result:await signEnvelope(c.env,context,body,c.req.raw)})})
 api.post('/api/sign/:token/decline',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096);return c.json({ok:true,result:await declineEnvelope(c.env,context,body,c.req.raw)})})
 api.post('/api/sign/:token/disclosure',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096);return c.json({ok:true,result:await acceptDisclosure(c.env,context,body,c.req.raw)})})
 api.post('/api/sign/:token/paper',async c=>{sameOrigin(c.req.raw,c.env);return c.json({ok:true,result:await uploadPaper(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),c.req.raw)})})

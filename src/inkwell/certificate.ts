@@ -2,6 +2,7 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { routingOrder, type AuditEvent, type Envelope } from './model'
 import { encodable } from './pdf'
 import { localStamp } from './zone'
+import { adoptionOf, describeAdoption } from './marks'
 
 /** RECORD-002: the certificate of completion (or of a decline or withdrawal). For every recipient it lists their routing
  * order, each authentication with its method, result, IP address and user agent, any access code, the disclosure they
@@ -73,10 +74,11 @@ function accessLine(envelope: Envelope, signer: number) {
   const at = forSigner(envelope, signer, ['signer.access_code_verified'])[0]?.at, rejected = forSigner(envelope, signer, ['signer.access_code_rejected']).length
   return `${at ? `Access code: entered at ${stamp(at)}` : 'Access code: required, never entered'}${rejected ? ` (${rejected} incorrect)` : ''}`
 }
-/** The adopted signature and how it was made: today a typed name in the standard font, or wet ink on paper (SIGNX-008). */
+/** SIGNX-002: the adopted signature and how it was made: a typed name in its style, a drawn or uploaded image with its
+ * fingerprint, a member's saved mark reused (ROUTE-009), or wet ink on paper (SIGNX-008). */
 function adoptionLines(envelope: Envelope, signer: number) {
   const s = envelope.signers[signer]
   if (s.paper?.status === 'accepted') return ['Signed on paper (wet ink)', 'Adopted signature: handwritten on the paper scan']
-  const signed = forSigner(envelope, signer, ['signer.signed']).at(-1)
-  return envelope.fields.filter(f => f.signer === signer && f.type === 'signature' && s.values?.[f.id]).map(f => `Adopted signature (${f.label}): "${s.values![f.id]}", ${signed?.detail.adoption === 'saved' ? `typed name saved by member ${signed.detail.operator} and reused` : 'typed name'}`)
+  const signed = forSigner(envelope, signer, ['signer.signed']).at(-1), saved = signed?.detail.saved === true || signed?.detail.adoption === 'saved' ? signed!.detail.operator as string : undefined
+  return envelope.fields.filter(f => f.signer === signer && f.type === 'signature' && s.values?.[f.id]).map(f => `Adopted signature (${f.label}): "${s.values![f.id]}", ${describeAdoption(adoptionOf(envelope, signer), saved)}`)
 }

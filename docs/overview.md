@@ -79,7 +79,7 @@ checks these roles on every request, not only in the interface.
 
 ## What Inkwell does not do
 
-Inkwell places the signer's typed name into the PDF and records the email-code check,
+Inkwell places the signer's adopted signature (typed, drawn or uploaded) into the PDF and records the email-code check,
 consent and order in its certificate. It does not apply a qualified cryptographic
 signature, verify anyone's government identity, notarise documents or decide whether a
 document may be signed electronically. You decide which documents are eligible.

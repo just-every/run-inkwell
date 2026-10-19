@@ -1,8 +1,10 @@
 // SIGNX-001 journey: guided mobile-first signing in a real browser against the emitted Worker.
+// SIGNX-002: before signing, the signer adopts a signature drawn with a finger on the touch screen; the executed PDF
+// carries the drawing in every signature field.
 // A signer completes a ten-field, five-page envelope at 390 pixels using only Next, leaves halfway, returns from the same
 // link and finishes; the return visit records time to first page on the throttled mobile profile below.
 import assert from 'node:assert/strict'
-import { PDFDocument, StandardFonts } from 'pdf-lib'
+import { PDFDocument, PDFName, StandardFonts } from 'pdf-lib'
 import { screenshots, startInkwell } from './worker.mjs'
 
 // The throttled mobile profile (CONTRACT.md SIGNX-001): a 390 x 844 phone screen at 3x pixel density with touch, its CPU
@@ -19,7 +21,7 @@ async function phone(storageState) {
   await cdp.send('Network.setCacheDisabled', { cacheDisabled: true })
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU_SLOWDOWN })
   await cdp.send('Network.emulateNetworkConditions', NETWORK)
-  return { context, page }
+  return { context, page, cdp }
 }
 try {
   // Five pages with two fields each: a signature, text and dates, all required.
@@ -78,6 +80,16 @@ try {
   await back.page.locator('.iw-pdf-page').nth(4).and(back.page.locator('[data-rendered]')).waitFor()
   // After the last field, Next went to the consent; confirm it and sign.
   assert.equal(await back.page.evaluate(() => document.activeElement?.id), 'iw-consent')
+  // SIGNX-002: draw the signature with a finger: one touch stroke across the drawing area.
+  await back.page.getByRole('radio', { name: 'Draw' }).check()
+  const pad = back.page.getByRole('img', { name: /Signature drawing area/ })
+  await pad.scrollIntoViewIfNeeded()
+  const box = await pad.boundingBox()
+  const stroke = Array.from({ length: 24 }, (_, i) => ({ x: box.x + 20 + i * (box.width - 40) / 23, y: box.y + box.height / 2 + Math.sin(i / 3) * box.height / 4 }))
+  await back.cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [stroke[0]] })
+  for (const point of stroke.slice(1)) await back.cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [point] })
+  await back.cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await back.page.getByRole('status').filter({ hasText: 'Draw your signature in the box.' }).waitFor({ state: 'detached' })
   await back.page.getByRole('checkbox', { name: /consent to electronic signatures/ }).check()
   // 390 and 360 pixels: nothing is wider than the screen, so the signer never zooms or scrolls sideways.
   for (const width of [390, 360]) {
@@ -92,6 +104,11 @@ try {
   await back.context.close()
   const view = await (await fetch(`${origin}/api/inkwell/envelopes/${id}`, { headers: { cookie: owner } })).json()
   assert.equal(view.envelope.status, 'completed')
+  assert.equal(view.envelope.signers[0].adoption.method, 'drawn', 'the record keeps the drawn adoption')
+  const signed = await PDFDocument.load(await (await fetch(`${origin}/api/inkwell/envelopes/${id}/artifacts/signed`, { headers: { cookie: owner } })).arrayBuffer())
+  const imagesOn = n => { const xobjects = signed.getPage(n).node.Resources().lookup(PDFName.of('XObject')); return xobjects ? xobjects.keys().filter(k => xobjects.lookup(k).dict.get(PDFName.of('Subtype')) === PDFName.of('Image')).length : 0 }
+  for (const field of fields.filter(f => f.type === 'signature')) assert.equal(imagesOn(field.page), 1, `the drawn signature is on page ${field.page + 1}`)
+  console.log('SIGNX-002 passed: a signature drawn by touch is in every signature field of the executed PDF')
   console.log('SIGNX-001 passed: ten fields over five pages at 390 pixels using only Next, left halfway, resumed from the same link and signed')
 } catch (error) {
   await screenshots(browser, 'signx-001-failure')

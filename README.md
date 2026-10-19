@@ -55,7 +55,7 @@ cannot read it. To install for a real owner, run `npx -y @runeditrun/rer install
    all fingerprints. Give the PDFs and manifest to Locket or Chest manually;
    this release makes no external handoff call. The original PDF remains intact.
 
-Typed signature text is placed into the final PDF. This release uses a standard
+Each signer's adopted signature (typed in a style, drawn, or an uploaded image) is placed into the final PDF. This release uses a standard
 Latin PDF font: unsupported characters in names, titles or typed fields are
 refused with an explanation; the original PDF can retain its own embedded fonts. Inkwell does not apply a
 qualified cryptographic PDF signature or establish legal eligibility for you.
