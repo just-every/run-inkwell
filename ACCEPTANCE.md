@@ -96,7 +96,7 @@ Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed her
 - **MANAGE-001 — Envelope dashboard with search** (done). With 5,000 envelopes, search by recipient email returns in under one second and each status filter shows the right count.
 - **MANAGE-002 — Folders, tags and custom envelope fields** (missing). A template adds a required cost-center field; envelopes are filtered and exported by it and the HubSpot fake receives it.
 - **MANAGE-003 — Waiting for me** (done). An admin is the second signer of a colleague's envelope and signs from the in-app list after the first signer finishes.
-- **MANAGE-004 — Reports and exports** (missing). A fixture of 300 envelopes produces the expected counts and median turnaround, and the CSV matches the report.
+- **MANAGE-004 — Reports and exports** (done). A fixture of 300 envelopes produces the expected counts and median turnaround, and the CSV matches the report.
 - **MANAGE-005 — Envelope detail and timeline** (partial). For an envelope with three recipients mid-routing, the detail page at 1440 and 390 pixels shows each recipient's sent, delivered, viewed and signed times matching the provider events (`DELIV-001`) and the audit trail, and its remind action sends one reminder to the current signer only.
 
 ### Execution evidence

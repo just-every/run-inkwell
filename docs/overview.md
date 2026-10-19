@@ -47,6 +47,15 @@ back as `cursor` for the following page. `GET /api/inkwell/envelopes/:id` reads 
 envelope. The Envelopes screen uses the same search: its status chips, Prepared from and
 to days (your own local days, both included) and, for owners and admins, the Sender filter.
 
+## Reports
+
+**Reports** shows, for the days you choose (whole days, Eastern time, both included), how
+many envelopes were sent, completed, declined and expired, and the median and average
+time from sending to the last signature, for each sender and in total. **Export CSV**
+downloads the same numbers. A sender sees only their own envelopes. The same report is
+`GET /api/inkwell/reports/envelopes?from=YYYY-MM-DD&to=YYYY-MM-DD`, and its CSV is
+`/api/inkwell/reports/envelopes.csv` with the same query.
+
 ## Who can do what
 
 | Role | Can |

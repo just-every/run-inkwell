@@ -529,6 +529,31 @@ test('MANAGE-001: with 5,000 envelopes, search by recipient email answers in und
  assert.equal((await h.send('/api/inkwell/envelopes')).status,401)
  await h.db.batch(['iw_envelopes'].map(()=>h.db.prepare("DELETE FROM iw_envelopes WHERE id LIKE 'bulk-%'")))
 })
+// MANAGE-004: counts and turnaround over whole days in the account's zone (America/New_York), both days included.
+test('MANAGE-004: a fixture of 300 envelopes produces the expected counts and median turnaround, per sender and in total, and the CSV matches the report',async()=>{
+ const sam=await sender('report.sender@harbour.example'),ownerId=(await h.send('/api/inkwell',undefined,h.owner)).value.actor.id,hour=3_600_000,start=Date.UTC(2026,1,25,14)
+ const rows=Array.from({length:300},(_,i)=>{const sent=start+i*4*hour,kind=i%5,createdBy=[ownerId,sam.id,'sender-gone'][i%3],done=sent+((i%7)+1)*5*hour,iso=t=>new Date(t).toISOString()
+  const events=[{action:'envelope.prepared',at:iso(sent-hour)},{action:'envelope.approved',at:iso(sent)},...(kind<3?[{action:'envelope.completed',at:iso(done)}]:[])].map(e=>({...e,actor:'fixture',detail:{},previousHash:'',hash:'1'.repeat(64)}))
+  return {id:`report-${String(i).padStart(3,'0')}`,version:1,title:`Report fixture ${i}`,filename:'r.pdf',status:kind<3?'completed':kind===3?'declined':'awaiting_signature',createdAt:iso(sent-hour),createdBy,expiresAt:iso(sent+20*24*hour),signers:[{name:'R',email:`r${i}@harbour.example`,...(kind===3?{declinedAt:iso(sent+10*hour)}:{})}],fields:[],pageSizes:[{width:595,height:842}],originalSha256:'0'.repeat(64),events,facts:{sent,done,kind}}})
+ await h.db.batch(rows.map(({facts,...e})=>h.db.prepare('INSERT INTO iw_envelopes(id,version,data) VALUES(?,?,?)').bind(e.id,1,JSON.stringify(e))))
+ // 1 March 00:00 EST to 1 April 00:00 EDT: the zone's own midnights either side of the DST change.
+ const from=Date.UTC(2026,2,1,5),to=Date.UTC(2026,3,1,4),inside=t=>t>=from&&t<to
+ const expect=list=>{const hours=list.filter(r=>r.facts.kind<3&&inside(r.facts.done)).map(r=>(r.facts.done-r.facts.sent)/hour).sort((a,b)=>a-b),m=hours.length/2,round=x=>Math.round(x*10)/10
+  return {sent:list.filter(r=>inside(r.facts.sent)).length,completed:list.filter(r=>r.facts.kind<3&&inside(r.facts.done)).length,declined:list.filter(r=>r.facts.kind===3&&inside(r.facts.sent+10*hour)).length,expired:list.filter(r=>r.facts.kind===4&&inside(r.facts.sent+20*24*hour)).length,
+   medianHoursToComplete:hours.length?round(hours.length%2?hours[Math.floor(m)]:(hours[m-1]+hours[m])/2):null,averageHoursToComplete:hours.length?round(hours.reduce((a,b)=>a+b,0)/hours.length):null}}
+ const report=async(cookie,query={from:'2026-03-01',to:'2026-03-31'})=>h.send('/api/inkwell/reports/envelopes?'+new URLSearchParams(query),undefined,cookie)
+ const all=(await report(h.owner)).value
+ assert.deepEqual(all.totals,expect(rows));assert.ok(all.totals.sent>150&&all.totals.completed>50&&all.totals.expired>0,'the fixture exercises every count')
+ for(const id of [ownerId,sam.id,'sender-gone']) assert.deepEqual(Object.fromEntries(Object.entries(all.senders.find(s=>s.id===id)).filter(([k])=>!['id','name','email'].includes(k))),expect(rows.filter(r=>r.createdBy===id)),id)
+ assert.equal(all.senders.find(s=>s.id===sam.id).email,'report.sender@harbour.example')
+ const mine=(await report(sam.cookie)).value;assert.deepEqual(mine.senders.map(s=>s.id),[sam.id],'a sender reports on their own envelopes');assert.deepEqual(mine.totals,expect(rows.filter(r=>r.createdBy===sam.id)))
+ const csv=await h.send('/api/inkwell/reports/envelopes.csv?from=2026-03-01&to=2026-03-31',undefined,h.owner);assert.equal(csv.status,200);assert.match(csv.headers.get('content-type'),/^text\/csv/)
+ const lines=csv.value.trim().split('\r\n').map(line=>line.split(','));assert.deepEqual(lines[0],['sender','email','sent','completed','declined','expired','median_hours_to_complete','average_hours_to_complete'])
+ const asCsv=(name,email,s)=>[name,email,s.sent,s.completed,s.declined,s.expired,s.medianHoursToComplete??'',s.averageHoursToComplete??''].map(String)
+ assert.deepEqual(lines.slice(1),[...all.senders.map(s=>asCsv(s.name,s.email,s)),asCsv('All senders','',all.totals)],'the CSV matches the report')
+ assert.equal((await report(h.owner,{from:'2026-03-31',to:'2026-03-01'})).status,400);assert.equal((await report(h.owner,{from:'March',to:'2026-03-01'})).status,400);assert.equal((await report('')).status,401)
+ await h.db.prepare("DELETE FROM iw_envelopes WHERE id LIKE 'report-%'").run()
+})
 test('DocuSeal dry run, explicit fingerprint, journal, downloads and undo preserve custody',async()=>{
  const archive=await readFile('tests/fixtures/docuseal/archive.json','utf8')
  const preview=(await h.post('/api/inkwell/import/preview',{archive})).value

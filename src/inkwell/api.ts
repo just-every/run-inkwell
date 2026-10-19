@@ -14,6 +14,7 @@ import { publicVerification } from './verification'
 import { extendEnvelope } from './expiry'
 import { reviewPaper, uploadPaper } from './paper'
 import { presentEnvelope, searchEnvelopes } from './search'
+import { envelopeReport, reportCsv } from './reports'
 import { completedCopyDelivery, copyArtifact, copyContext, copyView, requestCopyCode, setCompletedCopies, verifyCopyCode } from './completed-copies'
 import { signingContext, signingView, signingDocument, requestCode, verifyCode, signEnvelope, declineEnvelope, signerArtifact, enterAccessCode, acceptDisclosure, withdrawConsent } from './signing'
 export async function requireActor(request: Request, original: Bindings, roles: readonly Role[] = ['owner','admin','sender','viewer']):Promise<Actor> { const env=runtimeBindings(original),session=await operatorAuth(env).getSession(request);insist(session,'Sign in to continue.',401);const role=(session.operator.role==='member'?(await env.DB.prepare(`SELECT ${memberRoleSql('?')} AS role`).bind(session.operator.id).first<{role:Role}>())!.role:session.operator.role) as Role;insist(roles.includes(role),'Your role does not allow this action.',403);return{id:session.operator.id,name:session.operator.displayName,email:session.operator.email,role,version:session.operator.version,sessionId:session.id} }
@@ -27,6 +28,9 @@ api.get('/health',c=>c.json({status:'ok',product:'Inkwell',...deploymentHealth(c
 // MANAGE-001: the workspace is who is signed in, their agent tokens and people; envelopes are read a page or one at a time.
 api.get('/api/inkwell',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json({actor:{id:actor.id,name:actor.name,email:actor.email,role:actor.role},agents:actor.role==='owner'?await listAgents(c.env):[],people:['owner','admin'].includes(actor.role)?await listPeople(c.env):[],...(['owner','admin'].includes(actor.role)?{settings:{completedCopies:await completedCopyDelivery(c.env)}}:{})})})
 api.get('/api/inkwell/envelopes',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json(await searchEnvelopes(c.env,actor,new URL(c.req.url).searchParams))})
+// MANAGE-004: the envelope report over whole days in the account's zone, as JSON or as the same numbers in CSV.
+api.get('/api/inkwell/reports/envelopes',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json(await envelopeReport(c.env,actor,new URL(c.req.url).searchParams))})
+api.get('/api/inkwell/reports/envelopes.csv',async c=>{const actor=await requireActor(c.req.raw,c.env),report=await envelopeReport(c.env,actor,new URL(c.req.url).searchParams);return new Response(reportCsv(report),{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="inkwell-envelopes-${report.from}-to-${report.to}.csv"`}})})
 api.get('/api/inkwell/envelopes/:id',async c=>{const actor=await requireActor(c.req.raw,c.env),envelope=await getEnvelope(c.env.DB,c.req.param('id'));insistMaySee(actor,envelope);return c.json({envelope:presentEnvelope(c.env,actor,envelope)})})
 // ACCESS-001: what a sender may do, each on an envelope they created (prepare makes a new one; signing is anyone's own turn).
 const senderCommands=['envelope.prepare','envelope.approve','envelope.copy','envelope.extend','envelope.paper_review','envelope.void','envelope.open_signing']
