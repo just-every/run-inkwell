@@ -66,11 +66,11 @@ const stamp = (at: string) => `${at} UTC (${localStamp(at)})`
 const forSigner = (envelope: Envelope, signer: number, actions: string[]) => identityEvents(envelope, signer).filter(e => actions.includes(e.action) && e.detail.signer === signer)
 const client = (event: AuditEvent | undefined) => ` · IP ${(event?.detail.ip as string) || 'not recorded'} · User agent: ${(event?.detail.userAgent as string) || 'not recorded'}`
 const network = (envelope: Envelope, signer: number, actions: string[]) => client(forSigner(envelope, signer, actions).at(-1))
-/** Each signing session's authentication: an emailed code, a sender-provided code, or the member's own Inkwell session
- * (MANAGE-003), with how many incorrect codes came before it. */
+/** Each signing session's authentication: an emailed code, a sender-provided code, the link alone (IDV-001) or the
+ * member's own Inkwell session (MANAGE-003), with how many incorrect codes came before it. */
 function authLines(envelope: Envelope, signer: number) {
   const rejected = forSigner(envelope, signer, ['signer.code_rejected']).length
-  return forSigner(envelope, signer, ['signer.email_verified', 'signer.code_verified', 'signer.session_verified']).map(e => `Authenticated at ${stamp(e.at)}: ${e.action === 'signer.session_verified' ? `signed-in Inkwell session of member ${e.detail.operator}${e.detail.signIn ? ` (signed in by ${e.detail.signIn})` : ''}` : e.action === 'signer.code_verified' ? 'sender-provided verification code' : 'emailed verification code'}, verified${rejected && e.action !== 'signer.session_verified' ? ` (${rejected} incorrect code${rejected === 1 ? '' : 's'} on record)` : ''}${client(e)}`)
+  return forSigner(envelope, signer, ['signer.email_verified', 'signer.code_verified', 'signer.session_verified', 'signer.link_opened']).map(e => e.action === 'signer.link_opened' ? `Authenticated at ${stamp(e.at)}: link only, no code (IDV-001: anyone holding the signing link), opened` : `Authenticated at ${stamp(e.at)}: ${e.action === 'signer.session_verified' ? `signed-in Inkwell session of member ${e.detail.operator}${e.detail.signIn ? ` (signed in by ${e.detail.signIn})` : ''}` : e.action === 'signer.code_verified' ? 'sender-provided verification code' : 'emailed verification code'}, verified${rejected && e.action !== 'signer.session_verified' ? ` (${rejected} incorrect code${rejected === 1 ? '' : 's'} on record)` : ''}${client(e)}`)
 }
 function accessLine(envelope: Envelope, signer: number) {
   const at = forSigner(envelope, signer, ['signer.access_code_verified'])[0]?.at, rejected = forSigner(envelope, signer, ['signer.access_code_rejected']).length

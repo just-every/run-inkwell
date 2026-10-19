@@ -31,7 +31,7 @@ import { presentEnvelope, searchEnvelopes } from './search'
 import { envelopeReport, reportCsv } from './reports'
 import { savedSignature, sessionMember } from './saved-marks'
 import { sendCompletedCopy, completedCopyDelivery, copyArtifact, copyContext, copyView, requestCopyCode, setCompletedCopies, verifyCopyCode } from './completed-copies'
-import { signingContext, signingView, signingDocument, requestCode, verifyCode, signEnvelope, declineEnvelope, signerArtifact, enterAccessCode, acceptDisclosure, withdrawConsent } from './signing'
+import { signingContext, signingView, signingDocument, requestCode, verifyCode, signEnvelope, declineEnvelope, signerArtifact, enterAccessCode, acceptDisclosure, withdrawConsent, openLink } from './signing'
 /** ROUTE-009 and SIGNX-002: the member's saved name and mark, offered on their in-app signing page. */
 const savedMarkView=async(env: Env,member: string)=>{const saved=await savedSignature(env,member);return {savedSignature:saved?.signature??null,savedMark:saved?{adoption:saved.adoption,...(saved.imageBase64?{imageBase64:saved.imageBase64}:{})}:null}}
 export async function requireActor(request: Request, original: Bindings, roles: readonly Role[] = ['owner','admin','sender','viewer']):Promise<Actor> { const env=runtimeBindings(original),session=await operatorAuth(env).getSession(request);insist(session,'Sign in to continue.',401);const role=(session.operator.role==='member'?(await env.DB.prepare(`SELECT ${memberRoleSql('?')} AS role`).bind(session.operator.id).first<{role:Role}>())!.role:session.operator.role) as Role;insist(roles.includes(role),'Your role does not allow this action.',403);return{id:session.operator.id,name:session.operator.displayName,email:session.operator.email,role,version:session.operator.version,sessionId:session.id} }
@@ -78,6 +78,8 @@ api.get('/api/sign/:token',async c=>{const context=await signingContext(c.env,c.
 api.get('/api/sign/:token/document',async c=>signingDocument(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw)))
 api.post('/api/sign/:token/access',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096);return c.json(await enterAccessCode(c.env,context,body))})
 api.post('/api/sign/:token/code',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await requestCode(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw)))})
+// IDV-001: a link-only recipient's session from the link alone.
+api.post('/api/sign/:token/open',async c=>{sameOrigin(c.req.raw,c.env);c.header('set-cookie',await openLink(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw)));return c.json({ok:true})})
 api.post('/api/sign/:token/verify',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096),cookie=await verifyCode(c.env,context,body);c.header('set-cookie',cookie);return c.json({ok:true})})
 api.post('/api/sign/:token/sign',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,800_000);return c.json({ok:true,result:await signEnvelope(c.env,context,body,c.req.raw)})})
 api.post('/api/sign/:token/decline',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096);return c.json({ok:true,result:await declineEnvelope(c.env,context,body,c.req.raw)})})

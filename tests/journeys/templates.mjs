@@ -4,7 +4,8 @@
 // template's fields, routing, reminders and expiry with no placement, and each first role is invited by email. On the
 // built Worker with the Resend fake (tests/journeys/mail-worker.mjs). TMPL-005: on the prepare screen a fresh copy of a
 // template's W-9 is offered that template with its confidence, applying it places every template field and its role, and
-// an unrelated agreement is offered nothing. TMPL-002: the owner shares a template in a folder with one sender to use
+// an unrelated agreement is offered nothing; IDV-001: that recipient is set to link only and opens the document with
+// Continue, with no code asked or sent. TMPL-002: the owner shares a template in a folder with one sender to use
 // and the folder with another to edit; the first finds it by tag and sends from it with no Edit offered, the second
 // saves its next version, and a third sender cannot find it.
 import assert from 'node:assert/strict'
@@ -126,13 +127,27 @@ try {
   await offer.waitFor({ state: 'detached' })
   assert.equal(await prep.locator('.iw-placed > div').count(), w9Fields.length, 'applying places every template field')
   assert.equal(await prep.getByLabel('Recipient 1 name').getAttribute('placeholder'), 'Vendor: full name', 'the template role is the recipient')
+  // IDV-001: the sender chooses link-only signing for this recipient and is told what that means.
+  await prep.getByLabel('Recipient 1 authentication').selectOption('link')
+  await prep.getByRole('note').filter({ hasText: 'Anyone with this link can sign as' }).waitFor()
   await prep.getByLabel('Envelope title').fill('Vera Vendor W-9'); await prep.getByLabel('Recipient 1 name').fill('Vera Vendor'); await prep.getByLabel('Recipient 1 email').fill('vera@vendors.example')
   await prep.getByRole('button', { name: 'Save prepared envelope' }).click()
   await prep.getByRole('region', { name: 'Vera Vendor W-9' }).waitFor()
   const matched = (await inkwell.call('/api/inkwell/envelopes', { cookie: inkwell.owner })).value.envelopes.find(e => e.title === 'Vera Vendor W-9')
   const placed = (await inkwell.call(`/api/inkwell/envelopes/${matched.id}`, { cookie: inkwell.owner })).value.envelope
   assert.deepEqual(placed.fields.map(({ id, page, x, y, type }) => ({ id, page, x, y, type })), w9Fields.map(({ id, page, x, y, type }) => ({ id, page, x, y, type })), 'the envelope carries the template fields where the template put them')
-  assert.deepEqual(placed.signers.map(s => [s.name, s.order, s.message]), [['Vera Vendor', 1, 'Your W-9, please.']])
+  assert.deepEqual(placed.signers.map(s => [s.name, s.order, s.message, s.linkOnly]), [['Vera Vendor', 1, 'Your W-9, please.', true]])
+  const approval = prep.getByRole('region', { name: 'Vera Vendor W-9' })
+  await approval.getByLabel(/confirm it is eligible for electronic signature/).check()
+  await approval.getByRole('button', { name: 'Approve and invite first recipient' }).click()
+  for (let tries = 0; !inkwell.mail('vera@vendors.example', 'Please sign:') && tries < 100; tries++) await prep.waitForTimeout(100)
+  const signing = await matching.newPage()
+  await signing.goto(inkwell.mail('vera@vendors.example', 'Please sign:').text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0])
+  await signing.getByRole('heading', { name: 'Open your document' }).waitFor()
+  assert.equal(await signing.getByRole('button', { name: 'Email me a code' }).count(), 0, 'a link-only recipient is not asked for a code')
+  await signing.getByRole('button', { name: 'Continue' }).click()
+  await signing.getByRole('button', { name: 'Agree and continue' }).waitFor()
+  assert.equal(inkwell.mail('vera@vendors.example', 'Your Inkwell verification code'), undefined, 'and no code is sent')
   await matching.close()
   console.log('TMPL-005 passed: a fresh W-9 copy was offered its template, applying placed every field; an unrelated agreement was offered nothing')
   // TMPL-002: shares to use and, through the folder, to edit; search by tag; no access, no result.

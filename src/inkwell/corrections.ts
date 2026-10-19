@@ -23,7 +23,7 @@ import { sealLink } from './links'
 const maxPlaces = 10, maxActive = 5
 /** A recipient who has acted (signed, declined, or uploaded a paper scan awaiting review) or was removed: fixed for good. */
 const settled = (s: Signer) => Boolean(s.signedAt || s.declinedAt || s.paper?.status === 'pending' || s.removedAt)
-const identity = (s: Signer, place: number) => ({ name: s.name, email: s.email, order: s.order ?? place + 1, ...(s.message ? { message: s.message } : {}) })
+const identity = (s: Signer, place: number) => ({ name: s.name, email: s.email, order: s.order ?? place + 1, ...(s.linkOnly ? { linkOnly: true } : {}), ...(s.message ? { message: s.message } : {}) })
 /** An optional text: absent keeps the current value, an empty string clears it. */
 function edit(value: unknown, current: string | undefined, label: string, max: number, oneLine = false) {
   if (value === undefined) return current
@@ -43,8 +43,9 @@ function readRecipient(value: unknown, place: number, previous?: Signer): { sign
   insist(code === undefined || /^\S{4,32}$/.test(code), 'Use an access code of 4–32 characters with no spaces.')
   const name = text(s.name, 'the signer name', 100), message = edit(s.message, previous?.message, 'the private message', 1000)
   const same = previous && previous.name === name && previous.email === email
-  const { message: _, ...kept } = same ? previous : {} as Signer
-  return { signer: { ...kept, name, email, order: order as number, ...(message ? { message } : {}), ...(code || previous?.accessCode ? { accessCode: true } : {}) }, code }
+  const { message: _, linkOnly: __, ...kept } = same ? previous : {} as Signer
+  insist(s.linkOnly === undefined || typeof s.linkOnly === 'boolean', 'Choose email code or link only for each recipient.')
+  return { signer: { ...kept, name, email, order: order as number, ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}), ...(code || previous?.accessCode ? { accessCode: true } : {}) }, code }
 }
 
 export async function correctEnvelope(env: Env, context: CommandContext, input: Record<string, unknown>) {
@@ -94,7 +95,8 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
     if (s.removedAt && !previous.removedAt) { await appendEvent(after, 'signer.removed', context.actor.id, { signer: i, before: identity(previous, i) }); rotated.add(i); continue }
     if (canonical(identity(s, i)) !== canonical(identity(previous, i)) || codes.has(i)) {
       await appendEvent(after, 'signer.corrected', context.actor.id, { signer: i, before: identity(previous, i), after: identity(s, i), ...(codes.has(i) ? { accessCodeReplaced: true } : {}) })
-      if (s.name !== previous.name || s.email !== previous.email || codes.has(i)) rotated.add(i)
+      // IDV-001: a changed authentication method is a new link, like a new access code.
+      if (s.name !== previous.name || s.email !== previous.email || codes.has(i) || Boolean(s.linkOnly) !== Boolean(previous.linkOnly)) rotated.add(i)
     }
   }
   const changes: Record<string, { before: unknown; after: unknown }> = {}

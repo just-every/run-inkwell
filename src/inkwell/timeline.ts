@@ -12,7 +12,7 @@ export type Step = 'sent' | 'delivered' | 'viewed' | 'authenticated' | 'signed' 
 export type Place = 'signed' | 'declined' | 'current' | 'waiting' | 'stopped' | 'removed'
 export interface RecipientTimeline { signer: number; order: number; place: Place; waitingOn: string | null; bounced?: boolean; steps: { step: Step; at: string; detail?: string }[] }
 
-const verifications: Record<string, string> = { 'signer.email_verified': 'emailed code', 'signer.code_verified': 'sender-provided code', 'signer.session_verified': 'signed-in session' }
+const verifications: Record<string, string> = { 'signer.email_verified': 'emailed code', 'signer.code_verified': 'sender-provided code', 'signer.session_verified': 'signed-in session', 'signer.link_opened': 'link only, no code' }
 
 export async function envelopeTimeline(env: Env, envelope: Envelope) {
   const messages = await envelopeMessages(env, envelope.id)

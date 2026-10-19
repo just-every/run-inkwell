@@ -100,8 +100,10 @@ test('a prepared fixed PDF requires explicit human approval and immutable recipi
  const bad=preparation();bad.fields[0]={...bad.fields[0],page:5}
  await h.command('envelope.prepare',bad,h.owner,400)
 })
-test('signers verify a one-use email code, consent, and sign sequentially',async()=>{
+// SIGN-001: two email-code signers in strict order; the link-only and parallel-order points are in the IDV-001 test.
+test('SIGN-001: signers verify a one-use email code, consent, and sign sequentially; the second is invited only after the first signs',async()=>{
  const token=await signingToken(recipients[0].email),path='/api/sign/'+token
+ assert.equal(await h.mail(recipients[1].email,'Please sign:'),undefined,'the second signer is not invited before the first signs')
  assert.equal((await h.send(path+'/document')).status,401)
  await h.post(path+'/code',{},'')
  const mail=await h.mail(recipients[0].email,'verification code'),code=mail.text.match(/\b\d{6}\b/)[0]
@@ -469,6 +471,48 @@ test('SIGNX-008: a signer downloads the document before signing; a three-page pa
  const text=await pdfText((await h.send('/api/inkwell/envelopes/'+id+'/artifacts/certificate',undefined,h.owner)).bytes)
  assert.ok(text.includes('Signed on paper (wet ink)')&&text.includes('Scan SHA-256: '+digest(signedScan)),'the certificate marks the wet-ink signature with the scan fingerprint')
  assert.equal((await h.send('/api/inkwell/envelopes/'+id+'/verify',undefined,h.owner)).value.ok,true)
+})
+// IDV-001 / SIGN-001: each recipient passes the method the sender chose: link only, email code, access code (with the
+// link alone) or access code and email code; a link-only recipient signs with no code, and the certificate lists each.
+test('IDV-001 and SIGN-001: four recipients with four methods each pass their own; the two order-1 recipients sign in parallel before order 2 is invited; the link-only recipient signs with no code and the certificate lists every method',async()=>{
+ const people=[{name:'Lin Link',email:'lin@idv.example',linkOnly:true},{name:'Em Code',email:'em@idv.example'},{name:'Ace Link',email:'ace@idv.example',linkOnly:true,accessCode:'ace-4411'},{name:'Abe Both',email:'abe@idv.example',accessCode:'abe-9922'}]
+ const fourFields=people.map((_,signer)=>({id:`signature-${signer}`,label:'Signature',type:'signature',signer,page:0,x:.1,y:.2+signer*.15,width:.4,height:.07}))
+ await h.command('envelope.prepare',{...preparation(),signers:[{...people[0],linkOnly:'yes'}],fields:[fourFields[0]]},h.owner,400)
+ const id=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio four-method lease',signers:people.map((p,i)=>({...p,order:i<2?1:2})),fields:fourFields})).result.id
+ assert.deepEqual((await stored(id)).signers.map(s=>[Boolean(s.linkOnly),Boolean(s.accessCode)]),[[true,false],[false,false],[true,true],[false,true]])
+ await h.command('envelope.approve',{id,eligible:true})
+ const tokenOf=async email=>'/api/sign/'+await signingToken(email),sign=(path,signer,cookie)=>h.post(path+'/sign',{values:{[`signature-${signer}`]:people[signer].name},consent:true,commandId:crypto.randomUUID()},cookie)
+ for(const p of people.slice(2)) assert.equal(await h.mail(p.email,'Please sign:'),undefined,`${p.name} at order 2 waits`)
+ // Link only: no code is sent or asked; the link opens a session. Both order-1 recipients are invited together.
+ const lin=await tokenOf(people[0].email),em=await tokenOf(people[1].email)
+ assert.equal((await h.send(lin)).value.linkOnly,true);assert.equal((await h.send(lin+'/document')).status,401,'not before the link is opened')
+ const linCookie=(await h.post(lin+'/open',{},'')).cookie
+ await h.agree(lin,linCookie)
+ // Email code: the link alone is refused.
+ await h.post(em+'/open',{},'',409)
+ const emSession=await verified(people[1].email)
+ for(const [path,cookie] of [[lin,linCookie],[emSession.path,emSession.cookie]]) assert.equal((await h.send(path,undefined,cookie)).value.canSign,true,'both order-1 recipients can sign now')
+ await sign(emSession.path,1,emSession.cookie)
+ assert.equal(await h.mail(people[2].email,'Please sign:'),undefined,'order 2 waits while one order-1 recipient has not signed')
+ await sign(lin,0,linCookie)
+ // Access code with the link alone: the code first, then the link opens.
+ const ace=await tokenOf(people[2].email)
+ await h.post(ace+'/open',{},'',403)
+ await h.post(ace+'/access',{accessCode:'ace-4411'},'')
+ const aceCookie=(await h.post(ace+'/open',{},'')).cookie
+ await h.agree(ace,aceCookie);await sign(ace,2,aceCookie)
+ // Access code and email code.
+ const abe=await tokenOf(people[3].email)
+ await h.post(abe+'/access',{accessCode:'abe-9922'},'')
+ await h.post(abe+'/open',{},'',409)
+ const abeSession=await verified(people[3].email);await sign(abeSession.path,3,abeSession.cookie)
+ const done=await stored(id)
+ assert.equal(done.status,'completed')
+ assert.equal(h.attempted().filter(m=>[people[0].email,people[2].email].some(e=>m.to?.includes?.(e))&&/verification code/.test(m.subject)).length,0,'no code was ever sent to a link-only recipient')
+ const certificate=(await pdfText((await h.send(`/api/inkwell/envelopes/${id}/artifacts/certificate`,undefined,h.owner)).bytes)).replace(/\s+/g,' ')
+ assert.equal((certificate.match(/link only, no code/g)??[]).length,2,'two link-only authentications on the certificate')
+ assert.equal((certificate.match(/emailed verification code, verified/g)??[]).length,2,'two email-code authentications')
+ assert.equal((certificate.match(/Access code: entered at/g)??[]).length,2,'two access codes entered')
 })
 test('IDV-003: a recipient must enter the sender-set access code before the document; wrong codes are refused and five lock the invitation',async()=>{
  const pair=[{name:'Gia Lane',email:'gia@harbour.example',accessCode:'HARBOUR-7731'},{name:'Hal Ortiz',email:'hal@harbour.example',accessCode:'tide-2209'}]

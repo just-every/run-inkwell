@@ -7,6 +7,7 @@ import { chooseReminders } from './reminders'
 import { chooseCopies } from './completed-copies'
 import { insistAccess } from './members'
 import type { CommandContext } from './envelopes'
+import { mailSuppressed } from './manual-invitations'
 
 /** PREP-009: what a prepared envelope holds, validated the same way when it is first saved and whenever its draft is
  * saved again: the PDF, title, recipients in routing order with any access code and private message, fields, expiry,
@@ -32,7 +33,10 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
     insist(!keep || (previous?.signers[i]?.email === email && previous.signers[i].accessCode), `Enter the access code for ${email} again: a kept code stays with the same recipient in the same place.`)
     accessCodes.push(keep ? 'keep' : code)
     const message = optional(s.message, 'the private message', 1000)
-    return { name: text(s.name, 'the signer name', 100), email, order: order as number, ...(code || keep ? { accessCode: true } : {}), ...(message ? { message } : {}) }
+    // IDV-001: link only is a choice per recipient, refused when mail is off (the owner's private link would be the only factor).
+    insist(s.linkOnly === undefined || typeof s.linkOnly === 'boolean', 'Choose email code or link only for each recipient.')
+    insist(!s.linkOnly || !mailSuppressed(env), 'Link-only signing needs mail; while mail is not set up every recipient verifies a code.', 409)
+    return { name: text(s.name, 'the signer name', 100), email, order: order as number, ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
   })
   insist(new Set(signers.map(s => s.email)).size === signers.length, 'Each ordered signer must use a different email.')
   const fields = validateFields(input.fields, signers.length, pageSizes.length), copies = chooseCopies(input.copies, signers)
