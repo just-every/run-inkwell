@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "d9bbd15646f5e055b6154a7b8c9b8b92d349b06935aa061ebfa6f861afc17382",
+      "sha256": "1c8ef1468ac7a40a116bee1856e938dbb9a779c1c5508aa1d8615f4353973c27",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "8f4e2ab71043b8decf220b77a267ab39d56ceea1f11923ff97ac282314eb7fb4",
+      "sha256": "490931155d1342059b3e350222ec7b8853fe52d0279a8fb811c4e808549c626b",
       "executable": false
     },
     "DEMO.md": {
@@ -291,7 +291,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "9ae43d3e9e4ea6f6aceef2bdad8c3ad3872f5883bf44366f6d31abbc363c97f1",
+      "sha256": "3a8e7ddff83a1a1c79f65aaabf60c921caad0ae7ddc32797cbf0ad200c6e6978",
       "executable": false
     },
     "pnpm-lock.yaml": {
@@ -307,7 +307,7 @@
       "executable": false
     },
     "public/app/editor.css": {
-      "sha256": "6b1f9f9506dd15207aa2eddab3929c99d0e877eae1345a247513c078b2b69494",
+      "sha256": "c687de2a88e5742be21f8788b4f8a0d78a1094ea64f2a3c68ea15f74bb5f6328",
       "executable": false
     },
     "public/app/envelopes.css": {
@@ -2714,6 +2714,10 @@
       "sha256": "444ed05e28458213c40485b5c6b701b6d66420961055b9203163969c5a996c66",
       "executable": false
     },
+    "src/ui/editable-field.tsx": {
+      "sha256": "5603fc94b346891a17de36ca4d52bf67563be45424df32a1540ccec50628967d",
+      "executable": false
+    },
     "src/ui/envelope-detail.tsx": {
       "sha256": "a402160c8f2e565430c0e340a4a679dcefc0a29257612c902a00df6719fab5aa",
       "executable": false
@@ -2734,6 +2738,18 @@
       "sha256": "fbdc6c5a502572eb7f944579cccf1a75e1e118baad65b99652dfa3bd5b21ba07",
       "executable": false
     },
+    "src/ui/field-editor.tsx": {
+      "sha256": "f223de851b555a09696024622b5c43f7110272fc4c5b271d88d215ca40533564",
+      "executable": false
+    },
+    "src/ui/field-inspector.tsx": {
+      "sha256": "bf5286aa83f7b631a43b0c2c075ac03ffc2e792b17478a9d9e6b96a0644de72a",
+      "executable": false
+    },
+    "src/ui/field-layout.ts": {
+      "sha256": "09a637990b24335f6ba93efaff02db9bbe169c7f6507219baf7f0a288ad7d8db",
+      "executable": false
+    },
     "src/ui/icons.tsx": {
       "sha256": "c6f76b914d3cd140fbeb896bba20db94bf992f45265e8c3bf7e4533cbc768109",
       "executable": false
@@ -2750,8 +2766,12 @@
       "sha256": "efe9f9eb12d22433cab84b4a8d1a99bf9b638ad83e17325884703e86456c831d",
       "executable": false
     },
+    "src/ui/page-thumbnails.tsx": {
+      "sha256": "cc50d7991d61ee77dd26586fa49d762b40a21a6a330f344ddd3c78d411316fb4",
+      "executable": false
+    },
     "src/ui/pdf-viewer.tsx": {
-      "sha256": "d531ddb6957281df0b0c6cfc8804c316e82765aa9fba72a3be8ca87554cd9459",
+      "sha256": "7b1b7b5a46274965d2cc025ca6a2332bad5e16e715cd14edc6d5f27624ac7e36",
       "executable": false
     },
     "src/ui/people.tsx": {
@@ -2759,7 +2779,7 @@
       "executable": false
     },
     "src/ui/prepare-envelope.tsx": {
-      "sha256": "e696b8cfacbe86720f2b880eee0c27dd3fc1fae853d4feb0b7eee0626751f207",
+      "sha256": "640961b5f7989812920bf33fc3c8dacee979c179bde411dbc760327cce0d83c8",
       "executable": false
     },
     "src/ui/public-verify.tsx": {
@@ -2854,8 +2874,12 @@
       "sha256": "8f9a177a67be21cfdf78ce0899d9bae5e2e9150f048355cf8381ac91fb69bfb2",
       "executable": false
     },
+    "tests/journeys/a11y.mjs": {
+      "sha256": "1d4b91fef0287f9cad86cf39f961b790286d1e52856298e3926cb6dfeee8decb",
+      "executable": false
+    },
     "tests/journeys/accessible-signing.mjs": {
-      "sha256": "a2fcfa9df052b42db2e6f6aafcc7c2682bb14fdd172a173df81f9b0fb0619f60",
+      "sha256": "6f9a6690dd82380d0c7dabf82d52eb0d59f3326ba82462975bf49cdfecfa37b1",
       "executable": false
     },
     "tests/journeys/contacts.mjs": {
@@ -2868,6 +2892,10 @@
     },
     "tests/journeys/envelope-detail.mjs": {
       "sha256": "5c3192f03c4d44001c60e26bf7f7eb4f2fc65314231a3c3dade5b114a37f2522",
+      "executable": false
+    },
+    "tests/journeys/field-placement.mjs": {
+      "sha256": "24f2b44ea2760e3f7b3a6b7642f0d6bc47019250dbf0b1edf63e822072fdf48c",
       "executable": false
     },
     "tests/journeys/mail-worker.mjs": {

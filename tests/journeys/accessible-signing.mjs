@@ -7,37 +7,18 @@
 //    accessibility tree gives every field its label, page, required state and value, and the consent its checked state.
 // 4. 200% zoom: a 1440 by 900 screen at 200% (720 by 450 CSS pixels at 2x) shows preparation and signing without
 //    sideways scrolling.
+// PREP-005's field editing (place on a page or thumbnail, drag, resize, duplicate, align, reassign) joins the scan and
+// the keyboard-only pass with the same checks (./a11y.mjs) in tests/journeys/field-placement.mjs.
 import assert from 'node:assert/strict'
-import { createRequire } from 'node:module'
 import { PDFDocument, StandardFonts } from 'pdf-lib'
 import { screenshots, startInkwell } from './worker.mjs'
+import { axe, tabTo } from './a11y.mjs'
 
-const axePath = createRequire(import.meta.url).resolve('axe-core/axe.min.js')
 const { origin, ownerCookie, command, browser, close } = await startInkwell()
 const pdfBytes = async () => { const pdf = await PDFDocument.create(), font = await pdf.embedFont(StandardFonts.Helvetica); for (let n = 1; n <= 2; n++) pdf.addPage([612, 792]).drawText(`Harbour access agreement, page ${n} of 2`, { x: 72, y: 720, size: 18, font }); return Buffer.from(await pdf.save()) }
 const fields = [{ id: 'sig', label: 'Signature', type: 'signature', signer: 0, page: 0, x: .1, y: .4, width: .4, height: .06 }, { id: 'role', label: 'Job title', type: 'text', signer: 0, page: 1, x: .1, y: .3, width: .4, height: .05 }]
 const prepare = async (title, signer) => { const { id } = await command('envelope.prepare', { title, filename: 'access.pdf', pdfBase64: (await pdfBytes()).toString('base64'), signers: [signer], fields }); return { id, invitation: (await command('envelope.approve', { id, eligible: true })).invitations[0] } }
 const noSideways = page => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)
-
-async function axe(page, label) {
-  await page.addScriptTag({ path: axePath })
-  const { violations } = await page.evaluate(() => window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }))
-  const serious = violations.filter(v => v.impact === 'serious' || v.impact === 'critical')
-  assert.deepEqual(serious.map(v => `${v.id}: ${v.nodes.map(n => n.target.join(' ')).join(', ')}`), [], `${label}: no serious or critical WCAG violation`)
-  return violations.length
-}
-/** Press Tab until `target` has focus (at most 80 presses), checking that each control reached shows its focus. */
-async function tabTo(page, target) {
-  for (let presses = 0; presses < 80; presses++) {
-    await page.keyboard.press('Tab')
-    // Focus styles fade in (a 0.15 s transition): read them at their end state. A date field's own calendar button is
-    // the one control whose focus ring the browser draws inside the field (its host then does not match :focus).
-    const focus = await page.evaluate(() => { const el = document.activeElement; el?.getAnimations().forEach(animation => animation.finish()); const style = el && getComputedStyle(el); return el && el !== document.body ? { tag: el.tagName, text: el.outerHTML.slice(0, 160), visible: (style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0) || style.boxShadow !== 'none' || (el.type === 'date' && !el.matches(':focus')) } : null })
-    if (focus) assert.ok(focus.visible, `visible focus on ${focus.tag} "${focus.text}"`)
-    if (await target.evaluate(el => el === document.activeElement).catch(() => false)) return
-  }
-  throw new Error(`Tab never reached ${target}`)
-}
 
 try {
   // 1. Automated scan of every signing step and the preparation page, in both themes at both widths.

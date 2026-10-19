@@ -15,7 +15,7 @@ type Recipient = { name: string; email: string; accessCode: string; order: numbe
 // DELIV-007 / ROUTE-001: people who only receive the completed copy, with no action link.
 type Copy = { name: string; email: string }
 import { ErrorNotice, useAction } from './feedback'
-import { PdfViewer } from './pdf-viewer'
+import { FieldEditor } from './field-editor'
 import { Icon } from './icons'
 import { ContactPicker, type Contact } from './contacts'
 import { TemplateOffer, findMatches, offeredTemplate, type Match } from './template-offer'
@@ -46,14 +46,9 @@ export function PrepareEnvelope({ draft, correcting, asTemplate, template, folde
   const [copies, setCopies] = useState<Copy[]>([])
   const [fields, setFields] = useState<Field[]>([])
   const [signer, setSigner] = useState(0)
-  const [type, setType] = useState<Field['type']>('signature')
-  const [label, setLabel] = useState('Signature')
-  const [width, setWidth] = useState(.26)
-  const [height, setHeight] = useState(.055)
   const [matches, setMatches] = useState<Match[]>([])
   const action = useAction()
   const source = draft ?? correcting
-  const locked = (index: number) => Boolean(signers[index]?.locked || signers[index]?.removed)
   useEffect(() => {
     if (!template) return
     void action.run(async () => {
@@ -130,7 +125,7 @@ export function PrepareEnvelope({ draft, correcting, asTemplate, template, folde
       <label className="iw-check"><input type="checkbox" disabled={action.busy} checked={allowReassign} onChange={event => setAllowReassign(event.target.checked)} />Allow recipients to reassign their signing to someone else, with a reason</label>
       <label className="iw-check"><input type="checkbox" disabled={action.busy} checked={remind} onChange={event => setRemind(event.target.checked)} />Remind the recipients whose turn it is by email</label>
       {remind && <div className="iw-two"><label>First reminder after (business days)<input type="number" required min={1} max={30} step={1} disabled={action.busy} value={afterDays} onChange={event => setAfterDays(Math.round(Number(event.target.value)))} /></label><label>Then every (business days)<input type="number" required min={1} max={30} step={1} disabled={action.busy} value={everyDays} onChange={event => setEveryDays(Math.round(Number(event.target.value)))} /></label><small className="iw-muted">Business days are Monday to Friday, Eastern time; reminders go out from 9 am and stop once they sign.</small></div>}</>}
-      {pdf && <div className="iw-editor"><aside className="iw-field-tools iw-stack"><h3>Place fields</h3><label>{asTemplate ? 'Role' : 'Recipient'}<select value={signer} onChange={event => setSigner(Number(event.target.value))}>{signers.map((recipient, index) => locked(index) ? null : <option key={index} value={index}>{index + 1}. {recipient.name || (asTemplate ? 'Role' : 'Recipient')}</option>)}</select></label><label>Field type<select value={type} onChange={event => { const value = event.target.value as Field['type']; setType(value); setLabel(value === 'signature' ? 'Signature' : value === 'date' ? 'Date' : 'Text') }}><option value="signature">Signature</option><option value="text">Text</option><option value="date">Date</option></select></label><label>Field label<input value={label} maxLength={80} onChange={event => setLabel(event.target.value)} /></label><div className="iw-two"><label>Width (%)<input type="number" min={10} max={80} value={Math.round(width * 100)} onChange={event => setWidth(Math.min(.8, Math.max(.1, Number(event.target.value) / 100)))} /></label><label>Height (%)<input type="number" min={3} max={20} value={Math.round(height * 100)} onChange={event => setHeight(Math.min(.2, Math.max(.03, Number(event.target.value) / 100)))} /></label></div><p className="iw-muted">Click a page to place the selected field. Keyboard: focus a page and press Enter to place at its center.</p><div className="iw-placed">{fields.map((field, index) => <div key={field.id}><span>{field.signer + 1}. {field.label} · p{field.page + 1}</span><button type="button" aria-label={`Remove field ${index + 1}`} disabled={locked(field.signer)} onClick={() => setFields(current => current.filter(item => item.id !== field.id))}>×</button></div>)}</div></aside><PdfViewer source={pdf} fields={fields} onPlace={(page, x, y) => { if (!action.busy && !locked(signer)) setFields(current => [...current, { id: crypto.randomUUID(), signer, type, label: label.trim() || type, page, x: Math.max(0, Math.min(1 - width, x)), y: Math.max(0, Math.min(1 - height, y)), width, height }]) }} /></div>}
+      {pdf && <FieldEditor pdf={pdf} fields={fields} setFields={setFields} signer={signer} setSigner={setSigner} recipients={signers.map(recipient => ({ name: recipient.name, locked: Boolean(recipient.locked || recipient.removed) }))} asTemplate={asTemplate} busy={action.busy} />}
       <ErrorNotice error={action.error} /><div className="iw-actions iw-submit"><button className="iw-primary" disabled={action.busy || !file} type="submit">{action.busy ? 'Saving…' : template ? 'Save new version' : asTemplate ? 'Save template' : correcting ? 'Save correction' : draft ? 'Save draft' : 'Save prepared envelope'}</button><p className="iw-muted">{asTemplate ? 'Each envelope sent from it is approved like any other before its first invitation.' : correcting ? 'Every change is recorded in the audit trail with its before and after values.' : 'A human must approve eligibility before the first invitation is sent.'}</p></div>
     </form>
   </section>
