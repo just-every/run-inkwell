@@ -2,14 +2,8 @@
 // A signer completes a ten-field, five-page envelope at 390 pixels using only Next, leaves halfway, returns from the same
 // link and finishes; the return visit records time to first page on the throttled mobile profile below.
 import assert from 'node:assert/strict'
-import { execFileSync, spawn } from 'node:child_process'
-import { randomBytes } from 'node:crypto'
-import { createServer } from 'node:net'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { PDFDocument, StandardFonts } from 'pdf-lib'
-import { chromium } from '@playwright/test'
+import { screenshots, startInkwell } from './worker.mjs'
 
 // The throttled mobile profile (CONTRACT.md SIGNX-001): a 390 x 844 phone screen at 3x pixel density with touch, its CPU
 // slowed 4x and its network held to 150 ms round trips, 9 Mbit/s down and 1.5 Mbit/s up through the Chrome DevTools
@@ -17,21 +11,7 @@ import { chromium } from '@playwright/test'
 const PHONE = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true }
 const CPU_SLOWDOWN = 4, NETWORK = { offline: false, latency: 150, downloadThroughput: 9e6 / 8, uploadThroughput: 1.5e6 / 8 }, FIRST_PAGE_MS = 3000
 
-const socket = createServer()
-await new Promise(resolve => socket.listen(0, '127.0.0.1', resolve))
-const port = socket.address().port
-await new Promise(resolve => socket.close(resolve))
-const origin = `http://127.0.0.1:${port}`, setupToken = randomBytes(32).toString('hex')
-const persist = await mkdtemp(join(tmpdir(), 'inkwell-journey-'))
-// No mail provider: the sender receives each private signing link and code (SEND-001's suppressed-mail invitations).
-await writeFile(join(persist, 'journey.env'), `AUTH_ORIGIN=${origin}\nAUTH_LOCAL=true\nOWNER_EMAIL=owner@harbour.example\nSESSION_SECRET=${randomBytes(32).toString('hex')}\nSETUP_TOKEN=${setupToken}\n`)
-const wrangler = ['node_modules/wrangler/bin/wrangler.js'], env = { ...process.env, CI: '1', WRANGLER_SEND_METRICS: 'false' }
-execFileSync(process.execPath, [...wrangler, 'd1', 'migrations', 'apply', 'foundation', '--local', '--persist-to', persist, '--config', 'dist/server/wrangler.json'], { stdio: 'pipe', env })
-const worker = spawn(process.execPath, [...wrangler, 'dev', '--inspector-port', '0', '--local', '--persist-to', persist, '--env-file', join(persist, 'journey.env'), '--ip', '127.0.0.1', '--config', 'dist/server/wrangler.json', '--port', String(port)], { stdio: ['ignore', 'pipe', 'pipe'], env })
-let output = ''
-worker.stdout.on('data', chunk => { output += chunk })
-worker.stderr.on('data', chunk => { output += chunk })
-const browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+const { origin, owner, command, browser, close } = await startInkwell()
 async function phone(storageState) {
   const context = await browser.newContext({ ...PHONE, ...(storageState ? { storageState } : {}) })
   const page = await context.newPage()
@@ -42,19 +22,6 @@ async function phone(storageState) {
   return { context, page }
 }
 try {
-  for (let attempt = 0; attempt < 120; attempt++) {
-    if (worker.exitCode !== null) throw new Error(output)
-    try { if ((await fetch(`${origin}/health`)).ok) break } catch {}
-    await new Promise(resolve => setTimeout(resolve, 250))
-  }
-  const bootstrap = await fetch(`${origin}/auth/bootstrap`, { method: 'POST', redirect: 'manual', headers: { origin, 'content-type': 'application/json' }, body: JSON.stringify({ token: setupToken, displayName: 'Harbour Owner' }) })
-  assert.equal(bootstrap.status, 303, output)
-  const owner = bootstrap.headers.get('set-cookie').split(';')[0]
-  const command = async (name, input) => {
-    const response = await fetch(`${origin}/api/inkwell/commands`, { method: 'POST', headers: { origin, cookie: owner, 'content-type': 'application/json' }, body: JSON.stringify({ command: name, input, commandId: crypto.randomUUID() }) })
-    const value = await response.json(); assert.equal(response.status, 200, JSON.stringify(value)); return value.result
-  }
-
   // Five pages with two fields each: a signature, text and dates, all required.
   const pdf = await PDFDocument.create(), font = await pdf.embedFont(StandardFonts.Helvetica)
   for (let n = 1; n <= 5; n++) { const page = pdf.addPage([612, 792]); page.drawText(`Harbour services agreement, page ${n} of 5`, { x: 72, y: 720, size: 18, font }); for (let line = 0; line < 24; line++) page.drawText(`Clause ${n}.${line + 1}: the provider performs the services described in schedule ${n}.`, { x: 72, y: 680 - line * 22, size: 11, font }) }
@@ -127,11 +94,8 @@ try {
   assert.equal(view.envelope.status, 'completed')
   console.log('SIGNX-001 passed: ten fields over five pages at 390 pixels using only Next, left halfway, resumed from the same link and signed')
 } catch (error) {
-  for (const context of browser.contexts()) for (const page of context.pages()) await page.screenshot({ path: join(tmpdir(), 'signx-001-failure.png'), fullPage: false }).catch(() => {})
+  await screenshots(browser, 'signx-001-failure')
   throw error
 } finally {
-  await browser.close()
-  worker.kill('SIGTERM')
-  await new Promise(resolve => worker.exitCode !== null ? resolve() : worker.once('exit', resolve))
-  await rm(persist, { recursive: true, force: true })
+  await close()
 }

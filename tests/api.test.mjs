@@ -602,6 +602,45 @@ test('PREP-009: a saved draft reopens and is saved again with a new PDF, recipie
  assert.equal(view.privateMessage,'Dana: clause 4 is yours.');assert.equal(view.message,'Thanks for the call today.')
  assert.equal(await h.mail('eli@harbour.example','Final terms'),undefined,'a removed recipient gets nothing')
 })
+test('ROUTE-008: a sender imports 200 contacts from CSV, finds a recipient by company, saves one, and sees recent recipients; viewers are refused',async()=>{
+ const sasha=await sender('sasha.sender@harbour.example'),csv=s=>({method:'POST',headers:{host:new URL(h.origin).host,origin:h.origin,'content-type':'text/csv',cookie:sasha.cookie},body:s})
+ const companies=['Northwind Marine','Bayside Freight','Kestrel Labs','Harbour Counsel']
+ const rows=Array.from({length:200},(_,i)=>`"Contact ${String(i).padStart(3,'0')}",contact${i}@clients.example,+1 617 555 ${String(1000+i)},"${companies[i%4]}"`)
+ const upload=async body=>{const r=await h.mf.dispatchFetch(h.origin+'/api/inkwell/contacts/import',csv(body));return{status:r.status,value:await r.json()}}
+ const first=await upload(['name,email,phone,company',...rows,'No Email,,,"Kestrel Labs"','Bad Address,not-an-email,,'].join('\r\n'))
+ assert.equal(first.status,200,JSON.stringify(first.value))
+ assert.deepEqual({added:first.value.result.added,updated:first.value.result.updated},{added:200,updated:0})
+ assert.deepEqual(first.value.result.refused.map(r=>r.line),[202,203],'each invalid row is named by its line and nothing of it is saved')
+ // Autocomplete by company: the picker's search matches name, email or company, case-insensitively.
+ const find=async(q,cookie=sasha.cookie)=>(await h.send('/api/inkwell/contacts?limit=100&q='+encodeURIComponent(q),undefined,cookie))
+ const kestrel=(await find('kestrel')).value
+ assert.equal(kestrel.total,50); assert.ok(kestrel.contacts.every(c=>c.company==='Kestrel Labs'))
+ assert.deepEqual(kestrel.contacts[0],{name:'Contact 002',email:'contact2@clients.example',phone:'+1 617 555 1002',company:'Kestrel Labs'})
+ assert.equal((await find('CONTACT17@')).value.contacts[0].email,'contact17@clients.example')
+ // Re-importing an email updates that contact; saving one adds or changes it.
+ const again=await upload('email,name,company\ncontact2@clients.example,Contact Two,Kestrel Labs Inc\n')
+ assert.deepEqual(again.value.result,{added:0,updated:1,refused:[]})
+ assert.equal((await find('contact2@')).value.contacts[0].name,'Contact Two')
+ await h.post('/api/inkwell/contacts',{name:'Rae Okafor',email:'Rae@Tidewater.example',phone:'(617) 555-0199',company:'Tidewater Supply'},sasha.cookie)
+ assert.deepEqual((await find('tidewater')).value.contacts,[{name:'Rae Okafor',email:'rae@tidewater.example',phone:'(617) 555-0199',company:'Tidewater Supply'}])
+ await h.post('/api/inkwell/contacts',{name:'No Phone',email:'nophone@tidewater.example',phone:'call me'},sasha.cookie,400)
+ // Recent recipients: the people on envelopes this sender prepared, newest first, with the book's company.
+ const pdf=await PDFDocument.create(); pdf.addPage([595,842])
+ const people=[{name:'Rae Okafor',email:'rae@tidewater.example'},{name:'Dev Patel',email:'dev@harbour.example'}]
+ await h.command('envelope.prepare',{title:'Supply terms',filename:'terms.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),signers:people,fields:people.map((_,signer)=>({id:`s${signer}`,label:'Signature',type:'signature',signer,page:0,x:.1,y:.5+signer*.15,width:.4,height:.07}))},sasha.cookie)
+ const recent=(await find('')).value.recent
+ assert.deepEqual(recent.slice(0,2).map(r=>[r.email,r.company]),[['rae@tidewater.example','Tidewater Supply'],['dev@harbour.example',null]])
+ assert.deepEqual((await find('',h.owner)).value.recent.filter(r=>r.email==='rae@tidewater.example'),[],'recent recipients are the member\'s own')
+ // Removing a contact; viewers and signed-out requests are refused at every contact door.
+ await h.post('/api/inkwell/contacts/remove',{email:'rae@tidewater.example'},sasha.cookie)
+ assert.equal((await find('tidewater')).value.total,0)
+ const viewer=await h.invite('vic.viewer@harbour.example','member')
+ assert.equal((await find('kestrel',viewer)).status,403)
+ await h.post('/api/inkwell/contacts',{name:'X',email:'x@harbour.example'},viewer,403)
+ await h.post('/api/inkwell/contacts/remove',{email:'contact3@clients.example'},viewer,403)
+ assert.equal((await h.mf.dispatchFetch(h.origin+'/api/inkwell/contacts/import',{...csv('name,email\nA,a@b.example'),headers:{...csv('').headers,cookie:viewer}})).status,403)
+ assert.equal((await find('kestrel','')).status,401)
+})
 test('MANAGE-001: with 5,000 envelopes, search by recipient email answers in under a second and each status filter shows the right count',async()=>{
  const day=86_400_000,now=Date.now(),kinds=['prepared','awaiting_signature','completed','declined','voided','expired','mine'],expected={draft:0,waiting_for_me:0,waiting_for_others:0,completed:0,declined:0,voided:0,expired:0,imported:0}
  const rows=Array.from({length:5000},(_,i)=>{const kind=kinds[i%kinds.length],createdAt=new Date(now-(i+1)*60_000).toISOString(),id=`bulk-${String(i).padStart(4,'0')}`

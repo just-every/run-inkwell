@@ -16,6 +16,7 @@ import { publicVerification } from './verification'
 import { extendEnvelope } from './expiry'
 import { reviewPaper, uploadPaper } from './paper'
 import { saveProgress } from './progress'
+import { importContacts, recentRecipients, removeContact, saveContact, searchContacts } from './contacts'
 import { presentEnvelope, searchEnvelopes } from './search'
 import { envelopeReport, reportCsv } from './reports'
 import { savedSignature, sessionMember } from './saved-marks'
@@ -36,6 +37,12 @@ api.get('/api/inkwell/envelopes',async c=>{const actor=await requireActor(c.req.
 api.get('/api/inkwell/reports/envelopes',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json(await envelopeReport(c.env,actor,new URL(c.req.url).searchParams))})
 api.get('/api/inkwell/reports/envelopes.csv',async c=>{const actor=await requireActor(c.req.raw,c.env),report=await envelopeReport(c.env,actor,new URL(c.req.url).searchParams);return new Response(reportCsv(report),{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="inkwell-envelopes-${report.from}-to-${report.to}.csv"`}})})
 api.get('/api/inkwell/envelopes/:id',async c=>{const actor=await requireActor(c.req.raw,c.env),envelope=await getEnvelope(c.env.DB,c.req.param('id')),access=await insistAccess(c.env,actor,envelope,'view');return c.json({envelope:{...presentEnvelope(c.env,actor,envelope,access),...(mayShare(actor,envelope)?{shares:await listShares(c.env,envelope.id)}:{})}})})
+// ROUTE-008: the shared contact book and the member's recent recipients, for owners, admins and senders.
+const contactRoles=['owner','admin','sender'] as const
+api.get('/api/inkwell/contacts',async c=>{const actor=await requireActor(c.req.raw,c.env,contactRoles);return c.json({...await searchContacts(c.env,new URL(c.req.url).searchParams),recent:await recentRecipients(c.env,actor)})})
+api.post('/api/inkwell/contacts',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,contactRoles);return c.json({ok:true,result:await saveContact(c.env,actor,await readJson(c.req.raw,8192))})})
+api.post('/api/inkwell/contacts/remove',async c=>{sameOrigin(c.req.raw,c.env);await requireActor(c.req.raw,c.env,contactRoles);return c.json({ok:true,result:await removeContact(c.env,await readJson(c.req.raw,4096))})})
+api.post('/api/inkwell/contacts/import',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,contactRoles);return c.json({ok:true,result:await importContacts(c.env,actor,c.req.raw)})})
 // ACCESS-001: what a sender may do, each on an envelope they created (prepare makes a new one; signing is anyone's own turn).
 const senderCommands=['envelope.prepare','envelope.approve','envelope.copy','envelope.send_copy','envelope.extend','envelope.paper_review','envelope.void','envelope.open_signing','envelope.share','envelope.unshare','envelope.update']
 api.post('/api/inkwell/commands',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env),body=await readJson(c.req.raw),command=text(body.command,'a command',80),commandId=text(body.commandId,'a command ID',100),input=object(body.input),fingerprint=await sha256(canonical({command,input}));// MANAGE-003: any member signs their own turn from the app; every other command needs an owner or admin.

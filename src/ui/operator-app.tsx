@@ -8,6 +8,7 @@ import { MoveIn } from './move-in'
 import { AgentAccess, ArchiveAccess } from './archive-access'
 import { AccountSettings, Sidebar, TopBar, type Place } from './shell'
 import { PeopleRoles } from './people'
+import { ContactBook } from './contacts'
 import { CompletedCopies } from './account-defaults'
 import { Reports } from './reports'
 import { AgentStrip, EmptyEnvelopes, EnvelopesHeading, EnvelopeTable, FilterChips, MoreEnvelopes, NarrowFilters, needingMe, type Filter, type Narrow } from './envelope-list'
@@ -91,7 +92,7 @@ export function OperatorApp() {
             </>}
           </>)}
           {data && tab !== 'envelopes' && <section className="iw-heading"><h1>{headings[tab][0]}</h1><p className="iw-heading-line">{headings[tab][1]}</p></section>}
-          {data && tab === 'reports' && <Reports />}{data && owner && tab === 'move-in' && <MoveIn />}{data && owner && tab === 'archive' && <ArchiveAccess empty={summary?.total === 0} refresh={refresh} />}{data && owner && tab === 'agents' && <AgentAccess agents={data.agents} refresh={refresh} />}{data && tab === 'settings' && <AccountSettings actor={data.actor} />}{data && tab === 'settings' && ['owner', 'admin'].includes(data.actor.role) && <PeopleRoles people={data.people ?? []} refresh={refresh} />}{data && tab === 'settings' && data.settings && <CompletedCopies key={data.settings.completedCopies} settings={data.settings} refresh={refresh} />}
+          {data && tab === 'reports' && <Reports />}{data && owner && tab === 'move-in' && <MoveIn />}{data && owner && tab === 'archive' && <ArchiveAccess empty={summary?.total === 0} refresh={refresh} />}{data && owner && tab === 'agents' && <AgentAccess agents={data.agents} refresh={refresh} />}{data && tab === 'settings' && <AccountSettings actor={data.actor} />}{data && tab === 'settings' && ['owner', 'admin', 'sender'].includes(data.actor.role) && <ContactBook />}{data && tab === 'settings' && ['owner', 'admin'].includes(data.actor.role) && <PeopleRoles people={data.people ?? []} refresh={refresh} />}{data && tab === 'settings' && data.settings && <CompletedCopies key={data.settings.completedCopies} settings={data.settings} refresh={refresh} />}
         </HydrationUnit></main>
         {panel && data && <HydrationUnit><aside className="iw-panel-col"><EnvelopeDetail key={panel.id} envelope={panel} actor={data.actor} refresh={refresh} onClose={() => choose('')} onOpen={choose} onEdit={draft => { setEditing(draft); setPreparing(true) }} /></aside></HydrationUnit>}
       </div>

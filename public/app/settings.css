@@ -28,3 +28,11 @@
   .iw-file { flex-wrap: wrap; padding: 8px 10px 8px 14px; }
   .iw-app .iw-file input[type=file] { flex-basis: 100%; min-width: 0; text-align: left; }
 }
+/* ROUTE-008: the contact book and the recipient picker's results. */
+.iw-contact-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; align-items: end; gap: 12px; }
+.iw-contact-results { display: grid; margin: 0; padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: var(--app-radius-field); list-style: none; }
+.iw-contact-results:empty { display: none; }
+.iw-contact-results li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px 8px 12px; border-bottom: 1px solid var(--line); }
+.iw-contact-results li:last-child { border-bottom: 0; }
+.iw-contact-results li > span:first-child { display: grid; min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 860px) { .iw-contact-form { grid-template-columns: minmax(0, 1fr); } .iw-contact-results li { flex-wrap: wrap; } }
