@@ -22,7 +22,7 @@ export async function openOwnSigning(env: Env, context: CommandContext, input: R
   await appendEvent(after, 'signer.session_verified', context.actor.id, { signer, email: after.signers[signer].email, operator: context.actor.id, method: 'inkwell-session', signIn: await signInMethod(env, context.actor.sessionId), ...context.client })
   const result = { id: after.id, status: after.status }
   await commitEnvelope(env.DB, before, after, null, [
-    env.DB.prepare('UPDATE iw_signers SET token_hash=?,code_hash=NULL,code_expires=NULL,code_attempts=0,session_hash=?,session_expires=? WHERE envelope_id=? AND signer=?').bind(await sha256(token), await sha256(session), Date.now() + 24 * 60 * 60_000, after.id, signer),
+    env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=NULL,code_hash=NULL,code_expires=NULL,code_attempts=0,session_hash=?,session_expires=? WHERE envelope_id=? AND signer=?').bind(await sha256(token), await sha256(session), Date.now() + 24 * 60 * 60_000, after.id, signer),
     env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND signer=? AND state='pending'").bind(after.id, signer),
     commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)], [roleGuard(context.actor, ['owner', 'admin', 'sender', 'viewer'])])
   return { ...result, signing: { url: new URL('/sign/' + token, env.AUTH_ORIGIN).href }, cookie: signerCookie(env, token, session) }

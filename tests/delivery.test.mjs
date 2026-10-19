@@ -247,3 +247,45 @@ test('ROUTE-006: when the sender allows it, a verified signer reassigns to a col
   assert.ok(done.events.some(e => e.action === 'signer.email_verified' && e.detail.email === bea), 'the colleague verified their own email')
  } finally { await h.close() }
 })
+
+test('DELIV-005: the sender resends the invitation by email on the same link, then on a new link that stops the old one; a link issued before links were kept rotates and says so; each message keeps its own status, and the signer signs from the resent link', async () => {
+ const secret = randomBytes(24), h = await harness({ bindings: { MAIL_WEBHOOK_KEY: 'whsec_' + secret.toString('base64') } })
+ try {
+  const email = 'ria@harbour.example', title = 'Resend check'
+  const id = (await h.command('envelope.prepare', { title, filename: 'resend.pdf', pdfBase64: await pdf(), signers: [{ name: 'Ria Sol', email }], fields: [{ id: 'signature-0', label: 'Signature', type: 'signature', signer: 0, page: 0, x: .1, y: .6, width: .4, height: .07 }] })).result.id
+  await h.command('envelope.approve', { id, eligible: true })
+  const linkOf = message => '/api/sign/' + new URL(message.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)
+  const first = await h.mail(email, 'Please sign:'), oldPath = linkOf(first)
+  await h.command('envelope.resend', { id, signer: 0 }, await h.invite('val@harbour.example', 'member'), 403)
+  await h.command('envelope.resend', { id, signer: 1 }, h.owner, 409)
+  assert.deepEqual((await h.command('envelope.resend', { id, signer: 0 })).result, { id, signer: 0, email, newLink: false })
+  const second = await h.mail(email, 'Please sign:')
+  assert.notEqual(second.id, first.id, 'a second invitation reached the provider fake')
+  assert.equal(linkOf(second), oldPath, 'Resend sends the same link again'); assert.equal((await h.send(oldPath)).status, 200, 'and the old link keeps working')
+  const sealed = await h.db.prepare('SELECT link_sealed FROM iw_signers WHERE envelope_id=?').bind(id).first()
+  assert.match(sealed.link_sealed, /^v1\./); assert.ok(!sealed.link_sealed.includes(oldPath.split('/').at(-1)), 'the link is stored sealed, never in the clear')
+  assert.deepEqual((await h.command('envelope.resend', { id, signer: 0, newLink: true })).result, { id, signer: 0, email, newLink: true })
+  const third = await h.mail(email, 'Please sign:')
+  assert.notEqual(linkOf(third), oldPath); assert.equal((await h.send(oldPath)).status, 404, 'after rotation the old link refuses')
+  // A link issued before links were kept (no sealed copy) cannot be sent again: Resend rotates it and says so.
+  await h.db.prepare('UPDATE iw_signers SET link_sealed=NULL WHERE envelope_id=?').bind(id).run()
+  const forced = (await h.command('envelope.resend', { id, signer: 0 })).result
+  assert.equal(forced.newLink, true); assert.match(forced.reason, /new link was sent/)
+  const fourth = await h.mail(email, 'Please sign:')
+  assert.equal((await h.send(linkOf(third))).status, 404)
+  // Each message keeps its own status: a delivery event for the first invitation leaves the resent ones as sent.
+  const body = JSON.stringify({ type: 'email.delivered', created_at: new Date().toISOString(), data: { email_id: first.id, to: [email], subject: first.subject } }), svix = 'msg_' + randomBytes(8).toString('hex'), timestamp = String(Math.floor(Date.now() / 1000))
+  assert.equal((await h.send('/api/inkwell/mail/events', JSON.parse(body), '', { 'svix-id': svix, 'svix-timestamp': timestamp, 'svix-signature': 'v1,' + createHmac('sha256', secret).update(`${svix}.${timestamp}.${body}`).digest('base64') })).status, 200)
+  const envelope = (await h.send('/api/inkwell/envelopes/' + id, undefined, h.owner)).value.envelope
+  assert.deepEqual(envelope.messages.filter(m => m.kind === 'invitation').map(m => m.status), ['delivered', 'sent', 'sent', 'sent'], 'each invitation shows its own status')
+  assert.deepEqual(envelope.events.filter(e => e.action === 'signer.resent').map(e => [e.actor, e.detail.signer, e.detail.newLink]), [[envelope.createdBy, 0, false], [envelope.createdBy, 0, true], [envelope.createdBy, 0, true]], 'each resend is audited')
+  const path = linkOf(fourth)
+  await h.post(path + '/code', {}, '')
+  const cookie = (await h.post(path + '/verify', { code: (await h.mail(email, 'verification code')).text.match(/\b\d{6}\b/)[0] }, '')).cookie
+  await h.agree(path, cookie)
+  await h.post(path + '/sign', { values: { 'signature-0': 'Ria Sol' }, consent: true, commandId: crypto.randomUUID() }, cookie)
+  assert.equal((await h.send('/api/inkwell/envelopes/' + id, undefined, h.owner)).value.envelope.status, 'completed', 'the signer signs from the resent link')
+  assert.equal((await h.db.prepare('SELECT link_sealed FROM iw_signers WHERE envelope_id=?').bind(id).first()).link_sealed, null, 'the sealed link is cleared once they sign')
+  await h.command('envelope.resend', { id, signer: 0 }, h.owner, 409)
+ } finally { await h.close() }
+})

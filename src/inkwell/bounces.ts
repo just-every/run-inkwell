@@ -6,6 +6,7 @@ import { commandWrite, commitEnvelope, getEnvelope } from './storage'
 import { dispatchMail, invitationWrite, noticeWrite } from './mail'
 import { envelopeMessages, type Message } from './delivery'
 import type { CommandContext } from './envelopes'
+import { sealLink } from './links'
 
 const undeliverable = (message?: Message) => message?.status === 'bounced' || message?.status === 'failed'
 /** Each current, unsigned recipient whose latest invitation bounced or was refused, with that invitation. */
@@ -48,7 +49,7 @@ export async function correctBounced(env: Env, context: CommandContext, input: R
   after.signers[signer] = { ...after.signers[signer], name, email }
   const result = { id: after.id, signer, email }
   await commitEnvelope(env.DB, before, after, context.actor, [
-    env.DB.prepare('UPDATE iw_signers SET token_hash=?,code_hash=NULL,code_expires=NULL,code_attempts=0,code_sent_at=NULL,session_hash=NULL,session_expires=NULL,progress=NULL WHERE envelope_id=? AND signer=?').bind(await sha256(token), after.id, signer),
+    env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=?,code_hash=NULL,code_expires=NULL,code_attempts=0,code_sent_at=NULL,session_hash=NULL,session_expires=NULL,progress=NULL WHERE envelope_id=? AND signer=?').bind(await sha256(token), await sealLink(env, after.id, signer, token), after.id, signer),
     env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND signer=? AND recipient=? AND state='pending'").bind(after.id, signer, before.signers[signer].email),
     invitationWrite(env, after, signer, token), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   await dispatchMail(env, after.id)

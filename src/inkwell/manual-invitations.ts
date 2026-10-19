@@ -11,7 +11,7 @@ export async function manualInvitation(env: Env, envelope: Envelope, signer: num
   await appendEvent(envelope, 'invitation.manual_issued', actor, { signer, recipient: envelope.signers[signer].email, generation, delivery: 'sender', emailSent: false })
   return {
     invitation: { url: new URL('/sign/' + token, env.AUTH_ORIGIN).href, code, recipient: envelope.signers[signer].email, expiresAt: envelope.expiresAt },
-    write: env.DB.prepare('UPDATE iw_signers SET token_hash=?,code_hash=?,code_expires=?,code_attempts=0,code_sent_at=?,code_generation=?,session_hash=NULL,session_expires=NULL WHERE envelope_id=? AND signer=?')
+    write: env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=NULL,code_hash=?,code_expires=?,code_attempts=0,code_sent_at=?,code_generation=?,session_hash=NULL,session_expires=NULL WHERE envelope_id=? AND signer=?')
       .bind(tokenHash, codeHash, Date.now() + 10 * 60_000, Date.now(), generation, envelope.id, signer)
   }
 }

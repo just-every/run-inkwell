@@ -18,6 +18,7 @@ import { validateFields, validatePdfText } from './pdf'
 import { chooseExpiry } from './expiry'
 import { chooseCopies } from './completed-copies'
 import type { CommandContext } from './envelopes'
+import { sealLink } from './links'
 
 const maxPlaces = 10, maxActive = 5
 /** A recipient who has acted (signed, declined, or uploaded a paper scan awaiting review) or was removed: fixed for good. */
@@ -108,8 +109,9 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
     const added = !before.signers[i], invite = nowCurrent.includes(i) && (added || rotated.has(i) || !wasCurrent.includes(i))
     if (!added && !rotated.has(i) && !invite) continue
     const token = secret()
-    writes.push(added ? env.DB.prepare('INSERT INTO iw_signers(envelope_id,signer,token_hash) VALUES(?,?,?)').bind(after.id, i, await sha256(token))
-      : env.DB.prepare('UPDATE iw_signers SET token_hash=?,code_hash=NULL,code_expires=NULL,code_attempts=0,code_sent_at=NULL,session_hash=NULL,session_expires=NULL,progress=NULL WHERE envelope_id=? AND signer=?').bind(await sha256(token), after.id, i))
+    const sealed = after.signers[i].removedAt ? null : await sealLink(env, after.id, i, token)
+    writes.push(added ? env.DB.prepare('INSERT INTO iw_signers(envelope_id,signer,token_hash,link_sealed) VALUES(?,?,?,?)').bind(after.id, i, await sha256(token), sealed)
+      : env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=?,code_hash=NULL,code_expires=NULL,code_attempts=0,code_sent_at=NULL,session_hash=NULL,session_expires=NULL,progress=NULL WHERE envelope_id=? AND signer=?').bind(await sha256(token), sealed, after.id, i))
     if (rotated.has(i)) writes.push(env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND signer=? AND state='pending'").bind(after.id, i))
     if (after.signers[i].removedAt) writes.push(env.DB.prepare('DELETE FROM iw_access_codes WHERE envelope_id=? AND signer=?').bind(after.id, i))
     if (invite && mail) writes.push(invitationWrite(env, after, i, token))

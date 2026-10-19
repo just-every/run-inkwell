@@ -2,7 +2,7 @@
 // the second has verified and viewed, the third waits). At 1440 and 390 pixels the detail page shows each recipient's
 // sent, delivered, viewed and signed times, in the account's time zone and UTC, matching the provider's delivery events
 // (DELIV-001) and the audit trail, says what each recipient is waiting on, and its Remind action sends exactly one
-// reminder, to the current signer only.
+// reminder, to the current signer only; its Resend actions send the same link again or a new one (DELIV-005).
 import assert from 'node:assert/strict'
 import { PDFDocument } from 'pdf-lib'
 import { screenshots } from './worker.mjs'
@@ -64,6 +64,14 @@ try {
     const added = inkwell.sent().slice(before)
     assert.deepEqual(added.map(m => [m.to, m.subject]), [[[signers[1].email], `Reminder to sign: ${title}`]], `${width}px: one reminder, to the current signer only`)
     reminders++
+    // DELIV-005: Resend from the same page: the same link at 1440, a new link (the old one refuses) at 390.
+    const newLink = width === 390, prior = inkwell.mail(signers[1].email, 'Please sign:'), link = message => message.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]
+    await detail.getByRole('button', { name: newLink ? 'Resend with a new link' : 'Resend', exact: true }).click()
+    await detail.getByRole('status').filter({ hasText: newLink ? `Invitation resent to ${signers[1].email} with a new link` : `Invitation resent to ${signers[1].email} with the same link` }).waitFor()
+    const resent = inkwell.mail(signers[1].email, 'Please sign:')
+    assert.notEqual(resent.id, prior.id, `${width}px: the invitation was resent`)
+    assert.equal(link(resent) === link(prior), !newLink, `${width}px: ${newLink ? 'a new' : 'the same'} link`)
+    if (newLink) await inkwell.call('/api/sign/' + new URL(link(prior)).pathname.split('/').at(-1), { status: 404 })
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `no sideways scroll at ${width} pixels`)
     await context.close()
   }

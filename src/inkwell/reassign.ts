@@ -13,6 +13,7 @@ import { mailSuppressed } from './manual-invitations'
 import { validatePdfText } from './pdf'
 import { accessGate, liveGuard, turn, type SigningContext } from './signing'
 import type { Env } from './model'
+import { sealLink } from './links'
 
 export async function reassignSigning(env: Env, context: SigningContext, input: Record<string, unknown>) {
   insist(context.verified, 'Verify your email before reassigning.', 401)
@@ -34,7 +35,7 @@ export async function reassignSigning(env: Env, context: SigningContext, input: 
   await appendEvent(after, 'signer.reassigned', `signer:${index + 1}`, { signer: index, before: { name: original.name, email: original.email }, after: { name, email }, reason, ...context.client })
   const result = { id: after.id, reassignedTo: email }
   await commitEnvelope(env.DB, before, after, null, [
-    env.DB.prepare('UPDATE iw_signers SET token_hash=?,code_hash=NULL,code_expires=NULL,code_attempts=0,code_sent_at=NULL,session_hash=NULL,session_expires=NULL,progress=NULL WHERE envelope_id=? AND signer=?').bind(await sha256(token), after.id, index),
+    env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=?,code_hash=NULL,code_expires=NULL,code_attempts=0,code_sent_at=NULL,session_hash=NULL,session_expires=NULL,progress=NULL WHERE envelope_id=? AND signer=?').bind(await sha256(token), await sealLink(env, after.id, index, token), after.id, index),
     env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND signer=? AND state='pending'").bind(after.id, index),
     invitationWrite(env, after, index, token), commandWrite(env.DB, key, commandId, fingerprint, result)], [liveGuard(context)])
   await dispatchMail(env, after.id)
