@@ -43,7 +43,7 @@ wrappers: restore each through the same door it came out of.
 
 ## Erase an envelope
 
-The owner can permanently erase a prepared, completed or voided envelope: open it, choose
+The owner can permanently erase a prepared, completed, declined or voided envelope: open it, choose
 **Erase archived envelope…**, type `ERASE` and choose **Permanently erase**. Void an active
 envelope first.
 

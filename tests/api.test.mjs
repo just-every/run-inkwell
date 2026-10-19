@@ -7,6 +7,7 @@ import { harness } from './harness.mjs'
 
 let h, member, envelopeId, original, fullArchive, laterArchive, importedId
 const digest = bytes => createHash('sha256').update(bytes).digest('hex')
+const pdfText = async bytes => { const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs'); const pdf = await getDocument({ data: new Uint8Array(bytes), standardFontDataUrl: new URL('../node_modules/pdfjs-dist/standard_fonts/', import.meta.url).pathname }).promise; let text = ''; for (let n = 1; n <= pdf.numPages; n++) text += (await (await pdf.getPage(n)).getTextContent()).items.map(item => item.str).join('\n') + '\n'; return text }
 const recipients = [{name:'Priya Shah',email:'priya@harbour.example'},{name:'Alex Morgan',email:'alex@harbour.example'}]
 const fields = recipients.map((_,signer)=>({id:`signature-${signer}`,label:'Signature',type:'signature',signer,page:0,x:.1,y:.55+signer*.13,width:.4,height:.07}))
 const preparation = () => ({title:'Harbour Studio — consulting agreement',filename:'consulting.pdf',pdfBase64:Buffer.from(original).toString('base64'),signers:structuredClone(recipients),fields:structuredClone(fields)})
@@ -139,6 +140,29 @@ test('voiding revokes an invitation immediately',async()=>{
  const token=await signingToken('jamie@harbour.example')
  await h.command('envelope.void',{id,reason:'Scope changed before signing'})
  const r=await h.send('/api/sign/'+token+'/code',{},'');assert.equal(r.status,409)
+})
+test('SIGNX-004: the second signer declines with a reason; the third is never invited, the sender and first signer are told, and the certificate records it',async()=>{
+ const trio=[{name:'Dana Cole',email:'dana@harbour.example'},{name:'Eli Park',email:'eli@harbour.example'},{name:'Fran Wu',email:'fran@harbour.example'}]
+ const id=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio supplier NDA',signers:trio,fields:trio.map((_,signer)=>({...fields[0],id:`signature-${signer}`,signer,y:.4+signer*.12}))})).result.id
+ await h.command('envelope.approve',{id,eligible:true})
+ const first=await verified(trio[0].email)
+ await h.post(first.path+'/sign',{values:{'signature-0':'Dana Cole'},consent:true,commandId:crypto.randomUUID()},first.cookie)
+ await h.post(first.path+'/decline',{reason:'Changed my mind',commandId:crypto.randomUUID()},first.cookie,409)
+ const second=await verified(trio[1].email),reason='Clause 4 names the wrong supplier entity'
+ await h.post(second.path+'/decline',{reason:' ',commandId:crypto.randomUUID()},second.cookie,400)
+ assert.equal((await h.post(second.path+'/decline',{reason,commandId:crypto.randomUUID()},second.cookie)).value.result.status,'declined')
+ await h.post(second.path+'/sign',{values:{'signature-1':'Eli Park'},consent:true,commandId:crypto.randomUUID()},second.cookie,409)
+ assert.equal(await h.mail(trio[2].email),undefined,'the third signer is never invited')
+ for(const email of ['owner@harbour.example',trio[0].email]) assert.ok((await h.mail(email,'Declined:'))?.text.includes(reason),`${email} receives the decline notice with its reason`)
+ assert.equal((await h.send(second.path,undefined,second.cookie)).value.status,'declined')
+ const e=(await snapshot()).envelopes.find(e=>e.id===id)
+ assert.equal(e.status,'declined');assert.equal(e.signers[1].declineReason,reason);assert.equal(e.signers[2].signedAt,undefined)
+ assert.ok(e.events.some(event=>event.action==='signer.declined'&&event.detail.reason===reason))
+ const certificate=await h.send('/api/inkwell/envelopes/'+id+'/artifacts/certificate',undefined,h.owner)
+ assert.equal(certificate.status,200);assert.equal(digest(certificate.bytes),e.certificateSha256)
+ const text=await pdfText(certificate.bytes)
+ assert.ok(text.includes('Inkwell decline certificate')&&text.includes('Decline reason: '+reason)&&text.includes('by Eli Park'),'the certificate records the decline')
+ assert.equal((await h.send('/api/inkwell/envelopes/'+id+'/verify',undefined,h.owner)).value.ok,true)
 })
 test('DocuSeal dry run, explicit fingerprint, journal, downloads and undo preserve custody',async()=>{
  const archive=await readFile('tests/fixtures/docuseal/archive.json','utf8')

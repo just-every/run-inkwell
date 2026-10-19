@@ -22,7 +22,7 @@ export function matches(envelope: Envelope, actor: Actor, filter: Filter) {
     case 'all': return true
     case 'me': return needsMe(envelope, actor)
     case 'others': return envelope.status === 'awaiting_signature' && !myTurn(envelope, actor)
-    case 'attention': return envelope.status === 'prepared' || envelope.status === 'expired'
+    case 'attention': return envelope.status === 'prepared' || envelope.status === 'expired' || envelope.status === 'declined'
     case 'completed': return envelope.status === 'completed'
     case 'voided': return envelope.status === 'voided'
   }
@@ -33,6 +33,7 @@ export function pill(envelope: Envelope, actor: Actor): { label: string; tone: T
     case 'prepared': return { label: 'Needs approval', tone: 'rose' }
     case 'awaiting_signature': return myTurn(envelope, actor) ? { label: 'Waiting for you', tone: 'amber' } : signedCount(envelope) ? { label: 'In progress', tone: 'blue' } : { label: 'Waiting', tone: 'amber' }
     case 'completed': return { label: 'Completed', tone: 'mint' }
+    case 'declined': return { label: 'Declined', tone: 'rose' }
     case 'expired': return { label: 'Expired', tone: 'rose' }
     case 'voided': return { label: 'Voided', tone: 'grey' }
     default: return { label: envelope.status.replaceAll('_', ' '), tone: 'grey' }
@@ -45,6 +46,7 @@ export function nextAction(envelope: Envelope, actor: Actor): { label: string; u
     case 'prepared': return canApprove(actor) ? { label: 'Approve and send', urgent: true } : { label: 'Waiting for approval', urgent: false }
     case 'awaiting_signature': return myTurn(envelope, actor) ? { label: 'Your turn to sign', urgent: true } : { label: `Waiting on ${envelope.signers[nextSigner(envelope)]?.name ?? 'the next signer'}`, urgent: false }
     case 'completed': return { label: 'Executed PDF ready', urgent: false }
+    case 'declined': return { label: `Declined by ${envelope.signers.find(signer => signer.declinedAt)?.name ?? 'a signer'}`, urgent: false }
     case 'expired': return { label: 'Prepare a new one', urgent: true }
     case 'voided': return { label: 'Voided', urgent: false }
     default: return { label: 'Imported record', urgent: false }

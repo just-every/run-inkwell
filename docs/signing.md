@@ -31,6 +31,14 @@ for a new link and code; the old link will stop working.
 The page then shows **Your signature has been recorded.** When everyone has signed, the
 same link offers **Download executed PDF** and **Download certificate**.
 
+## Decline to sign
+
+A recipient whose turn it is can refuse instead: choose **Decline to sign…**, give a reason
+and choose **Decline**. The envelope stops at once. Nobody later in the order is invited,
+the sender and everyone who already signed get an email with the reason, and the page then
+reads **This envelope was declined.** The sender's copy of the envelope keeps the reason and
+a decline certificate recording who declined, when and why.
+
 ## Keep the link private
 
 The invitation link grants access to that signing request. Recipients should not forward
