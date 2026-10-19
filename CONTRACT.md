@@ -211,7 +211,7 @@ Inkwell is one product. Where the market sells a neighbouring product separately
 
 - **MANAGE-002 — Folders, tags and custom envelope fields.** Envelopes go into shared folders, carry tags and custom fields (for example deal ID or cost center) that are searchable, reportable and sent to integrations. **Acceptance evidence:** a template adds a required cost-center field; envelopes are filtered and exported by it and the HubSpot fake receives it.
 
-- **MANAGE-003 — Waiting for me.** Team members who must sign or approve envelopes from colleagues see them in a waiting-for-me list and sign inside the app without an email round trip. **Acceptance evidence:** an admin is the second signer of a colleague's envelope and signs from the in-app list after the first signer finishes.
+- **MANAGE-003 — Waiting for me.** Team members who must sign or approve envelopes from colleagues see them in a waiting-for-me list and sign inside the app without an email round trip. Any member, whatever their role, signs their own turn this way, and owners and admins also find the prepared envelopes awaiting their approval there; internal approver steps (`ROUTE-004`) join the list when they ship. The member's signed-in session replaces the emailed or sender-provided code: opening their turn issues a fresh signing link, already verified in that browser for 24 hours, that replaces the link they were sent, and the record and certificate name the member whose session authenticated the signature. A sender-set access code is still asked for (`IDV-003`). **Acceptance evidence:** an admin is the second signer of a colleague's envelope and signs from the in-app list after the first signer finishes.
 
 - **MANAGE-004 — Reports and exports.** Reports show envelopes sent, completed, declined and expired, time to complete, and per sender and per template turnaround over a date range, with CSV export. **Acceptance evidence:** a fixture of 300 envelopes produces the expected counts and median turnaround, and the CSV matches the report.
 
@@ -368,15 +368,15 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 6 | 4 | 0 | 10 |
-| Target and push further | 9 | 25 | 73 | 107 |
-| All | 15 | 29 | 73 | 117 |
+| Target and push further | 10 | 25 | 72 | 107 |
+| All | 16 | 29 | 72 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
 | `HTTP-001` | Health, API and document routing | published | done | `tests/runtime.mjs`; `src/inkwell/api.ts` |  |
 | `ACCESS-001` | Server-side roles and scoped authority | published | partial | `tests/api.test.mjs`; `src/inkwell/api.ts`; `src/inkwell/storage.ts` | Every door checks session, role, origin and version, but only the first-release owner, admin and member roles exist; no sender role prepares, sends or voids its own envelopes, and no permission profiles |
 | `SEND-001` | Prepare a fixed envelope and authorize sending | published | partial | `tests/api.test.mjs`; `tests/manual-invitations.test.mjs`; `src/inkwell/envelopes.ts`; `src/ui/prepare-envelope.tsx` | Suppressed-mail invitations expose a once-visible signing link and code only to the owner, with reissue revoking prior access. Fingerprinted PDF with one to five signers and an ad hoc eligibility approval by a person only; no policy-based sends from forms, bulk, API or integrations, and no audited corrections after sending |
-| `SIGN-001` | Authenticated, consented signing in routing order | published | partial | `tests/api.test.mjs`; `tests/manual-invitations.test.mjs`; `src/inkwell/signing.ts` | Strict-order code verification ships. With mail suppressed, the owner receives a once-visible recipient-bound link and sender-provided code, and can reissue them with the prior link and session revoked; no mail is captured. Email providers retain email-code verification. No link-only or in-app signing |
+| `SIGN-001` | Authenticated, consented signing in routing order | published | partial | `tests/api.test.mjs`; `tests/manual-invitations.test.mjs`; `src/inkwell/signing.ts` | Strict-order code verification ships. With mail suppressed, the owner receives a once-visible recipient-bound link and sender-provided code, and can reissue them with the prior link and session revoked; no mail is captured. Email providers retain email-code verification. No link-only signing; in-app signing by a member's session ships with `MANAGE-003` |
 | `SEND-002` | Void an unfinished envelope | published | partial | `tests/api.test.mjs`; `src/inkwell/envelopes.ts` | Owners and admins void with immediate link and mail revocation; no sender role voids its own envelope |
 | `DELEGATE-001` | Preparation agents never send | published | done | `tests/api.test.mjs`; `src/inkwell/agents.ts` |  |
 | `RECORD-001` | Executed PDF, certificate and verifiable audit trail | published | done | `tests/api.test.mjs`; `src/inkwell/pdf.ts`; `src/inkwell/envelopes.ts` |  |
@@ -408,7 +408,7 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `ROUTE-006` | Delegation and reassignment | target | missing |  | No delegation or reassignment |
 | `ROUTE-007` | Hosted in-person signing | target | missing |  | No hosted in-person signing |
 | `ROUTE-008` | Contacts and recent recipients | target | missing |  | No contact book |
-| `ROUTE-009` | Sign it yourself | target | missing |  | Members cannot sign in the app; every signer verifies a mailbox code from an invitation, and no signature is saved |
+| `ROUTE-009` | Sign it yourself | target | missing |  | Members sign their own turn in the app with their session (`MANAGE-003`), but every envelope still needs approval and invites its recipients; no self-signing with nobody else involved, no sign-in method on the certificate, no saved signature and no sending of the completed copy |
 | `ROUTE-010` | Witnesses nominated by their signer | target | missing |  | No witness role |
 | `ROUTE-011` | Recipients who name, edit or only view | target | missing |  | No specify-recipients, editor, needs-to-view or certified-delivery recipients |
 | `ROUTE-012` | Document visibility per recipient | target | missing |  | One document per envelope; no per-recipient visibility |
@@ -438,7 +438,7 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `FORM-001` | Public signing web forms | target | missing |  | No web forms |
 | `MANAGE-001` | Envelope dashboard with search | target | partial | `tests/api.test.mjs`; `src/inkwell/search.ts`; `src/ui/operator-app.tsx` | `GET /api/inkwell/envelopes` pages, searches title and recipient name or email, filters by status, date and sender and counts every status, timed at 5,000 envelopes; the Envelopes screen still loads every envelope, filters in the browser and has no draft, declined or expired chips; no custom-field or template filters (`MANAGE-002`, `TMPL-001`) |
 | `MANAGE-002` | Folders, tags and custom envelope fields | target | missing |  | No folders, tags or custom fields |
-| `MANAGE-003` | Waiting for me | target | missing |  | No in-app waiting-for-me list |
+| `MANAGE-003` | Waiting for me | target | done | `src/inkwell/own-signing.ts`; `src/inkwell/api.ts`; `src/ui/envelope-detail.tsx`; `tests/api.test.mjs`; `tests/own-signing.test.mjs` | Waiting-for-me list and in-app signing of one's own turn by any member, authenticated by their session with no mailbox code; the certificate names the session member (test `MANAGE-003`) |
 | `MANAGE-004` | Reports and exports | target | missing |  | No reports |
 | `MANAGE-005` | Envelope detail and timeline | target | partial | `src/ui/envelope-detail.tsx` | Detail page lists signers with signed times and the audit trail; no delivered or viewed timeline, waiting state, remind, resend, correct or copy actions |
 | `RECORD-002` | Per-recipient certificate evidence | target | partial | `src/inkwell/pdf.ts` | Certificate lists signers, times and event hashes; no IP, per-recipient authentication, adoption method, disclosure version or local time zone |

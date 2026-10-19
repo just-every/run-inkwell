@@ -5,7 +5,7 @@ import { readBytes } from './body'
 import { scanPages } from './pdf'
 import { dispatchMail, noticeWrite } from './mail'
 import { mailSuppressed } from './manual-invitations'
-import { advanceAfterSigning, disclosureGate, paperKind, type SigningContext } from './signing'
+import { accessGate, advanceAfterSigning, disclosureGate, paperKind, type SigningContext } from './signing'
 import type { CommandContext } from './envelopes'
 
 /** SIGNX-008: on an envelope that allows it, the current signer signs the downloaded document by hand and uploads a
@@ -17,6 +17,7 @@ export async function uploadPaper(env: Env, context: SigningContext, request: Re
   insist(before.allowPaper, 'The sender does not allow paper signing for this envelope.', 403)
   active(before)
   insist(currentSigners(before).includes(index), 'This invitation is waiting for an earlier signer, or you have already signed.', 409)
+  accessGate(context)
   disclosureGate(signer, 'uploading a paper signature')
   insist(signer.paper?.status !== 'pending', 'Your paper signature is already waiting for the sender’s review.', 409)
   const mediaType = request.headers.get('content-type')?.split(';')[0].trim() ?? ''

@@ -5,10 +5,10 @@ import type { CommandContext } from './envelopes'
 export const mailSuppressed = (env: Env) => !env.MAIL_PROVIDER || env.MAIL_PROVIDER === 'development'
 
 /** Secrets leave only in this response, never in the command journal or mail queue. */
-export async function manualInvitation(env: Env, envelope: Envelope, signer: number, token: string, generation: number, actor: string, delivery: 'sender' | 'self' = 'sender') {
+export async function manualInvitation(env: Env, envelope: Envelope, signer: number, token: string, generation: number, actor: string) {
   const code = randomCode(), tokenHash = await sha256(token)
   const codeHash = await sha256(`${env.SESSION_SECRET}:${tokenHash}:${generation}:${code}`)
-  await appendEvent(envelope, 'invitation.manual_issued', actor, { signer, recipient: envelope.signers[signer].email, generation, delivery, emailSent: false })
+  await appendEvent(envelope, 'invitation.manual_issued', actor, { signer, recipient: envelope.signers[signer].email, generation, delivery: 'sender', emailSent: false })
   return {
     invitation: { url: new URL('/sign/' + token, env.AUTH_ORIGIN).href, code, recipient: envelope.signers[signer].email, expiresAt: envelope.expiresAt },
     write: env.DB.prepare('UPDATE iw_signers SET token_hash=?,code_hash=?,code_expires=?,code_attempts=0,code_sent_at=?,code_generation=?,session_hash=NULL,session_expires=NULL WHERE envelope_id=? AND signer=?')

@@ -285,6 +285,30 @@ test('DELIV-003: with the clock advanced, the current signer is reminded on busi
  assert.equal((await reminded(0)).length,3,'reminders stop after the signature')
  assert.ok((await reminded(1)).length>=1,'the next signer is reminded once it is their turn')
 })
+test('MANAGE-003: an admin who is the second signer of a colleague\'s envelope signs from the in-app waiting list after the first signer, with no email round trip',async()=>{
+ const admin=await h.invite('ops@harbour.example','admin'),colleague={name:'Mira Chen',email:'mira@harbour.example'},self={name:'ops',email:'ops@harbour.example'}
+ const id=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio venue hire',signers:[colleague,self],fields:[0,1].map(signer=>({...fields[0],id:`signature-${signer}`,signer,y:.4+signer*.15}))})).result.id
+ await h.command('envelope.approve',{id,eligible:true})
+ const open=(cookie,status=200)=>h.post('/api/inkwell/commands',{command:'envelope.open_signing',input:{id},commandId:crypto.randomUUID()},cookie,status)
+ await open(admin,409)
+ const first=await verified(colleague.email)
+ await h.post(first.path+'/sign',{values:{'signature-0':'Mira Chen'},consent:true,commandId:crypto.randomUUID()},first.cookie)
+ const waiting=(await h.send('/api/inkwell/envelopes?status=waiting_for_me',undefined,admin)).value
+ assert.ok(waiting.envelopes.some(e=>e.id===id),'the envelope is in the admin\'s waiting-for-me list')
+ assert.equal((await h.send('/api/inkwell',undefined,admin)).value.envelopes.find(e=>e.id===id).ownSigningAvailable,true)
+ const opened=await open(admin),path='/api'+new URL(opened.value.result.signing.url).pathname
+ assert.ok(opened.cookie,'the app hands the signing page an already-verified session')
+ const view=(await h.send(path,undefined,opened.cookie)).value
+ assert.equal(view.verified,true);assert.equal(view.canSign,true)
+ await h.agree(path,opened.cookie)
+ assert.equal((await h.post(path+'/sign',{values:{'signature-1':'Ops Lead'},consent:true,commandId:crypto.randomUUID()},opened.cookie)).value.result.status,'completed')
+ assert.equal(await h.mail(self.email,'verification code'),undefined,'no verification code is emailed to the in-app signer')
+ const e=(await snapshot()).envelopes.find(e=>e.id===id),me=(await h.send('/api/inkwell',undefined,admin)).value.actor
+ assert.ok(e.events.some(event=>event.action==='signer.session_verified'&&event.detail.signer===1&&event.detail.operator===me.id),'the record names the session member')
+ // The certificate wraps long lines at 90 characters; joined, they read whole.
+ const text=(await pdfText((await h.send('/api/inkwell/envelopes/'+id+'/artifacts/certificate',undefined,h.owner)).bytes)).replaceAll('\n','')
+ assert.ok(text.includes('signed-in Inkwell session of member '+me.id)&&text.includes('emailed verification code'),'the certificate states how each signer was authenticated')
+})
 test('SIGNX-008: a signer downloads the document before signing; a three-page paper scan is accepted as a wet-ink signature, and envelopes that do not allow paper refuse it',async()=>{
  const pair=[{name:'Nia Cole',email:'nia@harbour.example'},{name:'Oto Grant',email:'oto@harbour.example'}]
  const scan=async pages=>{const pdf=await PDFDocument.create(),font=await pdf.embedFont(StandardFonts.Helvetica);for(let n=1;n<=pages;n++)pdf.addPage([595,842]).drawText(`Scanned page ${n} - signed by hand: Nia Cole`,{x:60,y:700,size:14,font});return pdf.save()}

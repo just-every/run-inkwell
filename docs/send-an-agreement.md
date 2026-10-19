@@ -98,9 +98,10 @@ audit trail records the extension. An envelope stays open at most 365 days from 
 When you are a recipient and it is your turn, the envelope reads **Waiting for you** and
 its next action is **Your turn to sign**. Open it and choose **Review and sign**. Inkwell
 opens your own signing page with a fresh private link, which replaces the one you were
-sent. With mail configured, choose **Email me a code** there as any recipient would; with
-mail suppressed, the owner's code is filled in for you. Verify the code, review the
-document and sign.
+sent. Your Inkwell sign-in vouches for you, so no code is emailed: the page opens already
+verified, and the certificate names you as the signed-in member. If the sender set an
+access code for you, enter it first. Then review the document and sign. Every role,
+including members, can sign their own turn this way.
 
 ## Copy an envelope
 

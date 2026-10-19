@@ -12,7 +12,7 @@ import { currentSigners, pill, routingOrder, preparedByAgent, titleParts } from 
 
 type Invitation = { url: string; code: string; recipient: string; expiresAt: string }
 type InvitationResult = { invitations?: Invitation[] }
-type OwnSigningResult = { signing: { url: string; code?: string } }
+type OwnSigningResult = { signing: { url: string } }
 
 export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen }: { envelope: Envelope; actor: Actor; refresh: () => Promise<void>; onClose: () => void; onOpen: (id: string) => void }) {
   const action = useAction()
@@ -87,6 +87,6 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen }: { 
       <label className="iw-check"><input type="checkbox" checked={eligible} onChange={event => setEligible(event.target.checked)} />I reviewed this envelope, confirm it is eligible for electronic signature, and authorize the first invitation.</label>
       <div className="iw-decision-actions"><button className="iw-primary" disabled={!eligible || action.busy} onClick={() => void action.run(async () => { await saveInvitation(await command<InvitationResult>('envelope.approve', { id: envelope.id, eligible: true })) })}>{action.busy ? 'Sending…' : 'Approve and invite first recipient'}</button><button onClick={onClose}>Keep as is</button></div>
     </div>}
-    {signingHere && <div className="iw-detail-foot"><div className="iw-decision-actions"><button className="iw-primary" disabled={action.busy} onClick={() => void action.run(async () => { const { signing } = await command<OwnSigningResult>('envelope.open_signing', { id: envelope.id }); window.location.assign(signing.code ? `${signing.url}#code=${signing.code}` : signing.url) })}>{action.busy ? 'Opening…' : 'Review and sign'}</button></div></div>}
+    {signingHere && <div className="iw-detail-foot"><div className="iw-decision-actions"><button className="iw-primary" disabled={action.busy} onClick={() => void action.run(async () => { const { signing } = await command<OwnSigningResult>('envelope.open_signing', { id: envelope.id }); window.location.assign(signing.url) })}>{action.busy ? 'Opening…' : 'Review and sign'}</button></div></div>}
   </section>
 }
