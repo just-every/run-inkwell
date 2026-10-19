@@ -9,7 +9,7 @@ Open a completed envelope from **Envelopes**. Its buttons download:
 | --- | --- |
 | **Original PDF** | The exact file you uploaded, unchanged. |
 | **Executed PDF** | A copy of the original with every typed signature and field value placed on it. |
-| **Certificate** | A PDF recording each signer and when they signed, the evidence collected (ordered email-code checks and explicit consent), the original and executed PDFs' fingerprints, and every audit event. |
+| **Certificate** | A PDF recording, for each signer, their routing order, how and when they were authenticated (emailed code, sender-provided code or their signed-in Inkwell session) with the IP address and browser, any access code, the disclosure they accepted, the signature they adopted and how, and when they signed; the original and executed PDFs' fingerprints; and every audit event. Times show in UTC and in Eastern time. |
 | **Handoff manifest** | The envelope, signers, dates and content fingerprints, to file the record elsewhere by hand. |
 | **Audit JSON** | Every event in the envelope's audit trail. |
 

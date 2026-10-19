@@ -305,9 +305,43 @@ test('MANAGE-003: an admin who is the second signer of a colleague\'s envelope s
  assert.equal(await h.mail(self.email,'verification code'),undefined,'no verification code is emailed to the in-app signer')
  const e=(await snapshot()).envelopes.find(e=>e.id===id),me=(await h.send('/api/inkwell',undefined,admin)).value.actor
  assert.ok(e.events.some(event=>event.action==='signer.session_verified'&&event.detail.signer===1&&event.detail.operator===me.id),'the record names the session member')
- // The certificate wraps long lines at 90 characters; joined, they read whole.
- const text=(await pdfText((await h.send('/api/inkwell/envelopes/'+id+'/artifacts/certificate',undefined,h.owner)).bytes)).replaceAll('\n','')
+ // The certificate wraps long lines between words; joined, they read whole.
+ const text=(await pdfText((await h.send('/api/inkwell/envelopes/'+id+'/artifacts/certificate',undefined,h.owner)).bytes)).replaceAll('\n',' ')
  assert.ok(text.includes('signed-in Inkwell session of member '+me.id)&&text.includes('emailed verification code'),'the certificate states how each signer was authenticated')
+})
+test('RECORD-002: the certificate lists each recipient\'s authentication, IP address, user agent, adopted signature, disclosure and times in UTC and Eastern time, matching the audit trail',async()=>{
+ const phone={'cf-connecting-ip':'203.0.113.7','user-agent':'RecordPhone/2.1'},desk={'cf-connecting-ip':'198.51.100.4','user-agent':'RecordDesk/5.0'}
+ const people=[{name:'Nia Ford',email:'nia@harbour.example'},{name:'Reader',email:'reader@harbour.example'}]
+ const id=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio photo release',signers:people,fields:[0,1].map(signer=>({...fields[0],id:`signature-${signer}`,signer,y:.4+signer*.15}))})).result.id
+ await h.command('envelope.approve',{id,eligible:true})
+ const path='/api/sign/'+await signingToken(people[0].email)
+ await h.post(path+'/code',{},'',200,phone)
+ const code=(await h.mail(people[0].email,'verification code')).text.match(/\b\d{6}\b/)[0]
+ await h.post(path+'/verify',{code:code==='000000'?'111111':'000000'},'',401,phone)
+ const first=(await h.post(path+'/verify',{code},'',200,phone)).cookie
+ const version=(await h.send(path,undefined,first)).value.disclosure.version
+ await h.post(path+'/disclosure',{version,agree:true},first,200,phone)
+ await h.post(path+'/sign',{values:{'signature-0':'Nia Ford'},consent:true,commandId:crypto.randomUUID()},first,200,phone)
+ const opened=await h.post('/api/inkwell/commands',{command:'envelope.open_signing',input:{id},commandId:crypto.randomUUID()},member,200,desk),second='/api'+new URL(opened.value.result.signing.url).pathname
+ await h.post(second+'/disclosure',{version,agree:true},opened.cookie,200,desk)
+ await h.post(second+'/sign',{values:{'signature-1':'Reader'},consent:true,commandId:crypto.randomUUID()},opened.cookie,200,desk)
+ const e=(await snapshot()).envelopes.find(e=>e.id===id),readerId=e.events.find(x=>x.action==='signer.session_verified').detail.operator
+ assert.equal(e.status,'completed')
+ // The account's US time zone is Eastern; the certificate wraps long lines between words, so read it joined.
+ const eastern=at=>{const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23',timeZoneName:'short'}).formatToParts(new Date(at)).map(x=>[x.type,x.value]));return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second} ${p.timeZoneName}`}
+ const stamp=at=>`${at} UTC (${eastern(at)})`,at=action=>e.events.find(x=>x.action===action).at
+ const text=(await pdfText((await h.send('/api/inkwell/envelopes/'+id+'/artifacts/certificate',undefined,h.owner)).bytes)).replaceAll('\n',' ')
+ for(const line of [
+  `Original SHA-256: ${e.originalSha256}`,`Signed SHA-256: ${e.signedSha256}`,
+  `Authenticated at ${stamp(at('signer.email_verified'))}: emailed verification code, verified (1 incorrect code on record) · IP 203.0.113.7 · User agent: RecordPhone/2.1`,
+  `Disclosure ${version} accepted at: ${stamp(e.signers[0].disclosure.acceptedAt)}`,`Adopted signature (Signature): "Nia Ford", typed name`,
+  `Signed at: ${stamp(e.signers[0].signedAt)} · IP 203.0.113.7 · User agent: RecordPhone/2.1`,
+  `Authenticated at ${stamp(at('signer.session_verified'))}: signed-in Inkwell session of member ${readerId}, verified · IP 198.51.100.4 · User agent: RecordDesk/5.0`,
+  `Disclosure ${version} accepted at: ${stamp(e.signers[1].disclosure.acceptedAt)}`,`Adopted signature (Signature): "Reader", typed name`,
+  `Signed at: ${stamp(e.signers[1].signedAt)} · IP 198.51.100.4 · User agent: RecordDesk/5.0`,
+  // every event up to the one that records this certificate's own creation
+  ...e.events.slice(0,e.events.findIndex(x=>x.action==='certificate.created')).map(x=>`${stamp(x.at)} ${x.action}`),
+ ]) assert.ok(text.includes(line),`the certificate shows: ${line}`)
 })
 test('SIGNX-008: a signer downloads the document before signing; a three-page paper scan is accepted as a wet-ink signature, and envelopes that do not allow paper refuse it',async()=>{
  const pair=[{name:'Nia Cole',email:'nia@harbour.example'},{name:'Oto Grant',email:'oto@harbour.example'}]

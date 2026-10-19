@@ -10,6 +10,10 @@ export interface Paper { sha256: string; pages: number; mediaType: string; uploa
 export interface AuditEvent { action: string; at: string; actor: string; detail: Record<string, unknown>; previousHash: string; hash: string }
 export interface Envelope { id: string; version: number; title: string; filename: string; status: 'prepared' | 'awaiting_signature' | 'completed' | 'declined' | 'voided' | 'expired' | 'imported'; createdAt: string; createdBy: string; expiresAt: string; signers: Signer[]; fields: Field[]; pageSizes: { width: number; height: number }[]; originalSha256: string; signedSha256?: string; certificateSha256?: string; events: AuditEvent[]; imported?: boolean; source?: unknown; copiedFrom?: string; allowPaper?: boolean; reminders?: { afterDays: number; everyDays: number } }
 export type Env = Bindings
+/** RECORD-002: one request's network evidence: Cloudflare's connecting IP and the user agent, as printable ASCII. */
+export interface Client { ip: string; userAgent: string }
+const printable = (value: string | null, max: number) => (value ?? '').replace(/[^\x20-\x7e]/g, '?').slice(0, max)
+export const clientEvidence = (request: Request): Client => ({ ip: printable(request.headers.get('cf-connecting-ip'), 64), userAgent: printable(request.headers.get('user-agent'), 300) })
 /** ROUTE-002: a signer's routing order. Envelopes stored before orders existed sign one at a time in list order. */
 export const routingOrder = (envelope: Envelope, signer: number) => envelope.signers[signer].order ?? signer + 1
 /** ROUTE-002: whose turn it is: every unsigned signer at the lowest routing order any unsigned signer has. Signers who

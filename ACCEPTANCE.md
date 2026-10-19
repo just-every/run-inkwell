@@ -101,7 +101,7 @@ Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed her
 
 ### Execution evidence
 
-- **RECORD-002 — Per-recipient certificate evidence** (partial). Complete an envelope with email-code and SMS-code signers and show each item on the certificate matches the audit trail.
+- **RECORD-002 — Per-recipient certificate evidence** (done). Complete an envelope with an email-code signer and a member who signs in the app (and SMS-code signers once `IDV-002` ships) and show each item on the certificate matches the audit trail.
 - **RECORD-003 — Sealed PDFs** (missing). Open the executed PDF in a PDF validator to show a valid seal; modify one byte and show the seal fails.
 - **RECORD-004 — Public verification** (done). A signed-out visitor verifies a genuine executed PDF, an altered copy fails, and an unrelated PDF reveals nothing.
 - **RECORD-005 — Retention and legal hold** (missing). With the clock advanced, a seven-year rule purges an envelope after its warning, and a held envelope survives both the rule and an erase request.

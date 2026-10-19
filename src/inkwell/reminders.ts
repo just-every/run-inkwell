@@ -2,6 +2,7 @@ import { appendEvent, currentSigners, insist, object, routingOrder, type Envelop
 import { commitEnvelope } from './storage'
 import { dispatchMail, noticeWrite } from './mail'
 import { mailSuppressed } from './manual-invitations'
+import { accountTimeZone } from './zone'
 
 /** DELIV-003: an envelope can remind each recipient whose turn it is, first after `afterDays` business days from their
  * invitation and then every `everyDays` business days after the previous reminder. Business days are Monday to Friday
@@ -11,7 +12,7 @@ import { mailSuppressed } from './manual-invitations'
  * review, and are not sent or recorded when mail is not set up. Account and template defaults belong to ADMIN-004
  * and TMPL-001. */
 export interface Reminders { afterDays: number; everyDays: number }
-export const accountTimeZone = 'America/New_York', reminderHour = 9, maxReminderDays = 30
+export const reminderHour = 9, maxReminderDays = 30
 
 export function chooseReminders(value: unknown): Reminders | undefined {
   if (value === undefined || value === null) return undefined

@@ -26,7 +26,7 @@ export async function uploadPaper(env: Env, context: SigningContext, request: Re
   const pages = await scanPages(bytes, mediaType), fingerprint = await sha256(bytes)
   const after = structuredClone(before)
   after.signers[index] = { ...signer, paper: { sha256: fingerprint, pages, mediaType, uploadedAt: now(), status: 'pending' } }
-  await appendEvent(after, 'signer.paper_uploaded', `signer:${index + 1}`, { signer: index, email: signer.email, sha256: fingerprint, pages, mediaType, bytes: bytes.length })
+  await appendEvent(after, 'signer.paper_uploaded', `signer:${index + 1}`, { signer: index, email: signer.email, sha256: fingerprint, pages, mediaType, bytes: bytes.length, ...context.client })
   const sender = await env.DB.prepare('SELECT email,display_name FROM oa_operators WHERE id=?').bind(after.createdBy).first<{ email: string; display_name: string }>()
   await commitEnvelope(env.DB, before, after, null, [
     env.DB.prepare('DELETE FROM iw_blobs WHERE envelope_id=? AND kind=?').bind(after.id, paperKind(index)),

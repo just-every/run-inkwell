@@ -13,7 +13,7 @@ export async function openOwnSigning(env: Env, context: CommandContext, input: R
   const signer = currentSigners(before).find(i => before.signers[i].email.toLowerCase() === context.actor.email.toLowerCase())
   insist(signer !== undefined, 'It is not your turn to sign this envelope.', 409)
   const after = structuredClone(before), token = secret(), session = secret()
-  await appendEvent(after, 'signer.session_verified', context.actor.id, { signer, email: after.signers[signer].email, operator: context.actor.id, method: 'inkwell-session' })
+  await appendEvent(after, 'signer.session_verified', context.actor.id, { signer, email: after.signers[signer].email, operator: context.actor.id, method: 'inkwell-session', ...context.client })
   const result = { id: after.id, status: after.status }
   await commitEnvelope(env.DB, before, after, null, [
     env.DB.prepare('UPDATE iw_signers SET token_hash=?,code_hash=NULL,code_expires=NULL,code_attempts=0,session_hash=?,session_expires=? WHERE envelope_id=? AND signer=?').bind(await sha256(token), await sha256(session), Date.now() + 24 * 60 * 60_000, after.id, signer),

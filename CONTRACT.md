@@ -219,7 +219,7 @@ Inkwell is one product. Where the market sells a neighbouring product separately
 
 ### Execution evidence
 
-- **RECORD-002 — Per-recipient certificate evidence.** The certificate of completion lists for every recipient their authentication method and result, IP address, user agent, adopted signature and method, disclosure acceptance, and every timestamp in UTC and the account's US time zone, plus every document's fingerprint. **Acceptance evidence:** complete an envelope with email-code and SMS-code signers and show each item on the certificate matches the audit trail.
+- **RECORD-002 — Per-recipient certificate evidence.** The certificate of completion lists for every recipient their authentication method and result, IP address, user agent, adopted signature and method, disclosure acceptance, and every timestamp in UTC and the account's US time zone, plus every document's fingerprint. The IP address is the connecting address Cloudflare reports for the request and reads "not recorded" when there is none; the account's US time zone is America/New_York until `ADMIN-004` lets the owner choose another; the result of a code check includes how many incorrect codes are on record. It is done when every method that exists today conforms (emailed code, sender-provided code, a member's signed-in session under `MANAGE-003`, access codes, typed and paper signatures), and `IDV-002`, `IDV-004`, `IDV-005` and `SIGNX-002` add their own method, result and adoption lines before they ship. **Acceptance evidence:** complete an envelope with an email-code signer and a member who signs in the app (and SMS-code signers once `IDV-002` ships) and show each item on the certificate matches the audit trail.
 
 - **RECORD-003 — Sealed PDFs.** The executed PDF carries a PDF digital signature (PAdES) from the installation's signing certificate or a certificate on the Adobe Approved Trust List obtained through a provider, so Adobe Acrobat shows the document as unmodified and any change breaks the seal. **Acceptance evidence:** open the executed PDF in a PDF validator to show a valid seal; modify one byte and show the seal fails.
 
@@ -368,8 +368,8 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 6 | 4 | 0 | 10 |
-| Target and push further | 10 | 25 | 72 | 107 |
-| All | 16 | 29 | 72 | 117 |
+| Target and push further | 11 | 24 | 72 | 107 |
+| All | 17 | 28 | 72 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -441,7 +441,7 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `MANAGE-003` | Waiting for me | target | done | `src/inkwell/own-signing.ts`; `src/inkwell/api.ts`; `src/ui/envelope-detail.tsx`; `tests/api.test.mjs`; `tests/own-signing.test.mjs` | Waiting-for-me list and in-app signing of one's own turn by any member, authenticated by their session with no mailbox code; the certificate names the session member (test `MANAGE-003`) |
 | `MANAGE-004` | Reports and exports | target | missing |  | No reports |
 | `MANAGE-005` | Envelope detail and timeline | target | partial | `src/ui/envelope-detail.tsx` | Detail page lists signers with signed times and the audit trail; no delivered or viewed timeline, waiting state, remind, resend, correct or copy actions |
-| `RECORD-002` | Per-recipient certificate evidence | target | partial | `src/inkwell/pdf.ts` | Certificate lists signers, times and event hashes; no IP, per-recipient authentication, adoption method, disclosure version or local time zone |
+| `RECORD-002` | Per-recipient certificate evidence | target | done | `src/inkwell/certificate.ts`; `src/inkwell/zone.ts`; `tests/api.test.mjs` | Per recipient: routing order, each authentication with method, result, IP and user agent, access code, disclosure, adopted signature and method, signing with IP and user agent; every timestamp in UTC and Eastern time (test `RECORD-002`); SMS, KBA, ID verification and drawn signatures add theirs when they ship |
 | `RECORD-003` | Sealed PDFs | target | missing |  | No PDF digital seal; the certificate says it is not one |
 | `RECORD-004` | Public verification | target | done | `tests/api.test.mjs`; `tests/runtime.mjs`; `src/inkwell/verification.ts`; `src/ui/public-verify.tsx` |  |
 | `RECORD-005` | Retention and legal hold | target | missing |  | No retention rules or legal hold |
