@@ -266,6 +266,10 @@
       "sha256": "ac7a87e8e4b2b425eaf3d7f5d0cabaff745a69dc0938736f3afba0331e37432f",
       "executable": false
     },
+    "migrations/core/0027_sealed_links.sql": {
+      "sha256": "c5fa57d94a123b5137c085b4fee4ab1e06a4b46b3cb4daeb31e00078354e968a",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "b28a79254e2278d81d877ffd5987972aaf135d85683ae285b52fd98cc44e608e",
       "executable": false
@@ -742,6 +746,10 @@
       "sha256": "37430dd6cc1130b05a3ff6c927a5cd7d1cc6bd00c98748f4133a0987dfb1ad00",
       "executable": false
     },
+    "src/inkwell/links.ts": {
+      "sha256": "004a63bac78d39fa6ca6f4840b41d72202762537bd6cef9f4de88e17e038e915",
+      "executable": false
+    },
     "src/inkwell/mail.ts": {
       "sha256": "ed2f1b9c5b5abe15bd9938fc2c4a79eb30e9817badae82ea61d7af385fb60dc9",
       "executable": false
@@ -788,6 +796,10 @@
     },
     "src/inkwell/reports.ts": {
       "sha256": "547980df85149ac7e96ae95bcbb860fb4ff34622203a86b3feaec85edba2b311",
+      "executable": false
+    },
+    "src/inkwell/resend.ts": {
+      "sha256": "f56f8700a5bd712bf35070d4667e290cc84deca38916b24c0ce863cb53714429",
       "executable": false
     },
     "src/inkwell/saved-marks.ts": {
