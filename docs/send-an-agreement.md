@@ -137,6 +137,18 @@ original, unsigned PDF, the same recipients in the same order and the same field
 entered values or signatures. It opens ready for approval like any prepared envelope, and
 its audit trail, handoff manifest and certificate name the envelope it was copied from.
 
+## Send from a template
+
+Open **Templates** and choose **New template** to save an agreement you send often: upload the
+PDF, name each role in routing order (for example Client and Company Signer), tick **Access
+code at each send** for a role that needs one, place each role's fields, and set the subject,
+message, reminders and expiry. To send it, choose **Use** and enter only each role's name and
+email (and the access code you will give that person). Inkwell prepares the envelope with the
+template's fields, routing, messages, reminders and expiry, and it opens ready for approval like
+any prepared envelope. The envelope records the template it came from, and the Envelopes
+screen's **Template** filter finds every envelope sent from one. Senders see only their own
+templates; owners and admins see all of them.
+
 ## Void an envelope
 
 To stop an envelope that is not finished, open it and choose **Void envelope…**, enter the

@@ -42,6 +42,8 @@ async function tabTo(page, target) {
 try {
   // 1. Automated scan of every signing step and the preparation page, in both themes at both widths.
   let minor = 0
+  // TMPL-001's screens are preparation too: a template's own prepare screen and the form that sends from it.
+  await command('template.save', { title: 'Scan template', filename: 'access.pdf', pdfBase64: (await pdfBytes()).toString('base64'), roles: [{ role: 'Client' }], fields: [fields[0]] })
   for (const colorScheme of ['light', 'dark']) for (const [width, height] of [[1440, 900], [390, 844]]) {
     const label = `${colorScheme} ${width}`, { invitation } = await prepare(`Scan ${label}`, { name: 'Priya Shah', email: 'priya@harbour.example' })
     const signer = await browser.newContext({ viewport: { width, height }, colorScheme }), page = await signer.newPage()
@@ -55,6 +57,11 @@ try {
     const app = await operator.newPage(); await app.goto(`${origin}/app`); await app.getByRole('button', { name: 'New envelope' }).click()
     await app.getByLabel('Fixed PDF document').setInputFiles({ name: 'access.pdf', mimeType: 'application/pdf', buffer: await pdfBytes() })
     await app.getByRole('button', { name: /Place field on page 1/ }).waitFor(); minor += await axe(app, `${label} preparation`)
+    await app.getByRole('button', { name: 'Templates' }).click(); await app.getByRole('button', { name: 'New template' }).click()
+    await app.getByLabel('Fixed PDF document').setInputFiles({ name: 'access.pdf', mimeType: 'application/pdf', buffer: await pdfBytes() })
+    await app.getByRole('button', { name: /Place field on page 1/ }).waitFor(); minor += await axe(app, `${label} template preparation`)
+    await app.getByRole('button', { name: 'Cancel' }).click(); await app.getByRole('button', { name: 'Use Scan template' }).click()
+    await app.getByRole('heading', { name: 'Send Scan template' }).waitFor(); minor += await axe(app, `${label} template send`)
     await signer.close(); await operator.close()
   }
   console.log(`SIGNX-003 scan: no serious or critical WCAG 2.2 A/AA violation on preparation and signing (light and dark, 1440 and 390; ${minor} minor or moderate)`)

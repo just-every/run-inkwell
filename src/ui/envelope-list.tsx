@@ -37,13 +37,14 @@ export function FilterChips({ page, filter, onFilter }: { page: Page; filter: Fi
 }
 
 /** Prepared-date bounds in the viewer's own days (the To day included) and, for owners and admins, who prepared it. */
-export type Narrow = { from: string; to: string; sender: string }
-export function NarrowFilters({ narrow, people, onNarrow }: { narrow: Narrow; people: Person[]; onNarrow: (narrow: Narrow) => void }) {
+export type Narrow = { from: string; to: string; sender: string; template: string }
+export function NarrowFilters({ narrow, people, templates, onNarrow }: { narrow: Narrow; people: Person[]; templates: { id: string; title: string }[]; onNarrow: (narrow: Narrow) => void }) {
   const senders = people.filter(person => person.role !== 'viewer')
   return <div className="iw-actions" role="group" aria-label="Narrow envelopes">
     <label>Prepared from<input type="date" value={narrow.from} max={narrow.to || undefined} onChange={event => onNarrow({ ...narrow, from: event.target.value })} /></label>
     <label>Prepared to<input type="date" value={narrow.to} min={narrow.from || undefined} onChange={event => onNarrow({ ...narrow, to: event.target.value })} /></label>
     {senders.length > 0 && <label>Sender<select value={narrow.sender} onChange={event => onNarrow({ ...narrow, sender: event.target.value })}><option value="">Anyone</option>{senders.map(person => <option key={person.id} value={person.id}>{person.name || person.email}</option>)}</select></label>}
+    {templates.length > 0 && <label>Template<select value={narrow.template} onChange={event => onNarrow({ ...narrow, template: event.target.value })}><option value="">Any</option>{templates.map(template => <option key={template.id} value={template.id}>{template.title}</option>)}</select></label>}
   </div>
 }
 

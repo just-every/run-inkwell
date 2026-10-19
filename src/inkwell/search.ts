@@ -19,7 +19,7 @@ const like = (value: string) => '%' + value.replace(/[\\%_]/g, c => '\\' + c) + 
 
 export async function searchEnvelopes(env: Env, actor: Actor, params: URLSearchParams) {
   const q = (params.get('q') ?? '').trim().toLowerCase(), status = params.get('status') ?? 'all', sender = params.get('sender') ?? ''
-  const from = params.get('from') ?? '', to = params.get('to') ?? '', cursor = params.get('cursor') ?? '', preparedBy = params.get('preparedBy') ?? ''
+  const from = params.get('from') ?? '', to = params.get('to') ?? '', template = params.get('template') ?? '', cursor = params.get('cursor') ?? '', preparedBy = params.get('preparedBy') ?? ''
   const limit = params.has('limit') ? Number(params.get('limit')) : 50
   insist(q.length <= 200, 'Search for at most 200 characters.')
   insist(status === 'all' || buckets.includes(status as Bucket), `Filter by one of: all, ${buckets.join(', ')}.`)
@@ -29,6 +29,8 @@ export async function searchEnvelopes(env: Env, actor: Actor, params: URLSearchP
   const where: string[] = [], values: unknown[] = [new Date().toISOString(), actor.email.toLowerCase(), actor.id]
   if (q) { where.push(`(lower(json_extract(e.data,'$.title')) LIKE ?${values.length + 1} ESCAPE '\\' OR EXISTS(SELECT 1 FROM json_each(e.data,'$.signers') s WHERE lower(json_extract(s.value,'$.email')) LIKE ?${values.length + 1} ESCAPE '\\' OR lower(json_extract(s.value,'$.name')) LIKE ?${values.length + 1} ESCAPE '\\'))`); values.push(like(q)) }
   if (preparedBy) where.push(byAgent)
+  // TMPL-001: envelopes sent from one template, by the template ID the envelope records.
+  if (template) { where.push(`json_extract(e.data,'$.template.id')=?${values.length + 1}`); values.push(template) }
   if (sender) { where.push(`json_extract(e.data,'$.createdBy')=?${values.length + 1}`); values.push(sender) }
   // ACCESS-001 / ADMIN-001: a sender finds the envelopes they created and those shared with them.
   if (actor.role === 'sender') where.push(`(json_extract(e.data,'$.createdBy')=?3 OR EXISTS(SELECT 1 FROM iw_shares x WHERE x.envelope_id=e.id AND x.operator_id=?3))`)

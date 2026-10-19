@@ -793,3 +793,52 @@ test('fresh-store restore refuses resurrection with the later journal and restor
  const closing=a=>JSON.parse(a.ndjson.trim().split('\n').at(-1)).contentHash
  assert.equal(closing(again.value),closing(laterArchive),'domain archive export/restore/export round trip')
 })
+
+// TMPL-001: a template keeps the PDF, roles in routing order, fields, messages, reminders, expiry and access-code
+// settings; each send names only the people (and a role's access code), and nothing is placed again.
+test('TMPL-001: a three-role template sends twice to different people with its fields, routing, reminders and expiry',async()=>{
+ const tara=await sender('tara.templates@harbour.example'),uma=await sender('uma.templates@harbour.example'),viewer=await h.invite('vera.templates@harbour.example','member')
+ const roleFields=[0,1,2].map(signer=>({id:`role-${signer}`,label:'Signature',type:'signature',signer,page:0,x:.1,y:.3+signer*.15,width:.35,height:.06})).concat([{id:'client-date',label:'Date',type:'date',signer:0,page:0,x:.55,y:.3,width:.25,height:.05}])
+ const roles=[{role:'Client',order:1,accessCode:true},{role:'Guarantor',order:1},{role:'Company Signer',order:2,message:'Countersign once the client has signed.'}]
+ const definition={title:'Harbour Studio — services agreement',filename:'services.pdf',pdfBase64:Buffer.from(original).toString('base64'),roles,fields:roleFields,expiryDays:30,reminders:{afterDays:2,everyDays:3},subject:'Services agreement to sign',message:'Please review and sign.'}
+ await h.command('template.save',definition,viewer,403)
+ await h.command('template.save',{...definition,fields:roleFields.filter(f=>f.signer!==2)},tara.cookie,400)
+ const templateId=(await h.command('template.save',definition,tara.cookie)).result.id
+ const listed=(await h.send('/api/inkwell/templates',undefined,tara.cookie)).value.templates
+ assert.deepEqual(listed.map(t=>[t.id,t.roles.map(r=>r.role)]),[[templateId,['Client','Guarantor','Company Signer']]])
+ assert.deepEqual((await h.send('/api/inkwell/templates',undefined,uma.cookie)).value.templates,[],'another sender does not see it')
+ assert.equal((await h.send('/api/inkwell/templates',undefined,viewer)).status,403,'a viewer has no templates')
+ assert.ok((await h.send('/api/inkwell/templates',undefined,h.owner)).value.templates.some(t=>t.id===templateId),'the owner sees every template')
+ const people=n=>[{name:`Client ${n}`,email:`client${n}@tmpl.example`,accessCode:`code-${n}x`},{name:`Guarantor ${n}`,email:`guarantor${n}@tmpl.example`},{name:`Signer ${n}`,email:`signer${n}@tmpl.example`}]
+ await h.command('template.use',{id:templateId,recipients:people(1)},uma.cookie,404)
+ await h.command('template.use',{id:templateId,recipients:people(1).slice(0,2)},tara.cookie,400)
+ await h.command('template.use',{id:templateId,recipients:people(1).map(({accessCode,...p})=>p)},tara.cookie,400)
+ const sent=[]
+ for(const n of [1,2]){
+  const before=Date.now(),{id}=(await h.command('template.use',{id:templateId,recipients:people(n)},tara.cookie)).result,draft=await stored(id,tara.cookie)
+  assert.equal(draft.status,'prepared');assert.deepEqual(draft.template,{id:templateId,title:definition.title})
+  assert.deepEqual(draft.signers.map(({name,email,order,accessCode,message})=>({name,email,order,accessCode,message})),[{name:`Client ${n}`,email:`client${n}@tmpl.example`,order:1,accessCode:true,message:undefined},{name:`Guarantor ${n}`,email:`guarantor${n}@tmpl.example`,order:1,accessCode:undefined,message:undefined},{name:`Signer ${n}`,email:`signer${n}@tmpl.example`,order:2,accessCode:undefined,message:roles[2].message}],'routing order and identity settings from the roles')
+  assert.deepEqual(draft.fields,roleFields,'every field placed by the template');assert.deepEqual(draft.reminders,definition.reminders)
+  assert.equal(draft.subject,definition.subject);assert.equal(draft.message,definition.message)
+  const days=(Date.parse(draft.expiresAt)-before)/86_400_000;assert.ok(days>29.99&&days<=30.01,`expires 30 days out (${days})`)
+  assert.equal(digest((await h.send('/api/inkwell/envelopes/'+id+'/artifacts/original',undefined,tara.cookie)).bytes),draft.originalSha256)
+  assert.equal(draft.events[0].detail.template.id,templateId,'the record names the template')
+  await h.command('envelope.approve',{id,eligible:true},tara.cookie)
+  sent.push(id)
+ }
+ const byTemplate=(await h.send('/api/inkwell/envelopes?template='+templateId,undefined,h.owner)).value
+ assert.deepEqual(byTemplate.envelopes.map(e=>e.id).sort(),[...sent].sort(),'the template filter finds exactly the envelopes sent from it');assert.equal(byTemplate.total,2)
+ for(const n of [1,2]){
+  assert.ok(await h.mail(`client${n}@tmpl.example`,'Services agreement to sign'),'order 1 is invited with the template subject');assert.ok(await h.mail(`guarantor${n}@tmpl.example`,'Services agreement to sign'))
+  assert.equal(await h.mail(`signer${n}@tmpl.example`,'Services agreement to sign'),undefined,'order 2 waits')
+ }
+ const invitation=await h.mail('client2@tmpl.example','Services agreement to sign'),client='/api/sign/'+new URL(invitation.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)
+ assert.match(invitation.text,/Please review and sign\./,'the template message is in the invitation')
+ assert.deepEqual((await h.send(client)).value.access,{required:true,passed:false,locked:false},'the Client role asks for its access code')
+ await h.post(client+'/access',{accessCode:'code-1x'},'',401)
+ await h.post(client+'/access',{accessCode:'code-2x'},'')
+ await h.command('template.remove',{id:templateId},uma.cookie,404)
+ await h.command('template.remove',{id:templateId},tara.cookie)
+ assert.deepEqual((await h.send('/api/inkwell/templates',undefined,tara.cookie)).value.templates,[])
+ assert.equal((await stored(sent[0],tara.cookie)).template.id,templateId,'sent envelopes keep their own copy')
+})
