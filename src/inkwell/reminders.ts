@@ -1,5 +1,6 @@
-import { appendEvent, currentSigners, insist, object, routingOrder, type Envelope, type Env } from './model'
-import { commitEnvelope } from './storage'
+import { active, appendEvent, currentSigners, insist, now, object, routingOrder, text, type Envelope, type Env } from './model'
+import { commandWrite, commitEnvelope, getEnvelope } from './storage'
+import type { CommandContext } from './envelopes'
 import { dispatchMail, noticeWrite } from './mail'
 import { mailSuppressed } from './manual-invitations'
 import { accountTimeZone } from './zone'
@@ -63,7 +64,25 @@ async function remind(env: Env, before: Envelope, at: number) {
   if (before.imported || !due.length) return 0
   const after = structuredClone(before)
   for (const i of due) await appendEvent(after, 'signer.reminded', 'inkwell', { signer: i, email: after.signers[i].email, passAt: new Date(at).toISOString(), count: after.events.filter(e => e.action === 'signer.reminded' && e.detail.signer === i).length + 1, emailSent: true })
-  await commitEnvelope(env.DB, before, after, null, due.map(i => noticeWrite(env.DB, after, i, after.signers[i].email, `Reminder to sign: ${after.title}`, `${after.signers[i].name},\n\nThis is a reminder that ${after.title} is waiting for your signature.\nUse the link in your invitation email to review and sign. The invitation expires ${after.expiresAt}.`)))
+  await commitEnvelope(env.DB, before, after, null, due.map(i => reminderWrite(env, after, i)))
   await dispatchMail(env, after.id)
   return due.length
+}
+const reminderWrite = (env: Env, envelope: Envelope, i: number) => noticeWrite(env.DB, envelope, i, envelope.signers[i].email, `Reminder to sign: ${envelope.title}`, `${envelope.signers[i].name},\n\nThis is a reminder that ${envelope.title} is waiting for your signature.\nUse the link in your invitation email to review and sign. The invitation expires ${envelope.expiresAt}.`)
+
+/** MANAGE-005: the detail page's remind action. One reminder now to each recipient whose turn it is, never to one still
+ * waiting for an earlier order or one whose paper scan awaits review; recorded like a scheduled reminder, so the next
+ * automatic one (DELIV-003) counts its business days from this one. Refused when mail is not set up. */
+export async function remindNow(env: Env, context: CommandContext, input: Record<string, unknown>) {
+  const before = await getEnvelope(env.DB, text(input.id, 'an envelope ID'))
+  active(before)
+  insist(!mailSuppressed(env), 'Mail is not set up, so no reminder can be emailed. Create a new signing link instead.', 409)
+  const due = currentSigners(before).filter(i => before.signers[i].paper?.status !== 'pending')
+  insist(due.length, 'The current recipient’s paper signature is waiting for your review, so nobody is reminded.', 409)
+  const after = structuredClone(before), at = now()
+  for (const i of due) await appendEvent(after, 'signer.reminded', context.actor.id, { signer: i, email: after.signers[i].email, passAt: at, count: after.events.filter(e => e.action === 'signer.reminded' && e.detail.signer === i).length + 1, emailSent: true, manual: true })
+  const result = { id: after.id, reminded: due.map(i => after.signers[i].email) }
+  await commitEnvelope(env.DB, before, after, context.actor, [commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result), ...due.map(i => reminderWrite(env, after, i))])
+  await dispatchMail(env, after.id)
+  return result
 }

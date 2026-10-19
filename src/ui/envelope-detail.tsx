@@ -2,7 +2,7 @@
 // make one, the files, the integrity check, the audit trail, and voiding or erasure. The panel's body scrolls; the
 // decision the panel asks for (approve, or review and sign) sits in its foot, always in view.
 import { useState } from 'react'
-import { command, request, dateTime, type Actor, type Envelope } from './types'
+import { command, request, dateTime, zonedAndUtc, type Actor, type Envelope } from './types'
 import { EnvelopeShares } from './envelope-shares'
 import { ErrorNotice, useAction } from './feedback'
 import { PdfViewer } from './pdf-viewer'
@@ -13,6 +13,8 @@ import { Icon } from './icons'
 import { currentSigners, pill, routingOrder, preparedByAgent, titleParts } from './envelope-view'
 
 // DELIV-001: what each kind of message is, as the Messages list names it.
+// MANAGE-005: the timeline's step names.
+const steps: Record<string, string> = { sent: 'Sent', delivered: 'Delivered', viewed: 'Viewed', authenticated: 'Authenticated', signed: 'Signed', declined: 'Declined', bounced: 'Bounced' }
 const messageKinds: Record<string, string> = { invitation: 'Invitation', code: 'Verification code', notice: 'Notice', copy: 'Completed copy', copy_code: 'Completed-copy code' }
 type Invitation = { url: string; code: string; recipient: string; expiresAt: string }
 type InvitationResult = { invitations?: Invitation[]; signInApp?: boolean }
@@ -49,9 +51,13 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
     setInvitations(current => actor.role === 'owner' ? [...current.filter(invitation => !result.invitations?.some(next => next.recipient === invitation.recipient)), ...(result.invitations ?? [])] : [])
     await refresh()
   }
+  // MANAGE-005: each recipient's timeline, and the remind action for whoever's turn it is.
+  const timeline = (index: number) => envelope.recipients?.find(recipient => recipient.signer === index)
+  const [reminded, setReminded] = useState<string[]>()
   const state = pill(envelope, actor), { name, detail } = titleParts(envelope.title)
   const me = (email: string) => email.toLowerCase() === actor.email.toLowerCase()
   const deciding = envelope.status === 'prepared' && mayEdit, signingHere = Boolean(envelope.ownSigningAvailable)
+  const remindable = mayEdit && envelope.status === 'awaiting_signature' && !envelope.scheduled && !envelope.manualInvitationAvailable && !signingHere && turn.some(index => envelope.signers[index].paper?.status !== 'pending')
   // ROUTE-009: an approver who signs at the first routing order signs here right after approving; nobody emails them.
   const signsFirst = deciding && currentSigners(envelope).some(index => me(envelope.signers[index].email))
   async function approve() {
@@ -66,8 +72,11 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
     <h3>Signing status</h3>
     <ol className="iw-signers">{envelope.signers.map((signer, index) => <li key={index} className={signer.declinedAt ? 'iw-declined' : signer.signedAt ? 'iw-signed' : turn.includes(index) ? 'iw-turn' : undefined}>
       <span className="iw-order" aria-hidden="true">{signer.signedAt ? <Check /> : routingOrder(envelope, index)}</span>
-      <div><strong>{signer.name}</strong><span className="iw-signer-email">{signer.email}{signer.accessCode ? ' · access code' : ''}</span><small>{signer.declinedAt ? `${signer.consentWithdrawn ? 'Withdrew consent' : 'Declined'} ${dateTime(signer.declinedAt)} · ${signer.declineReason}` : signer.signedAt ? `${signer.paper?.status === 'accepted' ? 'Signed on paper' : 'Signed'} ${dateTime(signer.signedAt)}` : signer.paper?.status === 'pending' ? 'Paper signature to review' : envelope.status === 'declined' ? 'Not invited' : turn.includes(index) ? me(signer.email) ? 'Waiting for your signature' : 'Invited, awaiting signature' : 'Awaiting signature'}</small></div>
+      <div><strong>{signer.name}</strong><span className="iw-signer-email">{signer.email}{signer.accessCode ? ' · access code' : ''}</span><small>{signer.declinedAt ? `${signer.consentWithdrawn ? 'Withdrew consent' : 'Declined'} ${dateTime(signer.declinedAt)} · ${signer.declineReason}` : signer.signedAt ? `${signer.paper?.status === 'accepted' ? 'Signed on paper' : 'Signed'} ${dateTime(signer.signedAt)}` : signer.paper?.status === 'pending' ? 'Paper signature to review' : envelope.status === 'declined' ? 'Not invited' : turn.includes(index) ? me(signer.email) ? 'Waiting for your signature' : 'Invited, awaiting signature' : 'Awaiting signature'}</small>
+        {timeline(index)?.waitingOn && <small>Waiting on: {timeline(index)!.waitingOn}</small>}
+        {timeline(index)?.steps.length ? <ul className="iw-timeline" aria-label={`${signer.name} timeline`}>{timeline(index)!.steps.map(step => <li key={step.step + step.at}><strong>{steps[step.step] ?? step.step}</strong> <time dateTime={step.at}>{zonedAndUtc(step.at, envelope.timeZone ?? 'America/New_York')}</time>{step.detail && step.step !== 'sent' ? ` · ${step.detail}` : ''}</li>)}</ul> : null}</div>
     </li>)}</ol>
+    {remindable && <div className="iw-actions"><button disabled={action.busy} onClick={() => void action.run(async () => { const result = await command<{ reminded: string[] }>('envelope.remind', { id: envelope.id }); setReminded(result.reminded); await refresh() })}>{action.busy ? 'Sending…' : 'Remind'}</button>{reminded && <span role="status">Reminder sent to {reminded.join(', ')}</span>}</div>}
     {envelope.copies?.length ? <><h3>Receive a copy</h3><ul className="iw-signers">{envelope.copies.map(copy => <li key={copy.email}><span className="iw-order" aria-hidden="true">{envelope.status === 'completed' ? <Check /> : '·'}</span><div><strong>{copy.name}</strong><span className="iw-signer-email">{copy.email}</span><small>{envelope.status !== 'completed' ? 'Gets the completed copy when everyone has signed' : envelope.events.some(event => event.action === 'envelope.copies_queued') ? 'Completed copy queued for email' : 'No copy emailed: mail was not set up'}</small></div></li>)}</ul></> : null}
 
     {deciding && <div className="iw-decision">
