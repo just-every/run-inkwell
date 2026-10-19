@@ -63,6 +63,7 @@ export async function reviewPaper(env: Env, context: CommandContext, input: Reco
   const writes = await advanceAfterSigning(env, after, index)
   const result = { id: after.id, status: after.status, paper: 'accepted' }
   await commitEnvelope(env.DB, before, after, context.actor, [...writes, commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
-  if (after.status === 'completed') { await readBlob(env.DB, after.id, 'signed', after.signedSha256); await readBlob(env.DB, after.id, 'certificate', after.certificateSha256) } else await dispatchMail(env, after.id)
+  if (after.status === 'completed') { await readBlob(env.DB, after.id, 'signed', after.signedSha256); await readBlob(env.DB, after.id, 'certificate', after.certificateSha256) }
+  await dispatchMail(env, after.id)
   return result
 }

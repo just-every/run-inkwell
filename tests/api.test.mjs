@@ -458,6 +458,51 @@ test('IDV-003: a recipient must enter the sender-set access code before the docu
  assert.equal(after.events.filter(e=>e.action==='signer.access_code_rejected').length,6);assert.ok(after.events.some(e=>e.action==='signer.access_locked'&&e.detail.signer===1))
  assert.ok(after.events.some(e=>e.action==='signer.access_code_verified'&&e.detail.signer===0))
 })
+// DELIV-007: on completion every signer and copy recipient gets the executed PDF and certificate, by a secure link
+// opened with a code sent to their own mailbox, or attached when an owner or admin chose attachments.
+test('DELIV-007: two signers and a copy recipient each receive the completed copy; secure links need their mailbox code, and the attachment setting attaches both files',async()=>{
+ const viewer=await h.invite('copy.viewer@harbour.example','member')
+ const complete=async title=>{
+  const id=(await h.command('envelope.prepare',{...preparation(),title,copies:[{name:'Cass Copy',email:'Cass.Copy@Harbour.example'}]})).result.id
+  assert.deepEqual((await stored(id)).copies,[{name:'Cass Copy',email:'cass.copy@harbour.example'}],'the copy recipient is on the envelope')
+  await h.command('envelope.approve',{id,eligible:true})
+  assert.equal(await h.mail('cass.copy@harbour.example','Please sign:'),undefined,'a copy recipient gets no action link')
+  for(const [signer,{email,name}] of recipients.entries()){const v=await verified(email);await h.post(v.path+'/sign',{values:{[`signature-${signer}`]:name},consent:true,commandId:crypto.randomUUID()},v.cookie)}
+  const e=await stored(id);assert.equal(e.status,'completed');return e
+ }
+ await h.command('envelope.prepare',{...preparation(),copies:[{name:'Same',email:recipients[0].email}]},h.owner,400)
+ const e=await complete('Harbour Studio — completed copies by link'),signed=(await h.send(`/api/inkwell/envelopes/${e.id}/artifacts/signed`,undefined,h.owner)).bytes
+ assert.deepEqual(e.events.find(x=>x.action==='envelope.copies_queued').detail.recipients.map(r=>r.role),['signer','signer','copy'])
+ const links={}
+ for(const email of [...recipients.map(r=>r.email),'cass.copy@harbour.example']){
+  const message=await h.mail(email,'Completed: Harbour Studio — completed copies by link');assert.ok(message,`${email} receives the completed copy`)
+  assert.equal(message.attachments,undefined);links[email]='/api'+new URL(message.text.match(/http:\/\/[^\s]+\/copy\/[a-f0-9]{64}/)[0]).pathname
+ }
+ const casey=links['cass.copy@harbour.example'],view=(await h.send(casey)).value
+ assert.equal(view.recipient.role,'copy');assert.equal(view.verified,false)
+ assert.equal((await h.send(casey+'/artifacts/signed')).status,401,'the link alone does not open the copy')
+ await h.post(casey+'/code',{},'');await h.post(casey+'/code',{},'',429)
+ const code=(await h.mail('cass.copy@harbour.example','code for a completed copy')).text.match(/\b\d{6}\b/)[0]
+ await h.post(casey+'/verify',{code:code==='000000'?'111111':'000000'},'',401)
+ const opened=await h.post(casey+'/verify',{code},'')
+ const file=await h.send(casey+'/artifacts/signed',undefined,opened.cookie);assert.equal(file.status,200);assert.equal(digest(file.bytes),digest(signed))
+ assert.equal((await h.send(casey+'/artifacts/certificate',undefined,opened.cookie)).status,200)
+ assert.equal((await h.send(links[recipients[0].email]+'/artifacts/signed',undefined,opened.cookie)).status,401,'one mailbox code opens only its own link')
+ assert.equal((await h.send(`/api/inkwell/envelopes/${e.id}/artifacts/certificate`,undefined,h.owner)).status,200,'the account keeps the completed files')
+ assert.ok((await stored(e.id)).events.some(x=>x.action==='copy.email_verified'&&x.detail.email==='cass.copy@harbour.example'))
+ // attachments, chosen by an owner or admin
+ await h.command('account.completed_copies',{delivery:'attachment'},viewer,403)
+ await h.command('account.completed_copies',{delivery:'attachment'})
+ assert.equal((await h.send('/api/inkwell',undefined,h.owner)).value.settings.completedCopies,'attachment')
+ const attached=await complete('Harbour Studio — completed copies attached')
+ const executed=(await h.send(`/api/inkwell/envelopes/${attached.id}/artifacts/signed`,undefined,h.owner)).bytes,certificate=(await h.send(`/api/inkwell/envelopes/${attached.id}/artifacts/certificate`,undefined,h.owner)).bytes
+ for(const email of [...recipients.map(r=>r.email),'cass.copy@harbour.example']){
+  const message=await h.mail(email,'Completed: Harbour Studio — completed copies attached')
+  assert.ok(!/\/copy\//.test(message.text),'no link when attached')
+  assert.deepEqual(message.attachments.map(a=>digest(Buffer.from(a.content,'base64'))),[digest(executed),digest(certificate)])
+ }
+ await h.command('account.completed_copies',{delivery:'link'})
+})
 test('MANAGE-001: with 5,000 envelopes, search by recipient email answers in under a second and each status filter shows the right count',async()=>{
  const day=86_400_000,now=Date.now(),kinds=['prepared','awaiting_signature','completed','declined','voided','expired','mine'],expected={draft:0,waiting_for_me:0,waiting_for_others:0,completed:0,declined:0,voided:0,expired:0,imported:0}
  const rows=Array.from({length:5000},(_,i)=>{const kind=kinds[i%kinds.length],createdAt=new Date(now-(i+1)*60_000).toISOString(),id=`bulk-${String(i).padStart(4,'0')}`

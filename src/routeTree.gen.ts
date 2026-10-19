@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as VerifyRouteImport } from './routes/verify'
+import { Route as CopyTokenRouteImport } from './routes/copy.$token'
 import { Route as SignTokenRouteImport } from './routes/sign.$token'
 
 const AppRoute = AppRouteImport.update({
@@ -23,6 +24,11 @@ const VerifyRoute = VerifyRouteImport.update({
   path: '/verify',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CopyTokenRoute = CopyTokenRouteImport.update({
+  id: '/copy/$token',
+  path: '/copy/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignTokenRoute = SignTokenRouteImport.update({
   id: '/sign/$token',
   path: '/sign/$token',
@@ -32,30 +38,34 @@ const SignTokenRoute = SignTokenRouteImport.update({
 export interface FileRoutesByFullPath {
   '/app': typeof AppRoute
   '/verify': typeof VerifyRoute
+  '/copy/$token': typeof CopyTokenRoute
   '/sign/$token': typeof SignTokenRoute
 }
 export interface FileRoutesByTo {
   '/app': typeof AppRoute
   '/verify': typeof VerifyRoute
+  '/copy/$token': typeof CopyTokenRoute
   '/sign/$token': typeof SignTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/app': typeof AppRoute
   '/verify': typeof VerifyRoute
+  '/copy/$token': typeof CopyTokenRoute
   '/sign/$token': typeof SignTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/app' | '/verify' | '/sign/$token'
+  fullPaths: '/app' | '/verify' | '/copy/$token' | '/sign/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/app' | '/verify' | '/sign/$token'
-  id: '__root__' | '/app' | '/verify' | '/sign/$token'
+  to: '/app' | '/verify' | '/copy/$token' | '/sign/$token'
+  id: '__root__' | '/app' | '/verify' | '/copy/$token' | '/sign/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRoute
   VerifyRoute: typeof VerifyRoute
+  CopyTokenRoute: typeof CopyTokenRoute
   SignTokenRoute: typeof SignTokenRoute
 }
 
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/copy/$token': {
+      id: '/copy/$token'
+      path: '/copy/$token'
+      fullPath: '/copy/$token'
+      preLoaderRoute: typeof CopyTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sign/$token': {
       id: '/sign/$token'
       path: '/sign/$token'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRoute,
   VerifyRoute: VerifyRoute,
+  CopyTokenRoute: CopyTokenRoute,
   SignTokenRoute: SignTokenRoute,
 }
 export const routeTree = rootRouteImport

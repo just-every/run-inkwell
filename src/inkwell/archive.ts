@@ -56,7 +56,7 @@ async function erase(env: Bindings, actor: Actor, input: Record<string, unknown>
  const before = await getEnvelope(env.DB,input.id)
  insist(before.status !== 'awaiting_signature', 'Void an active envelope before erasing it.', 409)
  const service = await createPortability({ db: guardedDatabase(env.DB,actor), policy })
- const deleted = ['iw_blobs','iw_events','iw_signers','iw_mail','iw_access_codes'].map(table => env.DB.prepare(`DELETE FROM ${table} WHERE envelope_id=?`).bind(before.id))
+ const deleted = ['iw_blobs','iw_events','iw_signers','iw_mail','iw_access_codes','iw_copy_links'].map(table => env.DB.prepare(`DELETE FROM ${table} WHERE envelope_id=?`).bind(before.id))
  await atomic(env.DB,[roleGuard(actor,['owner']),{sql:'EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=?)',values:[before.id,before.version]}],[
   ...await service.redactionStatements(), ...await service.erasureStatements('iw_envelopes',{id:before.id}), ...await service.invalidateTransfersStatements(),
   env.DB.prepare("DELETE FROM rer_mail_development_outbox WHERE json_extract(message,'$.deliveryId') IN (SELECT id FROM iw_mail WHERE envelope_id=?)").bind(before.id),

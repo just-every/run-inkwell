@@ -1,13 +1,13 @@
 export type Field = { id: string; signer: number; type: 'signature' | 'text' | 'date'; label: string; page: number; x: number; y: number; width: number; height: number }
 export type Signer = { name: string; email: string; order?: number; accessCode?: boolean; signedAt?: string; declinedAt?: string; declineReason?: string; consentWithdrawn?: boolean; paper?: { status: 'pending' | 'accepted' | 'rejected'; pages: number; mediaType: string; uploadedAt: string; reason?: string } }
-export type Envelope = { manualInvitationAvailable?: boolean; ownSigningAvailable?: boolean; id: string; title: string; status: string; createdAt: string; expiresAt: string; signers: Signer[]; fields: Field[]; originalSha256: string; signedSha256?: string; certificateSha256?: string; copiedFrom?: string; reminders?: { afterDays: number; everyDays: number }; events: { action: string; at: string; actor?: string; detail?: Record<string, unknown> }[] }
+export type Envelope = { manualInvitationAvailable?: boolean; ownSigningAvailable?: boolean; id: string; title: string; status: string; createdAt: string; expiresAt: string; signers: Signer[]; fields: Field[]; originalSha256: string; signedSha256?: string; certificateSha256?: string; copiedFrom?: string; reminders?: { afterDays: number; everyDays: number }; copies?: { name: string; email: string }[]; events: { action: string; at: string; actor?: string; detail?: Record<string, unknown> }[] }
 export type Actor = { id: string; name: string; email: string; role: string }
 export type Person = { id: string; name: string; email: string; role: string }
 /** MANAGE-001: the dashboard's status buckets and one page of the server's envelope search. */
 export const buckets = ['draft', 'waiting_for_me', 'waiting_for_others', 'completed', 'declined', 'voided', 'expired', 'imported'] as const
 export type Bucket = typeof buckets[number]
 export type Page = { envelopes: (Envelope & { bucket: Bucket })[]; counts: Record<Bucket, number>; total: number; next: string | null }
-export type Workspace = { actor: Actor; people?: Person[]; agents?: { id: string; createdAt?: string; revokedAt?: string; label?: string }[] }
+export type Workspace = { actor: Actor; people?: Person[]; settings?: { completedCopies: 'link' | 'attachment' }; agents?: { id: string; createdAt?: string; revokedAt?: string; label?: string }[] }
 export async function request<T>(url: string, body?: unknown): Promise<T> {
   const response = await fetch(url, body === undefined ? { credentials: 'same-origin' } : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   const parsed: unknown = await response.json().catch(() => null)

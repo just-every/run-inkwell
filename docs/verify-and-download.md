@@ -13,6 +13,16 @@ Open a completed envelope from **Envelopes**. Its buttons download:
 | **Handoff manifest** | The envelope, signers, dates and content fingerprints, to file the record elsewhere by hand. |
 | **Audit JSON** | Every event in the envelope's audit trail. |
 
+## Copies for everyone who took part
+
+When the last person signs, every signer and every copy recipient you added under
+**Receive a copy** gets the executed PDF and certificate by email. By default the email holds
+a secure link that only that person can open: they choose **Email me a code**, enter the
+six-digit code sent to their own mailbox, and download both files. An owner or admin can
+choose **Attached to the email** under **Settings → Completed copies**; files over 10 MB
+together still go as a secure link. The completed envelope keeps both files in your account.
+Without mail set up, no copies are emailed.
+
 ## Check it again
 
 Under **Artifact integrity**, Inkwell shows the SHA-256 fingerprint of the original, the

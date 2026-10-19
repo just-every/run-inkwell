@@ -83,7 +83,7 @@ Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed her
 - **DELIV-004 — Configurable expiry with warnings** (done). An envelope set to expire in 10 days warns on day 7, the sender extends it by 14 days, and the signer signs on day 12.
 - **DELIV-005 — Resend by email or SMS** (missing). Resend by SMS through the provider fake, the signer opens the SMS link and signs; after rotation the old link refuses.
 - **DELIV-006 — Correct an envelope in flight** (missing). After signer 1 signs, correct signer 2's email and add a copy recipient; signer 1's signature stands, the old link for signer 2 refuses, and the new one completes the envelope; an attempt to change signer 1's signed field, through the correction screen or the API, is refused; the audit trail shows each correction with its before and after values.
-- **DELIV-007 — Completed copies to every party** (partial). Complete an envelope with two signers and a copy recipient; all three receive the completed copy through the mail fake, and secure links require their mailbox code.
+- **DELIV-007 — Completed copies to every party** (done). Complete an envelope with two signers and a copy recipient; all three receive the completed copy through the mail fake, and secure links require their mailbox code.
 - **DELIV-008 — Sender notifications** (missing). A sender subscribed to declines and completions in Slack, Microsoft Teams, Nook and email receives each through the Slack and Teams fakes, a Nook test installation and the mail fake, and nothing else; after unsubscribing from completions in Teams, the next completion reaches the other three channels and not Teams; every notice appears in the in-app activity feed.
 
 ### Bulk send and web forms

@@ -195,7 +195,7 @@ Inkwell is one product. Where the market sells a neighbouring product separately
 
 - **DELIV-006 — Correct an envelope in flight.** Before a recipient acts, the sender (or anyone the envelope is shared with for editing, or an admin) changes their name, email or phone, adds or removes later recipients, and edits the messages, expiry or the fields of recipients who have not yet acted, without invalidating signatures already given. Corrections are the only way a sent envelope changes (`SEND-001`): each is audited with its before and after values, old links stop working, and a field already signed and a signature already given can never be changed. **Acceptance evidence:** after signer 1 signs, correct signer 2's email and add a copy recipient; signer 1's signature stands, the old link for signer 2 refuses, and the new one completes the envelope; an attempt to change signer 1's signed field, through the correction screen or the API, is refused; the audit trail shows each correction with its before and after values.
 
-- **DELIV-007 — Completed copies to every party.** On completion, every recipient and copy recipient receives the executed documents and certificate as an attachment or a secure link (account setting; attachments above 10 MB become links), and the sender's account files them. **Acceptance evidence:** complete an envelope with two signers and a copy recipient; all three receive the completed copy through the mail fake, and secure links require their mailbox code.
+- **DELIV-007 — Completed copies to every party.** On completion, every recipient and copy recipient receives the executed documents and certificate as an attachment or a secure link (account setting; attachments above 10 MB become links), and the sender's account files them. An envelope has up to 20 copy recipients today (`ROUTE-001`'s copy role, each email different from every signer's), who get no action link. The setting is the owner's or an admin's for the whole account (with `ADMIN-004`'s account defaults when they ship), a secure link until changed; with attachments chosen, an executed PDF and certificate together above 10,000,000 bytes go as a secure link. A secure link belongs to one recipient and opens only after a six-digit code sent to that recipient's mailbox (one a minute, ten per link, each valid 10 minutes with five tries), then stays open in that browser for 24 hours; it works while the envelope exists and stops at erasure (`ERASE-001`). Copy links and the setting are installation state and do not travel in an archive. The sender's account files the copies by keeping the executed PDF and certificate on the completed envelope. The record names every recipient queued and the delivery used, and each code request and check on a link; when mail is not set up no copy is sent or recorded as sent, and the envelope says so. Recipients that later clauses add (`ROUTE-001`, `ROUTE-011`) receive the completed copy this way before they ship, and `ROUTE-012` limits each copy to that recipient's visible documents. **Acceptance evidence:** complete an envelope with two signers and a copy recipient; all three receive the completed copy through the mail fake, and secure links require their mailbox code.
 
 - **DELIV-008 — Sender notifications.** Senders get viewed, signed, declined, completed, bounced and expiring notices by email, in an in-app activity feed and, when connected, in Slack, Microsoft Teams or Nook; each person chooses which they receive. **Acceptance evidence:** a sender subscribed to declines and completions in Slack, Microsoft Teams, Nook and email receives each through the Slack and Teams fakes, a Nook test installation and the mail fake, and nothing else; after unsubscribing from completions in Teams, the next completion reaches the other three channels and not Teams; every notice appears in the in-app activity feed.
 
@@ -368,8 +368,8 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 2 | 0 | 10 |
-| Target and push further | 12 | 23 | 72 | 107 |
-| All | 20 | 25 | 72 | 117 |
+| Target and push further | 13 | 22 | 72 | 107 |
+| All | 21 | 24 | 72 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -400,7 +400,7 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `TMPL-003` | Template versions that never change sent envelopes | target | missing |  | No template versions |
 | `TMPL-004` | Several templates in one envelope | target | missing |  | No templates, so no combining several in one envelope |
 | `TMPL-005` | Template matching on upload | target | missing |  | No template matching on upload |
-| `ROUTE-001` | Any number of recipients and roles | target | partial | `src/inkwell/envelopes.ts` | One to five signers only; no approver, form filler, witness, in-person or copy roles |
+| `ROUTE-001` | Any number of recipients and roles | target | partial | `src/inkwell/envelopes.ts`; `src/inkwell/completed-copies.ts` | One to five signers and up to 20 copy recipients (`DELIV-007`); no approver, form filler, witness, in-person, specify-recipients, editor or needs-to-view roles |
 | `ROUTE-002` | Sequential, parallel and mixed order | target | done | `src/inkwell/model.ts`; `src/inkwell/signing.ts`; `src/ui/prepare-envelope.tsx`; `tests/api.test.mjs` | Each recipient has a routing order from 1 to 100; equal orders are invited together and sign in parallel, and the next order is invited once all of them have signed (test `ROUTE-002`) |
 | `ROUTE-003` | Conditional routing | target | missing |  | No conditional routing |
 | `ROUTE-004` | Internal approval before sending | target | missing |  | No internal approver step beyond the sender's own approval |
@@ -432,7 +432,7 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `DELIV-004` | Configurable expiry with warnings | target | done | `tests/api.test.mjs`; `src/inkwell/expiry.ts`; `src/server.ts`; `src/ui/envelope-detail.tsx`; `src/ui/prepare-envelope.tsx` |  |
 | `DELIV-005` | Resend by email or SMS | target | missing |  | Only verification codes can be re-requested; no invitation resend or SMS |
 | `DELIV-006` | Correct an envelope in flight | target | missing |  | No in-flight correction |
-| `DELIV-007` | Completed copies to every party | target | partial | `src/inkwell/signing.ts` | Signers can download after completion; no automatic distribution or copy recipients |
+| `DELIV-007` | Completed copies to every party | target | done | `tests/api.test.mjs`; `src/inkwell/completed-copies.ts`; `src/inkwell/mail.ts`; `src/ui/completed-copy.tsx` | Every signer and copy recipient gets the completed copy by a per-recipient secure link opened with their mailbox code, or attached when an owner or admin chose attachments (test `DELIV-007`); per-recipient document visibility arrives with `ROUTE-012` |
 | `DELIV-008` | Sender notifications | target | missing |  | No sender notifications |
 | `BULK-001` | Bulk send from a spreadsheet | target | missing |  | No bulk send |
 | `FORM-001` | Public signing web forms | target | missing |  | No web forms |
