@@ -31,7 +31,17 @@ An unfinished envelope can be voided with a reason, and the reason stays on reco
 | `completed` | Everyone signed. The executed PDF and certificate exist. |
 | `declined` | A signer declined with a reason or withdrew consent to electronic signing; signing stopped and a certificate records it. |
 | `voided` | Stopped before completion, with the reason in the audit trail. |
-| `expired` | The envelope expired before everyone signed. |
+| `expired` | The envelope expired before everyone signed. The sender can extend it. |
+
+## Find envelopes through the API
+
+Any signed-in member can search every envelope one page at a time with
+`GET /api/inkwell/envelopes`. `q` matches the title and any recipient's name or email;
+`status` is `draft`, `waiting_for_me`, `waiting_for_others`, `completed`, `declined`,
+`voided`, `expired` or `imported`; `from` and `to` bound the prepared date; `sender` is the
+preparing member's ID; `limit` is 1–100 (50 by default). The answer holds the page, a count
+for every status under the same search, and a `next` value to pass back as `cursor` for the
+following page. The Envelopes screen does not use this search yet.
 
 ## Who can do what
 

@@ -305,6 +305,30 @@ test('IDV-003: a recipient must enter the sender-set access code before the docu
  assert.equal(after.events.filter(e=>e.action==='signer.access_code_rejected').length,6);assert.ok(after.events.some(e=>e.action==='signer.access_locked'&&e.detail.signer===1))
  assert.ok(after.events.some(e=>e.action==='signer.access_code_verified'&&e.detail.signer===0))
 })
+test('MANAGE-001: with 5,000 envelopes, search by recipient email answers in under a second and each status filter shows the right count',async()=>{
+ const day=86_400_000,now=Date.now(),kinds=['prepared','awaiting_signature','completed','declined','voided','expired','mine'],expected={draft:0,waiting_for_me:0,waiting_for_others:0,completed:0,declined:0,voided:0,expired:0,imported:0}
+ const rows=Array.from({length:5000},(_,i)=>{const kind=kinds[i%kinds.length],createdAt=new Date(now-(i+1)*60_000).toISOString(),id=`bulk-${String(i).padStart(4,'0')}`
+  const status=kind==='expired'?'awaiting_signature':kind==='mine'?'awaiting_signature':kind
+  const signers=[{name:`Client ${i}`,email:kind==='mine'?'owner@harbour.example':`client${i}@harbour.example`,...(['completed'].includes(kind)?{signedAt:createdAt}:{})},{name:'Harbour Counsel',email:'counsel@harbour.example',...(kind==='completed'?{signedAt:createdAt}:{})}]
+  expected[{prepared:'draft',awaiting_signature:'waiting_for_others',mine:'waiting_for_me'}[kind]??kind]++
+  return {id,version:1,title:`Bulk fixture ${i} · Mooring renewal`,filename:'renewal.pdf',status,createdAt,createdBy:i%2?'sender-a':'sender-b',expiresAt:new Date(kind==='expired'?now-day:now+30*day).toISOString(),signers,fields:[],pageSizes:[{width:595,height:842}],originalSha256:'0'.repeat(64),events:[{action:'envelope.prepared',at:createdAt,actor:'sender',detail:{},previousHash:'',hash:'1'.repeat(64)}]}})
+ for(let i=0;i<rows.length;i+=250) await h.db.batch(rows.slice(i,i+250).map(e=>h.db.prepare('INSERT INTO iw_envelopes(id,version,data) VALUES(?,?,?)').bind(e.id,1,JSON.stringify(e))))
+ const search=async query=>{const started=performance.now(),r=await h.send('/api/inkwell/envelopes?'+new URLSearchParams(query),undefined,h.owner);assert.equal(r.status,200,JSON.stringify(r.value));return {...r.value,ms:performance.now()-started}}
+ const found=await search({q:'client4321@harbour.example'})
+ assert.ok(found.ms<1000,`search by recipient email took ${Math.round(found.ms)} ms`)
+ assert.deepEqual(found.envelopes.map(e=>e.id),['bulk-4321']);assert.equal(found.total,1)
+ const all=await search({q:'bulk fixture'})
+ assert.deepEqual(all.counts,expected);assert.equal(all.total,5000)
+ for(const [status,count] of Object.entries(expected)) { const page=await search({q:'bulk fixture',status,limit:'100'}); assert.equal(page.envelopes.length,Math.min(100,count),status); assert.ok(page.envelopes.every(e=>e.bucket===status),status); assert.equal(Boolean(page.next),count>100,status) }
+ const first=await search({q:'bulk fixture',limit:'100'}),second=await search({q:'bulk fixture',limit:'100',cursor:first.next})
+ assert.equal(first.envelopes[0].id,'bulk-0000');assert.equal(second.envelopes[0].id,'bulk-0100','pages follow on without gaps')
+ assert.equal((await search({q:'bulk fixture',sender:'sender-a'})).total,2500)
+ assert.equal((await search({q:'bulk fixture',from:new Date(now-10.5*60_000).toISOString(),to:new Date(now).toISOString()})).total,10,'filter by date')
+ assert.equal((await search({q:'counsel@harbour'})).total,5000,'any recipient email matches')
+ assert.equal((await h.send('/api/inkwell/envelopes?status=unknown',undefined,h.owner)).status,400)
+ assert.equal((await h.send('/api/inkwell/envelopes')).status,401)
+ await h.db.batch(['iw_envelopes'].map(()=>h.db.prepare("DELETE FROM iw_envelopes WHERE id LIKE 'bulk-%'")))
+})
 test('DocuSeal dry run, explicit fingerprint, journal, downloads and undo preserve custody',async()=>{
  const archive=await readFile('tests/fixtures/docuseal/archive.json','utf8')
  const preview=(await h.post('/api/inkwell/import/preview',{archive})).value

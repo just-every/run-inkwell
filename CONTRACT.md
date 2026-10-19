@@ -436,7 +436,7 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `DELIV-008` | Sender notifications | target | missing |  | No sender notifications |
 | `BULK-001` | Bulk send from a spreadsheet | target | missing |  | No bulk send |
 | `FORM-001` | Public signing web forms | target | missing |  | No web forms |
-| `MANAGE-001` | Envelope dashboard with search | target | partial | `src/inkwell/api.ts`; `src/ui/operator-app.tsx` | Unpaged list of every envelope with its status; no search, filters or waiting lists |
+| `MANAGE-001` | Envelope dashboard with search | target | partial | `tests/api.test.mjs`; `src/inkwell/search.ts`; `src/ui/operator-app.tsx` | `GET /api/inkwell/envelopes` pages, searches title and recipient name or email, filters by status, date and sender and counts every status, timed at 5,000 envelopes; the Envelopes screen still loads every envelope, filters in the browser and has no draft, declined or expired chips; no custom-field or template filters (`MANAGE-002`, `TMPL-001`) |
 | `MANAGE-002` | Folders, tags and custom envelope fields | target | missing |  | No folders, tags or custom fields |
 | `MANAGE-003` | Waiting for me | target | missing |  | No in-app waiting-for-me list |
 | `MANAGE-004` | Reports and exports | target | missing |  | No reports |
