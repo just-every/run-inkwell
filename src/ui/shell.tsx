@@ -5,7 +5,7 @@ import { Icon, type IconName } from './icons'
 import { clockTime, type Actor } from './types'
 
 export type Place = 'envelopes' | 'me' | 'move-in' | 'archive' | 'agents' | 'settings'
-export const roleLabel = { owner: 'Owner', admin: 'Admin', member: 'Member' } as Record<string, string>
+export const roleLabel = { owner: 'Owner', admin: 'Admin', sender: 'Sender', viewer: 'Viewer' } as Record<string, string>
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]?.toUpperCase()).join('') || '·'
 
 export function Brand({ href = '/app' }: { href?: string }) {

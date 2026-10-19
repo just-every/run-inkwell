@@ -33,12 +33,53 @@ before(async()=>{
 })
 after(async()=>{await h?.close()})
 
-test('native sessions and roles guard each document, import, agent and archive door',async()=>{
- for(const path of ['/api/inkwell','/api/inkwell/archive','/api/inkwell/import/jobs']) assert.equal((await h.send(path)).status,401)
- assert.equal((await h.send('/api/inkwell',undefined,member)).status,200)
- for(const [path,body] of [['/api/inkwell/commands',{command:'envelope.prepare',commandId:crypto.randomUUID(),input:preparation()}],['/api/inkwell/archive/restore',{archive:{}}],['/api/inkwell/erase',{id:'missing',confirmation:'ERASE'}],['/api/inkwell/import/preview',{archive:{}}]]) assert.equal((await h.send(path,body,member)).status,403)
- await h.command('agent.issue',{},member,403)
- assert.equal((await h.send('/api/inkwell/commands',{command:'envelope.prepare',commandId:crypto.randomUUID(),input:preparation()},h.owner,{origin:'https://outside.example'})).status,403)
+// ACCESS-001: Base members are viewers until an owner or admin makes them senders; a sender sees and acts on only the
+// envelopes they created; owners and admins act on all; only the owner manages archives, imports and agent tokens.
+const sender=async(email,by=h.owner)=>{const cookie=await h.invite(email,'member'),me=(await h.send('/api/inkwell',undefined,cookie)).value.actor;assert.equal(me.role,'viewer','a new member is a viewer');await h.command('member.role',{operatorId:me.id,role:'sender'},by);return {cookie,id:me.id}}
+test('ACCESS-001: signed-out, viewer, sender, admin and owner requests meet the role matrix at every door, and every write rechecks the current role',async()=>{
+ const admin=await h.invite('ada.admin@harbour.example','admin'),sam=await sender('sam.sender@harbour.example',admin),sky=await sender('sky.sender@harbour.example')
+ const ownerEnvelope=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio owner lease'})).result.id
+ const samEnvelope=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio Sam proposal'},sam.cookie)).result.id
+ const list=async cookie=>(await h.send('/api/inkwell',undefined,cookie)).value.envelopes.map(e=>e.id)
+ const search=async cookie=>(await h.send('/api/inkwell/envelopes?q=harbour%20studio&limit=100',undefined,cookie)).value.envelopes.map(e=>e.id)
+ for(const path of ['/api/inkwell','/api/inkwell/envelopes','/api/inkwell/archive','/api/inkwell/import/jobs',`/api/inkwell/envelopes/${ownerEnvelope}/artifacts/original`]) assert.equal((await h.send(path)).status,401,`signed out: ${path}`)
+ assert.equal((await h.send('/api/inkwell/commands',{command:'envelope.prepare',commandId:crypto.randomUUID(),input:preparation()},'')).status,401)
+ // viewer: reads every envelope, changes none
+ for(const id of [ownerEnvelope,samEnvelope]) { assert.ok((await list(member)).includes(id)); assert.equal((await h.send(`/api/inkwell/envelopes/${id}/artifacts/original`,undefined,member)).status,200) }
+ for(const [command,input] of [['envelope.prepare',preparation()],['envelope.approve',{id:samEnvelope,eligible:true}],['envelope.void',{id:samEnvelope,reason:'No'}],['envelope.copy',{id:samEnvelope}],['member.role',{operatorId:sam.id,role:'viewer'}],['agent.issue',{}]]) await h.command(command,input,member,403)
+ // sender: only their own, absent from list and search otherwise
+ assert.deepEqual((await list(sam.cookie)).filter(id=>[ownerEnvelope,samEnvelope].includes(id)),[samEnvelope]);assert.ok(!(await search(sam.cookie)).includes(ownerEnvelope));assert.ok((await search(sam.cookie)).includes(samEnvelope))
+ assert.ok(!(await list(sky.cookie)).includes(samEnvelope),'another sender cannot see it');assert.ok(!(await search(sky.cookie)).includes(samEnvelope))
+ for(const path of [`/api/inkwell/envelopes/${samEnvelope}/artifacts/original`,`/api/inkwell/envelopes/${samEnvelope}/verify`]) assert.equal((await h.send(path,undefined,sky.cookie)).status,403)
+ for(const [command,input] of [['envelope.approve',{id:samEnvelope,eligible:true}],['envelope.void',{id:samEnvelope,reason:'Not mine'}],['envelope.extend',{id:samEnvelope,days:5}],['member.role',{operatorId:sky.id,role:'viewer'}],['envelope.invite',{id:samEnvelope}],['agent.issue',{}]]) await h.command(command,input,sky.cookie,403)
+ await h.command('envelope.approve',{id:ownerEnvelope,eligible:true},sam.cookie,403)
+ // admin and owner: every envelope; archives, imports, erasure and agent tokens are the owner's
+ for(const cookie of [admin,h.owner]) for(const id of [ownerEnvelope,samEnvelope]) assert.ok((await list(cookie)).includes(id))
+ for(const [path,body] of [['/api/inkwell/archive/restore',{archive:{}}],['/api/inkwell/erase',{id:'missing',confirmation:'ERASE'}],['/api/inkwell/import/preview',{archive:{}}]]) for(const cookie of [admin,sam.cookie,member]) assert.equal((await h.send(path,body,cookie)).status,403,`${path} is the owner's`)
+ await h.command('agent.issue',{},admin,403)
+ await h.command('envelope.void',{id:samEnvelope,reason:'Admin tidy-up'},admin)
+ // the current role: a sender made a viewer loses sending on their next request
+ await h.command('member.role',{operatorId:sky.id,role:'viewer'},admin)
+ await h.command('envelope.prepare',preparation(),sky.cookie,403)
+ await h.command('member.role',{operatorId:(await h.send('/api/inkwell',undefined,admin)).value.actor.id,role:'viewer'},h.owner,409)
+ assert.equal((await h.send('/api/inkwell/commands',{command:'envelope.prepare',commandId:crypto.randomUUID(),input:preparation()},h.owner,{origin:'https://outside.example'})).status,403,'a cross-origin change is refused')
+ await h.command('envelope.void',{id:ownerEnvelope,reason:'Matrix checked'})
+})
+test('SEND-002: a sender voids their own envelope after sending and is refused on another sender\'s; the voided link refuses and the pending message is cancelled',async()=>{
+ const rio=await sender('rio.sender@harbour.example'),tess=await sender('tess.sender@harbour.example')
+ const recipient={name:'Uma Patel',email:'uma@harbour.example'}
+ const prepare=async(cookie,title)=>(await h.command('envelope.prepare',{...preparation(),title,signers:[recipient],fields:[fields[0]]},cookie)).result.id
+ const mine=await prepare(rio.cookie,'Harbour Studio Rio quote'),theirs=await prepare(tess.cookie,'Harbour Studio Tess quote')
+ await h.command('envelope.approve',{id:mine,eligible:true},rio.cookie)
+ const token=await signingToken(recipient.email)
+ await h.command('envelope.approve',{id:theirs,eligible:true},tess.cookie)
+ await h.db.prepare("INSERT INTO iw_mail(id,envelope_id,signer,kind,recipient,subject,body,created_at) VALUES(?,?,?,?,?,?,?,?)").bind('pending-'+mine,mine,0,'notice',recipient.email,'Queued','queued body',new Date().toISOString()).run()
+ await h.command('envelope.void',{id:theirs,reason:'Not my envelope'},rio.cookie,403)
+ assert.equal((await h.command('envelope.void',{id:mine,reason:'Price changed before signing'},rio.cookie)).result.status,'voided')
+ assert.equal((await h.send('/api/sign/'+token+'/code',{},'')).status,409,'the voided invitation link refuses')
+ assert.equal((await h.db.prepare('SELECT state FROM iw_mail WHERE id=?').bind('pending-'+mine).first()).state,'cancelled','the pending message is cancelled')
+ assert.equal((await snapshot()).envelopes.find(e=>e.id===theirs).status,'awaiting_signature','the other sender\'s envelope is untouched')
+ await h.command('envelope.void',{id:theirs,reason:'Test done'},tess.cookie)
 })
 test('a prepared fixed PDF requires explicit human approval and immutable recipient fields',async()=>{
  const prepared=await h.command('envelope.prepare',preparation());envelopeId=prepared.result.id

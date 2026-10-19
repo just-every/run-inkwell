@@ -24,6 +24,8 @@ export async function searchEnvelopes(env: Env, actor: Actor, params: URLSearchP
   const where: string[] = [], values: unknown[] = [new Date().toISOString(), actor.email.toLowerCase()]
   if (q) { where.push(`(lower(json_extract(e.data,'$.title')) LIKE ?${values.length + 1} ESCAPE '\\' OR EXISTS(SELECT 1 FROM json_each(e.data,'$.signers') s WHERE lower(json_extract(s.value,'$.email')) LIKE ?${values.length + 1} ESCAPE '\\' OR lower(json_extract(s.value,'$.name')) LIKE ?${values.length + 1} ESCAPE '\\'))`); values.push(like(q)) }
   if (sender) { where.push(`json_extract(e.data,'$.createdBy')=?${values.length + 1}`); values.push(sender) }
+  // ACCESS-001: a sender finds only the envelopes they created.
+  if (actor.role === 'sender') { where.push(`json_extract(e.data,'$.createdBy')=?${values.length + 1}`); values.push(actor.id) }
   if (from) { where.push(`json_extract(e.data,'$.createdAt')>=?${values.length + 1}`); values.push(new Date(from).toISOString()) }
   if (to) { where.push(`json_extract(e.data,'$.createdAt')<?${values.length + 1}`); values.push(new Date(to).toISOString()) }
   const filtered = `SELECT e.id, e.data, json_extract(e.data,'$.createdAt') AS created, ${bucket} AS bucket FROM iw_envelopes e${where.length ? ' WHERE ' + where.join(' AND ') : ''}`

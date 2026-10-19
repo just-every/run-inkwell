@@ -7,6 +7,7 @@ import { EnvelopeDetail } from './envelope-detail'
 import { MoveIn } from './move-in'
 import { AgentAccess, ArchiveAccess } from './archive-access'
 import { AccountSettings, Sidebar, TopBar, type Place } from './shell'
+import { PeopleRoles } from './people'
 import { AgentStrip, EmptyEnvelopes, EnvelopesHeading, EnvelopeTable, FilterChips } from './envelope-list'
 import { matches, needsMe, updatedAt, type Filter } from './envelope-view'
 
@@ -64,7 +65,7 @@ export function OperatorApp() {
             </>}
           </>)}
           {data && tab !== 'envelopes' && <section className="iw-heading"><h1>{headings[tab][0]}</h1><p className="iw-heading-line">{headings[tab][1]}</p></section>}
-          {data && owner && tab === 'move-in' && <MoveIn />}{data && owner && tab === 'archive' && <ArchiveAccess empty={!data.envelopes.length} refresh={refresh} />}{data && owner && tab === 'agents' && <AgentAccess agents={data.agents} refresh={refresh} />}{data && tab === 'settings' && <AccountSettings actor={data.actor} />}
+          {data && owner && tab === 'move-in' && <MoveIn />}{data && owner && tab === 'archive' && <ArchiveAccess empty={!data.envelopes.length} refresh={refresh} />}{data && owner && tab === 'agents' && <AgentAccess agents={data.agents} refresh={refresh} />}{data && tab === 'settings' && <AccountSettings actor={data.actor} />}{data && tab === 'settings' && ['owner', 'admin'].includes(data.actor.role) && <PeopleRoles people={data.people ?? []} refresh={refresh} />}
         </HydrationUnit></main>
         {panel && data && <HydrationUnit><aside className="iw-panel-col"><EnvelopeDetail key={panel.id} envelope={panel} actor={data.actor} refresh={refresh} onClose={() => setSelected('')} onOpen={setSelected} /></aside></HydrationUnit>}
       </div>

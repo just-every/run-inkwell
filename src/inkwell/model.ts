@@ -1,7 +1,8 @@
 import type { Bindings } from '../auth.server'
 export class Refusal extends Error { constructor(message: string, public status = 400) { super(message) } }
 export function insist(condition: unknown, message: string, status = 400): asserts condition { if (!condition) throw new Refusal(message, status) }
-export type Role = 'owner' | 'admin' | 'member'
+/** ACCESS-001: Base's owner and admin, and Inkwell's sender and viewer for a Base member (members.ts). */
+export type Role = 'owner' | 'admin' | 'sender' | 'viewer'
 export interface Actor { id: string; name: string; email: string; role: Role; version: number; sessionId?: string; agentId?: string }
 export interface Field { id: string; label: string; type: 'signature' | 'text' | 'date'; signer: number; page: number; x: number; y: number; width: number; height: number }
 export interface Signer { name: string; email: string; order?: number; accessCode?: boolean; signedAt?: string; values?: Record<string, string>; declinedAt?: string; declineReason?: string; consentWithdrawn?: boolean; disclosure?: { version: string; sha256: string; acceptedAt: string }; paper?: Paper }

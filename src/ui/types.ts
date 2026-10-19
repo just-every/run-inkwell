@@ -2,7 +2,8 @@ export type Field = { id: string; signer: number; type: 'signature' | 'text' | '
 export type Signer = { name: string; email: string; order?: number; accessCode?: boolean; signedAt?: string; declinedAt?: string; declineReason?: string; consentWithdrawn?: boolean; paper?: { status: 'pending' | 'accepted' | 'rejected'; pages: number; mediaType: string; uploadedAt: string; reason?: string } }
 export type Envelope = { manualInvitationAvailable?: boolean; ownSigningAvailable?: boolean; id: string; title: string; status: string; createdAt: string; expiresAt: string; signers: Signer[]; fields: Field[]; originalSha256: string; signedSha256?: string; certificateSha256?: string; copiedFrom?: string; reminders?: { afterDays: number; everyDays: number }; events: { action: string; at: string; actor?: string; detail?: Record<string, unknown> }[] }
 export type Actor = { id: string; name: string; email: string; role: string }
-export type Dashboard = { actor: Actor; envelopes: Envelope[]; agents?: { id: string; createdAt?: string; revokedAt?: string; label?: string }[] }
+export type Person = { id: string; name: string; email: string; role: string }
+export type Dashboard = { actor: Actor; envelopes: Envelope[]; people?: Person[]; agents?: { id: string; createdAt?: string; revokedAt?: string; label?: string }[] }
 export async function request<T>(url: string, body?: unknown): Promise<T> {
   const response = await fetch(url, body === undefined ? { credentials: 'same-origin' } : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   const parsed: unknown = await response.json().catch(() => null)
@@ -30,5 +31,6 @@ export function shortDay(value: string) {
 }
 export const clockTime = (value: string | Date) => { const time = parts(value, { hour: 'numeric', minute: '2-digit' }); return `${time.hour}:${time.minute} ${time.dayPeriod.toLowerCase()}` }
 export const dateTime = (value: string) => `${shortDay(value)}, ${clockTime(value)}`
-export const canEdit = (actor: Actor) => ['owner', 'admin'].includes(actor.role)
-export const canApprove = (actor: Actor) => ['owner', 'admin'].includes(actor.role)
+// ACCESS-001: senders act on their own envelopes, the only ones they are shown; viewers only read.
+export const canEdit = (actor: Actor) => ['owner', 'admin', 'sender'].includes(actor.role)
+export const canApprove = (actor: Actor) => ['owner', 'admin', 'sender'].includes(actor.role)

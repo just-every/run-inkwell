@@ -7,7 +7,7 @@ your own Cloudflare account, and it is MIT licensed.
 Every agreement is an **envelope**: one fixed PDF, one to five recipients in signing order,
 and the fields each of them fills in.
 
-1. **Prepare.** An owner or admin uploads the final PDF, adds the recipients in order and
+1. **Prepare.** An owner, admin or sender uploads the final PDF, adds the recipients in order and
    places signature, text and date fields on the pages. Saving prepares the envelope; it
    sends nothing yet.
 2. **Approve.** A person reviews the document, the recipients and whether it is suitable
@@ -36,7 +36,7 @@ An unfinished envelope can be voided with a reason, and the reason stays on reco
 
 ## Find envelopes through the API
 
-Any signed-in member can search every envelope one page at a time with
+Any signed-in person can search the envelopes they may see (a sender, only their own) one page at a time with
 `GET /api/inkwell/envelopes`. `q` matches the title and any recipient's name or email;
 `status` is `draft`, `waiting_for_me`, `waiting_for_others`, `completed`, `declined`,
 `voided`, `expired` or `imported`; `from` and `to` bound the prepared date; `sender` is the
@@ -49,10 +49,13 @@ following page. The Envelopes screen does not use this search yet.
 | Role | Can |
 | --- | --- |
 | Owner | Everything: prepare, approve, void, erase, move in, back up and restore, and issue agent tokens. |
-| Admin | Prepare, approve and void envelopes. |
-| Member | Read envelopes and download their records. |
+| Admin | Prepare, approve and void every envelope, and choose whether each member is a sender or a viewer. |
+| Sender | Prepare, approve, copy, extend and void their own envelopes; they see only those. |
+| Viewer | Read every envelope and download its records. |
 
-The server checks these roles on every request, not only in the interface.
+Everyone invited as a member starts as a viewer. An owner or admin makes them a sender
+under **Settings → People**. Anyone, in any role, can sign their own turn. The server
+checks these roles on every request, not only in the interface.
 
 ## What Inkwell does not do
 

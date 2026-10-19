@@ -2,9 +2,13 @@
 // current-version facts are rechecked in the same atomic D1 batch as writes.
 import { insist, Refusal, id, type Actor, type Envelope } from './model'
 export interface Guard { sql: string; values: unknown[] }
-export function roleGuard(actor: Actor, roles = ['owner', 'admin']): Guard {
- const sql = `EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND version=? AND status='active' AND role IN (${roles.map(() => '?').join(',')}))`
- const values: unknown[] = [actor.id, actor.version, ...roles]
+/** A Base member's Inkwell role (ACCESS-001): sender or viewer, viewer when none was chosen. */
+export const memberRoleSql = (operator: string) => `COALESCE((SELECT role FROM iw_member_roles WHERE operator_id=${operator}),'viewer')`
+/** The actor still holds one of `roles` (Inkwell roles), at the same account version, in the same atomic batch. */
+export function roleGuard(actor: Actor, roles = ['owner', 'admin', 'sender']): Guard {
+ const base = roles.filter(r => r === 'owner' || r === 'admin'), member = roles.filter(r => r === 'sender' || r === 'viewer')
+ const sql = `EXISTS(SELECT 1 FROM oa_operators o WHERE o.id=? AND o.version=? AND o.status='active' AND (o.role IN (${base.map(() => '?').join(',') || "''"})${member.length ? ` OR (o.role='member' AND ${memberRoleSql('o.id')} IN (${member.map(() => '?').join(',')}))` : ''}))`
+ const values: unknown[] = [actor.id, actor.version, ...base, ...member]
  if (actor.agentId) return { sql: sql + ' AND EXISTS(SELECT 1 FROM iw_agents WHERE id=? AND owner_id=? AND owner_version=? AND revoked_at IS NULL)', values: [...values, actor.agentId, actor.id, actor.version] }
  if (actor.sessionId) return { sql: sql + ' AND EXISTS(SELECT 1 FROM oa_sessions WHERE id=? AND operator_id=? AND operator_version=? AND revoked_at IS NULL AND expires_at>?)', values: [...values, actor.sessionId, actor.id, actor.version, Date.now()] }
  return { sql, values }
