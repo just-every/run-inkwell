@@ -9,7 +9,7 @@ import type { CommandContext } from './envelopes'
 
 /** RECORD-005: retention and legal hold. One account rule, set or cleared by an owner or admin (ADMIN-004), keeps every
  * envelope that has ended (completed, declined, voided, or expired and not extended) a whole number of years (1–99); an
- * envelope still open for signing is never purged, and imported records stay until the owner removes them. An envelope
+ * envelope still open for signing is never purged. Imported records are not yet under the rule (RECORD-005's Gap). An envelope
  * falls due at the instant it ended plus that many calendar years in UTC (a 29 February end falls due on 1 March). The
  * hourly pass warns every active owner and admin once, 30 days before it falls due
  * (or at once when the rule is set or shortened past that), in their activity feed and by email, naming the envelope, the
@@ -73,7 +73,7 @@ export async function liftHold(env: Env, context: CommandContext, input: Record<
 /** The same UTC instant `years` calendar years later; Date rolls 29 February to 1 March. */
 export function retentionDue(endedAt: string, years: number) { const due = new Date(endedAt); due.setUTCFullYear(due.getUTCFullYear() + years); return due.toISOString() }
 /** How and when an envelope ended, seen at `at`: its completion, the decline or withdrawal, the void, or its expiry once
- * passed (prepared or sent, never signed by everyone); nothing while it is open or for an imported record. */
+ * passed (prepared or sent, never signed by everyone); nothing while it is open, or yet for an imported record. */
 export function ending(envelope: Envelope, at: number): { ended: string; at: string } | undefined {
   if (envelope.imported) return undefined
   const last = (actions: string[]) => [...envelope.events].reverse().find(e => actions.includes(e.action))?.at

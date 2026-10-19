@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "fb2f46f67383ef3306e5bb420354554b35a25d60ae3806e0fa95d498bf865fe9",
+      "sha256": "a9be5a830e1b781cdc3adf408bafdff8fadc0910c02c9fb002d0a1db348dc358",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "4d755051d80d04c20c267b3bf52427bec3e785c86fb9a578455ba103b746771b",
+      "sha256": "2c14c04fef9f9c20018c7d4336af113f5f84c4595fdacccac266632c8495ffbd",
       "executable": false
     },
     "DEMO.md": {
@@ -835,7 +835,7 @@
       "executable": false
     },
     "src/inkwell/retention.ts": {
-      "sha256": "50f07c0ed5b21306f37abb35691319c022834594abd87806c5288b941a0e1b32",
+      "sha256": "5356a79276055fadb81dc746bf9d29aceee744723eda69a81f0e2a690d563486",
       "executable": false
     },
     "src/inkwell/saved-marks.ts": {
