@@ -13,12 +13,13 @@ const fields = recipients.map((_,signer)=>({id:`signature-${signer}`,label:'Sign
 const preparation = () => ({title:'Harbour Studio — consulting agreement',filename:'consulting.pdf',pdfBase64:Buffer.from(original).toString('base64'),signers:structuredClone(recipients),fields:structuredClone(fields)})
 const snapshot=async()=>{const r=await h.send('/api/inkwell',undefined,h.owner);assert.equal(r.status,200);return r.value}
 const signingToken=async email=>{const mail=await h.mail(email,'Please sign:');assert.ok(mail,'ordered invitation delivered to local mail edge');return new URL(mail.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)}
-async function verified(email) {
+async function verified(email,{agree=true}={}) {
  const token=await signingToken(email),path='/api/sign/'+token
  await h.post(path+'/code',{},'')
  const mail=await h.mail(email,'verification code'),code=mail.text.match(/\b\d{6}\b/)?.[0]
  assert.ok(code,'email code delivered')
  const r=await h.post(path+'/verify',{code},'')
+ if(agree) await h.agree(path,r.cookie)
  return {token,path,cookie:r.cookie,code}
 }
 before(async()=>{
@@ -64,6 +65,7 @@ test('signers verify a one-use email code, consent, and sign sequentially',async
  await h.post(path+'/verify',{code:'000000'===code?'111111':'000000'},'',401)
  const first=await h.post(path+'/verify',{code},'')
  await h.post(path+'/verify',{code},'',401)
+ await h.agree(path,first.cookie)
  assert.equal((await h.send(path+'/document',undefined,first.cookie)).status,200)
  await h.post(path+'/sign',{values:{'signature-0':'Priya Shah'},consent:false,commandId:crypto.randomUUID()},first.cookie,400)
  await h.post(path+'/sign',{values:{'signature-0':'Priya Shah'},consent:true,commandId:crypto.randomUUID()},first.cookie)
@@ -163,6 +165,38 @@ test('SIGNX-004: the second signer declines with a reason; the third is never in
  const text=await pdfText(certificate.bytes)
  assert.ok(text.includes('Inkwell decline certificate')&&text.includes('Decline reason: '+reason)&&text.includes('by Eli Park'),'the certificate records the decline')
  assert.equal((await h.send('/api/inkwell/envelopes/'+id+'/verify',undefined,h.owner)).value.ok,true)
+})
+test('SIGNX-005: a new signer reads and accepts the versioned disclosure before the document; the next withdraws consent and the envelope stops on record',async()=>{
+ const pair=[{name:'Ivy Brooks',email:'ivy@harbour.example'},{name:'Jon Reyes',email:'jon@harbour.example'},{name:'Kit Moss',email:'kit@harbour.example'}]
+ const id=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio mooring licence',signers:pair,fields:pair.map((_,signer)=>({...fields[0],id:`signature-${signer}`,signer,y:.4+signer*.12}))})).result.id
+ await h.command('envelope.approve',{id,eligible:true})
+ const first=await verified(pair[0].email,{agree:false}),view=(await h.send(first.path,undefined,first.cookie)).value.disclosure
+ assert.equal(view.acceptedAt,undefined);assert.ok(view.version)
+ for(const topic of ['Withdrawing your consent','Getting a paper copy','Keeping your contact details current','Hardware and software you need']) assert.ok(view.sections.some(s=>s.heading===topic),`the disclosure covers ${topic}`)
+ assert.equal((await h.send(first.path+'/document',undefined,first.cookie)).status,403,'the document waits for the disclosure')
+ await h.post(first.path+'/sign',{values:{'signature-0':'Ivy Brooks'},consent:true,commandId:crypto.randomUUID()},first.cookie,403)
+ await h.post(first.path+'/withdraw',{commandId:crypto.randomUUID()},first.cookie,409)
+ await h.post(first.path+'/disclosure',{version:'an-older-version',agree:true},first.cookie,409)
+ await h.post(first.path+'/disclosure',{version:view.version,agree:false},first.cookie,400)
+ const accepted=await h.agree(first.path,first.cookie)
+ assert.equal(accepted.version,view.version);assert.equal((await h.send(first.path,undefined,first.cookie)).value.disclosure.acceptedAt,accepted.acceptedAt)
+ assert.equal((await h.send(first.path+'/document',undefined,first.cookie)).status,200)
+ await h.post(first.path+'/sign',{values:{'signature-0':'Ivy Brooks'},consent:true,commandId:crypto.randomUUID()},first.cookie)
+ const second=await verified(pair[1].email)
+ assert.equal((await h.post(second.path+'/withdraw',{commandId:crypto.randomUUID()},second.cookie)).value.result.status,'declined')
+ await h.post(second.path+'/sign',{values:{'signature-1':'Jon Reyes'},consent:true,commandId:crypto.randomUUID()},second.cookie,409)
+ assert.equal((await h.send(second.path,undefined,second.cookie)).value.declined.withdrawn,true)
+ assert.ok((await h.mail('owner@harbour.example','Consent withdrawn:'))?.text.includes('Jon Reyes withdrew consent'),'the sender is notified')
+ assert.equal(await h.mail(pair[2].email),undefined,'nobody later is invited')
+ const e=(await snapshot()).envelopes.find(e=>e.id===id)
+ assert.equal(e.status,'declined');assert.equal(e.signers[1].consentWithdrawn,true)
+ assert.deepEqual(e.signers.slice(0,2).map(s=>s.disclosure?.version),[view.version,view.version])
+ const recorded=e.events.filter(event=>event.action==='signer.disclosure_accepted')
+ assert.deepEqual(recorded.map(event=>[event.detail.signer,event.detail.version]),[[0,view.version],[1,view.version]]);assert.equal(recorded[0].at,accepted.acceptedAt)
+ assert.ok(e.events.some(event=>event.action==='signer.consent_withdrawn'&&event.detail.signer===1&&event.detail.disclosureVersion===view.version))
+ const certificate=await h.send('/api/inkwell/envelopes/'+id+'/artifacts/certificate',undefined,h.owner),text=await pdfText(certificate.bytes)
+ assert.equal(digest(certificate.bytes),e.certificateSha256)
+ assert.ok(text.includes('Inkwell consent withdrawal certificate')&&text.includes(`Electronic record and signature disclosure: version ${view.version}`)&&text.includes(`Disclosure ${view.version} accepted at: ${accepted.acceptedAt}`),'the certificate quotes the disclosure version')
 })
 test('IDV-003: a recipient must enter the sender-set access code before the document; wrong codes are refused and five lock the invitation',async()=>{
  const pair=[{name:'Gia Lane',email:'gia@harbour.example',accessCode:'HARBOUR-7731'},{name:'Hal Ortiz',email:'hal@harbour.example',accessCode:'tide-2209'}]

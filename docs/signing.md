@@ -27,6 +27,16 @@ When mail is not set up, enter the six-digit verification code the sender shared
 link and choose **Verify code**. The code lasts 10 minutes. If it expires, ask the sender
 for a new link and code; the old link will stop working.
 
+## Agree to the disclosure
+
+Before the document opens, the page shows the **Electronic record and signature disclosure**:
+what signing electronically means, how to get a paper copy from the sender, how to withdraw
+consent, how to keep your contact details current, and the browser and software you need.
+Tick *I have read the electronic record and signature disclosure and agree to receive
+documents and sign electronically.* and choose **Agree and continue**. Inkwell records the
+disclosure's version and the time you agreed, and the certificate quotes that version. You
+agree once per envelope; if the disclosure changes, the page shows the new version.
+
 ## Review and sign
 
 1. Read every page of the document. Each field for this recipient is outlined on its page.
@@ -46,6 +56,15 @@ and choose **Decline**. The envelope stops at once. Nobody later in the order is
 the sender and everyone who already signed get an email with the reason, and the page then
 reads **This envelope was declined.** The sender's copy of the envelope keeps the reason and
 a decline certificate recording who declined, when and why.
+
+## Withdraw consent
+
+After agreeing to the disclosure and before signing, a recipient can choose **Withdraw
+consent…** and then **Withdraw consent**. Like a decline, this stops the envelope at once:
+nobody later in the order is invited, the sender and everyone who already signed get an
+email, and the page reads **Consent to sign electronically was withdrawn.** The certificate
+records the withdrawal and the disclosure version the recipient had agreed to. Withdrawing
+does not undo a signature already given.
 
 ## Keep the link private
 

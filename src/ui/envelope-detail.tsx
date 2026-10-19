@@ -44,7 +44,7 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen }: { 
     <h3>Signing status</h3>
     <ol className="iw-signers">{envelope.signers.map((signer, index) => <li key={index} className={signer.declinedAt ? 'iw-declined' : signer.signedAt ? 'iw-signed' : index === turn && envelope.status === 'awaiting_signature' ? 'iw-turn' : undefined}>
       <span className="iw-order" aria-hidden="true">{signer.signedAt ? <Check /> : index + 1}</span>
-      <div><strong>{signer.name}</strong><span className="iw-signer-email">{signer.email}{signer.accessCode ? ' · access code' : ''}</span><small>{signer.declinedAt ? `Declined ${dateTime(signer.declinedAt)} · ${signer.declineReason}` : signer.signedAt ? `Signed ${dateTime(signer.signedAt)}` : envelope.status === 'declined' ? 'Not invited' : envelope.status === 'awaiting_signature' && index === turn ? me(signer.email) ? 'Waiting for your signature' : 'Invited, awaiting signature' : 'Awaiting signature'}</small></div>
+      <div><strong>{signer.name}</strong><span className="iw-signer-email">{signer.email}{signer.accessCode ? ' · access code' : ''}</span><small>{signer.declinedAt ? `${signer.consentWithdrawn ? 'Withdrew consent' : 'Declined'} ${dateTime(signer.declinedAt)} · ${signer.declineReason}` : signer.signedAt ? `Signed ${dateTime(signer.signedAt)}` : envelope.status === 'declined' ? 'Not invited' : envelope.status === 'awaiting_signature' && index === turn ? me(signer.email) ? 'Waiting for your signature' : 'Invited, awaiting signature' : 'Awaiting signature'}</small></div>
     </li>)}</ol>
 
     {deciding && <div className="iw-decision">

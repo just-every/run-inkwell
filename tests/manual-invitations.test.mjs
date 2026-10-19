@@ -23,6 +23,7 @@ for (const mailProvider of ['development', undefined]) {
    await h.post(path+'/verify',{code:first.code==='000000'?'111111':'000000'},'',401)
    const verified = await h.post(path+'/verify',{code:first.code},'')
    await h.post(path+'/verify',{code:first.code},'',401)
+   await h.agree(path,verified.cookie)
    assert.equal((await h.send(path+'/document',undefined,verified.cookie)).status,200)
    const replay = await h.command('envelope.approve',{id,eligible:true},h.owner,200,commandId)
    assert.equal(replay.result.invitation,undefined,'command replay cannot recover secrets')
@@ -35,6 +36,7 @@ for (const mailProvider of ['development', undefined]) {
    await h.post(path+'/sign',{values:{'signature-0':'Priya Shah'},consent:true,commandId:crypto.randomUUID()},verified.cookie,404)
    const current = '/api'+new URL(renewed.url).pathname
    const session = await h.post(current+'/verify',{code:renewed.code},'')
+   await h.agree(current,session.cookie)
    await h.post(current+'/sign',{values:{'signature-1':'Alex Morgan'},consent:true,commandId:crypto.randomUUID()},session.cookie,400)
    await h.post(current+'/sign',{values:{'signature-0':'Priya Shah'},consent:false,commandId:crypto.randomUUID()},session.cookie,400)
    await h.post(current+'/sign',{values:{'signature-0':'Priya Shah'},consent:true,commandId:crypto.randomUUID()},session.cookie)
@@ -42,6 +44,7 @@ for (const mailProvider of ['development', undefined]) {
    assert.equal(next.recipient,signers[1].email)
    const nextPath='/api'+new URL(next.url).pathname
    const second = await h.post(nextPath+'/verify',{code:next.code},'')
+   await h.agree(nextPath,second.cookie)
    await h.post(nextPath+'/sign',{values:{'signature-1':'Alex Morgan'},consent:true,commandId:crypto.randomUUID()},second.cookie)
    const envelope = (await h.send('/api/inkwell',undefined,h.owner)).value.envelopes.find(e=>e.id===id)
    assert.equal(envelope.status,'completed')

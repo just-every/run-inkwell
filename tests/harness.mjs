@@ -37,6 +37,8 @@ export async function harness({ mailProvider = 'resend' } = {}) {
    const message=await mail(email),token=new URL(message.text.match(/http:\/\/[^\s]+\/auth\/confirm\?token=[^\s]+/)[0]).searchParams.get('token')
    return (await post('/auth/confirm',{token},'',303)).cookie
   }
-  return {mf,db,origin,owner,send,post,command,mail,invite,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
+  // SIGNX-005: a verified signer agrees to the current disclosure before opening or signing the document.
+  const agree=async(path,cookie)=>(await post(path+'/disclosure',{version:(await send(path,undefined,cookie)).value.disclosure.version,agree:true},cookie)).value.result
+  return {mf,db,origin,owner,send,post,command,mail,invite,agree,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
  }catch(e){await mf.dispose();await rm(directory,{recursive:true,force:true});throw e}
 }

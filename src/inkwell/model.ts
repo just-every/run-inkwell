@@ -4,7 +4,7 @@ export function insist(condition: unknown, message: string, status = 400): asser
 export type Role = 'owner' | 'admin' | 'member'
 export interface Actor { id: string; name: string; email: string; role: Role; version: number; sessionId?: string; agentId?: string }
 export interface Field { id: string; label: string; type: 'signature' | 'text' | 'date'; signer: number; page: number; x: number; y: number; width: number; height: number }
-export interface Signer { name: string; email: string; accessCode?: boolean; signedAt?: string; values?: Record<string, string>; declinedAt?: string; declineReason?: string }
+export interface Signer { name: string; email: string; accessCode?: boolean; signedAt?: string; values?: Record<string, string>; declinedAt?: string; declineReason?: string; consentWithdrawn?: boolean; disclosure?: { version: string; sha256: string; acceptedAt: string } }
 export interface AuditEvent { action: string; at: string; actor: string; detail: Record<string, unknown>; previousHash: string; hash: string }
 export interface Envelope { id: string; version: number; title: string; filename: string; status: 'prepared' | 'awaiting_signature' | 'completed' | 'declined' | 'voided' | 'expired' | 'imported'; createdAt: string; createdBy: string; expiresAt: string; signers: Signer[]; fields: Field[]; pageSizes: { width: number; height: number }[]; originalSha256: string; signedSha256?: string; certificateSha256?: string; events: AuditEvent[]; imported?: boolean; source?: unknown; copiedFrom?: string }
 export type Env = Bindings

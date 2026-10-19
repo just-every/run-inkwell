@@ -29,7 +29,7 @@ An unfinished envelope can be voided with a reason, and the reason stays on reco
 | `prepared` | Saved and waiting for a person to approve it. Nothing has been sent. |
 | `awaiting signature` | Approved; a recipient has an invitation and the others wait their turn. |
 | `completed` | Everyone signed. The executed PDF and certificate exist. |
-| `declined` | A signer declined with a reason; signing stopped and a decline certificate records it. |
+| `declined` | A signer declined with a reason or withdrew consent to electronic signing; signing stopped and a certificate records it. |
 | `voided` | Stopped before completion, with the reason in the audit trail. |
 | `expired` | The envelope expired before everyone signed. |
 

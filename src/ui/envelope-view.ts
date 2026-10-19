@@ -46,7 +46,7 @@ export function nextAction(envelope: Envelope, actor: Actor): { label: string; u
     case 'prepared': return canApprove(actor) ? { label: 'Approve and send', urgent: true } : { label: 'Waiting for approval', urgent: false }
     case 'awaiting_signature': return myTurn(envelope, actor) ? { label: 'Your turn to sign', urgent: true } : { label: `Waiting on ${envelope.signers[nextSigner(envelope)]?.name ?? 'the next signer'}`, urgent: false }
     case 'completed': return { label: 'Executed PDF ready', urgent: false }
-    case 'declined': return { label: `Declined by ${envelope.signers.find(signer => signer.declinedAt)?.name ?? 'a signer'}`, urgent: false }
+    case 'declined': { const by = envelope.signers.find(signer => signer.declinedAt); return { label: `${by?.consentWithdrawn ? 'Consent withdrawn by' : 'Declined by'} ${by?.name ?? 'a signer'}`, urgent: false } }
     case 'expired': return { label: 'Prepare a new one', urgent: true }
     case 'voided': return { label: 'Voided', urgent: false }
     default: return { label: 'Imported record', urgent: false }

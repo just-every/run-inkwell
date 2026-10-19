@@ -368,8 +368,8 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 6 | 4 | 0 | 10 |
-| Target and push further | 4 | 29 | 74 | 107 |
-| All | 10 | 33 | 74 | 117 |
+| Target and push further | 5 | 28 | 74 | 107 |
+| All | 11 | 32 | 74 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -416,7 +416,7 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `SIGNX-002` | Draw, type or upload signatures and initials | target | partial | `src/inkwell/pdf.ts` | Typed signature only; no drawn or uploaded signature, no initials, no adoption record |
 | `SIGNX-003` | Accessible signing | target | partial | `src/ui/signer-app.tsx` | Labelled form controls only; no WCAG audit, keyboard or screen-reader journey |
 | `SIGNX-004` | Decline with reason | target | done | `tests/api.test.mjs`; `src/inkwell/signing.ts`; `src/inkwell/pdf.ts`; `src/ui/signer-app.tsx` |  |
-| `SIGNX-005` | ESIGN and UETA consumer disclosure | target | partial | `src/inkwell/signing.ts` | Explicit consent statement only; no versioned ESIGN disclosure, withdrawal or paper-copy request |
+| `SIGNX-005` | ESIGN and UETA consumer disclosure | target | done | `tests/api.test.mjs`; `src/inkwell/disclosure.ts`; `src/inkwell/signing.ts`; `src/inkwell/pdf.ts`; `src/ui/signer-app.tsx` |  |
 | `SIGNX-006` | Branded sending and signing | target | missing |  | No customer branding |
 | `SIGNX-007` | English and Spanish signing | target | missing |  | English only |
 | `SIGNX-008` | Signer document actions and paper signing | target | partial | `src/inkwell/signing.ts`; `src/ui/signer-app.tsx` | The verified signer reviews every page in the viewer; no download or print action before signing and no paper-signing path |

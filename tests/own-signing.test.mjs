@@ -26,6 +26,7 @@ for (const mailProvider of ['resend', null]) {
    }
    const session = await h.post(path+'/verify',{code},'')
    assert.equal((await h.send(path,undefined,session.cookie)).value.canSign,true)
+   await h.agree(path,session.cookie)
    await h.post(path+'/sign',{values:{'signature-0':'Harbour Owner'},consent:true,commandId:crypto.randomUUID()},session.cookie)
    const after = await listed()
    assert.ok(after.signers[0].signedAt)
