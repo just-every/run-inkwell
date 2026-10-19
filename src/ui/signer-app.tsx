@@ -7,7 +7,7 @@ import { Check } from './marks'
 import { Brand } from './shell'
 
 type Disclosure = { version: string; title: string; sections: { heading: string; body: string }[]; acceptedAt?: string }
-type SigningSession = { title: string; status: string; verified: boolean; mailSuppressed: boolean; signer: { name: string; email: string; signedAt?: string }; fields: Field[]; signerIndex: number; canSign: boolean; waitingForTurn: boolean; signedAt?: string; declined?: { by?: string; at?: string; withdrawn?: boolean }; disclosure: Disclosure; allowPaper: boolean; paper?: { status: 'pending' | 'accepted' | 'rejected'; uploadedAt: string; pages: number; reason?: string }; access?: { required: boolean; passed: boolean; locked: boolean }; pageSizes: { width: number; height: number }[] }
+type SigningSession = { savedSignature?: string | null; title: string; status: string; verified: boolean; mailSuppressed: boolean; signer: { name: string; email: string; signedAt?: string }; fields: Field[]; signerIndex: number; canSign: boolean; waitingForTurn: boolean; signedAt?: string; declined?: { by?: string; at?: string; withdrawn?: boolean }; disclosure: Disclosure; allowPaper: boolean; paper?: { status: 'pending' | 'accepted' | 'rejected'; uploadedAt: string; pages: number; reason?: string }; access?: { required: boolean; passed: boolean; locked: boolean }; pageSizes: { width: number; height: number }[] }
 export function SignerApp({ token }: { token: string }) {
   const [session, setSession] = useState<SigningSession>()
   const [codeSent, setCodeSent] = useState(false)
@@ -24,7 +24,8 @@ export function SignerApp({ token }: { token: string }) {
   const [reason, setReason] = useState('')
   const action = useAction()
   const base = `/api/sign/${encodeURIComponent(token)}`
-  async function refresh() { setSession(await request<SigningSession>(base)) }
+  // ROUTE-009: a member's saved signature fills their signature fields; typing another replaces it next time.
+  async function refresh() { const next = await request<SigningSession>(base); setSession(next); const saved = next.savedSignature; if (saved) setValues(current => ({ ...Object.fromEntries(next.fields.filter(field => field.type === 'signature').map(field => [field.id, saved])), ...current })) }
   useEffect(() => { setSession(undefined); setCodeSent(false); setCode(''); setAccessCode(''); setValues({}); setConsent(false); setSigned(false); setDeclining(false); setReason(''); setAgreed(false); setWithdrawing(false); setPaperOpen(false); setScan(undefined); void action.run(refresh) }, [token])
   const complete = session?.status === 'completed'
   const closed = ['voided', 'declined', 'expired'].includes(session?.status || '')

@@ -103,6 +103,18 @@ verified, and the certificate names you as the signed-in member. If the sender s
 access code for you, enter it first. Then review the document and sign. Every role,
 including members, can sign their own turn this way.
 
+## Sign it yourself
+
+To sign a document nobody else needs to sign, prepare it with yourself as the only
+recipient and place your fields. When you approve it, the button reads **Approve and sign
+now**: it opens your signing page straight away, and no email is sent at all. The same
+happens when you are at the first routing order of your own envelope; the next order is
+invited only once you have signed. The certificate names your signed-in session and how
+you signed in. Inkwell remembers the signature you typed and fills it in next time you
+sign in the app; type a different one to replace it. Once the envelope is complete,
+**Send the completed copy…** sends the executed PDF and certificate to up to 20 more
+people.
+
 ## Copy an envelope
 
 To send the same agreement again, open any sent, completed, declined, voided or expired

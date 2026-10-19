@@ -67,7 +67,7 @@ const network = (envelope: Envelope, signer: number, actions: string[]) => clien
  * (MANAGE-003), with how many incorrect codes came before it. */
 function authLines(envelope: Envelope, signer: number) {
   const rejected = forSigner(envelope, signer, ['signer.code_rejected']).length
-  return forSigner(envelope, signer, ['signer.email_verified', 'signer.code_verified', 'signer.session_verified']).map(e => `Authenticated at ${stamp(e.at)}: ${e.action === 'signer.session_verified' ? `signed-in Inkwell session of member ${e.detail.operator}` : e.action === 'signer.code_verified' ? 'sender-provided verification code' : 'emailed verification code'}, verified${rejected && e.action !== 'signer.session_verified' ? ` (${rejected} incorrect code${rejected === 1 ? '' : 's'} on record)` : ''}${client(e)}`)
+  return forSigner(envelope, signer, ['signer.email_verified', 'signer.code_verified', 'signer.session_verified']).map(e => `Authenticated at ${stamp(e.at)}: ${e.action === 'signer.session_verified' ? `signed-in Inkwell session of member ${e.detail.operator}${e.detail.signIn ? ` (signed in by ${e.detail.signIn})` : ''}` : e.action === 'signer.code_verified' ? 'sender-provided verification code' : 'emailed verification code'}, verified${rejected && e.action !== 'signer.session_verified' ? ` (${rejected} incorrect code${rejected === 1 ? '' : 's'} on record)` : ''}${client(e)}`)
 }
 function accessLine(envelope: Envelope, signer: number) {
   const at = forSigner(envelope, signer, ['signer.access_code_verified'])[0]?.at, rejected = forSigner(envelope, signer, ['signer.access_code_rejected']).length
@@ -77,5 +77,6 @@ function accessLine(envelope: Envelope, signer: number) {
 function adoptionLines(envelope: Envelope, signer: number) {
   const s = envelope.signers[signer]
   if (s.paper?.status === 'accepted') return ['Signed on paper (wet ink)', 'Adopted signature: handwritten on the paper scan']
-  return envelope.fields.filter(f => f.signer === signer && f.type === 'signature' && s.values?.[f.id]).map(f => `Adopted signature (${f.label}): "${s.values![f.id]}", typed name`)
+  const signed = forSigner(envelope, signer, ['signer.signed']).at(-1)
+  return envelope.fields.filter(f => f.signer === signer && f.type === 'signature' && s.values?.[f.id]).map(f => `Adopted signature (${f.label}): "${s.values![f.id]}", ${signed?.detail.adoption === 'saved' ? `typed name saved by member ${signed.detail.operator} and reused` : 'typed name'}`)
 }

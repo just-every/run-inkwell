@@ -41,6 +41,8 @@ export async function harness({ mailProvider = 'resend' } = {}) {
   const agree=async(path,cookie)=>(await post(path+'/disclosure',{version:(await send(path,undefined,cookie)).value.disclosure.version,agree:true},cookie)).value.result
   // The worker's scheduled handler, run as if the cron fired at `at` (DELIV-004 expiry warnings).
   const scheduled=async at=>{const result=await (await mf.getWorker()).scheduled({scheduledTime:new Date(at),cron:'17 * * * *'});assert.equal(result.outcome,'ok','the scheduled pass succeeds')}
-  return {mf,db,origin,owner,send,post,command,mail,invite,agree,scheduled,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
+  // How many messages the mail edge has received so far.
+  const sent=()=>capturedMail.length
+  return {mf,db,origin,owner,send,post,command,mail,invite,agree,scheduled,sent,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
  }catch(e){await mf.dispose();await rm(directory,{recursive:true,force:true});throw e}
 }

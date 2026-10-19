@@ -378,7 +378,7 @@ test('RECORD-002: the certificate lists each recipient\'s authentication, IP add
   `Authenticated at ${stamp(at('signer.email_verified'))}: emailed verification code, verified (1 incorrect code on record) · IP 203.0.113.7 · User agent: RecordPhone/2.1`,
   `Disclosure ${version} accepted at: ${stamp(e.signers[0].disclosure.acceptedAt)}`,`Adopted signature (Signature): "Nia Ford", typed name`,
   `Signed at: ${stamp(e.signers[0].signedAt)} · IP 203.0.113.7 · User agent: RecordPhone/2.1`,
-  `Authenticated at ${stamp(at('signer.session_verified'))}: signed-in Inkwell session of member ${readerId}, verified · IP 198.51.100.4 · User agent: RecordDesk/5.0`,
+  `Authenticated at ${stamp(at('signer.session_verified'))}: signed-in Inkwell session of member ${readerId} (signed in by emailed invitation link), verified · IP 198.51.100.4 · User agent: RecordDesk/5.0`,
   `Disclosure ${version} accepted at: ${stamp(e.signers[1].disclosure.acceptedAt)}`,`Adopted signature (Signature): "Reader", typed name`,
   `Signed at: ${stamp(e.signers[1].signedAt)} · IP 198.51.100.4 · User agent: RecordDesk/5.0`,
   // every event up to the one that records this certificate's own creation
@@ -502,6 +502,35 @@ test('DELIV-007: two signers and a copy recipient each receive the completed cop
   assert.deepEqual(message.attachments.map(a=>digest(Buffer.from(a.content,'base64'))),[digest(executed),digest(certificate)])
  }
  await h.command('account.completed_copies',{delivery:'link'})
+})
+// ROUTE-009: a member signs their own document with nobody else involved; their session is the authentication.
+test('ROUTE-009: a member self-signs a three-page PDF with no mail, the certificate names their session and sign-in method, the completed copy goes to two addresses, and a sender at order 1 signs in the app before order 2 is invited',async()=>{
+ const me=await sender('solo.signer@harbour.example'),self={name:'Solo Signer',email:'solo.signer@harbour.example'}
+ const pdf=await PDFDocument.create();for(let page=0;page<3;page++) pdf.addPage([595,842])
+ const sign=async(id,values,saved)=>{const opened=await h.post('/api/inkwell/commands',{command:'envelope.open_signing',input:{id},commandId:crypto.randomUUID()},me.cookie),path='/api'+new URL(opened.value.result.signing.url).pathname;assert.equal((await h.send(path,undefined,opened.cookie)).value.savedSignature,saved,'the saved signature is offered');await h.agree(path,opened.cookie);return (await h.post(path+'/sign',{values,consent:true,commandId:crypto.randomUUID()},opened.cookie)).value.result.status}
+const selfSign=async title=>{const id=(await h.command('envelope.prepare',{title,filename:'solo.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),signers:[self],fields:[{...fields[0],id:'signature-0',page:2}]},me.cookie)).result.id;assert.equal((await h.command('envelope.approve',{id,eligible:true},me.cookie)).result.signInApp,true);return id}
+ const quiet=h.sent()
+ const id=await selfSign('Solo lease renewal')
+ assert.equal(await sign(id,{'signature-0':'Solo Signer'},null),'completed')
+ assert.equal(h.sent(),quiet,'self-signing sends no message at all')
+ const text=(await pdfText((await h.send(`/api/inkwell/envelopes/${id}/artifacts/certificate`,undefined,me.cookie)).bytes)).replaceAll('\n',' ')
+ assert.ok(text.includes(`signed-in Inkwell session of member ${me.id} (signed in by emailed invitation link)`),'the certificate names session authentication and the sign-in method')
+ assert.equal((await h.send(`/api/inkwell/envelopes/${id}/artifacts/signed`,undefined,me.cookie)).status,200,'the member downloads the executed PDF')
+ await h.command('envelope.send_copy',{id,recipients:[{name:'Lee',email:'lee@harbour.example'}]},member,403)
+ await h.command('envelope.send_copy',{id,recipients:[{name:'Books',email:'books@harbour.example'},{name:'Landlord',email:'landlord@harbour.example'}]},me.cookie)
+ for(const email of ['books@harbour.example','landlord@harbour.example']) assert.match((await h.mail(email,'Completed: Solo lease renewal')).text,/\/copy\/[a-f0-9]{64}/,`${email} gets the completed copy`)
+ assert.ok((await stored(id,me.cookie)).events.some(e=>e.action==='envelope.copy_sent'&&e.actor===me.id))
+ // a second self-signed document reuses the saved signature without adopting it again
+ const again=await selfSign('Solo parking permit')
+ assert.equal(await sign(again,{'signature-0':'Solo Signer'},'Solo Signer'),'completed')
+ const reused=(await pdfText((await h.send(`/api/inkwell/envelopes/${again}/artifacts/certificate`,undefined,me.cookie)).bytes)).replaceAll('\n',' ')
+ assert.ok(reused.includes(`"Solo Signer", typed name saved by member ${me.id} and reused`),'the certificate records the reused saved signature')
+ // the sender at order 1 of their own envelope: no email to themselves, and order 2 waits for their in-app signature
+ const two=(await h.command('envelope.prepare',{...preparation(),title:'Solo then Alex',signers:[self,recipients[1]]},me.cookie)).result.id,before=h.sent()
+ assert.equal((await h.command('envelope.approve',{id:two,eligible:true},me.cookie)).result.signInApp,true)
+ assert.equal(h.sent(),before,'approving sends nothing: the sender signs in the app and order 2 waits')
+ assert.equal(await sign(two,{'signature-0':'Solo Signer'},'Solo Signer'),'awaiting_signature')
+ assert.ok(await h.mail(recipients[1].email,'Please sign: Solo then Alex'),'order 2 is invited only after the sender signs')
 })
 test('MANAGE-001: with 5,000 envelopes, search by recipient email answers in under a second and each status filter shows the right count',async()=>{
  const day=86_400_000,now=Date.now(),kinds=['prepared','awaiting_signature','completed','declined','voided','expired','mine'],expected={draft:0,waiting_for_me:0,waiting_for_others:0,completed:0,declined:0,voided:0,expired:0,imported:0}

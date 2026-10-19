@@ -1,6 +1,8 @@
 import { appendEvent, clientEvidence, insist, now, object, randomCode, secret, sha256, text, type Client, type Envelope, type Env } from './model'
 import { atomic, commandWrite, commitEnvelope, getEnvelope, roleGuard, type Guard } from './storage'
 import { mailSuppressed } from './manual-invitations'
+import { mayChange } from './members'
+import { readBlob } from './blobs'
 import { envelopeArtifact } from './envelopes'
 import { copyWrite, dispatchMail } from './mail'
 import type { CommandContext } from './envelopes'
@@ -40,19 +42,46 @@ export async function setCompletedCopies(env: Env, context: CommandContext, inpu
 }
 
 /** At completion, after the certificate exists: one completed-copy message per party, and a link row for each when
- * links are used. `bytes` is the executed PDF and certificate together. */
+ * links are used. `bytes` is the executed PDF and certificate together. The envelope's own sender is not emailed a
+ * copy: their account already files it (ROUTE-009 self-signing sends no mail at all). */
 export async function completedCopyWrites(env: Env, after: Envelope, bytes: number) {
   if (mailSuppressed(env)) return []
+  const sender = (await env.DB.prepare('SELECT lower(email) AS email FROM oa_operators WHERE id=?').bind(after.createdBy).first<{ email: string }>())?.email
+  const list = parties(after).flatMap((party, index) => party.email === sender ? [] : [index])
+  return list.length ? copyWrites(env, after, bytes, list, 'envelope.copies_queued', 'inkwell') : []
+}
+async function copyWrites(env: Env, after: Envelope, bytes: number, indexes: number[], action: string, actor: string) {
   const chosen = await completedCopyDelivery(env)
   const delivery: Delivery = chosen === 'attachment' && bytes <= attachmentLimit ? 'attachment' : 'link'
-  const writes: D1PreparedStatement[] = [], list = parties(after)
-  for (const [index, party] of list.entries()) {
+  const writes: D1PreparedStatement[] = [], all = parties(after), list = indexes.map(i => all[i])
+  for (const index of indexes) {
+    const party = all[index]
     const token = delivery === 'link' ? secret() : undefined
     if (token) writes.push(env.DB.prepare('INSERT INTO iw_copy_links(token_hash,envelope_id,party,email) VALUES(?,?,?,?)').bind(await sha256(token), after.id, index, party.email))
     writes.push(copyWrite(env, after, index, party, token))
   }
-  await appendEvent(after, 'envelope.copies_queued', 'inkwell', { delivery, chosen, bytes, recipients: list.map(p => ({ email: p.email, role: p.role })) })
+  await appendEvent(after, action, actor, { delivery, chosen, bytes, recipients: list.map(p => ({ email: p.email, role: p.role })) })
   return writes
+}
+
+/** ROUTE-009: after completion, whoever may change the envelope sends the completed copy to 1–20 more people, who
+ * become copy recipients, within the envelope's limit of 20. */
+export async function sendCompletedCopy(env: Env, context: CommandContext, input: Record<string, unknown>) {
+  const before = await getEnvelope(env.DB, text(input.id, 'an envelope ID'))
+  insist(mayChange(context.actor, before), 'You can send copies only of envelopes you may change.', 403)
+  insist(before.status === 'completed' && !before.imported, 'Only a completed envelope has a completed copy to send.', 409)
+  insist(!mailSuppressed(env), 'Mail is not set up. Download the executed PDF and certificate instead.', 409)
+  insist(Array.isArray(input.recipients) && input.recipients.length >= 1, 'Add at least one person to send the copy to.')
+  const added = chooseCopies(input.recipients, [...before.signers, ...(before.copies ?? [])])
+  insist(added.length + (before.copies?.length ?? 0) <= copyLimit, `An envelope has at most ${copyLimit} copy recipients.`)
+  const after = structuredClone(before), start = parties(before).length
+  after.copies = [...(before.copies ?? []), ...added]
+  const bytes = (await readBlob(env.DB, after.id, 'signed', after.signedSha256!)).length + (await readBlob(env.DB, after.id, 'certificate', after.certificateSha256!)).length
+  const writes = await copyWrites(env, after, bytes, added.map((_, i) => start + i), 'envelope.copy_sent', context.actor.id)
+  const result = { id: after.id, sent: added.map(c => c.email) }
+  await commitEnvelope(env.DB, before, after, context.actor, [...writes, commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
+  await dispatchMail(env, after.id)
+  return result
 }
 
 interface CopyLink { token_hash: string; envelope_id: string; party: number; email: string; code_hash: string | null; code_expires: number | null; code_attempts: number; code_sent_at: number | null; code_generation: number; session_hash: string | null; session_expires: number | null }
