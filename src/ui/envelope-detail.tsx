@@ -8,10 +8,10 @@ import { PdfViewer } from './pdf-viewer'
 import { ArtifactIntegrity } from './artifact-integrity'
 import { Check, Pill } from './marks'
 import { Icon } from './icons'
-import { nextSigner, pill, preparedByAgent, titleParts } from './envelope-view'
+import { currentSigners, pill, routingOrder, preparedByAgent, titleParts } from './envelope-view'
 
 type Invitation = { url: string; code: string; recipient: string; expiresAt: string }
-type InvitationResult = { invitation?: Invitation }
+type InvitationResult = { invitations?: Invitation[] }
 type OwnSigningResult = { signing: { url: string; code?: string } }
 
 export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen }: { envelope: Envelope; actor: Actor; refresh: () => Promise<void>; onClose: () => void; onOpen: (id: string) => void }) {
@@ -26,19 +26,20 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen }: { 
   const [erasing, setErasing] = useState(false)
   const [confirmation, setConfirmation] = useState('')
   const [showPdf, setShowPdf] = useState(false)
-  const [invitation, setInvitation] = useState<Invitation>()
-  const [copied, setCopied] = useState(false)
+  const [invitations, setInvitations] = useState<Invitation[]>([])
+  const [copied, setCopied] = useState<string>()
   const base = `/api/inkwell/envelopes/${encodeURIComponent(envelope.id)}`
   const finished = ['completed', 'declined', 'voided', 'expired', 'imported'].includes(envelope.status)
   const copyable = ['awaiting_signature', 'completed', 'declined', 'voided', 'expired'].includes(envelope.status) && canEdit(actor)
-  const currentRecipient = envelope.signers.find(signer => !signer.signedAt)?.email
-  const privateInvitation = envelope.manualInvitationAvailable && !finished && invitation?.recipient === currentRecipient ? invitation : undefined
+  const turn = envelope.status === 'awaiting_signature' ? currentSigners(envelope) : []
+  const privateInvitations = envelope.manualInvitationAvailable && !finished ? invitations.filter(invitation => turn.some(index => envelope.signers[index].email === invitation.recipient)) : []
+  const paperSigner = turn.find(index => envelope.signers[index].paper?.status === 'pending')
   async function saveInvitation(result: InvitationResult) {
-    setCopied(false)
-    setInvitation(actor.role === 'owner' ? result.invitation : undefined)
+    setCopied(undefined)
+    setInvitations(current => actor.role === 'owner' ? [...current.filter(invitation => !result.invitations?.some(next => next.recipient === invitation.recipient)), ...(result.invitations ?? [])] : [])
     await refresh()
   }
-  const state = pill(envelope, actor), { name, detail } = titleParts(envelope.title), turn = nextSigner(envelope)
+  const state = pill(envelope, actor), { name, detail } = titleParts(envelope.title)
   const me = (email: string) => email.toLowerCase() === actor.email.toLowerCase()
   const deciding = envelope.status === 'prepared' && canApprove(actor), signingHere = Boolean(envelope.ownSigningAvailable)
   return <section className="iw-detail" aria-label={envelope.title}><div className="iw-detail-body">
@@ -46,28 +47,28 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen }: { 
     <h2>{name}</h2><p className="iw-detail-sub">{detail && <span>{detail}</span>}<span className="iw-detail-date">Prepared {dateTime(envelope.createdAt)}</span>{['prepared', 'awaiting_signature', 'expired'].includes(envelope.status) && envelope.expiresAt && <span className="iw-detail-date">{envelope.status === 'expired' ? 'Expired' : 'Expires'} {dateTime(envelope.expiresAt)}</span>}{envelope.copiedFrom && <span>Copied from envelope {envelope.copiedFrom.slice(0, 8)}</span>}</p>
 
     <h3>Signing status</h3>
-    <ol className="iw-signers">{envelope.signers.map((signer, index) => <li key={index} className={signer.declinedAt ? 'iw-declined' : signer.signedAt ? 'iw-signed' : index === turn && envelope.status === 'awaiting_signature' ? 'iw-turn' : undefined}>
-      <span className="iw-order" aria-hidden="true">{signer.signedAt ? <Check /> : index + 1}</span>
-      <div><strong>{signer.name}</strong><span className="iw-signer-email">{signer.email}{signer.accessCode ? ' · access code' : ''}</span><small>{signer.declinedAt ? `${signer.consentWithdrawn ? 'Withdrew consent' : 'Declined'} ${dateTime(signer.declinedAt)} · ${signer.declineReason}` : signer.signedAt ? `${signer.paper?.status === 'accepted' ? 'Signed on paper' : 'Signed'} ${dateTime(signer.signedAt)}` : signer.paper?.status === 'pending' ? 'Paper signature to review' : envelope.status === 'declined' ? 'Not invited' : envelope.status === 'awaiting_signature' && index === turn ? me(signer.email) ? 'Waiting for your signature' : 'Invited, awaiting signature' : 'Awaiting signature'}</small></div>
+    <ol className="iw-signers">{envelope.signers.map((signer, index) => <li key={index} className={signer.declinedAt ? 'iw-declined' : signer.signedAt ? 'iw-signed' : turn.includes(index) ? 'iw-turn' : undefined}>
+      <span className="iw-order" aria-hidden="true">{signer.signedAt ? <Check /> : routingOrder(envelope, index)}</span>
+      <div><strong>{signer.name}</strong><span className="iw-signer-email">{signer.email}{signer.accessCode ? ' · access code' : ''}</span><small>{signer.declinedAt ? `${signer.consentWithdrawn ? 'Withdrew consent' : 'Declined'} ${dateTime(signer.declinedAt)} · ${signer.declineReason}` : signer.signedAt ? `${signer.paper?.status === 'accepted' ? 'Signed on paper' : 'Signed'} ${dateTime(signer.signedAt)}` : signer.paper?.status === 'pending' ? 'Paper signature to review' : envelope.status === 'declined' ? 'Not invited' : turn.includes(index) ? me(signer.email) ? 'Waiting for your signature' : 'Invited, awaiting signature' : 'Awaiting signature'}</small></div>
     </li>)}</ol>
 
     {deciding && <div className="iw-decision">
       <div className="iw-alert"><span className="iw-alert-mark" aria-hidden="true">!</span><div><strong>{preparedByAgent(envelope) ? 'Prepared by the Inkwell agent.' : 'Prepared and saved.'}</strong><p>Nothing is sent until a person approves it.</p></div></div>
       <h3>Human approval</h3>
-      <p>Review the document and recipients before sending invitations. Signatures are collected sequentially.</p>
+      <p>Review the document and recipients before sending invitations. Signatures are collected in routing order; recipients who share a number sign at the same time.</p>
     </div>}
     {signingHere && <div className="iw-decision"><div className="iw-alert iw-alert-turn"><span className="iw-alert-mark" aria-hidden="true">!</span><div><strong>Waiting for you.</strong><p>Review the document and sign it on your own signing page. Opening it replaces the link you were sent.</p></div></div></div>}
 
-    {canEdit(actor) && envelope.status === 'awaiting_signature' && envelope.signers[turn]?.paper?.status === 'pending' && <div className="iw-decision iw-stack"><div className="iw-alert iw-alert-turn"><span className="iw-alert-mark" aria-hidden="true">!</span><div><strong>Paper signature to review.</strong><p>{envelope.signers[turn].name} signed on paper and uploaded {envelope.signers[turn].paper?.pages} page(s). Accept it as their wet-ink signature, or reject it with a reason.</p></div></div><div className="iw-actions"><a className="iw-button" href={`${base}/artifacts/paper-${turn}`} download>View upload</a><button className="iw-primary" disabled={action.busy} onClick={() => void action.run(async () => { await command('envelope.paper_review', { id: envelope.id, accept: true }); await refresh() })}>Accept paper signature</button><button disabled={action.busy} onClick={() => setRejecting(value => !value)}>Reject…</button></div>{rejecting && <form className="iw-stack iw-callout" onSubmit={event => { event.preventDefault(); void action.run(async () => { await command('envelope.paper_review', { id: envelope.id, accept: false, reason: rejectReason }); setRejecting(false); setRejectReason(''); await refresh() }) }}><label>Reason for rejecting<textarea required minLength={3} maxLength={500} value={rejectReason} onChange={event => setRejectReason(event.target.value)} /></label><button className="iw-danger iw-fit" disabled={action.busy}>Reject upload</button></form>}</div>}
-    {actor.role === 'owner' && !signingHere && (privateInvitation || envelope.manualInvitationAvailable) && <div className="iw-manual-invitation">
+    {canEdit(actor) && paperSigner !== undefined && <div className="iw-decision iw-stack"><div className="iw-alert iw-alert-turn"><span className="iw-alert-mark" aria-hidden="true">!</span><div><strong>Paper signature to review.</strong><p>{envelope.signers[paperSigner].name} signed on paper and uploaded {envelope.signers[paperSigner].paper?.pages} page(s). Accept it as their wet-ink signature, or reject it with a reason.</p></div></div><div className="iw-actions"><a className="iw-button" href={`${base}/artifacts/paper-${paperSigner}`} download>View upload</a><button className="iw-primary" disabled={action.busy} onClick={() => void action.run(async () => { await command('envelope.paper_review', { id: envelope.id, signer: paperSigner, accept: true }); await refresh() })}>Accept paper signature</button><button disabled={action.busy} onClick={() => setRejecting(value => !value)}>Reject…</button></div>{rejecting && <form className="iw-stack iw-callout" onSubmit={event => { event.preventDefault(); void action.run(async () => { await command('envelope.paper_review', { id: envelope.id, signer: paperSigner, accept: false, reason: rejectReason }); setRejecting(false); setRejectReason(''); await refresh() }) }}><label>Reason for rejecting<textarea required minLength={3} maxLength={500} value={rejectReason} onChange={event => setRejectReason(event.target.value)} /></label><button className="iw-danger iw-fit" disabled={action.busy}>Reject upload</button></form>}</div>}
+    {actor.role === 'owner' && !signingHere && (privateInvitations.length > 0 || envelope.manualInvitationAvailable) && <div className="iw-manual-invitation">
       <p>Email was not sent because mail is not set up.</p>
-      {privateInvitation && <>
-        <div className="iw-invitation-link"><span>For {privateInvitation.recipient}:</span><a href={privateInvitation.url}>{privateInvitation.url}</a><button aria-live="polite" disabled={action.busy} onClick={() => void action.run(async () => { await navigator.clipboard.writeText(privateInvitation.url); setCopied(true) })}>{copied ? 'Copied' : 'Copy link'}</button></div>
-        <p>Verification code: <strong>{privateInvitation.code}</strong> · valid for 10 minutes.</p>
-        <p>Share this link and code privately with the recipient. The link expires {dateTime(privateInvitation.expiresAt)}.</p>
-      </>}
+      {privateInvitations.map(invitation => <div key={invitation.url}>
+        <div className="iw-invitation-link"><span>For {invitation.recipient}:</span><a href={invitation.url}>{invitation.url}</a><button aria-live="polite" disabled={action.busy} onClick={() => void action.run(async () => { await navigator.clipboard.writeText(invitation.url); setCopied(invitation.url) })}>{copied === invitation.url ? 'Copied' : 'Copy link'}</button></div>
+        <p>Verification code: <strong>{invitation.code}</strong> · valid for 10 minutes.</p>
+        <p>Share this link and code privately with the recipient. The link expires {dateTime(invitation.expiresAt)}.</p>
+      </div>)}
       <p>If the link is lost or the code expires, create a new link. This replaces the previous link, code, and signing session.</p>
-      {envelope.manualInvitationAvailable && <button className="iw-fit" disabled={action.busy} onClick={() => void action.run(async () => { setInvitation(undefined); setCopied(false); await saveInvitation(await command<InvitationResult>('envelope.invite', { id: envelope.id })) })}>{action.busy ? 'Creating…' : 'Create new signing link'}</button>}
+      {envelope.manualInvitationAvailable && turn.map(index => <button key={index} className="iw-fit" disabled={action.busy} onClick={() => void action.run(async () => { setCopied(undefined); await saveInvitation(await command<InvitationResult>('envelope.invite', { id: envelope.id, signer: index })) })}>{action.busy ? 'Creating…' : turn.length > 1 ? `Create new signing link for ${envelope.signers[index].name}` : 'Create new signing link'}</button>)}
     </div>}
 
     <div className="iw-detail-records"><h3>Document</h3>

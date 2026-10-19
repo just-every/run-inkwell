@@ -1,4 +1,4 @@
-import { active, appendEvent, insist, secret, sha256, text, type Env } from './model'
+import { active, appendEvent, currentSigners, insist, secret, sha256, text, type Env } from './model'
 import { commandWrite, commitEnvelope, getEnvelope } from './storage'
 import { mailSuppressed, manualInvitation } from './manual-invitations'
 import type { CommandContext } from './envelopes'
@@ -9,8 +9,8 @@ import type { CommandContext } from './envelopes'
 export async function openOwnSigning(env: Env, context: CommandContext, input: Record<string, unknown>) {
   const before = await getEnvelope(env.DB, text(input.id, 'an envelope ID'))
   active(before)
-  const signer = before.signers.findIndex(s => !s.signedAt)
-  insist(signer >= 0 && before.signers[signer].email.toLowerCase() === context.actor.email.toLowerCase(), 'It is not your turn to sign this envelope.', 409)
+  const signer = currentSigners(before).find(i => before.signers[i].email.toLowerCase() === context.actor.email.toLowerCase())
+  insist(signer !== undefined, 'It is not your turn to sign this envelope.', 409)
   const suppressed = mailSuppressed(env)
   insist(!suppressed || context.actor.role === 'owner', 'Mail is not set up. Ask the owner for a private signing link and code.', 403)
   const row = await env.DB.prepare('SELECT code_generation FROM iw_signers WHERE envelope_id=? AND signer=?').bind(before.id, signer).first<{code_generation:number}>()

@@ -5,12 +5,13 @@ import { canApprove, type Actor, type Envelope } from './types'
 export type Tone = 'rose' | 'amber' | 'blue' | 'mint' | 'grey'
 export type Filter = 'all' | 'me' | 'others' | 'attention' | 'completed' | 'voided'
 
-/** The first recipient still to sign, in signing order. */
-export const nextSigner = (envelope: Envelope) => envelope.signers.findIndex(signer => !signer.signedAt)
+/** ROUTE-002: a recipient's routing order; recipients sharing the lowest open order sign at the same time. */
+export const routingOrder = (envelope: Envelope, index: number) => envelope.signers[index].order ?? index + 1
+export function currentSigners(envelope: Envelope) { const open = envelope.signers.flatMap((signer, index) => signer.signedAt ? [] : [index]); const lowest = Math.min(...open.map(index => routingOrder(envelope, index))); return open.filter(index => routingOrder(envelope, index) === lowest) }
 export const signedCount = (envelope: Envelope) => envelope.signers.filter(signer => signer.signedAt).length
 export const preparedByAgent = (envelope: Envelope) => envelope.events.some(event => event.action === 'envelope.prepared' && event.actor?.startsWith('agent:'))
 export const updatedAt = (envelope: Envelope) => envelope.events.reduce((latest, event) => event.at > latest ? event.at : latest, envelope.createdAt)
-const myTurn = (envelope: Envelope, actor: Actor) => envelope.status === 'awaiting_signature' && envelope.signers[nextSigner(envelope)]?.email.toLowerCase() === actor.email.toLowerCase()
+const myTurn = (envelope: Envelope, actor: Actor) => envelope.status === 'awaiting_signature' && currentSigners(envelope).some(index => envelope.signers[index].email.toLowerCase() === actor.email.toLowerCase())
 
 export function needsMe(envelope: Envelope, actor: Actor) {
   return (envelope.status === 'prepared' && canApprove(actor)) || myTurn(envelope, actor)
@@ -44,7 +45,7 @@ export function pill(envelope: Envelope, actor: Actor): { label: string; tone: T
 export function nextAction(envelope: Envelope, actor: Actor): { label: string; urgent: boolean } {
   switch (envelope.status) {
     case 'prepared': return canApprove(actor) ? { label: 'Approve and send', urgent: true } : { label: 'Waiting for approval', urgent: false }
-    case 'awaiting_signature': return myTurn(envelope, actor) ? { label: 'Your turn to sign', urgent: true } : { label: `Waiting on ${envelope.signers[nextSigner(envelope)]?.name ?? 'the next signer'}`, urgent: false }
+    case 'awaiting_signature': return myTurn(envelope, actor) ? { label: 'Your turn to sign', urgent: true } : { label: `Waiting on ${currentSigners(envelope).map(index => envelope.signers[index].name).join(' and ') || 'the next signer'}`, urgent: false }
     case 'completed': return { label: 'Executed PDF ready', urgent: false }
     case 'declined': { const by = envelope.signers.find(signer => signer.declinedAt); return { label: `${by?.consentWithdrawn ? 'Consent withdrawn by' : 'Declined by'} ${by?.name ?? 'a signer'}`, urgent: false } }
     case 'expired': return { label: 'Prepare a new one', urgent: true }

@@ -1,11 +1,11 @@
-import { appendEvent, insist, text, type Envelope, type Env } from './model'
+import { appendEvent, currentSigners, insist, text, type Envelope, type Env } from './model'
 import { commandWrite, commitEnvelope, getEnvelope } from './storage'
 import { dispatchMail, noticeWrite } from './mail'
 import { mailSuppressed } from './manual-invitations'
 import type { CommandContext } from './envelopes'
 
 /** DELIV-004: each envelope carries its own expiry, 120 days unless the sender sets another, at most a year out.
- * The current recipient and the sender are warned three days before it, and the sender can extend it before or after
+ * Every recipient whose turn it is and the sender are warned three days before it, and the sender can extend it before or after
  * it passes without preparing again. Account-wide and template defaults belong to ADMIN-004 and TMPL-001. */
 const day = 86_400_000
 export const defaultExpiryDays = 120, warningDays = 3, maxExpiryDays = 365
@@ -49,14 +49,14 @@ export async function warnExpiring(env: Env, at: number) {
 }
 
 async function warn(env: Env, before: Envelope) {
-  const signer = before.signers.findIndex(s => !s.signedAt), recipient = before.signers[signer]
+  const current = currentSigners(before), waitingOn = current.map(i => before.signers[i].name).join(' and ')
   const sender = await env.DB.prepare('SELECT email,display_name FROM oa_operators WHERE id=?').bind(before.createdBy).first<{ email: string; display_name: string }>()
   const after = structuredClone(before), emailSent = !mailSuppressed(env)
   const notices = emailSent ? [
-    noticeWrite(env.DB, after, signer, recipient.email, `Expires soon: ${after.title}`, `${recipient.name},\n\nYour invitation to sign ${after.title} expires ${after.expiresAt}.\nUse the link in your invitation email to review and sign before then.`),
-    ...(sender ? [noticeWrite(env.DB, after, signer, sender.email, `Expires soon: ${after.title}`, `${sender.display_name},\n\n${after.title} expires ${after.expiresAt} and is waiting for ${recipient.name}.\nExtend it from the envelope in Inkwell if they need more time.`)] : []),
+    ...current.map(i => noticeWrite(env.DB, after, i, before.signers[i].email, `Expires soon: ${after.title}`, `${before.signers[i].name},\n\nYour invitation to sign ${after.title} expires ${after.expiresAt}.\nUse the link in your invitation email to review and sign before then.`)),
+    ...(sender ? [noticeWrite(env.DB, after, current[0], sender.email, `Expires soon: ${after.title}`, `${sender.display_name},\n\n${after.title} expires ${after.expiresAt} and is waiting for ${waitingOn}.\nExtend it from the envelope in Inkwell if they need more time.`)] : []),
   ] : []
-  await appendEvent(after, 'envelope.expiry_warned', 'inkwell', { expiresAt: after.expiresAt, signer, recipients: [recipient.email, ...(sender ? [sender.email] : [])], emailSent })
+  await appendEvent(after, 'envelope.expiry_warned', 'inkwell', { expiresAt: after.expiresAt, signers: current, recipients: [...current.map(i => before.signers[i].email), ...(sender ? [sender.email] : [])], emailSent })
   await commitEnvelope(env.DB, before, after, null, notices)
   await dispatchMail(env, after.id)
 }

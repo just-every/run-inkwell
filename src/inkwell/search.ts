@@ -7,8 +7,10 @@ import { insist, type Actor, type Envelope, type Env } from './model'
 export const buckets = ['draft', 'waiting_for_me', 'waiting_for_others', 'completed', 'declined', 'voided', 'expired', 'imported'] as const
 type Bucket = typeof buckets[number]
 
-const current = "(SELECT lower(json_extract(s.value,'$.email')) FROM json_each(e.data,'$.signers') s WHERE json_extract(s.value,'$.signedAt') IS NULL ORDER BY CAST(s.key AS INTEGER) LIMIT 1)"
-const bucket = `CASE WHEN json_extract(e.data,'$.status') IN ('prepared','awaiting_signature') AND json_extract(e.data,'$.expiresAt')<=?1 THEN 'expired' WHEN json_extract(e.data,'$.status')='prepared' THEN 'draft' WHEN json_extract(e.data,'$.status')='awaiting_signature' THEN CASE WHEN ${current}=?2 THEN 'waiting_for_me' ELSE 'waiting_for_others' END ELSE json_extract(e.data,'$.status') END`
+// ROUTE-002: it is my turn when I am an unsigned signer at the lowest routing order still open.
+const order = (s: string) => `COALESCE(json_extract(${s}.value,'$.order'),CAST(${s}.key AS INTEGER)+1)`, open = (s: string) => `json_extract(${s}.value,'$.signedAt') IS NULL`
+const myTurn = `EXISTS(SELECT 1 FROM json_each(e.data,'$.signers') s WHERE ${open('s')} AND lower(json_extract(s.value,'$.email'))=?2 AND ${order('s')}=(SELECT MIN(${order('o')}) FROM json_each(e.data,'$.signers') o WHERE ${open('o')}))`
+const bucket = `CASE WHEN json_extract(e.data,'$.status') IN ('prepared','awaiting_signature') AND json_extract(e.data,'$.expiresAt')<=?1 THEN 'expired' WHEN json_extract(e.data,'$.status')='prepared' THEN 'draft' WHEN json_extract(e.data,'$.status')='awaiting_signature' THEN CASE WHEN ${myTurn} THEN 'waiting_for_me' ELSE 'waiting_for_others' END ELSE json_extract(e.data,'$.status') END`
 const like = (value: string) => '%' + value.replace(/[\\%_]/g, c => '\\' + c) + '%'
 
 export async function searchEnvelopes(env: Env, actor: Actor, params: URLSearchParams) {

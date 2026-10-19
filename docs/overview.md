@@ -11,11 +11,12 @@ and the fields each of them fills in.
    places signature, text and date fields on the pages. Saving prepares the envelope; it
    sends nothing yet.
 2. **Approve.** A person reviews the document, the recipients and whether it is suitable
-   for electronic signature, then approves it. Only then does Inkwell invite the first
-   recipient.
-3. **Sign in order.** Each recipient opens their own private link, confirms their email
-   address with a one-time code, reads the document, types their name and signs. The next
-   recipient is invited only after the previous signature is recorded.
+   for electronic signature, then approves it. Only then does Inkwell invite the
+   recipients at the first routing order.
+3. **Sign in routing order.** Each recipient opens their own private link, confirms their
+   email address with a one-time code, reads the document, types their name and signs.
+   Recipients who share a routing order sign at the same time; the next order is invited
+   only after all of their signatures are recorded.
 4. **Keep.** When the last person signs, the envelope is **completed**: you can download
    the executed PDF, the certificate, the audit JSON and a handoff manifest, and recheck
    every fingerprint at any time.

@@ -43,7 +43,7 @@ Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed her
 ### Recipients and routing
 
 - **ROUTE-001 — Any number of recipients and roles** (partial). Send to eight signers, one approver, one form filler and three copy recipients, where signer 1 must have a witness; each sees only their own actions; signer 1 nominates a witness who is invited only after signer 1 signs and before order 2; copy recipients receive only the completed record.
-- **ROUTE-002 — Sequential, parallel and mixed order** (partial). Recipients at orders 1, 2, 2 and 3; both order-2 recipients are invited together after order 1, and order 3 is invited only after both finish.
+- **ROUTE-002 — Sequential, parallel and mixed order** (done). Recipients at orders 1, 2, 2 and 3; both order-2 recipients are invited together after order 1, and order 3 is invited only after both finish.
 - **ROUTE-003 — Conditional routing** (missing). Two envelopes from one template with amounts of 5,000 and 25,000 USD; only the second routes to the finance director, and the first's certificate names the skipped step and its rule.
 - **ROUTE-004 — Internal approval before sending** (missing). A sender's envelope above the rule's threshold waits for the approver; a rejection returns it to the sender with the reason; an approval sends it.
 - **ROUTE-005 — Signing groups** (missing). Send to the "Company Signers" group of three; one member signs, the others' links show it is done, and the certificate names the signer and the group.

@@ -48,7 +48,7 @@ test('a prepared fixed PDF requires explicit human approval and immutable recipi
  assert.equal(e.status,'prepared');assert.equal(e.originalSha256,digest(original))
  await h.command('envelope.approve',{id:envelopeId,eligible:false},h.owner,400)
  const approved=await h.command('envelope.approve',{id:envelopeId,eligible:true})
- assert.equal(approved.result.invitation,undefined,'provider-configured sends never expose the private link')
+ assert.equal(approved.result.invitations,undefined,'provider-configured sends never expose the private link')
  await h.command('envelope.invite',{id:envelopeId},h.owner,409)
  assert.equal((await snapshot()).envelopes.find(e=>e.id===envelopeId).manualInvitationAvailable,false)
  assert.ok(await h.mail(recipients[0].email,'Please sign:'))
@@ -114,7 +114,7 @@ test('PREP-010: copying a completed envelope makes an unsigned draft that names 
  const copy=(await h.command('envelope.copy',{id:sourceId})).result
  const draft=(await snapshot()).envelopes.find(e=>e.id===copy.id)
  assert.notEqual(copy.id,sourceId);assert.equal(draft.status,'prepared');assert.equal(draft.copiedFrom,sourceId)
- assert.deepEqual(draft.signers,source.signers.map(({name,email})=>({name,email})),'same recipients, no signatures or entered values')
+ assert.deepEqual(draft.signers,source.signers.map(({name,email,order})=>({name,email,order})),'same recipients in the same routing order, no signatures or entered values')
  assert.deepEqual(draft.fields,source.fields);assert.equal(draft.signedSha256,undefined)
  assert.equal(digest((await h.send('/api/inkwell/envelopes/'+copy.id+'/artifacts/original',undefined,h.owner)).bytes),source.originalSha256,'the original, unsigned bytes')
  await h.command('envelope.copy',{id:copy.id},h.owner,409)
@@ -165,6 +165,28 @@ test('SIGNX-004: the second signer declines with a reason; the third is never in
  const text=await pdfText(certificate.bytes)
  assert.ok(text.includes('Inkwell decline certificate')&&text.includes('Decline reason: '+reason)&&text.includes('by Eli Park'),'the certificate records the decline')
  assert.equal((await h.send('/api/inkwell/envelopes/'+id+'/verify',undefined,h.owner)).value.ok,true)
+})
+test('ROUTE-002: recipients at orders 1, 2, 2 and 3; both order-2 recipients are invited together after order 1, and order 3 only after both finish',async()=>{
+ const four=[{name:'Gus Hale',email:'gus@harbour.example',order:1},{name:'Hana Ito',email:'hana@harbour.example',order:2},{name:'Ivan Roe',email:'ivan@harbour.example',order:2},{name:'Jo Kim',email:'jo@harbour.example',order:3}]
+ const sign=(at,signer,name)=>h.post(at.path+'/sign',{values:{[`signature-${signer}`]:name},consent:true,commandId:crypto.randomUUID()},at.cookie)
+ await h.command('envelope.prepare',{...preparation(),signers:[{...four[0],order:0}],fields:[fields[0]]},h.owner,400)
+ const id=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio partner agreement',signers:four,fields:four.map((_,signer)=>({...fields[0],id:`signature-${signer}`,signer,y:.3+signer*.12}))})).result.id
+ await h.command('envelope.approve',{id,eligible:true})
+ for(const s of four.slice(1)) assert.equal(await h.mail(s.email),undefined,`${s.name} is not invited before order 1 signs`)
+ await sign(await verified(four[0].email),0,'Gus Hale')
+ assert.ok(await h.mail(four[1].email,'Please sign:')&&await h.mail(four[2].email,'Please sign:'),'both order-2 recipients are invited together')
+ assert.equal(await h.mail(four[3].email),undefined,'order 3 waits for both order-2 recipients')
+ const hana=await verified(four[1].email),ivan=await verified(four[2].email)
+ for(const at of [hana,ivan]) assert.equal((await h.send(at.path,undefined,at.cookie)).value.canSign,true,'recipients sharing an order can both sign now')
+ await sign(ivan,2,'Ivan Roe')
+ assert.equal(await h.mail(four[3].email),undefined,'order 3 still waits while one order-2 recipient has not signed')
+ await sign(hana,1,'Hana Ito')
+ assert.ok(await h.mail(four[3].email,'Please sign:'),'order 3 is invited once both order-2 recipients finish')
+ await sign(await verified(four[3].email),3,'Jo Kim')
+ const e=(await snapshot()).envelopes.find(e=>e.id===id)
+ assert.equal(e.status,'completed');assert.deepEqual(e.signers.map(s=>s.order),[1,2,2,3])
+ assert.ok(e.signers[0].signedAt<=e.signers[2].signedAt&&e.signers[2].signedAt<=e.signers[1].signedAt&&e.signers[1].signedAt<=e.signers[3].signedAt,'the later order-2 recipient signed first, and order 3 signed last')
+ assert.deepEqual(e.events.find(event=>event.action==='envelope.prepared').detail.orderedSigners.map(s=>s.order),[1,2,2,3],'the routing orders are on record')
 })
 test('SIGNX-005: a new signer reads and accepts the versioned disclosure before the document; the next withdraws consent and the envelope stops on record',async()=>{
  const pair=[{name:'Ivy Brooks',email:'ivy@harbour.example'},{name:'Jon Reyes',email:'jon@harbour.example'},{name:'Kit Moss',email:'kit@harbour.example'}]

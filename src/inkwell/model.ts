@@ -4,12 +4,17 @@ export function insist(condition: unknown, message: string, status = 400): asser
 export type Role = 'owner' | 'admin' | 'member'
 export interface Actor { id: string; name: string; email: string; role: Role; version: number; sessionId?: string; agentId?: string }
 export interface Field { id: string; label: string; type: 'signature' | 'text' | 'date'; signer: number; page: number; x: number; y: number; width: number; height: number }
-export interface Signer { name: string; email: string; accessCode?: boolean; signedAt?: string; values?: Record<string, string>; declinedAt?: string; declineReason?: string; consentWithdrawn?: boolean; disclosure?: { version: string; sha256: string; acceptedAt: string }; paper?: Paper }
+export interface Signer { name: string; email: string; order?: number; accessCode?: boolean; signedAt?: string; values?: Record<string, string>; declinedAt?: string; declineReason?: string; consentWithdrawn?: boolean; disclosure?: { version: string; sha256: string; acceptedAt: string }; paper?: Paper }
 /** SIGNX-008: a hand-signed scan the recipient uploaded instead of signing electronically, and the sender's review. */
 export interface Paper { sha256: string; pages: number; mediaType: string; uploadedAt: string; status: 'pending' | 'accepted' | 'rejected'; reviewedAt?: string; reviewedBy?: string; reason?: string }
 export interface AuditEvent { action: string; at: string; actor: string; detail: Record<string, unknown>; previousHash: string; hash: string }
 export interface Envelope { id: string; version: number; title: string; filename: string; status: 'prepared' | 'awaiting_signature' | 'completed' | 'declined' | 'voided' | 'expired' | 'imported'; createdAt: string; createdBy: string; expiresAt: string; signers: Signer[]; fields: Field[]; pageSizes: { width: number; height: number }[]; originalSha256: string; signedSha256?: string; certificateSha256?: string; events: AuditEvent[]; imported?: boolean; source?: unknown; copiedFrom?: string; allowPaper?: boolean }
 export type Env = Bindings
+/** ROUTE-002: a signer's routing order. Envelopes stored before orders existed sign one at a time in list order. */
+export const routingOrder = (envelope: Envelope, signer: number) => envelope.signers[signer].order ?? signer + 1
+/** ROUTE-002: whose turn it is: every unsigned signer at the lowest routing order any unsigned signer has. Signers who
+ * share that order act in parallel; higher orders wait until all of them have finished. */
+export function currentSigners(envelope: Envelope) { const open = envelope.signers.flatMap((s, i) => s.signedAt ? [] : [i]); const lowest = Math.min(...open.map(i => routingOrder(envelope, i))); return open.filter(i => routingOrder(envelope, i) === lowest) }
 export function object(value: unknown): Record<string, unknown> { insist(value && typeof value === 'object' && !Array.isArray(value), 'Provide a JSON object.'); return value as Record<string, unknown> }
 export function text(value: unknown, label: string, max = 200): string { insist(typeof value === 'string' && value.trim().length > 0 && value.length <= max && !/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(value), `Provide ${label} (at most ${max} characters).`); return value.trim() }
 export const now = () => new Date().toISOString()

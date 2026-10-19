@@ -1,13 +1,15 @@
-Prepare an envelope, approve it, and Inkwell invites each recipient in order.
+Prepare an envelope, approve it, and Inkwell invites each recipient in routing order.
 
 ## Prepare the envelope
 
 1. On **Envelopes**, choose **New envelope**.
 2. Enter an **Envelope title** and choose the **Fixed PDF document**: the final version,
    up to 2 MiB. The original PDF is never changed after this.
-3. Under **Recipients · sign in this order**, enter each person's name and email address in
-   the order they should sign. You can add up to five with **Add recipient**; each needs a
-   different email address.
+3. Under **Recipients**, enter each person's name and email address. You can add up to five
+   with **Add recipient**; each needs a different email address. The number beside each
+   recipient is their routing order: recipients who share a number are invited together and
+   sign in any order, and the next number is invited once all of them have signed. Give
+   everyone a different number to sign one at a time.
 
    To ask a recipient for an access code before they can see the document, type one (4–32
    characters, no spaces) in their optional **Access code** box and tell them the code

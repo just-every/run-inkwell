@@ -14,7 +14,7 @@ for (const mailProvider of ['development', undefined]) {
    const id = (await h.command('envelope.prepare',{title:'Harbour studio agreement',filename:'agreement.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),signers,fields})).result.id
    const commandId = crypto.randomUUID()
    const approved = await h.command('envelope.approve',{id,eligible:true},h.owner,200,commandId)
-   const first = approved.result.invitation
+   const [first] = approved.result.invitations
    assert.equal(first.recipient,signers[0].email)
    const path = '/api'+new URL(first.url).pathname
    assert.equal((await h.send(path)).value.mailSuppressed,true)
@@ -26,9 +26,9 @@ for (const mailProvider of ['development', undefined]) {
    await h.agree(path,verified.cookie)
    assert.equal((await h.send(path+'/document',undefined,verified.cookie)).status,200)
    const replay = await h.command('envelope.approve',{id,eligible:true},h.owner,200,commandId)
-   assert.equal(replay.result.invitation,undefined,'command replay cannot recover secrets')
+   assert.equal(replay.result.invitations,undefined,'command replay cannot recover secrets')
    await h.command('envelope.invite',{id},'',401)
-   const renewed = (await h.command('envelope.invite',{id})).result.invitation
+   const [renewed] = (await h.command('envelope.invite',{id})).result.invitations
    assert.notEqual(renewed.url,first.url)
    assert.equal(renewed.expiresAt,first.expiresAt,'reissue preserves the original invitation deadline')
    assert.equal((await h.send(path)).status,404)
@@ -40,7 +40,7 @@ for (const mailProvider of ['development', undefined]) {
    await h.post(current+'/sign',{values:{'signature-1':'Alex Morgan'},consent:true,commandId:crypto.randomUUID()},session.cookie,400)
    await h.post(current+'/sign',{values:{'signature-0':'Priya Shah'},consent:false,commandId:crypto.randomUUID()},session.cookie,400)
    await h.post(current+'/sign',{values:{'signature-0':'Priya Shah'},consent:true,commandId:crypto.randomUUID()},session.cookie)
-   const next = (await h.command('envelope.invite',{id})).result.invitation
+   const [next] = (await h.command('envelope.invite',{id})).result.invitations
    assert.equal(next.recipient,signers[1].email)
    const nextPath='/api'+new URL(next.url).pathname
    const second = await h.post(nextPath+'/verify',{code:next.code},'')

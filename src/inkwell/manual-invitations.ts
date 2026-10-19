@@ -1,4 +1,4 @@
-import { active, appendEvent, insist, randomCode, secret, sha256, text, type Envelope, type Env } from './model'
+import { active, appendEvent, currentSigners, insist, randomCode, secret, sha256, text, type Envelope, type Env } from './model'
 import { commandWrite, commitEnvelope, getEnvelope } from './storage'
 import type { CommandContext } from './envelopes'
 
@@ -21,8 +21,9 @@ export async function reissueInvitation(env: Env, context: CommandContext, input
   insist(mailSuppressed(env), 'Private signing links are only shown when mail is not set up.', 409)
   const before = await getEnvelope(env.DB, text(input.id, 'an envelope ID'))
   active(before)
-  const signer = before.signers.findIndex(s => !s.signedAt)
-  insist(signer >= 0, 'All recipients have signed.', 409)
+  // ROUTE-002: any signer whose turn it is (several when they share a routing order); the first of them by default.
+  const current = currentSigners(before), signer = input.signer === undefined ? current[0] : input.signer as number
+  insist(current.includes(signer), 'Choose a recipient whose turn it is to sign.', 409)
   const row = await env.DB.prepare('SELECT code_generation FROM iw_signers WHERE envelope_id=? AND signer=?').bind(before.id, signer).first<{code_generation:number}>()
   insist(row, 'Recipient not found.', 404)
   const after = structuredClone(before)
@@ -31,5 +32,5 @@ export async function reissueInvitation(env: Env, context: CommandContext, input
   await commitEnvelope(env.DB, before, after, context.actor, [issued.write,
     env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND signer=? AND state='pending'").bind(after.id, signer),
     commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
-  return { ...result, invitation: issued.invitation }
+  return { ...result, invitations: [issued.invitation] }
 }

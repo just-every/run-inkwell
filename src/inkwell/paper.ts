@@ -1,4 +1,4 @@
-import { active, appendEvent, insist, now, sha256, text, type Env } from './model'
+import { active, appendEvent, currentSigners, insist, now, sha256, text, type Env } from './model'
 import { commandWrite, commitEnvelope, getEnvelope } from './storage'
 import { blobWrites, MAX_PDF, readBlob } from './blobs'
 import { readBytes } from './body'
@@ -16,7 +16,7 @@ export async function uploadPaper(env: Env, context: SigningContext, request: Re
   const before = context.envelope, index = context.recipient.signer, signer = before.signers[index]
   insist(before.allowPaper, 'The sender does not allow paper signing for this envelope.', 403)
   active(before)
-  insist(before.signers.findIndex(s => !s.signedAt) === index, 'This invitation is waiting for an earlier signer, or you have already signed.', 409)
+  insist(currentSigners(before).includes(index), 'This invitation is waiting for an earlier signer, or you have already signed.', 409)
   disclosureGate(signer, 'uploading a paper signature')
   insist(signer.paper?.status !== 'pending', 'Your paper signature is already waiting for the sender’s review.', 409)
   const mediaType = request.headers.get('content-type')?.split(';')[0].trim() ?? ''
@@ -40,8 +40,10 @@ export async function uploadPaper(env: Env, context: SigningContext, request: Re
 export async function reviewPaper(env: Env, context: CommandContext, input: Record<string, unknown>) {
   const before = await getEnvelope(env.DB, text(input.id, 'an envelope ID'))
   active(before)
-  const index = before.signers.findIndex(s => !s.signedAt), signer = before.signers[index]
-  insist(signer?.paper?.status === 'pending', 'No paper signature is waiting for review.', 409)
+  // ROUTE-002: signers sharing a routing order may each have a scan waiting; `signer` picks one, else the first.
+  const waiting = currentSigners(before).filter(i => before.signers[i].paper?.status === 'pending')
+  const index = input.signer === undefined ? waiting[0] : input.signer as number, signer = before.signers[index]
+  insist(waiting.includes(index) && signer?.paper?.status === 'pending', 'No paper signature is waiting for review.', 409)
   insist(typeof input.accept === 'boolean', 'Choose to accept or reject the paper signature.')
   const after = structuredClone(before), reviewedAt = now(), paper = signer.paper
   if (!input.accept) {
