@@ -1,3 +1,4 @@
+import { HostSigning } from './host-signing'
 // One envelope in the right-hand panel: its pill, signing status in order, the approval decision when a person must
 // make one, the files, the integrity check, the audit trail, and voiding or erasure. The panel's body scrolls; the
 // decision the panel asks for (approve, or review and sign) sits in its foot, always in view.
@@ -66,10 +67,10 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
   const deciding = envelope.status === 'prepared' && mayEdit, signingHere = Boolean(envelope.ownSigningAvailable)
   // DELIV-006: correct is offered to whoever may change the envelope while it is open for signing.
   const correctable = mayEdit && envelope.status === 'awaiting_signature' && !envelope.scheduled && Date.parse(envelope.expiresAt) > Date.now()
-  const remindable = mayEdit && envelope.status === 'awaiting_signature' && !envelope.scheduled && !envelope.manualInvitationAvailable && !signingHere && turn.some(index => envelope.signers[index].paper?.status !== 'pending')
-  const resendable = remindable ? turn.filter(index => envelope.signers[index].paper?.status !== 'pending' && !timeline(index)?.bounced) : []
+  const remindable = mayEdit && envelope.status === 'awaiting_signature' && !envelope.scheduled && !envelope.manualInvitationAvailable && !signingHere && turn.some(index => !envelope.signers[index].inPerson && envelope.signers[index].paper?.status !== 'pending')
+  const resendable = remindable ? turn.filter(index => !envelope.signers[index].inPerson && envelope.signers[index].paper?.status !== 'pending' && !timeline(index)?.bounced) : []
   // ROUTE-009: an approver who signs at the first routing order signs here right after approving; nobody emails them.
-  const signsFirst = deciding && currentSigners(envelope).some(index => me(envelope.signers[index].email))
+  const signsFirst = deciding && currentSigners(envelope).some(index => !envelope.signers[index].inPerson && me(envelope.signers[index].email))
   async function approve() {
     const result = await command<InvitationResult>('envelope.approve', { id: envelope.id, eligible: true, ...(later ? { sendAt: { at: sendAt, timeZone: zone } } : {}) })
     if (!result.signInApp) return saveInvitation(result)
@@ -79,10 +80,10 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
     <div className="iw-detail-top"><Pill {...state} /><button className="iw-icon-button" aria-label="Close" onClick={onClose}><Icon name="close" /></button></div>
     <h2>{name}</h2><p className="iw-detail-sub">{detail && <span>{detail}</span>}<span className="iw-detail-date">Prepared {dateTime(envelope.createdAt)}</span>{['prepared', 'awaiting_signature', 'expired'].includes(envelope.status) && envelope.expiresAt && <span className="iw-detail-date">{envelope.status === 'expired' ? 'Expired' : 'Expires'} {dateTime(envelope.expiresAt)}</span>}{envelope.reminders && ['prepared', 'awaiting_signature'].includes(envelope.status) && <span>Reminders after {envelope.reminders.afterDays}, then every {envelope.reminders.everyDays} business days</span>}{envelope.copiedFrom && <span>Copied from envelope {envelope.copiedFrom.slice(0, 8)}</span>}</p>
 
-    <h3>Signing status</h3>
+    <h3>Signing status</h3>{mayEdit && !envelope.scheduled && turn.filter(index => envelope.signers[index].inPerson && !me(envelope.signers[index].email)).map(index => <HostSigning key={index} id={envelope.id} signer={index} name={envelope.signers[index].name} />)}
     <ol className="iw-signers">{envelope.signers.map((signer, index) => <li key={index} className={signer.removedAt ? 'iw-declined' : signer.declinedAt ? 'iw-declined' : signer.signedAt ? 'iw-signed' : turn.includes(index) ? 'iw-turn' : undefined}>
       <span className="iw-order" aria-hidden="true">{signer.signedAt ? <Check /> : routingOrder(envelope, index)}</span>
-      <div><strong>{signer.name}</strong><span className="iw-signer-email">{signer.email}{signer.accessCode ? ' · access code' : ''}</span><small>{signer.removedAt ? `Removed by a correction ${dateTime(signer.removedAt)}` : signer.declinedAt ? `${signer.consentWithdrawn ? 'Withdrew consent' : 'Declined'} ${dateTime(signer.declinedAt)} · ${signer.declineReason}` : signer.signedAt ? `${signer.paper?.status === 'accepted' ? 'Signed on paper' : 'Signed'} ${dateTime(signer.signedAt)}` : signer.paper?.status === 'pending' ? 'Paper signature to review' : envelope.status === 'declined' ? 'Not invited' : turn.includes(index) ? me(signer.email) ? 'Waiting for your signature' : 'Invited, awaiting signature' : 'Awaiting signature'}</small>
+      <div><strong>{signer.name}</strong><span className="iw-signer-email">{signer.email}{signer.accessCode ? ' · access code' : ''}{signer.inPerson ? ' · in person' : ''}</span><small>{signer.removedAt ? `Removed by a correction ${dateTime(signer.removedAt)}` : signer.declinedAt ? `${signer.consentWithdrawn ? 'Withdrew consent' : 'Declined'} ${dateTime(signer.declinedAt)} · ${signer.declineReason}` : signer.signedAt ? `${signer.paper?.status === 'accepted' ? 'Signed on paper' : 'Signed'} ${dateTime(signer.signedAt)}` : signer.paper?.status === 'pending' ? 'Paper signature to review' : envelope.status === 'declined' ? 'Not invited' : turn.includes(index) ? signer.inPerson ? 'Waiting for an in-person host' : me(signer.email) ? 'Waiting for your signature' : 'Invited, awaiting signature' : 'Awaiting signature'}</small>
         {timeline(index)?.waitingOn && <small>Waiting on: {timeline(index)!.waitingOn}</small>}
         {timeline(index)?.bounced && mayEdit && <form className="iw-stack iw-callout" onSubmit={event => { event.preventDefault(); void action.run(async () => { await command('envelope.correct_bounced', { id: envelope.id, signer: index, email: corrections[index] ?? '' }); setCorrections(current => ({ ...current, [index]: '' })); await refresh() }) }}><label>Corrected email for {signer.name}<input type="email" required value={corrections[index] ?? ''} onChange={event => { const value = event.target.value; setCorrections(current => ({ ...current, [index]: value })) }} /></label><button className="iw-primary iw-fit" disabled={action.busy}>Correct and resend</button></form>}
         {timeline(index)?.steps.length ? <ul className="iw-timeline" aria-label={`${signer.name} timeline`}>{timeline(index)!.steps.map(step => <li key={step.step + step.at}><strong>{steps[step.step] ?? step.step}</strong> <time dateTime={step.at}>{zonedAndUtc(step.at, envelope.timeZone ?? 'America/New_York')}</time>{step.detail && step.step !== 'sent' ? ` · ${step.detail}` : ''}</li>)}</ul> : null}</div>
@@ -106,7 +107,7 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
         <p>Share this link and code privately with the recipient. The link expires {dateTime(invitation.expiresAt)}.</p>
       </div>)}
       <p>If the link is lost or the code expires, create a new link. This replaces the previous link, code, and signing session.</p>
-      {envelope.manualInvitationAvailable && turn.map(index => <button key={index} className="iw-fit" disabled={action.busy} onClick={() => void action.run(async () => { setCopied(undefined); await saveInvitation(await command<InvitationResult>('envelope.invite', { id: envelope.id, signer: index })) })}>{action.busy ? 'Creating…' : turn.length > 1 ? `Create new signing link for ${envelope.signers[index].name}` : 'Create new signing link'}</button>)}
+      {envelope.manualInvitationAvailable && turn.filter(index=>!envelope.signers[index].inPerson).map(index => <button key={index} className="iw-fit" disabled={action.busy} onClick={() => void action.run(async () => { setCopied(undefined); await saveInvitation(await command<InvitationResult>('envelope.invite', { id: envelope.id, signer: index })) })}>{action.busy ? 'Creating…' : turn.length > 1 ? `Create new signing link for ${envelope.signers[index].name}` : 'Create new signing link'}</button>)}
     </div>}
 
     <div className="iw-detail-records"><h3>Document</h3>

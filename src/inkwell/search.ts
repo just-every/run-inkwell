@@ -60,6 +60,6 @@ export async function searchEnvelopes(env: Env, actor: Actor, params: URLSearchP
 export function presentEnvelope(env: Env, actor: Actor, envelope: Envelope, access: Access) {
   const open = !envelope.imported && envelope.status === 'awaiting_signature' && Date.parse(envelope.expiresAt) > Date.now()
   return { ...envelope, access, mayShare: mayShare(actor, envelope), status: ['prepared', 'awaiting_signature'].includes(envelope.status) && Date.parse(envelope.expiresAt) <= Date.now() ? 'expired' as const : envelope.status,
-    manualInvitationAvailable: actor.role === 'owner' && mailSuppressed(env) && open,
-    ownSigningAvailable: open && currentSigners(envelope).some(i => envelope.signers[i].email.toLowerCase() === actor.email.toLowerCase()) }
+    manualInvitationAvailable: actor.role === 'owner' && mailSuppressed(env) && open && currentSigners(envelope).some(i=>!envelope.signers[i].inPerson),
+    ownSigningAvailable: open && currentSigners(envelope).some(i => !envelope.signers[i].inPerson && envelope.signers[i].email.toLowerCase() === actor.email.toLowerCase()) }
 }

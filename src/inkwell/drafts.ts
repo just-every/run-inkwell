@@ -36,7 +36,9 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
     // IDV-001: link only is a choice per recipient, refused when mail is off (the owner's private link would be the only factor).
     insist(s.linkOnly === undefined || typeof s.linkOnly === 'boolean', 'Choose email code or link only for each recipient.')
     insist(!s.linkOnly || !mailSuppressed(env), 'Link-only signing needs mail; while mail is not set up every recipient verifies a code.', 409)
-    return { name: text(s.name, 'the signer name', 100), email, order: order as number, ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
+    insist(s.inPerson === undefined || typeof s.inPerson === 'boolean', 'Choose whether each recipient signs in person.')
+    const inPerson = s.inPerson ?? (previous?.signers[i]?.email === email && previous.signers[i].inPerson)
+    return { name: text(s.name, 'the signer name', 100), email, order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
   })
   insist(new Set(signers.map(s => s.email)).size === signers.length, 'Each ordered signer must use a different email.')
   const fields = validateFields(input.fields, signers.length, pageSizes.length), copies = chooseCopies(input.copies, signers)

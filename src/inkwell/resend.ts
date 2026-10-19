@@ -22,6 +22,7 @@ export async function resendInvitation(env: Env, context: CommandContext, input:
   insist(!mailSuppressed(env), 'Mail is not set up, so no invitation can be emailed. Create a new signing link instead.', 409)
   const signer = input.signer as number, current = currentSigners(before)
   insist(Number.isInteger(signer) && current.includes(signer), 'Choose a recipient whose turn it is to sign.', 409)
+  insist(!before.signers[signer].inPerson, 'In-person signers do not receive signing invitations. Start a hosted session instead.', 409)
   insist(before.signers[signer].paper?.status !== 'pending', 'This recipient’s paper signature is waiting for your review.', 409)
   insist(!bouncedRecipients(before, await envelopeMessages(env, before.id)).some(entry => entry.signer === signer), 'This recipient’s invitation bounced: correct their email address instead.', 409)
   insist(input.newLink === undefined || typeof input.newLink === 'boolean', 'Choose whether to send a new link.')

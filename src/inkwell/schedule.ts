@@ -35,7 +35,7 @@ async function send(env: Env, before: Envelope, at: number) {
   const after = structuredClone(before), schedule = after.scheduled!
   delete after.scheduled
   const inApp = (after.events.find(e => e.action === 'envelope.approved')?.detail.signsInApp as number[] | undefined) ?? []
-  const first = currentSigners(after).filter(i => !inApp.includes(i))
+  const first = currentSigners(after).filter(i => !inApp.includes(i) && !after.signers[i].inPerson)
   await appendEvent(after, 'envelope.sent_scheduled', 'inkwell', { scheduledFor: schedule.at, local: schedule.local, timeZone: schedule.timeZone, passAt: new Date(at).toISOString(), invited: first })
   const writes: D1PreparedStatement[] = []
   for (const i of first) { const token = secret(); writes.push(env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=? WHERE envelope_id=? AND signer=?').bind(await sha256(token), await sealLink(env, after.id, i, token), after.id, i), invitationWrite(env, after, i, token)) }

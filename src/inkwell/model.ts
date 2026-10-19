@@ -6,7 +6,7 @@ export type Role = 'owner' | 'admin' | 'sender' | 'viewer'
 export interface Actor { id: string; name: string; email: string; role: Role; version: number; sessionId?: string; agentId?: string }
 export interface Field { id: string; label: string; type: 'signature' | 'text' | 'date'; signer: number; page: number; x: number; y: number; width: number; height: number }
 /** IDV-001: `linkOnly` signs with the link alone (no email code); absent, the recipient verifies an emailed code. */
-export interface Signer { name: string; email: string; order?: number; accessCode?: boolean; linkOnly?: boolean; signedAt?: string; values?: Record<string, string>; declinedAt?: string; declineReason?: string; consentWithdrawn?: boolean; message?: string; disclosure?: { version: string; sha256: string; acceptedAt: string }; paper?: Paper; adoption?: Adoption; removedAt?: string }
+export interface Signer { name: string; email: string; order?: number; accessCode?: boolean; linkOnly?: boolean; inPerson?: boolean; hostedSender?: { name: string; email: string; version: string }; signedAt?: string; values?: Record<string, string>; declinedAt?: string; declineReason?: string; consentWithdrawn?: boolean; message?: string; disclosure?: { version: string; sha256: string; acceptedAt: string }; paper?: Paper; adoption?: Adoption; removedAt?: string }
 /** SIGNX-002: how the signer adopted the mark applied to their signature fields (marks.ts). */
 export interface Adoption { method: 'typed' | 'drawn' | 'uploaded'; style?: 'sans' | 'serif' | 'serif-bold'; mediaType?: 'image/png' | 'image/jpeg'; sha256?: string }
 /** SIGNX-008: a hand-signed scan the recipient uploaded instead of signing electronically, and the sender's review. */

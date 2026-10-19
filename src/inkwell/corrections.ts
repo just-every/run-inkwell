@@ -23,7 +23,7 @@ import { sealLink } from './links'
 const maxPlaces = 10, maxActive = 5
 /** A recipient who has acted (signed, declined, or uploaded a paper scan awaiting review) or was removed: fixed for good. */
 const settled = (s: Signer) => Boolean(s.signedAt || s.declinedAt || s.paper?.status === 'pending' || s.removedAt)
-const identity = (s: Signer, place: number) => ({ name: s.name, email: s.email, order: s.order ?? place + 1, ...(s.linkOnly ? { linkOnly: true } : {}), ...(s.message ? { message: s.message } : {}) })
+const identity = (s: Signer, place: number) => ({ name: s.name, email: s.email, order: s.order ?? place + 1, ...(s.inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(s.message ? { message: s.message } : {}) })
 /** An optional text: absent keeps the current value, an empty string clears it. */
 function edit(value: unknown, current: string | undefined, label: string, max: number, oneLine = false) {
   if (value === undefined) return current
@@ -45,7 +45,12 @@ function readRecipient(value: unknown, place: number, previous?: Signer): { sign
   const same = previous && previous.name === name && previous.email === email
   const { message: _, linkOnly: __, ...kept } = same ? previous : {} as Signer
   insist(s.linkOnly === undefined || typeof s.linkOnly === 'boolean', 'Choose email code or link only for each recipient.')
-  return { signer: { ...kept, name, email, order: order as number, ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}), ...(code || previous?.accessCode ? { accessCode: true } : {}) }, code }
+  insist(s.inPerson === undefined || typeof s.inPerson === 'boolean', 'Choose whether each recipient signs in person.')
+  // A correction keeps the approved signing method even when the recipient's name or email changes.
+  // Moving between hosted and remote signing requires a newly prepared envelope and its approval.
+  insist(!previous || s.inPerson === undefined || s.inPerson === Boolean(previous.inPerson), 'A sent recipient’s signing method cannot change. Prepare and approve a new envelope to change between in-person and remote signing.', 409)
+  const inPerson = previous ? previous.inPerson : s.inPerson === true
+  return { signer: { ...kept, name, email, order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}), ...(code || previous?.accessCode ? { accessCode: true } : {}) }, code }
 }
 
 export async function correctEnvelope(env: Env, context: CommandContext, input: Record<string, unknown>) {
@@ -111,15 +116,16 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
     const added = !before.signers[i], invite = nowCurrent.includes(i) && (added || rotated.has(i) || !wasCurrent.includes(i))
     if (!added && !rotated.has(i) && !invite) continue
     const token = secret()
-    const sealed = after.signers[i].removedAt ? null : await sealLink(env, after.id, i, token)
+    const sealed = after.signers[i].removedAt || after.signers[i].inPerson ? null : await sealLink(env, after.id, i, token)
     writes.push(added ? env.DB.prepare('INSERT INTO iw_signers(envelope_id,signer,token_hash,link_sealed) VALUES(?,?,?,?)').bind(after.id, i, await sha256(token), sealed)
       : env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=?,code_hash=NULL,code_expires=NULL,code_attempts=0,code_sent_at=NULL,session_hash=NULL,session_expires=NULL,progress=NULL WHERE envelope_id=? AND signer=?').bind(await sha256(token), sealed, after.id, i))
     if (rotated.has(i)) writes.push(env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND signer=? AND state='pending'").bind(after.id, i))
     if (after.signers[i].removedAt) writes.push(env.DB.prepare('DELETE FROM iw_access_codes WHERE envelope_id=? AND signer=?').bind(after.id, i))
-    if (invite && mail) writes.push(invitationWrite(env, after, i, token))
+    if (invite && mail && !after.signers[i].inPerson) writes.push(invitationWrite(env, after, i, token))
   }
   for (const [i, code] of codes) writes.push(env.DB.prepare('DELETE FROM iw_access_codes WHERE envelope_id=? AND signer=?').bind(after.id, i), env.DB.prepare('INSERT INTO iw_access_codes(envelope_id,signer,code_hash) VALUES(?,?,?)').bind(after.id, i, await accessCodeHash(env, after.id, i, code)))
-  const result = { id: after.id, invited: nowCurrent.filter(i => !wasCurrent.includes(i) || rotated.has(i) || !before.signers[i]).map(i => after.signers[i].email), emailSent: mail }
+  const invited = nowCurrent.filter(i => !after.signers[i].inPerson && (!wasCurrent.includes(i) || rotated.has(i) || !before.signers[i])).map(i => after.signers[i].email)
+  const result = { id: after.id, invited, emailSent: mail && invited.length > 0 }
   await commitEnvelope(env, before, after, context.actor, [...writes, commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   await dispatchMail(env, after.id)
   return result

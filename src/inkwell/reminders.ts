@@ -59,7 +59,7 @@ export async function sendReminders(env: Env, at: number) {
 async function remind(env: Env, before: Envelope, at: number) {
   const settings = before.reminders!, today = localDate(at)
   const due = currentSigners(before).filter(i => {
-    if (before.signers[i].paper?.status === 'pending') return false
+    if (before.signers[i].inPerson || before.signers[i].paper?.status === 'pending') return false
     const last = before.events.filter(e => e.action === 'signer.reminded' && e.detail.signer === i).at(-1)
     return businessDaysBetween(localDate(last ? Date.parse(last.detail.passAt as string) : invitedAt(before, i)), today) >= (last ? settings.everyDays : settings.afterDays)
   })
@@ -83,8 +83,8 @@ export async function remindNow(env: Env, context: CommandContext, input: Record
   active(before)
   insist(!mailSuppressed(env), 'Mail is not set up, so no reminder can be emailed. Create a new signing link instead.', 409)
   const bounced = bouncedRecipients(before, await envelopeMessages(env, before.id)).map(entry => entry.signer)
-  const due = currentSigners(before).filter(i => before.signers[i].paper?.status !== 'pending' && !bounced.includes(i))
-  insist(due.length, bounced.length ? 'The current recipient’s invitation bounced: correct their email address instead.' : 'The current recipient’s paper signature is waiting for your review, so nobody is reminded.', 409)
+  const due = currentSigners(before).filter(i => !before.signers[i].inPerson && before.signers[i].paper?.status !== 'pending' && !bounced.includes(i))
+  insist(due.length, bounced.length ? 'The current recipient’s invitation bounced: correct their email address instead.' : 'No current recipient can receive a reminder: in-person signers and paper signatures awaiting review are not reminded.', 409)
   const after = structuredClone(before), at = now()
   for (const i of due) await appendEvent(after, 'signer.reminded', context.actor.id, { signer: i, email: after.signers[i].email, passAt: at, count: after.events.filter(e => e.action === 'signer.reminded' && e.detail.signer === i).length + 1, emailSent: true, manual: true })
   const result = { id: after.id, reminded: due.map(i => after.signers[i].email) }

@@ -6,6 +6,7 @@ export const mailSuppressed = (env: Env) => !env.MAIL_PROVIDER || env.MAIL_PROVI
 
 /** Secrets leave only in this response, never in the command journal or mail queue. */
 export async function manualInvitation(env: Env, envelope: Envelope, signer: number, token: string, generation: number, actor: string) {
+  insist(!envelope.signers[signer].inPerson, 'In-person signers use a hosted session, not a private signing link.', 409)
   const code = randomCode(), tokenHash = await sha256(token)
   const codeHash = await sha256(`${env.SESSION_SECRET}:${tokenHash}:${generation}:${code}`)
   await appendEvent(envelope, 'invitation.manual_issued', actor, { signer, recipient: envelope.signers[signer].email, generation, delivery: 'sender', emailSent: false })
@@ -22,7 +23,7 @@ export async function reissueInvitation(env: Env, context: CommandContext, input
   const before = await getEnvelope(env.DB, text(input.id, 'an envelope ID'))
   active(before)
   // ROUTE-002: any signer whose turn it is (several when they share a routing order); the first of them by default.
-  const current = currentSigners(before), signer = input.signer === undefined ? current[0] : input.signer as number
+  const current = currentSigners(before).filter(i => !before.signers[i].inPerson), signer = input.signer === undefined ? current[0] : input.signer as number
   insist(current.includes(signer), 'Choose a recipient whose turn it is to sign.', 409)
   const row = await env.DB.prepare('SELECT code_generation FROM iw_signers WHERE envelope_id=? AND signer=?').bind(before.id, signer).first<{code_generation:number}>()
   insist(row, 'Recipient not found.', 404)

@@ -23,6 +23,7 @@ export async function reassignSigning(env: Env, context: SigningContext, input: 
   if (previous) { await dispatchMail(env, context.envelope.id); return previous }
   turn(context); accessGate(context)
   const before = context.envelope, index = context.recipient.signer, original = before.signers[index]
+  insist(!original.inPerson, 'In-person signing cannot be reassigned through a remote signing session. Ask the sender to correct the recipient.', 409)
   insist(before.allowReassign, 'The sender does not allow reassigning this envelope. Ask them to correct the recipient instead.', 403)
   insist(!mailSuppressed(env), 'Mail is not set up, so the new signer cannot be invited. Ask the sender instead.', 409)
   insist(original.paper?.status !== 'pending', 'Your paper signature is waiting for the sender’s review.', 409)

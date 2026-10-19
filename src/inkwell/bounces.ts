@@ -13,6 +13,7 @@ const undeliverable = (message?: Message) => message?.status === 'bounced' || me
 export function bouncedRecipients(envelope: Envelope, messages: Message[]) {
   if (envelope.status !== 'awaiting_signature') return []
   return currentSigners(envelope).flatMap(signer => {
+    if (envelope.signers[signer].inPerson) return []
     const latest = messages.filter(m => m.kind === 'invitation' && m.signer === signer).at(-1)
     return undeliverable(latest) && latest!.recipient.toLowerCase() === envelope.signers[signer].email ? [{ signer, message: latest! }] : []
   })

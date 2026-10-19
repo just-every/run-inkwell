@@ -49,12 +49,12 @@ export async function warnExpiring(env: Env, at: number) {
 }
 
 async function warn(env: Env, before: Envelope) {
-  const current = currentSigners(before)
+  const current = currentSigners(before), remote = current.filter(i => !before.signers[i].inPerson)
   const after = structuredClone(before), emailSent = !mailSuppressed(env)
   const notices = emailSent ? [
-    ...current.map(i => noticeWrite(env.DB, after, i, before.signers[i].email, `Expires soon: ${after.title}`, `${before.signers[i].name},\n\nYour invitation to sign ${after.title} expires ${after.expiresAt}.\nUse the link in your invitation email to review and sign before then.`)),
+    ...remote.map(i => noticeWrite(env.DB, after, i, before.signers[i].email, `Expires soon: ${after.title}`, `${before.signers[i].name},\n\nYour invitation to sign ${after.title} expires ${after.expiresAt}.\nUse the link in your invitation email to review and sign before then.`)),
   ] : []
-  await appendEvent(after, 'envelope.expiry_warned', 'inkwell', { expiresAt: after.expiresAt, signers: current, recipients: current.map(i => before.signers[i].email), emailSent })
+  await appendEvent(after, 'envelope.expiry_warned', 'inkwell', { expiresAt: after.expiresAt, signers: current, recipients: remote.map(i => before.signers[i].email), emailSent })
   await commitEnvelope(env, before, after, null, notices)
   await dispatchMail(env, after.id)
 }

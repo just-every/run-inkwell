@@ -1,3 +1,4 @@
+import { hostedResponse } from './inkwell/in-person'
 import { withDemo } from './modules/demo/index.mjs'
 import { seedDemo } from './demo'
 import { rejectedResponse } from './base/rejected-response'
@@ -26,6 +27,8 @@ export default withDemo({
   async fetch(request, env, execution) {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
+    const hosted = await hostedResponse(request, runtimeBindings(env))
+    if (hosted) return hosted
     const auth = await authResponse(request, env)
     if (auth) return auth
     // The installed variant: the Lobby at / and the public claim state it reads.
