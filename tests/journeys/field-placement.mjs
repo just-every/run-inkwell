@@ -136,7 +136,7 @@ try {
   await tabTo(app, app.getByRole('button', { name: /^Place field on page 1/ })); await app.keyboard.press('Enter')
   await tabTo(app, app.getByRole('button', { name: /^Place field on page 2/ })); await app.keyboard.press('Enter')
   const [one, two] = await shown(app)
-  await tabTo(app, field(app, one.id), { backwards: true })
+  await tabTo(app, app.getByRole('checkbox', { name: /^Select field 1:/ }), { backwards: true })
   for (let i = 0; i < 3; i++) await app.keyboard.press('ArrowRight')
   for (let i = 0; i < 2; i++) await app.keyboard.press('Shift+ArrowDown')
   await app.keyboard.press('Enter')

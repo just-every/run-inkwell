@@ -1044,3 +1044,29 @@ test('RECORD-005: with the clock advanced, a seven-year rule purges an envelope 
  assert.equal((await stored(open)).status,'awaiting_signature');assert.equal((await warned(open)).length,0,'an envelope still open for signing is never warned or purged')
  await h.command('account.retention',{years:null},admin);assert.equal((await retention()).rule,null,'the rule can be cleared')
 })
+
+test('PREP-004: conditional required fields disappear without printing; USD calculations are live inputs validated and recomputed at signing', async () => {
+ const field=(id,type,y,extra={})=>({id,label:id,type,signer:0,page:0,x:.1,y,width:.6,height:.04,...extra})
+ const rules=[field('signature','signature',.2),field('other','checkbox',.3),field('details','text',.4,{condition:{field:'other',equals:'true'}}),field('reference','text',.45,{condition:{field:'other',equals:'true'}}),field('fee','number',.5),field('tax','number',.55),field('total','number',.6,{calculation:{operation:'sum',fields:['fee','tax']}}),field('optional-note','text',.65,{required:false}),field('approval-note','text',.7,{requiredWhen:{field:'other',equals:'true'}}),field('difference','number',.75,{calculation:{operation:'difference',fields:['fee','tax']}}),field('product','number',.8,{calculation:{operation:'product',fields:['fee','tax']}})]
+ for (const change of [fs=>{fs[2].condition.field='missing'},fs=>{fs[2].condition.field='reference';fs[3].condition.field='details'},fs=>{fs[6].calculation.fields=['signature']},fs=>{fs[6].calculation.operation='eval'}]) {
+  const invalid=structuredClone(rules);change(invalid);await h.command('envelope.prepare',{...preparation(),signers:[recipients[0]],fields:invalid},h.owner,400)
+ }
+ for(const checked of [true,false]) {
+  const email=`conditional-${checked}@harbour.example`
+  const id=(await h.command('envelope.prepare',{...preparation(),signers:[{name:'Priya Shah',email}],fields:rules})).result.id
+  await h.command('envelope.approve',{id,eligible:true})
+  const s=await verified(email),base={signature:'Priya Shah',other:String(checked),fee:'1200.25',tax:'15.50',total:'0.01'}
+  const sign=values=>h.post(s.path+'/sign',{commandId:crypto.randomUUID(),consent:true,values},s.cookie,400)
+  await sign({...base,fee:'USD 1200'});await sign({...base,fee:'1.123'});await sign({...base,fee:'9007199254740992'})
+  if(checked) { const r=await sign(base);assert.match(r.value.error,/details/);await sign({...base,details:'Supplier access'}) }
+  if(checked) await sign({...base,details:'Supplier access',reference:'PO-104'})
+  const values={...base,...(checked?{'approval-note':'Approved by client'}:{}),details:checked?'Supplier access':'HIDDEN PRIVATE VALUE',reference:checked?'PO-104':'HIDDEN PRIVATE REFERENCE'}
+  await h.post(s.path+'/sign',{commandId:crypto.randomUUID(),consent:true,values},s.cookie)
+  const e=await stored(id);assert.equal(e.status,'completed');assert.equal(e.signers[0].values.total,'1215.75','server ignores a forged calculated total');assert.equal(e.signers[0].values.difference,'1184.75');assert.equal(e.signers[0].values.product,'18603.88','product rounds half away from zero');assert.ok(!('optional-note' in e.signers[0].values));assert.equal(e.signers[0].values['approval-note'],checked?'Approved by client':undefined)
+  const pdf=await h.send(`/api/inkwell/envelopes/${id}/artifacts/signed`,undefined,h.owner),text=await pdfText(pdf.bytes)
+  assert.match(text,/1215\.75/,'calculated USD total printed')
+  if(checked) {assert.match(text,/Supplier access/);assert.match(text,/PO-104/)} else {assert.ok(!('details' in e.signers[0].values));assert.ok(!('reference' in e.signers[0].values));assert.doesNotMatch(text,/HIDDEN PRIVATE/)}
+  const copied=(await h.command('envelope.copy',{id})).result.id;assert.deepEqual((await stored(copied)).fields,e.fields,'copy keeps every rule')
+  const template=(await h.command('template.from_envelope',{id})).result.id,fromTemplate=(await h.command('template.use',{id:template,recipients:[{name:'New client',email:'new@clients.example'}]})).result.id;assert.deepEqual((await stored(fromTemplate)).fields,e.fields,'template keeps every rule')
+ }
+})

@@ -64,7 +64,7 @@ export function EditableField({ field, editing }: { field: Field; editing: Field
   const box = { left: `${field.x * 100}%`, top: `${field.y * 100}%`, width: `${field.width * 100}%`, height: `${field.height * 100}%` }
   if (editing.locked(field)) return <div data-field-id={field.id} className={`iw-field iw-field-edit ${colorClass(field.signer)}`} style={box}><span>{field.signer + 1}: {field.label}</span></div>
   return <div data-field-id={field.id} data-page={field.page} data-signer={field.signer} className={`iw-field iw-field-edit ${colorClass(field.signer)}${selected ? ' iw-field-selected' : ''}`} style={box}
-    role="button" tabIndex={0} aria-pressed={selected} aria-label={`${field.label}, ${field.type} field for ${editing.recipient(field.signer)}, page ${field.page + 1}`} aria-describedby={editing.hint}
+    aria-hidden="true" tabIndex={-1} aria-label={`${field.label}, ${field.type} field for ${editing.recipient(field.signer)}, page ${field.page + 1}`} aria-describedby={editing.hint}
     onPointerDown={event => down(event, 'move')} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { drag.current = undefined }} onKeyDown={key}>
     <span>{field.signer + 1}: {field.label}</span>
     <span className="iw-field-handle" aria-hidden="true" onPointerDown={event => down(event, 'resize')} />

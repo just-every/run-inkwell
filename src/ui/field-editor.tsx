@@ -2,7 +2,7 @@ import { useId, useState, type Dispatch, type PointerEvent, type SetStateAction 
 import type { Field } from './types'
 import { PdfViewer } from './pdf-viewer'
 import { pageAt, type FieldEditing } from './editable-field'
-import { align, colorClass, duplicate, duplicateToEveryPage, fit, type Alignment } from './field-layout'
+import { align, colorClass, duplicate, duplicateToEveryPage, fit, nudge, type Alignment } from './field-layout'
 import { FieldInspector } from './field-inspector'
 
 export type EditorRecipient = { name: string; locked: boolean }
@@ -61,12 +61,18 @@ export function FieldEditor({ pdf, fields, setFields, signer, setSigner, recipie
   return <div className="iw-editor"><aside className="iw-field-tools iw-stack"><h3>Place fields</h3>
     <label>{who}<select value={signer} onChange={event => setSigner(Number(event.target.value))}>{recipients.map((recipient, index) => recipient.locked ? null : <option key={index} value={index}>{index + 1}. {recipient.name || who}</option>)}</select></label>
     <ul className="iw-who-legend" aria-label={`${who} colors`}>{recipients.map((recipient, index) => recipient.locked ? null : <li key={index}><span className={`iw-who-swatch ${colorClass(index)}`} aria-hidden="true" />{index + 1}. {recipient.name || who}</li>)}</ul>
-    <label>Field type<select value={type} onChange={event => { const value = event.target.value as Field['type']; setType(value); setLabel(value === 'signature' ? 'Signature' : value === 'date' ? 'Date' : 'Text') }}><option value="signature">Signature</option><option value="text">Text</option><option value="date">Date</option></select></label>
+    <label>Field type<select value={type} onChange={event => { const value = event.target.value as Field['type']; setType(value); setLabel(value === 'signature' ? 'Signature' : value === 'date' ? 'Date' : value === 'checkbox' ? 'Checkbox' : value === 'number' ? 'Amount' : 'Text') }}><option value="signature">Signature</option><option value="text">Text</option><option value="date">Date</option><option value="checkbox">Checkbox</option><option value="number">Number (USD)</option></select></label>
     <label>Field label<input value={label} maxLength={80} onChange={event => setLabel(event.target.value)} /></label>
     <div className="iw-two"><label>Width (%)<input type="number" min={10} max={80} value={Math.round(width * 100)} onChange={event => setWidth(Math.min(.8, Math.max(.1, Number(event.target.value) / 100)))} /></label><label>Height (%)<input type="number" min={3} max={20} value={Math.round(height * 100)} onChange={event => setHeight(Math.min(.2, Math.max(.03, Number(event.target.value) / 100)))} /></label></div>
-    <p className="iw-muted" id={hint}>Click a page or its thumbnail to place the field, or drag the chip above the pages onto either. Keyboard: focus a page and press Enter to place at its center; on a placed field, arrow keys move it, Shift with arrow keys resizes it, Enter selects it (Shift+Enter adds it to the selection) and Delete removes it.</p>
-    {selection.length > 0 && <FieldInspector selection={selection} recipients={recipients} who={who} pages={pages} actions={actions} />}
-    <div className="iw-placed">{fields.map((field, index) => <div key={field.id} data-field-id={field.id}><label className="iw-check"><input type="checkbox" disabled={locked(field.signer)} checked={selected.includes(field.id)} onChange={() => editing.select(field.id, true)} aria-label={`Select field ${index + 1}: ${field.label}, ${recipientName(field.signer)}, page ${field.page + 1}`} /><span className={`iw-who-swatch ${colorClass(field.signer)}`} aria-hidden="true" /><span>{field.signer + 1}. {field.label} · p{field.page + 1}</span></label><button type="button" aria-label={`Remove field ${index + 1}`} disabled={locked(field.signer)} onClick={() => setFields(current => current.filter(item => item.id !== field.id))}>×</button></div>)}</div>
+    <p className="iw-muted" id={hint}>Click a page or its thumbnail to place the field, or drag the chip above the pages onto either. Keyboard: focus a page and press Enter to place at its center; on a field’s selection checkbox, arrow keys move it, Shift with arrow keys resizes it, Enter selects it (Shift+Enter adds it to the selection) and Delete removes it.</p>
+    {selection.length > 0 && <FieldInspector selection={selection} recipients={recipients} who={who} pages={pages} fields={fields} actions={actions} />}
+    <div className="iw-placed">{fields.map((field, index) => <div key={field.id} data-field-id={field.id}><label className="iw-check"><input type="checkbox" disabled={locked(field.signer)} checked={selected.includes(field.id)} aria-describedby={hint} onKeyDown={event => {
+      if (locked(field.signer)) return
+      if (event.key === 'Enter') { event.preventDefault(); editing.select(field.id, true); return }
+      const next = nudge(field, event.key, event.shiftKey)
+      if (next) { event.preventDefault(); replace([next]) }
+      if (event.key === 'Delete') { event.preventDefault(); setFields(current => current.filter(item => item.id !== field.id)) }
+    }} onChange={() => editing.select(field.id, true)} aria-label={`Select field ${index + 1}: ${field.label}, ${recipientName(field.signer)}, page ${field.page + 1}`} /><span className={`iw-who-swatch ${colorClass(field.signer)}`} aria-hidden="true" /><span>{field.signer + 1}. {field.label} · p{field.page + 1}</span></label><button type="button" aria-label={`Remove field ${index + 1}`} disabled={locked(field.signer)} onClick={() => setFields(current => current.filter(item => item.id !== field.id))}>×</button></div>)}</div>
   </aside><PdfViewer source={pdf} fields={fields} onPlace={place} editing={editing} onPages={setPages} toolbar={<div className={`iw-drag-chip ${colorClass(signer)}`} aria-hidden="true" onPointerDown={dragChip} onPointerMove={event => { if (ghost) setGhost({ x: event.clientX, y: event.clientY }) }} onPointerUp={dropChip} onPointerCancel={() => setGhost(undefined)}>Drag a {label.trim() || type} field onto a page</div>} />
     {ghost && <div className={`iw-drag-ghost ${colorClass(signer)}`} aria-hidden="true" style={{ left: ghost.x, top: ghost.y }}>{label.trim() || type}</div>}
   </div>
