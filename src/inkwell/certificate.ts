@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
-import { routingOrder, type AuditEvent, type Envelope } from './model'
+import { identityEvents, routingOrder, type AuditEvent, type Envelope } from './model'
 import { encodable } from './pdf'
 import { localStamp } from './zone'
 import { adoptionOf, describeAdoption } from './marks'
@@ -21,7 +21,7 @@ export async function certificatePdf(envelope: Envelope) {
       `${withdrawn ? 'Consent withdrawn' : 'Declined'}: ${stamp(declined.declinedAt!)} by ${declined.name} <${declined.email}>`,
       `${withdrawn ? 'Withdrawal' : 'Decline'} reason: ${declined.declineReason}`,
       `No executed PDF exists: the envelope stopped at the ${withdrawn ? 'withdrawal' : 'decline'} and no later signer was invited.`,
-    ] : [`Signed SHA-256: ${envelope.signedSha256}`, `Completed: ${stamp(envelope.signers.map(s => s.signedAt!).sort().at(-1)!)}`]),
+    ] : [`Signed SHA-256: ${envelope.signedSha256}`, `Completed: ${stamp(envelope.signers.flatMap(s => s.signedAt ? [s.signedAt] : []).sort().at(-1)!)}`]),
     'Evidence: each signer\'s authentication below, routing order and explicit signing consent.',
     'This certificate records the application audit trail; it is not a digital seal.', '',
     ...envelope.signers.flatMap((s, i) => [
@@ -30,7 +30,8 @@ export async function certificatePdf(envelope: Envelope) {
       ...(s.disclosure ? [`Disclosure ${s.disclosure.version} accepted at: ${stamp(s.disclosure.acceptedAt)}`] : []),
       ...adoptionLines(envelope, i),
       ...(s.paper?.status === 'accepted' ? [`Scan SHA-256: ${s.paper.sha256}`, `Scan: ${s.paper.pages} page(s) appended to the executed PDF; accepted at ${stamp(s.paper.reviewedAt!)}`] : []),
-      s.signedAt ? `Signed at: ${stamp(s.signedAt)}${network(envelope, i, ['signer.signed', 'signer.paper_uploaded'])}`
+      s.removedAt ? `Not signed: removed by a correction at ${stamp(s.removedAt)}`
+        : s.signedAt ? `Signed at: ${stamp(s.signedAt)}${network(envelope, i, ['signer.signed', 'signer.paper_uploaded'])}`
         : s.declinedAt ? `${s.consentWithdrawn ? 'Consent withdrawn' : 'Declined'} at: ${stamp(s.declinedAt)} · Reason: ${s.declineReason}${network(envelope, i, ['signer.declined', 'signer.consent_withdrawn'])}`
         : routingOrder(envelope, i) === routingOrder(envelope, envelope.signers.indexOf(declined!)) ? `Not signed: invited, but the envelope stopped at the ${withdrawn ? 'withdrawal' : 'decline'}`
         : `Not signed: never invited after the ${withdrawn ? 'withdrawal' : 'decline'}`,
@@ -61,7 +62,7 @@ function wrap(line: string, width = 90) {
   return out
 }
 const stamp = (at: string) => `${at} UTC (${localStamp(at)})`
-const forSigner = (envelope: Envelope, signer: number, actions: string[]) => envelope.events.filter(e => actions.includes(e.action) && e.detail.signer === signer)
+const forSigner = (envelope: Envelope, signer: number, actions: string[]) => identityEvents(envelope, signer).filter(e => actions.includes(e.action) && e.detail.signer === signer)
 const client = (event: AuditEvent | undefined) => ` · IP ${(event?.detail.ip as string) || 'not recorded'} · User agent: ${(event?.detail.userAgent as string) || 'not recorded'}`
 const network = (envelope: Envelope, signer: number, actions: string[]) => client(forSigner(envelope, signer, actions).at(-1))
 /** Each signing session's authentication: an emailed code, a sender-provided code, or the member's own Inkwell session

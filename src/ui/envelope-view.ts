@@ -6,8 +6,10 @@ export type Tone = 'rose' | 'amber' | 'blue' | 'mint' | 'grey'
 
 /** ROUTE-002: a recipient's routing order; recipients sharing the lowest open order sign at the same time. */
 export const routingOrder = (envelope: Envelope, index: number) => envelope.signers[index].order ?? index + 1
-export function currentSigners(envelope: Envelope) { const open = envelope.signers.flatMap((signer, index) => signer.signedAt ? [] : [index]); const lowest = Math.min(...open.map(index => routingOrder(envelope, index))); return open.filter(index => routingOrder(envelope, index) === lowest) }
+export function currentSigners(envelope: Envelope) { const open = envelope.signers.flatMap((signer, index) => signer.signedAt || signer.removedAt ? [] : [index]); const lowest = Math.min(...open.map(index => routingOrder(envelope, index))); return open.filter(index => routingOrder(envelope, index) === lowest) }
 export const signedCount = (envelope: Envelope) => envelope.signers.filter(signer => signer.signedAt).length
+/** DELIV-006: the recipients still on the envelope (a correction may have removed some). */
+export const liveSigners = (envelope: Envelope) => envelope.signers.filter(signer => !signer.removedAt).length
 export const preparedByAgent = (envelope: Envelope) => envelope.events.some(event => event.action === 'envelope.prepared' && event.actor?.startsWith('agent:'))
 const myTurn = (envelope: Envelope, actor: Actor) => envelope.status === 'awaiting_signature' && currentSigners(envelope).some(index => envelope.signers[index].email.toLowerCase() === actor.email.toLowerCase())
 

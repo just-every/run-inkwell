@@ -37,7 +37,7 @@ function businessDaysBetween(from: string, to: string) {
 /** When a current recipient was invited: at approval (or the scheduled send, PREP-009) for the first order, otherwise
  * when the last lower order signed. */
 function invitedAt(envelope: Envelope, signer: number) {
-  const lower = envelope.signers.filter((_, i) => routingOrder(envelope, i) < routingOrder(envelope, signer)).map(s => s.signedAt!)
+  const lower = envelope.signers.filter((s, i) => !s.removedAt && routingOrder(envelope, i) < routingOrder(envelope, signer)).map(s => s.signedAt!)
   return Date.parse(lower.length ? lower.sort().at(-1)! : (envelope.events.find(e => e.action === 'envelope.sent_scheduled') ?? envelope.events.find(e => e.action === 'envelope.approved')!).at)
 }
 

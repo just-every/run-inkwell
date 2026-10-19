@@ -136,3 +136,68 @@ test('DELIV-002: a bounce event flags the recipient and pauses their reminders, 
   assert.equal((await view()).status, 'completed', 'the corrected recipient signs and the envelope completes')
  } finally { await h.close() }
 })
+
+test('DELIV-006: after signer 1 signs, the sender corrects signer 2’s email, adds and removes recipients and edits messages, expiry and fields; signer 1’s signature and field stand, the old link refuses, every correction is audited with before and after values, and the new link completes the envelope', async () => {
+ const h = await harness()
+ try {
+  const ann = 'ann@harbour.example', ben = 'ben@harbour-old.example', newBen = 'ben@harbour.example', title = 'Correction check'
+  const fields = [{ id: 'signature-0', label: 'Signature', type: 'signature', signer: 0, page: 0, x: .1, y: .2, width: .4, height: .07 }, { id: 'signature-1', label: 'Signature', type: 'signature', signer: 1, page: 0, x: .1, y: .4, width: .4, height: .07 }]
+  const id = (await h.command('envelope.prepare', { title, filename: 'correct.pdf', pdfBase64: await pdf(), signers: [{ name: 'Ann Lee', email: ann, order: 1 }, { name: 'Ben Ode', email: ben, order: 2 }], fields })).result.id
+  await h.command('envelope.approve', { id, eligible: true })
+  const linkOf = message => '/api/sign/' + new URL(message.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)
+  const verify = async (email, path) => { await h.post(path + '/code', {}, ''); const cookie = (await h.post(path + '/verify', { code: (await h.mail(email, 'verification code')).text.match(/\b\d{6}\b/)[0] }, '')).cookie; await h.agree(path, cookie); return cookie }
+  const annPath = linkOf(await h.mail(ann, 'Please sign:')), annCookie = await verify(ann, annPath)
+  await h.post(annPath + '/sign', { values: { 'signature-0': 'Ann Lee' }, consent: true, commandId: crypto.randomUUID() }, annCookie)
+  const oldPath = linkOf(await h.mail(ben, 'Please sign:')), oldCookie = await verify(ben, oldPath)
+  const view = async () => (await h.send('/api/inkwell/envelopes/' + id, undefined, h.owner)).value.envelope
+  const signed = await view()
+  const recipients = (changes = {}) => [{ name: 'Ann Lee', email: ann, order: 1 }, { name: 'Ben Ode', email: ben, order: 2 }].map((r, i) => ({ ...r, ...changes[i] }))
+
+  // A viewer may not correct; signer 1's details, field or place cannot change through a correction.
+  const viewer = await h.invite('vic@harbour.example', 'member')
+  await h.command('envelope.correct', { id, signers: recipients({ 1: { email: newBen } }) }, viewer, 403)
+  await h.command('envelope.correct', { id, signers: recipients({ 0: { email: 'ann@elsewhere.example' } }) }, h.owner, 409)
+  await h.command('envelope.correct', { id, signers: [{ remove: true }, recipients()[1]] }, h.owner, 409)
+  await h.command('envelope.correct', { id, fields: [{ ...fields[0], x: .3 }, fields[1]] }, h.owner, 409)
+  await h.command('envelope.correct', { id, fields: [{ ...fields[0], id: 'signature-0b' }, ...fields] }, h.owner, 409)
+  await h.command('envelope.correct', { id, signers: recipients({ 1: { order: 0 } }) }, h.owner, 400)
+  await h.command('envelope.correct', { id, signers: recipients() }, h.owner, 409)
+
+  // One correction: signer 2's email, a new signer at order 3 with a field, a copy recipient, the message and expiry.
+  const expiresAt = new Date(Date.now() + 30 * 86_400_000).toISOString(), deeField = { id: 'signature-2', label: 'Signature', type: 'signature', signer: 2, page: 0, x: .1, y: .6, width: .4, height: .07 }
+  const result = (await h.command('envelope.correct', { id, signers: [...recipients({ 1: { email: newBen } }), { name: 'Dee Park', email: 'dee@harbour.example', order: 3 }], fields: [...fields, deeField], copies: [{ name: 'Cara Moss', email: 'cara@harbour.example' }], message: 'Corrected: please sign the updated routing.', expiresAt })).result
+  assert.deepEqual(result.invited, [newBen], 'only the corrected current recipient is invited')
+  assert.equal((await h.send(oldPath)).status, 404, 'the old link for signer 2 refuses')
+  assert.equal((await h.send(oldPath + '/document', undefined, oldCookie)).status, 404, 'and so does the old session')
+  let envelope = await view()
+  assert.deepEqual(envelope.signers[0], signed.signers[0], 'signer 1’s signature, values and evidence stand')
+  assert.deepEqual(envelope.fields.find(f => f.id === 'signature-0'), fields[0])
+  const event = action => envelope.events.filter(e => e.action === action)
+  assert.deepEqual(event('signer.corrected').map(e => e.detail), [{ signer: 1, before: { name: 'Ben Ode', email: ben, order: 2 }, after: { name: 'Ben Ode', email: newBen, order: 2 } }])
+  assert.deepEqual(event('signer.added').map(e => e.detail), [{ signer: 2, after: { name: 'Dee Park', email: 'dee@harbour.example', order: 3 }, accessCode: false }])
+  const changes = event('envelope.corrected')[0].detail.changes
+  assert.deepEqual(Object.keys(changes).sort(), ['copies', 'expiresAt', 'fields', 'message'])
+  assert.deepEqual(changes.copies, { before: null, after: [{ name: 'Cara Moss', email: 'cara@harbour.example' }] }); assert.equal(changes.expiresAt.before, signed.expiresAt); assert.equal(changes.expiresAt.after, expiresAt)
+  const benTimeline = envelope.recipients.find(r => r.signer === 1)
+  assert.ok(benTimeline.steps.some(s => s.step === 'corrected' && s.detail.includes(newBen)), 'the corrected recipient’s timeline continues with the correction')
+  assert.ok(!benTimeline.steps.some(s => s.step === 'authenticated'), 'the person replaced does not lend the new one their verification')
+  assert.equal(await h.mail('dee@harbour.example', 'Please sign:'), undefined, 'a later recipient waits for their order')
+
+  // A second correction removes the added recipient before they act; their field goes with them.
+  await h.command('envelope.correct', { id, signers: [...recipients({ 1: { email: newBen, message: '' } }), { remove: true }], fields })
+  envelope = await view()
+  assert.ok(envelope.signers[2].removedAt); assert.equal(event('signer.removed').length, 1); assert.ok(!envelope.fields.some(f => f.signer === 2))
+  assert.deepEqual(envelope.events.filter(e => e.action === 'signer.removed').map(e => e.detail), [{ signer: 2, before: { name: 'Dee Park', email: 'dee@harbour.example', order: 3 } }])
+
+  // The new link completes the envelope; the copy recipient added by the correction gets the completed copy.
+  const invitation = await h.mail(newBen, 'Please sign:')
+  assert.match(invitation.text, /Corrected: please sign the updated routing\./, 'the corrected message is in the new invitation')
+  const newPath = linkOf(invitation), newCookie = await verify(newBen, newPath)
+  await h.post(newPath + '/sign', { values: { 'signature-1': 'Ben Ode' }, consent: true, commandId: crypto.randomUUID() }, newCookie)
+  envelope = await view()
+  assert.equal(envelope.status, 'completed', 'the corrected recipient’s signature completes the envelope with signer 2 removed')
+  assert.ok(await h.mail('cara@harbour.example', 'Completed:'), 'the added copy recipient receives the completed copy')
+  assert.equal(await h.mail('dee@harbour.example'), undefined, 'the removed recipient never hears from the envelope')
+  await h.command('envelope.correct', { id, message: 'Too late' }, h.owner, 409)
+ } finally { await h.close() }
+})

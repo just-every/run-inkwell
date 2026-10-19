@@ -10,7 +10,7 @@ export const buckets = ['draft', 'waiting_for_me', 'waiting_for_others', 'comple
 type Bucket = typeof buckets[number]
 
 // ROUTE-002: it is my turn when I am an unsigned signer at the lowest routing order still open.
-const order = (s: string) => `COALESCE(json_extract(${s}.value,'$.order'),CAST(${s}.key AS INTEGER)+1)`, open = (s: string) => `json_extract(${s}.value,'$.signedAt') IS NULL`
+const order = (s: string) => `COALESCE(json_extract(${s}.value,'$.order'),CAST(${s}.key AS INTEGER)+1)`, open = (s: string) => `json_extract(${s}.value,'$.signedAt') IS NULL AND json_extract(${s}.value,'$.removedAt') IS NULL`
 const myTurn = `EXISTS(SELECT 1 FROM json_each(e.data,'$.signers') s WHERE ${open('s')} AND lower(json_extract(s.value,'$.email'))=?2 AND ${order('s')}=(SELECT MIN(${order('o')}) FROM json_each(e.data,'$.signers') o WHERE ${open('o')}))`
 const bucket = `CASE WHEN json_extract(e.data,'$.status') IN ('prepared','awaiting_signature') AND json_extract(e.data,'$.expiresAt')<=?1 THEN 'expired' WHEN json_extract(e.data,'$.status')='prepared' THEN 'draft' WHEN json_extract(e.data,'$.status')='awaiting_signature' THEN CASE WHEN ${myTurn} THEN 'waiting_for_me' ELSE 'waiting_for_others' END ELSE json_extract(e.data,'$.status') END`
 // Envelopes an agent's preparation token prepared (DELEGATE-001), for the dashboard's agent strip.

@@ -1,7 +1,7 @@
 // The Envelopes screen's body: the heading with what is in flight, the agent strip, the status chips, the date and
 // sender filters, and one page of the table. Every count and row comes from the server's search (MANAGE-001).
 import { canApprove, canEdit, shortDay, type Actor, type Bucket, type Envelope, type Page, type Person } from './types'
-import { nextAction, pill, signedCount, titleParts } from './envelope-view'
+import { nextAction, pill, signedCount, titleParts, liveSigners } from './envelope-view'
 import { Icon } from './icons'
 import { Pill, Roundel } from './marks'
 
@@ -59,7 +59,7 @@ export function EnvelopeTable({ envelopes, actor, selected, onSelect }: { envelo
       const { name, detail } = titleParts(item.title), state = pill(item, actor), next = nextAction(item, actor), done = signedCount(item)
       return <button key={item.id} role="row" className={`iw-row${state.tone === 'rose' ? ' iw-row-alert' : ''}`} aria-current={selected === item.id ? 'true' : undefined} onClick={() => onSelect(item.id)}>
         <span className="iw-cell-envelope" role="cell"><span className="iw-row-icon"><Icon name="document" /></span><span><strong>{name}</strong>{detail && <small>{detail}</small>}</span></span>
-        <span className="iw-cell-signers" role="cell"><span>{done} of {item.signers.length}</span><span className="iw-progress" aria-hidden="true"><span style={{ width: `${(done / item.signers.length) * 100}%` }} /></span></span>
+        <span className="iw-cell-signers" role="cell"><span>{done} of {liveSigners(item)}</span><span className="iw-progress" aria-hidden="true"><span style={{ width: `${(done / liveSigners(item)) * 100}%` }} /></span></span>
         <span className="iw-cell-status" role="cell"><Pill {...state} /></span>
         <span className={`iw-cell-next${next.urgent ? ' iw-urgent' : ''}`} role="cell">{next.label}</span>
         <span className="iw-cell-updated" role="cell">{shortDay(item.createdAt)}</span>

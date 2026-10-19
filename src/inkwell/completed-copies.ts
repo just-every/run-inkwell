@@ -47,7 +47,7 @@ export async function setCompletedCopies(env: Env, context: CommandContext, inpu
 export async function completedCopyWrites(env: Env, after: Envelope, bytes: number) {
   if (mailSuppressed(env)) return []
   const sender = (await env.DB.prepare('SELECT lower(email) AS email FROM oa_operators WHERE id=?').bind(after.createdBy).first<{ email: string }>())?.email
-  const list = parties(after).flatMap((party, index) => party.email === sender ? [] : [index])
+  const list = parties(after).flatMap((party, index) => party.email === sender || after.signers[index]?.removedAt ? [] : [index])
   return list.length ? copyWrites(env, after, bytes, list, 'envelope.copies_queued', 'inkwell') : []
 }
 async function copyWrites(env: Env, after: Envelope, bytes: number, indexes: number[], action: string, actor: string) {

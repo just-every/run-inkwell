@@ -12,5 +12,5 @@ export async function publicVerification(env: Env, request: Request) {
  if(!row)return{match:false,sha256:fingerprint}
  const envelope:Envelope=JSON.parse(row.data),check=await verifyEnvelope(env,envelope)
  if(!check.ok)return{match:false,sha256:fingerprint}
- return{match:true,sha256:fingerprint,document:envelope.signedSha256===fingerprint?'executed':'certificate',envelope:{id:envelope.id,title:envelope.title,completedAt:envelope.signers.at(-1)?.signedAt,signers:envelope.signers.map(({name,signedAt})=>({name,signedAt})),signedSha256:envelope.signedSha256,certificateSha256:envelope.certificateSha256,auditEvents:envelope.events.length}}
+ return{match:true,sha256:fingerprint,document:envelope.signedSha256===fingerprint?'executed':'certificate',envelope:{id:envelope.id,title:envelope.title,completedAt:envelope.signers.at(-1)?.signedAt,signers:envelope.signers.filter(s=>!s.removedAt).map(({name,signedAt})=>({name,signedAt})),signedSha256:envelope.signedSha256,certificateSha256:envelope.certificateSha256,auditEvents:envelope.events.length}}
 }
