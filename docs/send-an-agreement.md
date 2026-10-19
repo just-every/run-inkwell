@@ -10,7 +10,7 @@ Prepare an envelope, approve it, and Inkwell invites each recipient in order.
    different email address.
 
    To ask a recipient for an access code before they can see the document, type one (4–32
-   characters, no spaces) in their **Access code (optional)** box and tell them the code
+   characters, no spaces) in their optional **Access code** box and tell them the code
    yourself, by phone or in person, never in the invitation email. Five wrong entries lock
    that recipient's invitation; void the envelope and prepare a new one to start again.
 
@@ -47,8 +47,8 @@ When mail is suppressed in development or no provider is configured, no email or
 development outbox message is created. The agreement detail page shows the owner a
 recipient-bound private signing link once, with **Copy link**, and a sender-provided
 six-digit verification code valid for 10 minutes. Copy the link and code and share both
-privately with that recipient. The link expires with the agreement, seven days after the
-envelope was prepared; reissuing a link does not extend that deadline. The recipient opens the link, enters the code, and consents to sign. Inkwell clearly says
+privately with that recipient. The link expires with the agreement (see [Expiry and extensions](#expiry-and-extensions));
+reissuing a link does not extend that deadline. The recipient opens the link, enters the code, and consents to sign. Inkwell clearly says
 when no mail provider is configured.
 
 If the link is lost, or the code expires, create a new signing link from the agreement
@@ -56,6 +56,19 @@ detail page for the current unsigned recipient and share the new link and code p
 Creating a replacement revokes the previous link, code and signing session. The link
 and code are shown manually only when mail is suppressed; with a configured provider,
 the existing emailed-link and code flow remains in place.
+
+## Expiry and extensions
+
+Every envelope expires 120 days after it is prepared unless you change **Expires after
+(days)** while preparing it, from 1 to 365 days. Three days before an envelope expires,
+Inkwell emails the recipient whose turn it is and the sender a reminder that it is about to
+expire. The envelope's detail panel shows when it expires.
+
+To give recipients more time, open the envelope and choose **Extend expiry…**, enter the
+number of days and choose **Extend**. Before expiry, the days are added to the current
+expiry; after expiry, they count from today and the envelope reopens. Either way the same
+document, recipients and signing links carry on, signatures already given stay, and the
+audit trail records the extension. An envelope stays open at most 365 days from today.
 
 ## Sign your own turn
 

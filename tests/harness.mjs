@@ -39,6 +39,8 @@ export async function harness({ mailProvider = 'resend' } = {}) {
   }
   // SIGNX-005: a verified signer agrees to the current disclosure before opening or signing the document.
   const agree=async(path,cookie)=>(await post(path+'/disclosure',{version:(await send(path,undefined,cookie)).value.disclosure.version,agree:true},cookie)).value.result
-  return {mf,db,origin,owner,send,post,command,mail,invite,agree,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
+  // The worker's scheduled handler, run as if the cron fired at `at` (DELIV-004 expiry warnings).
+  const scheduled=async at=>{const result=await (await mf.getWorker()).scheduled({scheduledTime:new Date(at),cron:'17 * * * *'});assert.equal(result.outcome,'ok','the scheduled pass succeeds')}
+  return {mf,db,origin,owner,send,post,command,mail,invite,agree,scheduled,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
  }catch(e){await mf.dispose();await rm(directory,{recursive:true,force:true});throw e}
 }

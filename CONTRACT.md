@@ -368,8 +368,8 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 6 | 4 | 0 | 10 |
-| Target and push further | 5 | 28 | 74 | 107 |
-| All | 11 | 32 | 74 | 117 |
+| Target and push further | 6 | 27 | 74 | 107 |
+| All | 12 | 31 | 74 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -429,7 +429,7 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `DELIV-001` | Live delivery with per-message status | target | partial | `src/inkwell/mail.ts` | Sent and uncertain states only; no delivered, opened or bounced events from provider webhooks |
 | `DELIV-002` | Bounces and bad addresses | target | missing |  | No bounce handling |
 | `DELIV-003` | Automatic reminders | target | missing |  | No reminders |
-| `DELIV-004` | Configurable expiry with warnings | target | partial | `src/inkwell/envelopes.ts` | Fixed seven-day expiry; no setting, warnings or extension |
+| `DELIV-004` | Configurable expiry with warnings | target | done | `tests/api.test.mjs`; `src/inkwell/expiry.ts`; `src/server.ts`; `src/ui/envelope-detail.tsx`; `src/ui/prepare-envelope.tsx` |  |
 | `DELIV-005` | Resend by email or SMS | target | missing |  | Only verification codes can be re-requested; no invitation resend or SMS |
 | `DELIV-006` | Correct an envelope in flight | target | missing |  | No in-flight correction |
 | `DELIV-007` | Completed copies to every party | target | partial | `src/inkwell/signing.ts` | Signers can download after completion; no automatic distribution or copy recipients |

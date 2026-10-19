@@ -198,6 +198,40 @@ test('SIGNX-005: a new signer reads and accepts the versioned disclosure before 
  assert.equal(digest(certificate.bytes),e.certificateSha256)
  assert.ok(text.includes('Inkwell consent withdrawal certificate')&&text.includes(`Electronic record and signature disclosure: version ${view.version}`)&&text.includes(`Disclosure ${view.version} accepted at: ${accepted.acceptedAt}`),'the certificate quotes the disclosure version')
 })
+test('DELIV-004: an envelope set to expire in 10 days warns on day 7, is extended by 14 days, and an expired one is extended and signed without re-preparing',async()=>{
+ const day=86_400_000,start=Date.now(),soon=[{name:'Lou Hart',email:'lou@harbour.example'}],field=[{...fields[0],signer:0}]
+ const standard=(await snapshot()).envelopes.find(e=>e.id===envelopeId);assert.equal(Date.parse(standard.expiresAt)-Date.parse(standard.createdAt),120*day,'120 days by default')
+ for(const expiresAt of [new Date(start-1000).toISOString(),new Date(start+400*day).toISOString(),'next week']) await h.command('envelope.prepare',{...preparation(),signers:soon,fields:field,expiresAt},h.owner,400)
+ const id=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio slip rental',signers:soon,fields:field,expiresAt:new Date(start+10*day).toISOString()})).result.id
+ await h.command('envelope.approve',{id,eligible:true})
+ const warnings=async()=>(await snapshot()).envelopes.find(e=>e.id===id).events.filter(e=>e.action==='envelope.expiry_warned')
+ await h.scheduled(start+6*day)
+ assert.equal((await warnings()).length,0,'no warning on day 6');assert.equal(await h.mail(soon[0].email,'Expires soon:'),undefined)
+ await h.scheduled(start+7*day);await h.scheduled(start+7*day+3600_000)
+ assert.equal((await warnings()).length,1,'one warning on day 7')
+ for(const email of [soon[0].email,'owner@harbour.example']) assert.ok((await h.mail(email,'Expires soon:'))?.text.includes('Harbour Studio slip rental'),`${email} is warned`)
+ await h.command('envelope.extend',{id,days:14},member,403)
+ await h.command('envelope.extend',{id,days:0},h.owner,400)
+ const extended=(await h.command('envelope.extend',{id,days:14})).result
+ assert.equal(Date.parse(extended.expiresAt),start+24*day,'extended by 14 days from the old expiry')
+ await h.scheduled(start+12*day);assert.equal((await warnings()).length,1,'no warning on day 12 once extended')
+ const signer=await verified(soon[0].email)
+ assert.equal((await h.post(signer.path+'/sign',{values:{'signature-0':'Lou Hart'},consent:true,commandId:crypto.randomUUID()},signer.cookie)).value.result.status,'completed')
+ const lapsed=[{name:'Max Dunn',email:'max@harbour.example'}]
+ const late=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio dry dock booking',signers:lapsed,fields:field,expiresAt:new Date(Date.now()+2500).toISOString()})).result.id
+ await h.command('envelope.approve',{id:late,eligible:true})
+ const path='/api/sign/'+await signingToken(lapsed[0].email)
+ const lapse=Date.parse((await snapshot()).envelopes.find(e=>e.id===late).expiresAt)-Date.now()+50
+ await new Promise(resolve=>setTimeout(resolve,Math.max(0,lapse)))
+ assert.equal((await snapshot()).envelopes.find(e=>e.id===late).status,'expired')
+ assert.equal((await h.send(path)).value.status,'expired');await h.post(path+'/code',{},'',410)
+ const reopened=(await h.command('envelope.extend',{id:late,days:14})).result
+ assert.ok(Math.abs(Date.parse(reopened.expiresAt)-(Date.now()+14*day))<60_000,'an expired envelope reopens for 14 days from now')
+ const e=(await snapshot()).envelopes.find(e=>e.id===late)
+ assert.equal(e.status,'awaiting_signature');assert.ok(e.events.some(event=>event.action==='envelope.extended'&&event.detail.afterExpiry===true))
+ const second=await verified(lapsed[0].email)
+ assert.equal((await h.post(second.path+'/sign',{values:{'signature-0':'Max Dunn'},consent:true,commandId:crypto.randomUUID()},second.cookie)).value.result.status,'completed')
+})
 test('IDV-003: a recipient must enter the sender-set access code before the document; wrong codes are refused and five lock the invitation',async()=>{
  const pair=[{name:'Gia Lane',email:'gia@harbour.example',accessCode:'HARBOUR-7731'},{name:'Hal Ortiz',email:'hal@harbour.example',accessCode:'tide-2209'}]
  await h.command('envelope.prepare',{...preparation(),signers:[{...pair[0],accessCode:'a b'},pair[1]]},h.owner,400)
