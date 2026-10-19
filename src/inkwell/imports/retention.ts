@@ -6,6 +6,7 @@ import { retireD1ImportCustody, type D1Sql } from '../../modules/import-kit/src/
 import { archiveTargets } from './targets'
 import { MAPPING, NAMESPACE } from './source'
 import { archiveClocks, archiveGroups, groupRecords, type ArchiveClock } from './retention-groups'
+import { retainedArchiveRecords, retainedArchiveTitles, unerasedArchives } from './retention-records'
 import { archiveErasureCheckpoint } from './retention-custody'
 import { dispatchArchiveRetentionMail } from './retention-mail'
 
@@ -28,7 +29,7 @@ export async function applyArchiveRetention(env:Env, rule:RetentionRule, at:numb
  let clocks = await archiveClocks(env)
  const groups = archiveGroups(clocks)
  for (const group of groups) {
-  const records = groupRecords(group)
+  const records = await retainedArchiveRecords(env,groupRecords(group))
   if (!records.length) continue
   const ids = records.map(r=>r.id), due = dueFor(new Date(Math.max(...records.map(r=>Date.parse(r.at)))).toISOString(),rule.years)
   if (await env.DB.prepare('SELECT 1 FROM iw_import_holds WHERE record_id IN (SELECT value FROM json_each(?)) LIMIT 1').bind(JSON.stringify(ids)).first()) continue
@@ -37,20 +38,19 @@ export async function applyArchiveRetention(env:Env, rule:RetentionRule, at:numb
    if (at < Date.parse(due)-30*day) continue
    const warned = new Date(at).toISOString(), purge = new Date(Math.max(Date.parse(due),at+30*day)).toISOString()
    const admins = (await env.DB.prepare("SELECT id,email,display_name AS name FROM oa_operators WHERE status='active' AND role IN ('owner','admin')").all<{id:string;email:string;name:string}>()).results
-   const titles = (await env.DB.prepare('SELECT json_extract(value,\'$.title\') AS title FROM iw_imported_archives WHERE id IN (SELECT value FROM json_each(?))').bind(JSON.stringify(ids)).all<{title:string}>()).results.map(r=>r.title)
-   const title = titles.length ? titles.join('; ') : `DocuSeal import ${group[0].job_id}`
+   const title = await retainedArchiveTitles(env,group,ids)
    const writes:D1Sql[] = group.map(g=>q('UPDATE iw_import_retention SET due=?,warned_at=?,purge_at=? WHERE job_id=?',due,warned,purge,g.job_id))
    for (const admin of admins) {
     writes.push(q('INSERT INTO iw_notices(id,operator_id,envelope_id,event,at,title,recipient) VALUES(?,?,?,?,?,?,?)',id(),admin.id,`import:${group[0].job_id}`,'retention',warned,title,''))
     if (!mailSuppressed(env)) writes.push(q('INSERT INTO iw_import_retention_mail(id,group_id,recipient,subject,body) VALUES(?,?,?,?,?)',id(),group[0].job_id,admin.email,`Will be purged: ${title}`,`${admin.name},\n\n${title} will be permanently erased on ${purge} under the account's ${rule.years}-year retention rule. Its latest source terminal instant is ${new Date(Math.max(...records.map(r=>Date.parse(r.at)))).toISOString()}.\nTo keep it, place a legal hold on an imported record in this archive before then.\n${new URL('/app',env.AUTH_ORIGIN).href}`))
    }
-   await atomic(env.DB,guards([ruleGuard(rule),inventoryGuard(clocks),noHolds(ids)]),prepared(env,writes))
+   await atomic(env.DB,guards([ruleGuard(rule),inventoryGuard(clocks),noHolds(ids),unerasedArchives(ids)]),prepared(env,writes))
   } else {
    const purgeAt = Math.max(...group.map(g=>Date.parse(g.purge_at!)))
    if (at < purgeAt) continue
    const atText = new Date(at).toISOString()
    // This is scheduled retention authority, never a fabricated owner session.
-   const authority = [ruleGuard(rule),inventoryGuard(clocks),noHolds(ids),q(`NOT EXISTS(SELECT 1 FROM json_each(?) e JOIN iw_import_retention r ON r.job_id=e.value WHERE r.due<>? OR julianday(?)<julianday(r.purge_at) OR julianday(r.purge_at)<julianday(r.due) OR julianday(r.purge_at)<julianday(r.warned_at)+30)`,JSON.stringify(group.map(g=>g.job_id)),due,atText)]
+   const authority = [ruleGuard(rule),inventoryGuard(clocks),noHolds(ids),unerasedArchives(ids,atText),q(`NOT EXISTS(SELECT 1 FROM json_each(?) e JOIN iw_import_retention r ON r.job_id=e.value WHERE r.due<>? OR julianday(?)<julianday(r.purge_at) OR julianday(r.purge_at)<julianday(r.due) OR julianday(r.purge_at)<julianday(r.warned_at)+30)`,JSON.stringify(group.map(g=>g.job_id)),due,atText)]
    const predicate:D1Sql = {sql:authority.map(p=>`(${p.sql})`).join(' AND '),params:authority.flatMap(p=>p.params??[])}
    for (const record of records) {
     const native = [q('DELETE FROM iw_imported_archives WHERE id=?',record.id),q('INSERT OR IGNORE INTO iw_retention_purges(envelope_id,ended,years,ended_at,warned_at,purged_at) VALUES(?,?,?,?,?,?)',record.id,'completed',rule.years,record.at,group.map(g=>g.warned_at!).sort().at(-1),atText),q('DELETE FROM iw_import_hold_events WHERE record_id=?',record.id)]

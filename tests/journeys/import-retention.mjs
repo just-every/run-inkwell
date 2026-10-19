@@ -57,6 +57,8 @@ try {
   await page.getByRole('heading', { name: 'Imported library (0)' }).waitFor()
   await capture('erased')
   assert.ok(!(await app.call('/api/inkwell/notices', { cookie: app.owner })).value.notices.some(n => n.title.includes(fixture.submissions[0].name)), 'erasure clears the archive warning from Activity')
+  await app.scheduled(due + 86400000)
+  assert.ok(!(await app.call('/api/inkwell/notices', { cookie: app.owner })).value.notices.some(n => n.envelopeId.startsWith('import:')), 'erased imports never generate another retention warning')
   await context.close()
  }
  console.log('RECORD-005 passed at 1440 and 390: import, hold/lift history, scheduled retention warning, Activity opens Move in, explicit erase and empty library')

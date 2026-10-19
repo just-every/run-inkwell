@@ -786,8 +786,12 @@
       "sha256": "906b27573172e8fe73695808406cfe3f04b8fceafe095b1f537beae0088f4608",
       "executable": false
     },
+    "src/inkwell/imports/retention-records.ts": {
+      "sha256": "444cd0861d65e4fc6a5535a5c74e6dac1c571c2ca1cfbca58f0a02cf11172c6e",
+      "executable": false
+    },
     "src/inkwell/imports/retention.ts": {
-      "sha256": "b7c67bd0328e7357d82a65f4efb248207fcb81498047b563554ab3979bc6ac79",
+      "sha256": "1ed4cfdf8a1e3dd2da16da8e919002c2d82ee9a8e7715798f08469d2f1dcb39d",
       "executable": false
     },
     "src/inkwell/imports/source.ts": {
@@ -2951,7 +2955,7 @@
       "executable": false
     },
     "tests/import-retention.test.mjs": {
-      "sha256": "9bb2932db806800a21c84ccad20613dcc8ab4f2fb3616ce4809a1c78e8ee9a81",
+      "sha256": "fa683a71ba4711221fa863c95e0824d718923634ca7bc177d94e3a5f75f195cd",
       "executable": false
     },
     "tests/in-person.test.mjs": {
@@ -2983,7 +2987,7 @@
       "executable": false
     },
     "tests/journeys/import-retention.mjs": {
-      "sha256": "56b05111b29c259686e4a7e9f4a73208eca01e09035fa8d9032cf2090c2196bd",
+      "sha256": "93760a871df7080317c4cfb7a670898e91b4e4414db4f7d8915d7ad7a1726f34",
       "executable": false
     },
     "tests/journeys/in-person.mjs": {
