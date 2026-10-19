@@ -1,27 +1,29 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { command, request } from './types'
+import { command, request, type Field } from './types'
 import { ErrorNotice, useAction } from './feedback'
 import { PrepareEnvelope } from './prepare-envelope'
 
 // TMPL-001: the templates this person may use, a new one from the prepare screen, and a send that asks only for each
 // role's person (and the access code a role needs); the new envelope opens for approval like any other draft.
-type Role = { role: string; order: number; accessCode?: boolean }
-export type Template = { id: string; title: string; filename: string; roles: Role[]; fields: unknown[]; expiryDays: number; reminders?: { afterDays: number; everyDays: number } }
+type Role = { role: string; order: number; accessCode?: boolean; message?: string }
+export type Template = { id: string; title: string; filename: string; roles: Role[]; fields: Field[]; expiryDays: number; reminders?: { afterDays: number; everyDays: number }; subject?: string; message?: string; allowPaper?: boolean; allowReassign?: boolean; version?: number }
 type Person = { name: string; email: string; accessCode: string }
 
 export function Templates({ onSent }: { onSent: (id: string) => Promise<void> }) {
   const [templates, setTemplates] = useState<Template[]>()
   const [creating, setCreating] = useState(false)
+  // TMPL-003: a template being edited; saving it makes its next version.
+  const [editing, setEditing] = useState<Template>()
   const [using, setUsing] = useState<Template>()
   const action = useAction()
   const load = async () => setTemplates((await request<{ templates: Template[] }>('/api/inkwell/templates')).templates)
   useEffect(() => { void action.run(load) }, [])
-  if (creating) return <PrepareEnvelope asTemplate onCancel={() => setCreating(false)} onSaved={async () => { setCreating(false); await action.run(load) }} />
+  if (creating || editing) return <PrepareEnvelope asTemplate template={editing} onCancel={() => { setCreating(false); setEditing(undefined) }} onSaved={async () => { setCreating(false); setEditing(undefined); await action.run(load) }} />
   if (using) return <SendFromTemplate template={using} onCancel={() => setUsing(undefined)} onSent={onSent} />
   return <section className="iw-panel iw-stack">
     <div className="iw-section-head"><div><h2>Your templates</h2><p className="iw-muted">A template keeps the PDF, roles, fields, messages, reminders and expiry. Sending asks only who fills each role.</p></div><button className="iw-primary iw-fit" type="button" onClick={() => setCreating(true)}>New template</button></div>
     <ErrorNotice error={action.error} />
-    {templates && (templates.length === 0 ? <p className="iw-muted">No templates yet.</p> : <ul className="iw-contact-results" aria-label="Templates">{templates.map(template => <li key={template.id}><span><strong>{template.title}</strong><small className="iw-muted">{template.roles.map(r => `${r.order}. ${r.role}`).join(' · ')} · {template.fields.length} fields · expires after {template.expiryDays} days{template.reminders ? ` · reminders after ${template.reminders.afterDays}, then every ${template.reminders.everyDays} business days` : ''}</small></span><span className="iw-actions"><button type="button" className="iw-primary" aria-label={`Use ${template.title}`} onClick={() => setUsing(template)}>Use</button><button type="button" disabled={action.busy} aria-label={`Delete ${template.title}`} onClick={() => void action.run(async () => { await command('template.remove', { id: template.id }); await load() })}>Delete</button></span></li>)}</ul>)}
+    {templates && (templates.length === 0 ? <p className="iw-muted">No templates yet.</p> : <ul className="iw-contact-results" aria-label="Templates">{templates.map(template => <li key={template.id}><span><strong>{template.title}</strong><small className="iw-muted">Version {template.version ?? 1} · {template.roles.map(r => `${r.order}. ${r.role}`).join(' · ')} · {template.fields.length} fields · expires after {template.expiryDays} days{template.reminders ? ` · reminders after ${template.reminders.afterDays}, then every ${template.reminders.everyDays} business days` : ''}</small></span><span className="iw-actions"><button type="button" className="iw-primary" aria-label={`Use ${template.title}`} onClick={() => setUsing(template)}>Use</button><button type="button" aria-label={`Edit ${template.title}`} onClick={() => setEditing(template)}>Edit</button><button type="button" disabled={action.busy} aria-label={`Delete ${template.title}`} onClick={() => void action.run(async () => { await command('template.remove', { id: template.id }); await load() })}>Delete</button></span></li>)}</ul>)}
   </section>
 }
 

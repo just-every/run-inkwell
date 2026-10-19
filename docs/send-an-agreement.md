@@ -149,6 +149,10 @@ any prepared envelope. The envelope records the template it came from, and the E
 screen's **Template** filter finds every envelope sent from one. Senders see only their own
 templates; owners and admins see all of them.
 
+Choose **Edit** on a template to change it: saving makes its next version, and envelopes
+already sent keep the version they came from, which their record names. To reuse an envelope
+you already sent, choose **Save as template** on its detail page.
+
 ## Void an envelope
 
 To stop an envelope that is not finished, open it and choose **Void envelope…**, enter the

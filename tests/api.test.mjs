@@ -816,7 +816,7 @@ test('TMPL-001: a three-role template sends twice to different people with its f
  const sent=[]
  for(const n of [1,2]){
   const before=Date.now(),{id}=(await h.command('template.use',{id:templateId,recipients:people(n)},tara.cookie)).result,draft=await stored(id,tara.cookie)
-  assert.equal(draft.status,'prepared');assert.deepEqual(draft.template,{id:templateId,title:definition.title})
+  assert.equal(draft.status,'prepared');assert.deepEqual(draft.template,{id:templateId,title:definition.title,version:1})
   assert.deepEqual(draft.signers.map(({name,email,order,accessCode,message})=>({name,email,order,accessCode,message})),[{name:`Client ${n}`,email:`client${n}@tmpl.example`,order:1,accessCode:true,message:undefined},{name:`Guarantor ${n}`,email:`guarantor${n}@tmpl.example`,order:1,accessCode:undefined,message:undefined},{name:`Signer ${n}`,email:`signer${n}@tmpl.example`,order:2,accessCode:undefined,message:roles[2].message}],'routing order and identity settings from the roles')
   assert.deepEqual(draft.fields,roleFields,'every field placed by the template');assert.deepEqual(draft.reminders,definition.reminders)
   assert.equal(draft.subject,definition.subject);assert.equal(draft.message,definition.message)
@@ -841,4 +841,34 @@ test('TMPL-001: a three-role template sends twice to different people with its f
  await h.command('template.remove',{id:templateId},tara.cookie)
  assert.deepEqual((await h.send('/api/inkwell/templates',undefined,tara.cookie)).value.templates,[])
  assert.equal((await stored(sent[0],tara.cookie)).template.id,templateId,'sent envelopes keep their own copy')
+})
+
+// TMPL-003: an edit is the template's next version; envelopes already sent keep the version they came from and name
+// it; a sent envelope saved as a template reproduces its fields and roles.
+test('TMPL-003: editing a template makes version 2 while version 1 envelopes keep their fields; a sent envelope saves as a template',async()=>{
+ const val=await sender('val.versions@harbour.example'),wes=await sender('wes.versions@harbour.example')
+ const v1Fields=[{id:'client-sign',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.3,width:.35,height:.06},{id:'company-sign',label:'Signature',type:'signature',signer:1,page:0,x:.1,y:.6,width:.35,height:.06}]
+ const v2Fields=[...v1Fields.map(f=>({...f,y:f.y+.05})),{id:'client-title',label:'Job title',type:'text',signer:0,page:0,x:.55,y:.35,width:.3,height:.05}]
+ const definition={title:'Harbour Studio — retainer',filename:'retainer.pdf',pdfBase64:Buffer.from(original).toString('base64'),roles:[{role:'Client',order:1,accessCode:true,message:'Sign first, please.'},{role:'Company Signer',order:2}],fields:v1Fields,expiryDays:21,reminders:{afterDays:1,everyDays:2}}
+ const {id:templateId,version}=(await h.command('template.save',definition,val.cookie)).result
+ assert.equal(version,1)
+ const send=async n=>(await h.command('template.use',{id:templateId,recipients:[{name:`Client ${n}`,email:`client${n}@versions.example`,accessCode:'retainer-7'},{name:`Company ${n}`,email:`company${n}@versions.example`}]},val.cookie)).result.id
+ const first=await send(1)
+ await h.command('template.update',{...definition,id:templateId,fields:v2Fields},wes.cookie,404)
+ assert.equal((await h.command('template.update',{...definition,id:templateId,fields:v2Fields},val.cookie)).result.version,2)
+ assert.equal((await h.send('/api/inkwell/templates',undefined,val.cookie)).value.templates.find(t=>t.id===templateId).version,2)
+ const second=await send(2)
+ const [e1,e2]=[await stored(first,val.cookie),await stored(second,val.cookie)]
+ assert.deepEqual(e1.fields,v1Fields,'the version 1 envelope keeps version 1 fields');assert.deepEqual(e1.template,{id:templateId,title:definition.title,version:1})
+ assert.deepEqual(e2.fields,v2Fields,'the next send uses version 2');assert.deepEqual(e2.template,{id:templateId,title:definition.title,version:2})
+ assert.equal(e1.events[0].detail.template.version,1,'the record names the version')
+ await h.command('envelope.approve',{id:first,eligible:true},val.cookie)
+ await h.command('template.from_envelope',{id:first},wes.cookie,403)
+ const saved=(await h.command('template.from_envelope',{id:first},val.cookie)).result
+ assert.equal(saved.fromEnvelope,first)
+ const copy=(await h.send('/api/inkwell/templates',undefined,val.cookie)).value.templates.find(t=>t.id===saved.id)
+ assert.deepEqual(copy.fields,v1Fields,'saving the first envelope as a template reproduces its fields')
+ assert.deepEqual(copy.roles,definition.roles,'and its roles, routing, access-code settings and messages')
+ assert.deepEqual([copy.expiryDays,copy.reminders,copy.version],[21,definition.reminders,1])
+ assert.equal(digest((await h.send(`/api/inkwell/templates/${saved.id}/document`,undefined,val.cookie)).bytes),e1.originalSha256)
 })

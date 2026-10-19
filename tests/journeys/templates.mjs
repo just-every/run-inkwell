@@ -78,9 +78,25 @@ try {
   await page.getByLabel('Template').selectOption({ label: title })
   await page.getByRole('row', { name: /ad hoc lease/ }).waitFor({ state: 'detached' })
   assert.equal(await page.getByRole('row', { name: /services template/ }).count(), 2, 'the template filter shows both envelopes sent from it')
+  // TMPL-003: a sent envelope saves as a new template; editing the first template makes its version 2.
+  await page.getByRole('row', { name: /services template/ }).first().click()
+  await page.getByRole('region', { name: title }).getByRole('button', { name: 'Save as template' }).click()
+  await page.getByRole('status').filter({ hasText: `Saved as the template ${title}` }).waitFor()
+  await page.getByRole('button', { name: 'Templates' }).click()
+  await page.getByRole('button', { name: `Edit ${title}` }).first().waitFor()
+  assert.equal(await page.getByRole('button', { name: `Edit ${title}` }).count(), 2, 'the saved envelope is a second template')
+  await page.getByRole('button', { name: `Edit ${title}` }).first().click()
+  await page.getByRole('heading', { name: 'Edit template' }).waitFor()
+  await page.waitForFunction(() => document.querySelector('[aria-label="Role 3 name"]')?.value === 'Company Signer')
+  await page.getByLabel('Expires after (days)').fill('45')
+  await page.getByRole('button', { name: 'Save new version' }).click()
+  await page.getByText(/Version 2 · 1\. Client/).waitFor()
   await context.close()
   assert.deepEqual(stored.map(e => e.signers[0].email).sort(), sent.map(people => people[0].email).sort(), 'each send went to its own people')
-  console.log('TMPL-001 passed at 1440 and 390 pixels: a three-role template saved once and sent twice with its fields, routing, reminders and expiry')
+  const templates = (await inkwell.call('/api/inkwell/templates', { cookie: inkwell.owner })).value.templates
+  assert.deepEqual(templates.map(t => [t.version, t.expiryDays]).sort(), [[1, 30], [2, 45]], 'the edited template is version 2; the saved envelope is a new version 1 template')
+  assert.ok(stored.every(e => e.template.version === 1 && Math.abs((Date.parse(e.expiresAt) - Date.parse(e.createdAt)) / 86_400_000 - 30) < .01), 'envelopes sent from version 1 keep its settings')
+  console.log('TMPL-001 and TMPL-003 passed at 1440 and 390 pixels: a three-role template saved once and sent twice with its fields, routing, reminders and expiry; a sent envelope saved as a template; an edit made version 2')
 } catch (error) {
   await screenshots(inkwell.browser, 'tmpl-001-failure')
   throw error
