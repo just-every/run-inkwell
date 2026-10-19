@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f54439e3f59f91913a50f817143abb2e342d66956dc9876ad3817814e2297c8a",
+      "sha256": "cc8377189685e7108cf2f84f68f1a5c310b402569bd8878ac74e5bbc89de4e81",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "6f0eb999eddb0b667071c88547c64ff8837dd269c3872fc2725eb7b8dc2a3904",
+      "sha256": "abd20867bcb4f7f8764d455ce8f0cb5f2207613ce286704ebb11694970468a6b",
       "executable": false
     },
     "DEMO.md": {
@@ -667,7 +667,7 @@
       "executable": false
     },
     "src/inkwell/api.ts": {
-      "sha256": "1d629c3904f683862ca1c98be11db0414ec2db8034f3ad4b91ee936e16762d25",
+      "sha256": "991ad18a0b50b42cd1bfffd703bc00f2def04262c914d0114fd7872d6e468069",
       "executable": false
     },
     "src/inkwell/archive-policy.d.mts": {
@@ -786,6 +786,10 @@
       "sha256": "e5b4cfe128c466404354137eedaa0b3638cb73ba34d1f9c1d57290ce2aa358f7",
       "executable": false
     },
+    "src/inkwell/pdf-text.ts": {
+      "sha256": "3d7b7462238befe2ed67268dda9ad0183511ab3ba7c92efc01a6508401b5aceb",
+      "executable": false
+    },
     "src/inkwell/pdf.ts": {
       "sha256": "35434da86cbbb8774e3b19f989862a7f6dccd56c7893f9d7c841a987bbdda4f0",
       "executable": false
@@ -838,8 +842,12 @@
       "sha256": "b6db61a5f576ff4bf04dcdce81ee7d329cb50ae4aeb6e1c74df37ed1eb49c601",
       "executable": false
     },
+    "src/inkwell/template-match.ts": {
+      "sha256": "2218a34054e171b508217579976244a8f49d7d95793b49690b1ce5b714d9d1b8",
+      "executable": false
+    },
     "src/inkwell/templates.ts": {
-      "sha256": "527fd60a6a533b8c72c0be08208f97ba4cdf477fd2f5ea307f0937de9d435118",
+      "sha256": "fc510d6cb2d98aa22510cbfabc8a5078e2f50044e7522bdd4e2b99d2c218b228",
       "executable": false
     },
     "src/inkwell/timeline.ts": {
@@ -2743,7 +2751,7 @@
       "executable": false
     },
     "src/ui/prepare-envelope.tsx": {
-      "sha256": "8fc71852f4bf7cc881081bfdb16bea96b537a368ba2ead81028d0f66f92190ff",
+      "sha256": "f520df42a221ad25bee3f097a29fdf5df18736fbba7bff020b38e0f02dc40d65",
       "executable": false
     },
     "src/ui/public-verify.tsx": {
@@ -2774,6 +2782,10 @@
       "sha256": "5900fe836df120410a55bada2c1cbb8cf3b728dd0f8e09dfb6230afaa2d53c58",
       "executable": false
     },
+    "src/ui/template-offer.tsx": {
+      "sha256": "9a23c3f137fea57bb23379f8ec9b13f9b1cca27f4d306c73ddfa3e5e11164c08",
+      "executable": false
+    },
     "src/ui/templates.tsx": {
       "sha256": "d8fe6645c4eb0ce209b252d67efbab0c579614084cfa60f99f6545e8745fb3bb",
       "executable": false
@@ -2791,7 +2803,7 @@
       "executable": false
     },
     "tests/api.test.mjs": {
-      "sha256": "1354363563ee0d81141e91e4f3176b236a2bec37411b799f8c237fac75d1f9d2",
+      "sha256": "9057e1d0f87690d27a7b1d20b43d441aabf59139d9c421f622c91a46f65878f3",
       "executable": false
     },
     "tests/delivery.test.mjs": {
@@ -2816,6 +2828,10 @@
     },
     "tests/fixtures/docuseal/signed.pdf": {
       "sha256": "1d1f4aff864ac3bff8e287421b8614d6e90b0becb8f353fabd43fd67d59b2c21",
+      "executable": false
+    },
+    "tests/fixtures/forms.mjs": {
+      "sha256": "14acca1635f7a9e2a08203300fff7113f0364180ee5d813d5254067a9146743b",
       "executable": false
     },
     "tests/fixtures/signature.jpg": {
@@ -2855,7 +2871,7 @@
       "executable": false
     },
     "tests/journeys/templates.mjs": {
-      "sha256": "a1067c4930484fd4ecfea67e811f450c76346f7f7d0b1a4c9db268f822b3ccd0",
+      "sha256": "3676f6537dee2fc5672572b44a09475f6eac1962e19dc892e315bcc71d68132d",
       "executable": false
     },
     "tests/journeys/worker.mjs": {

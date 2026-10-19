@@ -21,6 +21,7 @@ import { alertBounces, correctBounced } from './bounces'
 import { correctEnvelope } from './corrections'
 import { reassignSigning } from './reassign'
 import { listTemplates, removeTemplate, saveTemplate, templateDocument, templateFromEnvelope, updateTemplate, useTemplate } from './templates'
+import { matchTemplates } from './template-match'
 import { resendInvitation } from './resend'
 import { reviewPaper, uploadPaper } from './paper'
 import { saveProgress } from './progress'
@@ -49,6 +50,8 @@ api.get('/api/inkwell/reports/envelopes.csv',async c=>{const actor=await require
 api.get('/api/inkwell/envelopes/:id',async c=>{const actor=await requireActor(c.req.raw,c.env),envelope=await getEnvelope(c.env.DB,c.req.param('id')),access=await insistAccess(c.env,actor,envelope,'view');return c.json({envelope:{...presentEnvelope(c.env,actor,envelope,access),...(mayShare(actor,envelope)?{shares:await listShares(c.env,envelope.id)}:{}),...await envelopeTimeline(c.env,envelope)}})})
 // TMPL-001: the templates this person may use (their own; owners and admins see all).
 api.get('/api/inkwell/templates',async c=>{const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);return c.json(await listTemplates(c.env,actor))})
+// TMPL-005: the templates whose document an upload on the prepare screen matches; nothing is placed or stored.
+api.post('/api/inkwell/templates/match',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);return c.json(await matchTemplates(c.env,actor,await readJson(c.req.raw)))})
 api.get('/api/inkwell/templates/:id/document',async c=>{const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);return templateDocument(c.env,actor,c.req.param('id'))})
 // ROUTE-008: the shared contact book and the member's recent recipients, for owners, admins and senders.
 const contactRoles=['owner','admin','sender'] as const

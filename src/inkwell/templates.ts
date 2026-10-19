@@ -26,7 +26,7 @@ async function loadTemplate(env: Env, actor: Actor, templateId: string) {
   insist(row && (actor.role === 'owner' || actor.role === 'admin' || row.created_by === actor.id), 'Template not found.', 404)
   return JSON.parse(row.data) as Template
 }
-async function templateBytes(env: Env, template: Template) {
+export async function templateBytes(env: Env, template: Template) {
   const rows = (await env.DB.prepare('SELECT part,data FROM iw_template_blobs WHERE template_id=? ORDER BY part').bind(template.id).all<{ part: number; data: number[] | ArrayBuffer }>()).results
   const chunks = rows.map((r, i) => { insist(r.part === i, 'The stored template document is incomplete.', 503); return new Uint8Array(r.data) })
   const bytes = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0)); let offset = 0
@@ -35,11 +35,13 @@ async function templateBytes(env: Env, template: Template) {
   return bytes
 }
 
-export async function listTemplates(env: Env, actor: Actor) {
+/** The templates this person may use, newest first. */
+export async function visibleTemplates(env: Env, actor: Actor) {
   const where = visible(actor)
   const rows = (await env.DB.prepare(`SELECT data FROM iw_templates${where.sql} ORDER BY created_at DESC`).bind(...where.values).all<{ data: string }>()).results
-  return { templates: rows.map(r => JSON.parse(r.data) as Template) }
+  return rows.map(r => JSON.parse(r.data) as Template)
 }
+export const listTemplates = async (env: Env, actor: Actor) => ({ templates: await visibleTemplates(env, actor) })
 
 /** The prepare screen's PDF, fields and settings, with roles in place of people, validated for a new template or a new
  * version of one. */

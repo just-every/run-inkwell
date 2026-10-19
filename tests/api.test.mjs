@@ -872,3 +872,24 @@ test('TMPL-003: editing a template makes version 2 while version 1 envelopes kee
  assert.deepEqual([copy.expiryDays,copy.reminders,copy.version],[21,definition.reminders,1])
  assert.equal(digest((await h.send(`/api/inkwell/templates/${saved.id}/document`,undefined,val.cookie)).bytes),e1.originalSha256)
 })
+
+// TMPL-005: an upload that matches a template's document (the same file, or a fresh copy whose text is nearly the same)
+// is offered that template with its confidence, only to people who may use it; an unrelated agreement is offered nothing.
+test('TMPL-005: a fresh copy of a template W-9 is offered that template with its confidence; an unrelated agreement gets nothing',async()=>{
+ const { w9Pdf, agreementPdf } = await import('./fixtures/forms.mjs')
+ const xena=await sender('xena.match@harbour.example'),yuri=await sender('yuri.match@harbour.example'),viewer=await h.invite('vic.match@harbour.example','member')
+ const w9=await w9Pdf(),fields=[{id:'w9-signature',label:'Signature',type:'signature',signer:0,page:1,x:.1,y:.3,width:.35,height:.06},{id:'w9-date',label:'Date',type:'date',signer:0,page:1,x:.55,y:.3,width:.25,height:.05},{id:'w9-tin',label:'TIN',type:'text',signer:0,page:0,x:.1,y:.5,width:.3,height:.04}]
+ const templateId=(await h.command('template.save',{title:'Vendor W-9',filename:'w9.pdf',pdfBase64:w9.toString('base64'),roles:[{role:'Vendor',order:1}],fields},xena.cookie)).result.id
+ const match=async(bytes,cookie,status=200)=>(await h.post('/api/inkwell/templates/match',{pdfBase64:bytes.toString('base64')},cookie,status)).value
+ assert.deepEqual((await match(w9,xena.cookie)).matches,[{template:{id:templateId,title:'Vendor W-9',version:1},method:'fingerprint',confidence:100}],'the same file matches by fingerprint')
+ const fresh=await w9Pdf('Rev. October 2026');assert.notEqual(digest(fresh),digest(w9),'the fresh copy has different bytes')
+ const [offer]=(await match(fresh,xena.cookie)).matches
+ assert.equal(offer.template.id,templateId);assert.equal(offer.method,'text')
+ assert.ok(offer.confidence>=80&&offer.confidence<100,`a fresh copy matches by page text below 100% (${offer.confidence})`)
+ assert.deepEqual((await match(await agreementPdf(),xena.cookie)).matches,[],'an unrelated agreement on the same pages is offered nothing')
+ assert.deepEqual((await match(Buffer.from(original),xena.cookie)).matches,[],'a different document is offered nothing')
+ assert.deepEqual((await match(fresh,yuri.cookie)).matches,[],'a sender who may not use the template is offered nothing')
+ assert.ok((await match(fresh,h.owner)).matches.some(m=>m.template.id===templateId),'the owner, who may use every template, is offered it')
+ await match(fresh,viewer,403)
+ assert.deepEqual((await h.send('/api/inkwell/envelopes',undefined,xena.cookie)).value.total,0,'matching places and stores nothing')
+})
