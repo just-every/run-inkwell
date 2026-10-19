@@ -2891,11 +2891,11 @@
       "executable": false
     },
     "src/ui/signing-field-input.tsx": {
-      "sha256": "32a728c17e973a053a0883d1236a3c3d31b594e87e1e5330654e61c873241e2d",
+      "sha256": "3aef974a73e9a97396ca1328dde73a5785d015e503b80536866289c86d2ce7b0",
       "executable": false
     },
     "src/ui/signing-guide.tsx": {
-      "sha256": "0f033ce8162cd3186c7a3e9bb6e33bdf47742d145f5f794f056c60d5d5bdc4bc",
+      "sha256": "96ebafed71900f57895c9f15e5599667226285557f8db5dab1ac888ef7832c63",
       "executable": false
     },
     "src/ui/styles.ts": {
