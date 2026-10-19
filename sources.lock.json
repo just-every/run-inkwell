@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "d5b75efac35ef65fdc09e32ecb847a8cdbd39c3d60c9d3349fe6238ac1f38800",
+      "sha256": "22f93fe42f9917bb731433d1194703157841ca86257ea10e3c02eaab7d32a62a",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "4475ed79d177848d17e553671a9ab8d96153cba9c24083db2ae31f68aa1fe672",
+      "sha256": "3a05b913c678933f32b3692009da1202696b87da1d08aea37348f441cfdbfdd8",
       "executable": false
     },
     "DEMO.md": {
@@ -127,7 +127,7 @@
       "executable": false
     },
     "docs/overview.md": {
-      "sha256": "b4cb7fefe0fff9d0374ec4ac36dc6faf4bd2e0f4c323dea27c2cfc5e3d56a504",
+      "sha256": "f05549a05a0798a2bbdaa39d8d724cafb633d33ad503a22170834c925c0f7976",
       "executable": false
     },
     "docs/provenance.md": {
@@ -627,7 +627,7 @@
       "executable": false
     },
     "src/inkwell/api.ts": {
-      "sha256": "3a83bf38bca43e63f26e30878626b09ca8a5474a5520a8a3cff71bfd51ac43d2",
+      "sha256": "20d4dfc1c7590075df79433dc24eeddab4ae0a86241c84341d40eb6ded393600",
       "executable": false
     },
     "src/inkwell/archive-policy.d.mts": {
@@ -727,7 +727,7 @@
       "executable": false
     },
     "src/inkwell/search.ts": {
-      "sha256": "b53c977601132f05f22ee692c3b375df39763d4ff7d3c49eeb3389459527ce39",
+      "sha256": "040691b8b4408a093f15c410794ccb50bcf183e1ceee96ddbea43e8e3ba9d785",
       "executable": false
     },
     "src/inkwell/signing.ts": {
@@ -735,7 +735,7 @@
       "executable": false
     },
     "src/inkwell/storage.ts": {
-      "sha256": "264b4cc0c1ea4eebb35540927ea908fd9f596850892dfc63a5df4d9d33fcbdd5",
+      "sha256": "343364ef6bc12674e5eae752b29b1a8077630608f2946a75f4680bf04cf8b07c",
       "executable": false
     },
     "src/inkwell/verification.ts": {
@@ -2551,7 +2551,7 @@
       "executable": false
     },
     "src/ui/archive-access.tsx": {
-      "sha256": "c896180031154957771c3867dc208219ad7c284bc00e4ee66a5d8c22d8471f25",
+      "sha256": "323cd6ff06c1f380cd7e43d1ac173a23a5fd836344236ad7979919bd6d43239d",
       "executable": false
     },
     "src/ui/artifact-integrity.tsx": {
@@ -2567,11 +2567,11 @@
       "executable": false
     },
     "src/ui/envelope-list.tsx": {
-      "sha256": "750e8151bf73667f58d540608bd7c2e4f299e64f076402935663de8b3e7ef74b",
+      "sha256": "aa777b7cf4df216d2b1220160beea2007cda652ef68da569ab2c9ee1999ee2a1",
       "executable": false
     },
     "src/ui/envelope-view.ts": {
-      "sha256": "1ec0a4e3656e96e8f5eaf26ebfc13d68dc9886bae778124f57182496c082271d",
+      "sha256": "d1dca501f504ec43210a511170f8e59707558cfe1021236a6c6e4e56d1cea8e8",
       "executable": false
     },
     "src/ui/feedback.tsx": {
@@ -2591,7 +2591,7 @@
       "executable": false
     },
     "src/ui/operator-app.tsx": {
-      "sha256": "9c87175db891c6e8a874178a583d80dbb8f5fb3e0c8576d49a55333cc7b222f4",
+      "sha256": "6f586d2f28d04e286f03f6d2b3ac95ed4177fdb2c073166ed042b7adb09c08fc",
       "executable": false
     },
     "src/ui/pdf-viewer.tsx": {
@@ -2623,7 +2623,7 @@
       "executable": false
     },
     "src/ui/types.ts": {
-      "sha256": "23fc7549127d280b8898a35717286fef75b2018a83b1786e16fdeec35ee316ee",
+      "sha256": "6bde0b8ca379936a7479482265854e418225ddf67ee1017adc39e10c0409256d",
       "executable": false
     },
     "test-budget.json": {
@@ -2635,7 +2635,7 @@
       "executable": false
     },
     "tests/api.test.mjs": {
-      "sha256": "2ee9fa89ea52d9cf67b57753efd8b5b93c27268b822df0a0d8b83088dc4de09b",
+      "sha256": "45d7c3b02e66555379ecdfbe2478b7c70baf5d7afa456112427628b75eff49a3",
       "executable": false
     },
     "tests/fixtures/docuseal/archive.json": {
@@ -2663,11 +2663,11 @@
       "executable": false
     },
     "tests/manual-invitations.test.mjs": {
-      "sha256": "b87b168dad1dce15687bf605a7162999e1bf7c569a5e97ce2255722eaf9cfd3c",
+      "sha256": "daa4ebd3d197599cd9995c35ac94711242ee26d78b2ca7ab3ba51e0671cd5600",
       "executable": false
     },
     "tests/own-signing.test.mjs": {
-      "sha256": "8ef3db2ab5914d56e5839f14322ce5ed45938eff4fac9703f1ff2dd51f096a45",
+      "sha256": "7aee264b91ff0d419961ab691f0e0f06c42b0e71218922a9940b0ed785fb80a5",
       "executable": false
     },
     "tests/runtime.mjs": {

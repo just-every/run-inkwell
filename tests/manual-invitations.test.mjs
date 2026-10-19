@@ -46,7 +46,7 @@ for (const mailProvider of ['development', undefined]) {
    const second = await h.post(nextPath+'/verify',{code:next.code},'')
    await h.agree(nextPath,second.cookie)
    await h.post(nextPath+'/sign',{values:{'signature-1':'Alex Morgan'},consent:true,commandId:crypto.randomUUID()},second.cookie)
-   const envelope = (await h.send('/api/inkwell',undefined,h.owner)).value.envelopes.find(e=>e.id===id)
+   const envelope = (await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
    assert.equal(envelope.status,'completed')
    assert.equal(envelope.manualInvitationAvailable,false)
    assert.ok(envelope.signers.every(s=>s.signedAt))

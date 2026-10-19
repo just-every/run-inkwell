@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
 import { deploymentHealth } from '../base/deployment-health'
 import { operatorAuth, runtimeBindings, type Bindings } from '../auth.server'
-import { Refusal, clientEvidence, currentSigners, insist, object, text, sha256, canonical, type Actor, type Role } from './model'
-import { getEnvelope, listEnvelopes, memberRoleSql, previousCommand } from './storage'
-import { insistMaySee, listPeople, maySee, setMemberRole } from './members'
+import { Refusal, clientEvidence, insist, object, text, sha256, canonical, type Actor, type Role } from './model'
+import { getEnvelope, memberRoleSql, previousCommand } from './storage'
+import { insistMaySee, listPeople, setMemberRole } from './members'
 import { prepareEnvelope, approveEnvelope, copyEnvelope, voidEnvelope, envelopeArtifact, verifyEnvelope } from './envelopes'
 import { authenticateAgent, issueAgent, revokeAgent, listAgents } from './agents'
 import { dispatchMail } from './mail'
@@ -13,7 +13,7 @@ import { readBytes } from './body'
 import { publicVerification } from './verification'
 import { extendEnvelope } from './expiry'
 import { reviewPaper, uploadPaper } from './paper'
-import { searchEnvelopes } from './search'
+import { presentEnvelope, searchEnvelopes } from './search'
 import { signingContext, signingView, signingDocument, requestCode, verifyCode, signEnvelope, declineEnvelope, signerArtifact, enterAccessCode, acceptDisclosure, withdrawConsent } from './signing'
 export async function requireActor(request: Request, original: Bindings, roles: readonly Role[] = ['owner','admin','sender','viewer']):Promise<Actor> { const env=runtimeBindings(original),session=await operatorAuth(env).getSession(request);insist(session,'Sign in to continue.',401);const role=(session.operator.role==='member'?(await env.DB.prepare(`SELECT ${memberRoleSql('?')} AS role`).bind(session.operator.id).first<{role:Role}>())!.role:session.operator.role) as Role;insist(roles.includes(role),'Your role does not allow this action.',403);return{id:session.operator.id,name:session.operator.displayName,email:session.operator.email,role,version:session.operator.version,sessionId:session.id} }
 export function sameOrigin(request: Request, original: Bindings) { const env=runtimeBindings(original),origin=request.headers.get('origin');insist(origin===new URL(env.AUTH_ORIGIN).origin&&new URL(request.url).origin===new URL(env.AUTH_ORIGIN).origin,'Use this application’s own page to make changes.',403);insist(request.headers.get('sec-fetch-site')!=='cross-site','Cross-site changes are not allowed.',403) }
@@ -23,8 +23,10 @@ export const api=new Hono<{Bindings:Bindings}>()
 api.use('*',async(c,next)=>{c.env=runtimeBindings(c.env);await next();c.header('cache-control','no-store');c.header('referrer-policy','no-referrer');c.header('x-content-type-options','nosniff')})
 api.onError((error,c)=>c.json({error:error instanceof Refusal?error.message:'The request could not be completed. Please try again.'},(error instanceof Refusal?error.status:500) as 400))
 api.get('/health',c=>c.json({status:'ok',product:'Inkwell',...deploymentHealth(c.env)}))
-api.get('/api/inkwell',async c=>{const actor=await requireActor(c.req.raw,c.env),envelopes=await listEnvelopes(c.env.DB);return c.json({actor:{id:actor.id,name:actor.name,email:actor.email,role:actor.role},envelopes:envelopes.filter(e=>maySee(actor,e)).map(e=>({...e,manualInvitationAvailable:actor.role==='owner'&&mailSuppressed(c.env)&&!e.imported&&e.status==='awaiting_signature'&&Date.parse(e.expiresAt)>Date.now(),ownSigningAvailable:!e.imported&&e.status==='awaiting_signature'&&Date.parse(e.expiresAt)>Date.now()&&currentSigners(e).some(i=>e.signers[i].email.toLowerCase()===actor.email.toLowerCase()),status:['prepared','awaiting_signature'].includes(e.status)&&Date.parse(e.expiresAt)<=Date.now()?'expired':e.status})),agents:actor.role==='owner'?await listAgents(c.env):[],people:['owner','admin'].includes(actor.role)?await listPeople(c.env):[]})})
+// MANAGE-001: the workspace is who is signed in, their agent tokens and people; envelopes are read a page or one at a time.
+api.get('/api/inkwell',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json({actor:{id:actor.id,name:actor.name,email:actor.email,role:actor.role},agents:actor.role==='owner'?await listAgents(c.env):[],people:['owner','admin'].includes(actor.role)?await listPeople(c.env):[]})})
 api.get('/api/inkwell/envelopes',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json(await searchEnvelopes(c.env,actor,new URL(c.req.url).searchParams))})
+api.get('/api/inkwell/envelopes/:id',async c=>{const actor=await requireActor(c.req.raw,c.env),envelope=await getEnvelope(c.env.DB,c.req.param('id'));insistMaySee(actor,envelope);return c.json({envelope:presentEnvelope(c.env,actor,envelope)})})
 // ACCESS-001: what a sender may do, each on an envelope they created (prepare makes a new one; signing is anyone's own turn).
 const senderCommands=['envelope.prepare','envelope.approve','envelope.copy','envelope.extend','envelope.paper_review','envelope.void','envelope.open_signing']
 api.post('/api/inkwell/commands',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env),body=await readJson(c.req.raw),command=text(body.command,'a command',80),commandId=text(body.commandId,'a command ID',100),input=object(body.input),fingerprint=await sha256(canonical({command,input}));// MANAGE-003: any member signs their own turn from the app; every other command needs an owner or admin.

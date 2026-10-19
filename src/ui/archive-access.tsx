@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { command, request, dateTime, type Dashboard } from './types'
+import { command, request, dateTime, type Workspace } from './types'
 import { ErrorNotice, useAction } from './feedback'
 export function ArchiveAccess({ empty, refresh }: { empty: boolean; refresh: () => Promise<void> }) {
   const [archive, setArchive] = useState<unknown>()
@@ -9,7 +9,7 @@ export function ArchiveAccess({ empty, refresh }: { empty: boolean; refresh: () 
   const action = useAction()
   return <div className="iw-stack"><section className="iw-panel iw-stack"><h2>Full archive</h2><p>Export the complete archive with document bytes, certificates, audit history, import journals and erasure tombstones.</p><a className="iw-button iw-primary iw-fit" href="/api/inkwell/archive" download="inkwell-archive.json">Download full archive</a></section><section className="iw-panel iw-stack"><h2>Restore an empty store</h2><p>Restore a full Inkwell archive into an empty store. Retain a new export after every erasure; when restoring an older backup, attach the later archive to preserve its erasure journal.</p>{!empty && <p className="iw-callout">This store has envelopes. Restore requires an empty destination, including imported records.</p>}<form className="iw-stack" onSubmit={event => { event.preventDefault(); void action.run(async () => { await request('/api/inkwell/archive/restore', { archive, ...(laterJournal ? { laterJournal } : {}) }); setDone(true); setConfirmed(false); await refresh() }) }}><label className="iw-file">Inkwell archive JSON<input required type="file" accept="application/json,.json" disabled={action.busy} onChange={event => { setArchive(undefined); setConfirmed(false); setDone(false); const file = event.target.files?.[0]; if (file) void action.run(async () => setArchive(JSON.parse(await file.text()))) }} /></label><label className="iw-file">Later erasure archive (optional)<input type="file" accept="application/json,.json" disabled={action.busy} onChange={event => { setLaterJournal(undefined); setConfirmed(false); const file = event.target.files?.[0]; if (file) void action.run(async () => setLaterJournal(JSON.parse(await file.text()))) }} /></label><label className="iw-check"><input type="checkbox" required checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />I have selected the intended archive and included any newer erasure journal.</label><button className="iw-primary iw-fit" disabled={action.busy || !archive || !confirmed || !empty}>{action.busy ? 'Restoring…' : 'Restore archive'}</button></form>{done && <p role="status">Archive restored.</p>}<ErrorNotice error={action.error} /></section></div>
 }
-export function AgentAccess({ agents, refresh }: { agents: Dashboard['agents']; refresh: () => Promise<void> }) {
+export function AgentAccess({ agents, refresh }: { agents: Workspace['agents']; refresh: () => Promise<void> }) {
   const [issued, setIssued] = useState<{ id: string; token: string }>()
   const [copied, setCopied] = useState(false)
   const action = useAction()

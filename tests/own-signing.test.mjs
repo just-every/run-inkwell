@@ -14,7 +14,7 @@ for (const mailProvider of ['resend', null]) {
    const id = (await h.command('envelope.prepare',{title:'Harbour studio agreement',filename:'agreement.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),signers,fields})).result.id
    await h.command('envelope.open_signing',{id},h.owner,409)
    await h.command('envelope.approve',{id,eligible:true})
-   const listed = async () => (await h.send('/api/inkwell',undefined,h.owner)).value.envelopes.find(e=>e.id===id)
+   const listed = async () => (await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
    assert.equal((await listed()).ownSigningAvailable,true)
    const opened = await h.post('/api/inkwell/commands',{command:'envelope.open_signing',input:{id},commandId:crypto.randomUUID()})
    const path = '/api'+new URL(opened.value.result.signing.url).pathname, session = opened

@@ -11,7 +11,8 @@ const pdfText = async bytes => { const { getDocument } = await import('pdfjs-dis
 const recipients = [{name:'Priya Shah',email:'priya@harbour.example'},{name:'Alex Morgan',email:'alex@harbour.example'}]
 const fields = recipients.map((_,signer)=>({id:`signature-${signer}`,label:'Signature',type:'signature',signer,page:0,x:.1,y:.55+signer*.13,width:.4,height:.07}))
 const preparation = () => ({title:'Harbour Studio — consulting agreement',filename:'consulting.pdf',pdfBase64:Buffer.from(original).toString('base64'),signers:structuredClone(recipients),fields:structuredClone(fields)})
-const snapshot=async()=>{const r=await h.send('/api/inkwell',undefined,h.owner);assert.equal(r.status,200);return r.value}
+// MANAGE-001: one envelope as the signed-in person reads it.
+const stored=async(id,cookie=h.owner)=>{const r=await h.send('/api/inkwell/envelopes/'+encodeURIComponent(id),undefined,cookie);assert.equal(r.status,200,JSON.stringify(r.value));return r.value.envelope}
 const signingToken=async email=>{const mail=await h.mail(email,'Please sign:');assert.ok(mail,'ordered invitation delivered to local mail edge');return new URL(mail.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)}
 async function verified(email,{agree=true}={}) {
  const token=await signingToken(email),path='/api/sign/'+token
@@ -40,21 +41,21 @@ test('ACCESS-001: signed-out, viewer, sender, admin and owner requests meet the 
  const admin=await h.invite('ada.admin@harbour.example','admin'),sam=await sender('sam.sender@harbour.example',admin),sky=await sender('sky.sender@harbour.example')
  const ownerEnvelope=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio owner lease'})).result.id
  const samEnvelope=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio Sam proposal'},sam.cookie)).result.id
- const list=async cookie=>(await h.send('/api/inkwell',undefined,cookie)).value.envelopes.map(e=>e.id)
+ const opens=async(cookie,id)=>(await h.send('/api/inkwell/envelopes/'+id,undefined,cookie)).status
  const search=async cookie=>(await h.send('/api/inkwell/envelopes?q=harbour%20studio&limit=100',undefined,cookie)).value.envelopes.map(e=>e.id)
- for(const path of ['/api/inkwell','/api/inkwell/envelopes','/api/inkwell/archive','/api/inkwell/import/jobs',`/api/inkwell/envelopes/${ownerEnvelope}/artifacts/original`]) assert.equal((await h.send(path)).status,401,`signed out: ${path}`)
+ for(const path of ['/api/inkwell','/api/inkwell/envelopes',`/api/inkwell/envelopes/${ownerEnvelope}`,'/api/inkwell/archive','/api/inkwell/import/jobs',`/api/inkwell/envelopes/${ownerEnvelope}/artifacts/original`]) assert.equal((await h.send(path)).status,401,`signed out: ${path}`)
  assert.equal((await h.send('/api/inkwell/commands',{command:'envelope.prepare',commandId:crypto.randomUUID(),input:preparation()},'')).status,401)
  // viewer: reads every envelope, changes none
- for(const id of [ownerEnvelope,samEnvelope]) { assert.ok((await list(member)).includes(id)); assert.equal((await h.send(`/api/inkwell/envelopes/${id}/artifacts/original`,undefined,member)).status,200) }
+ for(const id of [ownerEnvelope,samEnvelope]) { assert.ok((await search(member)).includes(id));assert.equal(await opens(member,id),200); assert.equal((await h.send(`/api/inkwell/envelopes/${id}/artifacts/original`,undefined,member)).status,200) }
  for(const [command,input] of [['envelope.prepare',preparation()],['envelope.approve',{id:samEnvelope,eligible:true}],['envelope.void',{id:samEnvelope,reason:'No'}],['envelope.copy',{id:samEnvelope}],['member.role',{operatorId:sam.id,role:'viewer'}],['agent.issue',{}]]) await h.command(command,input,member,403)
  // sender: only their own, absent from list and search otherwise
- assert.deepEqual((await list(sam.cookie)).filter(id=>[ownerEnvelope,samEnvelope].includes(id)),[samEnvelope]);assert.ok(!(await search(sam.cookie)).includes(ownerEnvelope));assert.ok((await search(sam.cookie)).includes(samEnvelope))
- assert.ok(!(await list(sky.cookie)).includes(samEnvelope),'another sender cannot see it');assert.ok(!(await search(sky.cookie)).includes(samEnvelope))
+ assert.equal(await opens(sam.cookie,ownerEnvelope),403);assert.equal(await opens(sam.cookie,samEnvelope),200);assert.ok(!(await search(sam.cookie)).includes(ownerEnvelope));assert.ok((await search(sam.cookie)).includes(samEnvelope))
+ assert.equal(await opens(sky.cookie,samEnvelope),403,'another sender cannot open it');assert.ok(!(await search(sky.cookie)).includes(samEnvelope))
  for(const path of [`/api/inkwell/envelopes/${samEnvelope}/artifacts/original`,`/api/inkwell/envelopes/${samEnvelope}/verify`]) assert.equal((await h.send(path,undefined,sky.cookie)).status,403)
  for(const [command,input] of [['envelope.approve',{id:samEnvelope,eligible:true}],['envelope.void',{id:samEnvelope,reason:'Not mine'}],['envelope.extend',{id:samEnvelope,days:5}],['member.role',{operatorId:sky.id,role:'viewer'}],['envelope.invite',{id:samEnvelope}],['agent.issue',{}]]) await h.command(command,input,sky.cookie,403)
  await h.command('envelope.approve',{id:ownerEnvelope,eligible:true},sam.cookie,403)
  // admin and owner: every envelope; archives, imports, erasure and agent tokens are the owner's
- for(const cookie of [admin,h.owner]) for(const id of [ownerEnvelope,samEnvelope]) assert.ok((await list(cookie)).includes(id))
+ for(const cookie of [admin,h.owner]) for(const id of [ownerEnvelope,samEnvelope]) assert.ok((await search(cookie)).includes(id))
  for(const [path,body] of [['/api/inkwell/archive/restore',{archive:{}}],['/api/inkwell/erase',{id:'missing',confirmation:'ERASE'}],['/api/inkwell/import/preview',{archive:{}}]]) for(const cookie of [admin,sam.cookie,member]) assert.equal((await h.send(path,body,cookie)).status,403,`${path} is the owner's`)
  await h.command('agent.issue',{},admin,403)
  await h.command('envelope.void',{id:samEnvelope,reason:'Admin tidy-up'},admin)
@@ -78,20 +79,20 @@ test('SEND-002: a sender voids their own envelope after sending and is refused o
  assert.equal((await h.command('envelope.void',{id:mine,reason:'Price changed before signing'},rio.cookie)).result.status,'voided')
  assert.equal((await h.send('/api/sign/'+token+'/code',{},'')).status,409,'the voided invitation link refuses')
  assert.equal((await h.db.prepare('SELECT state FROM iw_mail WHERE id=?').bind('pending-'+mine).first()).state,'cancelled','the pending message is cancelled')
- assert.equal((await snapshot()).envelopes.find(e=>e.id===theirs).status,'awaiting_signature','the other sender\'s envelope is untouched')
+ assert.equal((await stored(theirs)).status,'awaiting_signature','the other sender\'s envelope is untouched')
  await h.command('envelope.void',{id:theirs,reason:'Test done'},tess.cookie)
 })
 test('a prepared fixed PDF requires explicit human approval and immutable recipient fields',async()=>{
  const prepared=await h.command('envelope.prepare',preparation());envelopeId=prepared.result.id
  assert.ok(envelopeId)
  assert.equal(await h.mail(recipients[0].email,'Please sign:'),undefined)
- const e=(await snapshot()).envelopes.find(e=>e.id===envelopeId)
+ const e=(await stored(envelopeId))
  assert.equal(e.status,'prepared');assert.equal(e.originalSha256,digest(original))
  await h.command('envelope.approve',{id:envelopeId,eligible:false},h.owner,400)
  const approved=await h.command('envelope.approve',{id:envelopeId,eligible:true})
  assert.equal(approved.result.invitations,undefined,'provider-configured sends never expose the private link')
  await h.command('envelope.invite',{id:envelopeId},h.owner,409)
- assert.equal((await snapshot()).envelopes.find(e=>e.id===envelopeId).manualInvitationAvailable,false)
+ assert.equal((await stored(envelopeId)).manualInvitationAvailable,false)
  assert.ok(await h.mail(recipients[0].email,'Please sign:'))
  assert.equal(await h.mail(recipients[1].email,'Please sign:'),undefined)
  await h.command('envelope.approve',{id:envelopeId,eligible:true},h.owner,409)
@@ -117,13 +118,13 @@ test('signers verify a one-use email code, consent, and sign sequentially',async
  const simultaneous=await Promise.all([h.send(second.path+'/sign',payload,second.cookie),h.send(second.path+'/sign',payload,second.cookie)])
  assert.ok(simultaneous.some(r=>r.status===200),'one execution succeeds')
  assert.ok(simultaneous.every(r=>[200,409].includes(r.status)),'concurrent replay cannot double-sign')
- const e=(await snapshot()).envelopes.find(e=>e.id===envelopeId)
+ const e=(await stored(envelopeId))
  assert.equal(e.status,'completed');assert.equal(e.signers.filter(s=>s.signedAt).length,2)
  assert.equal(e.events.filter(e=>e.action==='signer.signed').length,2)
  assert.equal((await h.send(second.path+'/artifacts/signed',undefined,second.cookie)).status,200)
 })
 test('executed PDF, certificate, event chain and handoff agree with recomputed fingerprints',async()=>{
- const e=(await snapshot()).envelopes.find(e=>e.id===envelopeId),base='/api/inkwell/envelopes/'+envelopeId
+ const e=(await stored(envelopeId)),base='/api/inkwell/envelopes/'+envelopeId
  for(const [kind,hash] of [['original',e.originalSha256],['signed',e.signedSha256],['certificate',e.certificateSha256]]) {
   const r=await h.send(base+'/artifacts/'+kind,undefined,h.owner)
   assert.equal(r.status,200);assert.equal(digest(r.bytes),hash)
@@ -134,7 +135,7 @@ test('executed PDF, certificate, event chain and handoff agree with recomputed f
  const verification=await h.send(base+'/verify',undefined,h.owner);assert.equal(verification.status,200);assert.equal(verification.value.ok,true)
 })
 test('RECORD-004: a signed-out visitor verifies a genuine executed PDF; altered and unrelated PDFs reveal nothing',async()=>{
- const e=(await snapshot()).envelopes.find(e=>e.id===envelopeId),base='/api/inkwell/envelopes/'+envelopeId
+ const e=(await stored(envelopeId)),base='/api/inkwell/envelopes/'+envelopeId
  const check=async bytes=>{const r=await h.mf.dispatchFetch(h.origin+'/api/verify',{method:'POST',headers:{'content-type':'application/pdf'},body:bytes});assert.equal(r.status,200);return r.json()}
  const executed=(await h.send(base+'/artifacts/signed',undefined,h.owner)).bytes,certificate=(await h.send(base+'/artifacts/certificate',undefined,h.owner)).bytes
  const genuine=await check(executed)
@@ -149,18 +150,18 @@ test('PREP-010: copying a completed envelope makes an unsigned draft that names 
  await h.command('envelope.approve',{id:sourceId,eligible:true})
  const signer=await verified(casey.email)
  await h.post(signer.path+'/sign',{values:{'signature-0':'Casey Rivera'},consent:true,commandId:crypto.randomUUID()},signer.cookie)
- const source=(await snapshot()).envelopes.find(e=>e.id===sourceId)
+ const source=(await stored(sourceId))
  assert.equal(source.status,'completed')
  await h.command('envelope.copy',{id:sourceId},member,403)
  const copy=(await h.command('envelope.copy',{id:sourceId})).result
- const draft=(await snapshot()).envelopes.find(e=>e.id===copy.id)
+ const draft=(await stored(copy.id))
  assert.notEqual(copy.id,sourceId);assert.equal(draft.status,'prepared');assert.equal(draft.copiedFrom,sourceId)
  assert.deepEqual(draft.signers,source.signers.map(({name,email,order})=>({name,email,order})),'same recipients in the same routing order, no signatures or entered values')
  assert.deepEqual(draft.fields,source.fields);assert.equal(draft.signedSha256,undefined)
  assert.equal(digest((await h.send('/api/inkwell/envelopes/'+copy.id+'/artifacts/original',undefined,h.owner)).bytes),source.originalSha256,'the original, unsigned bytes')
  await h.command('envelope.copy',{id:copy.id},h.owner,409)
  await h.command('envelope.approve',{id:copy.id,eligible:true})
- const sent=(await snapshot()).envelopes.find(e=>e.id===copy.id)
+ const sent=(await stored(copy.id))
  assert.equal(sent.status,'awaiting_signature');assert.equal(sent.events[0].detail.copiedFrom,sourceId)
  assert.equal(JSON.parse(new TextDecoder().decode((await h.send('/api/inkwell/envelopes/'+copy.id+'/artifacts/audit',undefined,h.owner)).bytes)).envelope.copiedFrom,sourceId)
  await h.command('envelope.void',{id:copy.id,reason:'Copy checked; not needed'})
@@ -198,7 +199,7 @@ test('SIGNX-004: the second signer declines with a reason; the third is never in
  assert.equal(await h.mail(trio[2].email),undefined,'the third signer is never invited')
  for(const email of ['owner@harbour.example',trio[0].email]) assert.ok((await h.mail(email,'Declined:'))?.text.includes(reason),`${email} receives the decline notice with its reason`)
  assert.equal((await h.send(second.path,undefined,second.cookie)).value.status,'declined')
- const e=(await snapshot()).envelopes.find(e=>e.id===id)
+ const e=(await stored(id))
  assert.equal(e.status,'declined');assert.equal(e.signers[1].declineReason,reason);assert.equal(e.signers[2].signedAt,undefined)
  assert.ok(e.events.some(event=>event.action==='signer.declined'&&event.detail.reason===reason))
  const certificate=await h.send('/api/inkwell/envelopes/'+id+'/artifacts/certificate',undefined,h.owner)
@@ -224,7 +225,7 @@ test('ROUTE-002: recipients at orders 1, 2, 2 and 3; both order-2 recipients are
  await sign(hana,1,'Hana Ito')
  assert.ok(await h.mail(four[3].email,'Please sign:'),'order 3 is invited once both order-2 recipients finish')
  await sign(await verified(four[3].email),3,'Jo Kim')
- const e=(await snapshot()).envelopes.find(e=>e.id===id)
+ const e=(await stored(id))
  assert.equal(e.status,'completed');assert.deepEqual(e.signers.map(s=>s.order),[1,2,2,3])
  assert.ok(e.signers[0].signedAt<=e.signers[2].signedAt&&e.signers[2].signedAt<=e.signers[1].signedAt&&e.signers[1].signedAt<=e.signers[3].signedAt,'the later order-2 recipient signed first, and order 3 signed last')
  assert.deepEqual(e.events.find(event=>event.action==='envelope.prepared').detail.orderedSigners.map(s=>s.order),[1,2,2,3],'the routing orders are on record')
@@ -251,7 +252,7 @@ test('SIGNX-005: a new signer reads and accepts the versioned disclosure before 
  assert.equal((await h.send(second.path,undefined,second.cookie)).value.declined.withdrawn,true)
  assert.ok((await h.mail('owner@harbour.example','Consent withdrawn:'))?.text.includes('Jon Reyes withdrew consent'),'the sender is notified')
  assert.equal(await h.mail(pair[2].email),undefined,'nobody later is invited')
- const e=(await snapshot()).envelopes.find(e=>e.id===id)
+ const e=(await stored(id))
  assert.equal(e.status,'declined');assert.equal(e.signers[1].consentWithdrawn,true)
  assert.deepEqual(e.signers.slice(0,2).map(s=>s.disclosure?.version),[view.version,view.version])
  const recorded=e.events.filter(event=>event.action==='signer.disclosure_accepted')
@@ -263,11 +264,11 @@ test('SIGNX-005: a new signer reads and accepts the versioned disclosure before 
 })
 test('DELIV-004: an envelope set to expire in 10 days warns on day 7, is extended by 14 days, and an expired one is extended and signed without re-preparing',async()=>{
  const day=86_400_000,start=Date.now(),soon=[{name:'Lou Hart',email:'lou@harbour.example'}],field=[{...fields[0],signer:0}]
- const standard=(await snapshot()).envelopes.find(e=>e.id===envelopeId);assert.equal(Date.parse(standard.expiresAt)-Date.parse(standard.createdAt),120*day,'120 days by default')
+ const standard=(await stored(envelopeId));assert.equal(Date.parse(standard.expiresAt)-Date.parse(standard.createdAt),120*day,'120 days by default')
  for(const expiresAt of [new Date(start-1000).toISOString(),new Date(start+400*day).toISOString(),'next week']) await h.command('envelope.prepare',{...preparation(),signers:soon,fields:field,expiresAt},h.owner,400)
  const id=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio slip rental',signers:soon,fields:field,expiresAt:new Date(start+10*day).toISOString()})).result.id
  await h.command('envelope.approve',{id,eligible:true})
- const warnings=async()=>(await snapshot()).envelopes.find(e=>e.id===id).events.filter(e=>e.action==='envelope.expiry_warned')
+ const warnings=async()=>(await stored(id)).events.filter(e=>e.action==='envelope.expiry_warned')
  await h.scheduled(start+6*day)
  assert.equal((await warnings()).length,0,'no warning on day 6');assert.equal(await h.mail(soon[0].email,'Expires soon:'),undefined)
  await h.scheduled(start+7*day);await h.scheduled(start+7*day+3600_000)
@@ -284,13 +285,13 @@ test('DELIV-004: an envelope set to expire in 10 days warns on day 7, is extende
  const late=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio dry dock booking',signers:lapsed,fields:field,expiresAt:new Date(Date.now()+2500).toISOString()})).result.id
  await h.command('envelope.approve',{id:late,eligible:true})
  const path='/api/sign/'+await signingToken(lapsed[0].email)
- const lapse=Date.parse((await snapshot()).envelopes.find(e=>e.id===late).expiresAt)-Date.now()+50
+ const lapse=Date.parse((await stored(late)).expiresAt)-Date.now()+50
  await new Promise(resolve=>setTimeout(resolve,Math.max(0,lapse)))
- assert.equal((await snapshot()).envelopes.find(e=>e.id===late).status,'expired')
+ assert.equal((await stored(late)).status,'expired')
  assert.equal((await h.send(path)).value.status,'expired');await h.post(path+'/code',{},'',410)
  const reopened=(await h.command('envelope.extend',{id:late,days:14})).result
  assert.ok(Math.abs(Date.parse(reopened.expiresAt)-(Date.now()+14*day))<60_000,'an expired envelope reopens for 14 days from now')
- const e=(await snapshot()).envelopes.find(e=>e.id===late)
+ const e=(await stored(late))
  assert.equal(e.status,'awaiting_signature');assert.ok(e.events.some(event=>event.action==='envelope.extended'&&event.detail.afterExpiry===true))
  const second=await verified(lapsed[0].email)
  assert.equal((await h.post(second.path+'/sign',{values:{'signature-0':'Max Dunn'},consent:true,commandId:crypto.randomUUID()},second.cookie)).value.result.status,'completed')
@@ -306,7 +307,7 @@ test('DELIV-003: with the clock advanced, the current signer is reminded on busi
  const at2pm=date=>[18,19].map(h=>Date.parse(`${date}T${h}:00:00Z`)).find(at=>hour(at)===14)
  const start=local(Date.now()),dateAfter=n=>new Date(Date.parse(start+'T12:00:00Z')+n*86_400_000).toISOString().slice(0,10)
  const weekend=date=>[0,6].includes(new Date(date+'T12:00:00Z').getUTCDay())
- const reminded=async signer=>(await snapshot()).envelopes.find(e=>e.id===id).events.filter(e=>e.action==='signer.reminded'&&e.detail.signer===signer)
+ const reminded=async signer=>(await stored(id)).events.filter(e=>e.action==='signer.reminded'&&e.detail.signer===signer)
  let businessDays=0,day=0,sawWeekend=false
  while(businessDays<7){
   day++;const date=dateAfter(day);if(weekend(date))sawWeekend=true;else businessDays++
@@ -336,7 +337,7 @@ test('MANAGE-003: an admin who is the second signer of a colleague\'s envelope s
  await h.post(first.path+'/sign',{values:{'signature-0':'Mira Chen'},consent:true,commandId:crypto.randomUUID()},first.cookie)
  const waiting=(await h.send('/api/inkwell/envelopes?status=waiting_for_me',undefined,admin)).value
  assert.ok(waiting.envelopes.some(e=>e.id===id),'the envelope is in the admin\'s waiting-for-me list')
- assert.equal((await h.send('/api/inkwell',undefined,admin)).value.envelopes.find(e=>e.id===id).ownSigningAvailable,true)
+ assert.equal((await stored(id,admin)).ownSigningAvailable,true)
  const opened=await open(admin),path='/api'+new URL(opened.value.result.signing.url).pathname
  assert.ok(opened.cookie,'the app hands the signing page an already-verified session')
  const view=(await h.send(path,undefined,opened.cookie)).value
@@ -344,7 +345,7 @@ test('MANAGE-003: an admin who is the second signer of a colleague\'s envelope s
  await h.agree(path,opened.cookie)
  assert.equal((await h.post(path+'/sign',{values:{'signature-1':'Ops Lead'},consent:true,commandId:crypto.randomUUID()},opened.cookie)).value.result.status,'completed')
  assert.equal(await h.mail(self.email,'verification code'),undefined,'no verification code is emailed to the in-app signer')
- const e=(await snapshot()).envelopes.find(e=>e.id===id),me=(await h.send('/api/inkwell',undefined,admin)).value.actor
+ const e=(await stored(id)),me=(await h.send('/api/inkwell',undefined,admin)).value.actor
  assert.ok(e.events.some(event=>event.action==='signer.session_verified'&&event.detail.signer===1&&event.detail.operator===me.id),'the record names the session member')
  // The certificate wraps long lines between words; joined, they read whole.
  const text=(await pdfText((await h.send('/api/inkwell/envelopes/'+id+'/artifacts/certificate',undefined,h.owner)).bytes)).replaceAll('\n',' ')
@@ -366,7 +367,7 @@ test('RECORD-002: the certificate lists each recipient\'s authentication, IP add
  const opened=await h.post('/api/inkwell/commands',{command:'envelope.open_signing',input:{id},commandId:crypto.randomUUID()},member,200,desk),second='/api'+new URL(opened.value.result.signing.url).pathname
  await h.post(second+'/disclosure',{version,agree:true},opened.cookie,200,desk)
  await h.post(second+'/sign',{values:{'signature-1':'Reader'},consent:true,commandId:crypto.randomUUID()},opened.cookie,200,desk)
- const e=(await snapshot()).envelopes.find(e=>e.id===id),readerId=e.events.find(x=>x.action==='signer.session_verified').detail.operator
+ const e=(await stored(id)),readerId=e.events.find(x=>x.action==='signer.session_verified').detail.operator
  assert.equal(e.status,'completed')
  // The account's US time zone is Eastern; the certificate wraps long lines between words, so read it joined.
  const eastern=at=>{const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23',timeZoneName:'short'}).formatToParts(new Date(at)).map(x=>[x.type,x.value]));return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second} ${p.timeZoneName}`}
@@ -419,7 +420,7 @@ test('SIGNX-008: a signer downloads the document before signing; a three-page pa
  assert.equal((await h.send(first.path+'/document',undefined,first.cookie)).status,200,'the document stays downloadable after signing')
  const second=await verified(pair[1].email)
  await h.post(second.path+'/sign',{values:{'signature-1':'Oto Grant'},consent:true,commandId:crypto.randomUUID()},second.cookie)
- const e=(await snapshot()).envelopes.find(e=>e.id===id)
+ const e=(await stored(id))
  assert.equal(e.status,'completed');assert.equal(e.signers[0].paper.status,'accepted');assert.equal(e.signers[0].paper.sha256,digest(signedScan))
  assert.ok(e.events.some(event=>event.action==='signer.signed_on_paper'&&event.detail.wetInk===true&&event.detail.sha256===digest(signedScan)))
  const executed=(await h.send('/api/inkwell/envelopes/'+id+'/artifacts/signed',undefined,h.owner)).bytes
@@ -433,7 +434,7 @@ test('IDV-003: a recipient must enter the sender-set access code before the docu
  const pair=[{name:'Gia Lane',email:'gia@harbour.example',accessCode:'HARBOUR-7731'},{name:'Hal Ortiz',email:'hal@harbour.example',accessCode:'tide-2209'}]
  await h.command('envelope.prepare',{...preparation(),signers:[{...pair[0],accessCode:'a b'},pair[1]]},h.owner,400)
  const id=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio berth lease',signers:pair})).result.id
- const e=(await snapshot()).envelopes.find(e=>e.id===id)
+ const e=(await stored(id))
  assert.deepEqual(e.signers.map(s=>s.accessCode),[true,true]);assert.ok(!JSON.stringify(e).includes('HARBOUR-7731'),'the code itself is never in the envelope')
  await h.command('envelope.approve',{id,eligible:true})
  const path='/api/sign/'+await signingToken(pair[0].email)
@@ -453,7 +454,7 @@ test('IDV-003: a recipient must enter the sender-set access code before the docu
  await h.post(second+'/access',{accessCode:pair[1].accessCode},'',423)
  assert.deepEqual((await h.send(second)).value.access,{required:true,passed:false,locked:true})
  await h.post(second+'/code',{},'',423)
- const after=(await snapshot()).envelopes.find(e=>e.id===id)
+ const after=(await stored(id))
  assert.equal(after.events.filter(e=>e.action==='signer.access_code_rejected').length,6);assert.ok(after.events.some(e=>e.action==='signer.access_locked'&&e.detail.signer===1))
  assert.ok(after.events.some(e=>e.action==='signer.access_code_verified'&&e.detail.signer===0))
 })
@@ -463,7 +464,7 @@ test('MANAGE-001: with 5,000 envelopes, search by recipient email answers in und
   const status=kind==='expired'?'awaiting_signature':kind==='mine'?'awaiting_signature':kind
   const signers=[{name:`Client ${i}`,email:kind==='mine'?'owner@harbour.example':`client${i}@harbour.example`,...(['completed'].includes(kind)?{signedAt:createdAt}:{})},{name:'Harbour Counsel',email:'counsel@harbour.example',...(kind==='completed'?{signedAt:createdAt}:{})}]
   expected[{prepared:'draft',awaiting_signature:'waiting_for_others',mine:'waiting_for_me'}[kind]??kind]++
-  return {id,version:1,title:`Bulk fixture ${i} · Mooring renewal`,filename:'renewal.pdf',status,createdAt,createdBy:i%2?'sender-a':'sender-b',expiresAt:new Date(kind==='expired'?now-day:now+30*day).toISOString(),signers,fields:[],pageSizes:[{width:595,height:842}],originalSha256:'0'.repeat(64),events:[{action:'envelope.prepared',at:createdAt,actor:'sender',detail:{},previousHash:'',hash:'1'.repeat(64)}]}})
+  return {id,version:1,title:`Bulk fixture ${i} · Mooring renewal`,filename:'renewal.pdf',status,createdAt,createdBy:i%2?'sender-a':'sender-b',expiresAt:new Date(kind==='expired'?now-day:now+30*day).toISOString(),signers,fields:[],pageSizes:[{width:595,height:842}],originalSha256:'0'.repeat(64),events:[{action:'envelope.prepared',at:createdAt,actor:i%10?'sender':'agent:fixture',detail:{},previousHash:'',hash:'1'.repeat(64)}]}})
  for(let i=0;i<rows.length;i+=250) await h.db.batch(rows.slice(i,i+250).map(e=>h.db.prepare('INSERT INTO iw_envelopes(id,version,data) VALUES(?,?,?)').bind(e.id,1,JSON.stringify(e))))
  const search=async query=>{const started=performance.now(),r=await h.send('/api/inkwell/envelopes?'+new URLSearchParams(query),undefined,h.owner);assert.equal(r.status,200,JSON.stringify(r.value));return {...r.value,ms:performance.now()-started}}
  const found=await search({q:'client4321@harbour.example'})
@@ -477,6 +478,8 @@ test('MANAGE-001: with 5,000 envelopes, search by recipient email answers in und
  assert.equal((await search({q:'bulk fixture',sender:'sender-a'})).total,2500)
  assert.equal((await search({q:'bulk fixture',from:new Date(now-10.5*60_000).toISOString(),to:new Date(now).toISOString()})).total,10,'filter by date')
  assert.equal((await search({q:'counsel@harbour'})).total,5000,'any recipient email matches')
+ const agent=await search({q:'bulk fixture',preparedBy:'agent',status:'draft',limit:'1'});assert.equal(agent.total,500,'prepared by an agent token');assert.equal(agent.envelopes[0].bucket,'draft')
+ assert.equal((await stored('bulk-0005')).status,'expired','one envelope reads as expired past its expiry');assert.equal((await h.send('/api/inkwell/envelopes/bulk-none',undefined,h.owner)).status,404)
  assert.equal((await h.send('/api/inkwell/envelopes?status=unknown',undefined,h.owner)).status,400)
  assert.equal((await h.send('/api/inkwell/envelopes')).status,401)
  await h.db.batch(['iw_envelopes'].map(()=>h.db.prepare("DELETE FROM iw_envelopes WHERE id LIKE 'bulk-%'")))
@@ -512,7 +515,7 @@ test('archive export validates contents and refuses replacing a populated instal
 test('a fresh installation restores the executed file, certificate and full import journal',async()=>{
  await h.close();h=await harness()
  await h.post('/api/inkwell/archive/restore',{archive:fullArchive})
- const e=(await snapshot()).envelopes.find(e=>e.id===envelopeId)
+ const e=(await stored(envelopeId))
  assert.equal(e.status,'completed')
  for(const [kind,hash] of [['signed',e.signedSha256],['certificate',e.certificateSha256]]) {
   const artifact=await h.send('/api/inkwell/envelopes/'+envelopeId+'/artifacts/'+kind,undefined,h.owner)
@@ -525,7 +528,7 @@ test('owner erasure removes files and identity custody and records a restore fen
  await h.post('/api/inkwell/erase',{id:envelopeId,confirmation:'wrong'},h.owner,400)
  await h.post('/api/inkwell/erase',{id:envelopeId,confirmation:'ERASE'})
  assert.equal((await h.send('/api/inkwell/envelopes/'+envelopeId+'/artifacts/signed',undefined,h.owner)).status,404)
- assert.ok(!(await snapshot()).envelopes.some(e=>e.id===envelopeId))
+ assert.ok((await h.send('/api/inkwell/envelopes/'+envelopeId,undefined,h.owner)).status===404)
  const exported=await h.send('/api/inkwell/archive',undefined,h.owner);assert.equal(exported.status,200);laterArchive=exported.value
  assert.ok(!laterArchive.ndjson.includes(envelopeId),'erased native envelope is absent from later archive')
 })
@@ -533,7 +536,7 @@ test('fresh-store restore refuses resurrection with the later journal and restor
  await h.close();h=await harness()
  await h.post('/api/inkwell/archive/restore',{archive:fullArchive,laterJournal:laterArchive},h.owner,400)
  await h.post('/api/inkwell/archive/restore',{archive:laterArchive})
- assert.ok(!(await snapshot()).envelopes.some(e=>e.id===envelopeId))
+ assert.ok((await h.send('/api/inkwell/envelopes/'+envelopeId,undefined,h.owner)).status===404)
  const library=(await h.send('/api/inkwell/import/records',undefined,h.owner)).value.records
  assert.equal(library.length,1)
  const file=library[0].artifacts[0],download=await h.send(file.url,undefined,h.owner)

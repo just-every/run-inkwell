@@ -1,33 +1,15 @@
-// How one envelope reads on the Envelopes screen: its pill, signer progress, next action and the
-// filters it belongs to, all derived from the stored envelope and the signed-in person.
+// How one envelope reads on the Envelopes screen: its pill, signer progress and next action, derived from the stored
+// envelope and the signed-in person. Which status bucket it belongs to is the server's (src/inkwell/search.ts).
 import { canApprove, type Actor, type Envelope } from './types'
 
 export type Tone = 'rose' | 'amber' | 'blue' | 'mint' | 'grey'
-export type Filter = 'all' | 'me' | 'others' | 'attention' | 'completed' | 'voided'
 
 /** ROUTE-002: a recipient's routing order; recipients sharing the lowest open order sign at the same time. */
 export const routingOrder = (envelope: Envelope, index: number) => envelope.signers[index].order ?? index + 1
 export function currentSigners(envelope: Envelope) { const open = envelope.signers.flatMap((signer, index) => signer.signedAt ? [] : [index]); const lowest = Math.min(...open.map(index => routingOrder(envelope, index))); return open.filter(index => routingOrder(envelope, index) === lowest) }
 export const signedCount = (envelope: Envelope) => envelope.signers.filter(signer => signer.signedAt).length
 export const preparedByAgent = (envelope: Envelope) => envelope.events.some(event => event.action === 'envelope.prepared' && event.actor?.startsWith('agent:'))
-export const updatedAt = (envelope: Envelope) => envelope.events.reduce((latest, event) => event.at > latest ? event.at : latest, envelope.createdAt)
 const myTurn = (envelope: Envelope, actor: Actor) => envelope.status === 'awaiting_signature' && currentSigners(envelope).some(index => envelope.signers[index].email.toLowerCase() === actor.email.toLowerCase())
-
-export function needsMe(envelope: Envelope, actor: Actor) {
-  return (envelope.status === 'prepared' && canApprove(actor)) || myTurn(envelope, actor)
-}
-export const inFlight = (envelope: Envelope) => envelope.status === 'prepared' || envelope.status === 'awaiting_signature'
-
-export function matches(envelope: Envelope, actor: Actor, filter: Filter) {
-  switch (filter) {
-    case 'all': return true
-    case 'me': return needsMe(envelope, actor)
-    case 'others': return envelope.status === 'awaiting_signature' && !myTurn(envelope, actor)
-    case 'attention': return envelope.status === 'prepared' || envelope.status === 'expired' || envelope.status === 'declined'
-    case 'completed': return envelope.status === 'completed'
-    case 'voided': return envelope.status === 'voided'
-  }
-}
 
 export function pill(envelope: Envelope, actor: Actor): { label: string; tone: Tone } {
   switch (envelope.status) {

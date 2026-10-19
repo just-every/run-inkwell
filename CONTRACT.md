@@ -207,7 +207,7 @@ Inkwell is one product. Where the market sells a neighbouring product separately
 
 ### Envelope management and reporting
 
-- **MANAGE-001 — Envelope dashboard with search.** Senders see drafts, waiting for me, waiting for others, completed, declined, voided and expired envelopes, search by title, recipient, email and custom field, filter by date, sender, template and status, and page through thousands. **Acceptance evidence:** with 5,000 envelopes, search by recipient email returns in under one second and each status filter shows the right count.
+- **MANAGE-001 — Envelope dashboard with search.** Senders see drafts, waiting for me, waiting for others, completed, declined, voided and expired envelopes, search by title, recipient, email and custom field, filter by date, sender, template and status, and page through thousands. A draft is prepared and awaiting approval; waiting for me is the signed-in person's own signing turn (`MANAGE-003`); waiting for others is every other envelope out for signature; an unfinished envelope past its expiry is expired; a person sees only the envelopes their role allows (`ACCESS-001`). Search matches the title and any recipient's name or email, case-insensitively; the date filter bounds when the envelope was prepared, from inclusive and to exclusive, and the screen sends the viewer's local midnights so the chosen To day is included; the sender filter lists the people owners and admins manage, and viewers filter by sender through the API. The screen and the API read the same server search, 50 envelopes a page, newest prepared first, with every status count under the current search. Custom-field search (`MANAGE-002`) and the template filter (`TMPL-001`) are added to this search, screen and API before those clauses ship. **Acceptance evidence:** with 5,000 envelopes, search by recipient email returns in under one second and each status filter shows the right count.
 
 - **MANAGE-002 — Folders, tags and custom envelope fields.** Envelopes go into shared folders, carry tags and custom fields (for example deal ID or cost center) that are searchable, reportable and sent to integrations. **Acceptance evidence:** a template adds a required cost-center field; envelopes are filtered and exported by it and the HubSpot fake receives it.
 
@@ -368,8 +368,8 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 2 | 0 | 10 |
-| Target and push further | 11 | 24 | 72 | 107 |
-| All | 19 | 26 | 72 | 117 |
+| Target and push further | 12 | 23 | 72 | 107 |
+| All | 20 | 25 | 72 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -436,7 +436,7 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `DELIV-008` | Sender notifications | target | missing |  | No sender notifications |
 | `BULK-001` | Bulk send from a spreadsheet | target | missing |  | No bulk send |
 | `FORM-001` | Public signing web forms | target | missing |  | No web forms |
-| `MANAGE-001` | Envelope dashboard with search | target | partial | `tests/api.test.mjs`; `src/inkwell/search.ts`; `src/ui/operator-app.tsx` | `GET /api/inkwell/envelopes` pages, searches title and recipient name or email, filters by status, date and sender and counts every status, timed at 5,000 envelopes; the Envelopes screen still loads every envelope, filters in the browser and has no draft, declined or expired chips; no custom-field or template filters (`MANAGE-002`, `TMPL-001`) |
+| `MANAGE-001` | Envelope dashboard with search | target | done | `tests/api.test.mjs`; `src/inkwell/search.ts`; `src/ui/operator-app.tsx`; `src/ui/envelope-list.tsx` | The Envelopes screen and `GET /api/inkwell/envelopes` page, search title and recipient name or email, filter by status, date and sender and count all seven statuses from one D1 search, timed at 5,000 envelopes (test `MANAGE-001`); one envelope reads through `GET /api/inkwell/envelopes/:id`; custom-field and template filters arrive with `MANAGE-002` and `TMPL-001` |
 | `MANAGE-002` | Folders, tags and custom envelope fields | target | missing |  | No folders, tags or custom fields |
 | `MANAGE-003` | Waiting for me | target | done | `src/inkwell/own-signing.ts`; `src/inkwell/api.ts`; `src/ui/envelope-detail.tsx`; `tests/api.test.mjs`; `tests/own-signing.test.mjs` | Waiting-for-me list and in-app signing of one's own turn by any member, authenticated by their session with no mailbox code; the certificate names the session member (test `MANAGE-003`) |
 | `MANAGE-004` | Reports and exports | target | missing |  | No reports |

@@ -39,10 +39,13 @@ An unfinished envelope can be voided with a reason, and the reason stays on reco
 Any signed-in person can search the envelopes they may see (a sender, only their own) one page at a time with
 `GET /api/inkwell/envelopes`. `q` matches the title and any recipient's name or email;
 `status` is `draft`, `waiting_for_me`, `waiting_for_others`, `completed`, `declined`,
-`voided`, `expired` or `imported`; `from` and `to` bound the prepared date; `sender` is the
-preparing member's ID; `limit` is 1–100 (50 by default). The answer holds the page, a count
-for every status under the same search, and a `next` value to pass back as `cursor` for the
-following page. The Envelopes screen does not use this search yet.
+`voided`, `expired` or `imported`; `from` (inclusive) and `to` (exclusive) bound when it was
+prepared; `sender` is the preparing member's ID; `preparedBy=agent` keeps envelopes a
+preparation token prepared; `limit` is 1–100 (50 by default). The answer holds the page,
+newest first, a count for every status under the same search, and a `next` value to pass
+back as `cursor` for the following page. `GET /api/inkwell/envelopes/:id` reads one
+envelope. The Envelopes screen uses the same search: its status chips, Prepared from and
+to days (your own local days, both included) and, for owners and admins, the Sender filter.
 
 ## Who can do what
 
