@@ -26,6 +26,7 @@ export async function certificatePdf(envelope: Envelope) {
     'This certificate records the application audit trail; it is not a digital seal.', '',
     ...envelope.signers.flatMap((s, i) => [
       `Signer ${i + 1}: ${s.name} <${s.email}>`, `Routing order: ${routingOrder(envelope, i)}`,
+      ...envelope.events.filter(e => e.action === 'signer.reassigned' && e.detail.signer === i).map(e => { const from = e.detail.before as { name: string; email: string }, to = e.detail.after as { name: string; email: string }; return `Reassigned at ${stamp(e.at)}: by ${from.name} <${from.email}> to ${to.name} <${to.email}> · Reason: ${e.detail.reason}${client(e)}` }),
       ...authLines(envelope, i), ...(s.accessCode ? [accessLine(envelope, i)] : []),
       ...(s.disclosure ? [`Disclosure ${s.disclosure.version} accepted at: ${stamp(s.disclosure.acceptedAt)}`] : []),
       ...adoptionLines(envelope, i),

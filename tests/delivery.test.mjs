@@ -201,3 +201,49 @@ test('DELIV-006: after signer 1 signs, the sender corrects signer 2’s email, a
   await h.command('envelope.correct', { id, message: 'Too late' }, h.owner, 409)
  } finally { await h.close() }
 })
+
+test('ROUTE-006: when the sender allows it, a verified signer reassigns to a colleague with a reason; the colleague verifies and signs, the original link refuses, the record shows both people; a disallowed reassignment is refused', async () => {
+ const h = await harness()
+ try {
+  const ann = 'ann@harbour.example', bea = 'bea@harbour.example', cy = 'cy@harbour.example'
+  const fields = [0, 1].map(signer => ({ id: `signature-${signer}`, label: 'Signature', type: 'signature', signer, page: 0, x: .1, y: .2 + signer * .2, width: .4, height: .07 }))
+  const prepare = async (title, allowReassignment) => (await h.command('envelope.prepare', { title, filename: 'route.pdf', pdfBase64: await pdf(), signers: [{ name: 'Ann Lee', email: ann }, { name: 'Cy Ray', email: cy }], fields, ...(allowReassignment ? { allowReassignment } : {}) })).result.id
+  const linkOf = message => '/api/sign/' + new URL(message.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)
+  const verify = async (email, path) => { await h.post(path + '/code', {}, ''); const cookie = (await h.post(path + '/verify', { code: (await h.mail(email, 'verification code')).text.match(/\b\d{6}\b/)[0] }, '')).cookie; await h.agree(path, cookie); return cookie }
+  const reassign = (path, cookie, body, status) => h.post(path + '/reassign', { name: 'Bea Fox', email: bea, reason: 'Bea signs for our team this week', commandId: crypto.randomUUID(), ...body }, cookie, status)
+
+  const fixed = await prepare('No reassignment', undefined)
+  await h.command('envelope.approve', { id: fixed, eligible: true })
+  const fixedPath = linkOf(await h.mail(ann, 'Please sign: No reassignment')), fixedCookie = await verify(ann, fixedPath)
+  assert.equal((await h.send(fixedPath, undefined, fixedCookie)).value.allowReassign, false)
+  await reassign(fixedPath, fixedCookie, {}, 403)
+
+  const id = await prepare('Delegated lease', true)
+  await h.command('envelope.approve', { id, eligible: true })
+  const original = linkOf(await h.mail(ann, 'Please sign: Delegated lease'))
+  await reassign(original, '', {}, 401)
+  const cookie = await verify(ann, original)
+  assert.equal((await h.send(original, undefined, cookie)).value.allowReassign, true)
+  await reassign(original, cookie, { email: cy }, 409)
+  await reassign(original, cookie, { reason: 'x' }, 400)
+  assert.equal((await reassign(original, cookie, {})).value.result.reassignedTo, bea)
+  assert.equal((await h.send(original)).status, 404, 'the original link refuses')
+  assert.equal((await h.send(original + '/document', undefined, cookie)).status, 404, 'and so does the original session')
+
+  const envelope = (await h.send('/api/inkwell/envelopes/' + id, undefined, h.owner)).value.envelope
+  assert.deepEqual([envelope.signers[0].name, envelope.signers[0].email, envelope.signers[0].disclosure], ['Bea Fox', bea, undefined], 'the colleague takes the place, agreeing for themselves')
+  const event = envelope.events.find(e => e.action === 'signer.reassigned')
+  assert.deepEqual([event.actor, event.detail.before, event.detail.after, event.detail.reason], ['signer:1', { name: 'Ann Lee', email: ann }, { name: 'Bea Fox', email: bea }, 'Bea signs for our team this week'], 'the audit trail shows both people and the reason')
+  const steps = envelope.recipients[0].steps
+  assert.ok(steps.some(s => s.step === 'reassigned' && s.detail.includes(ann) && s.detail.includes(bea)), 'the timeline shows both people')
+  assert.ok(!steps.some(s => s.step === 'authenticated'), 'the colleague has not verified yet: Ann’s verification is not theirs')
+
+  const delegated = linkOf(await h.mail(bea, 'Please sign: Delegated lease')), beaCookie = await verify(bea, delegated)
+  await h.post(delegated + '/sign', { values: { 'signature-0': 'Bea Fox' }, consent: true, commandId: crypto.randomUUID() }, beaCookie)
+  const cyPath = linkOf(await h.mail(cy, 'Please sign: Delegated lease')), cyCookie = await verify(cy, cyPath)
+  await h.post(cyPath + '/sign', { values: { 'signature-1': 'Cy Ray' }, consent: true, commandId: crypto.randomUUID() }, cyCookie)
+  const done = (await h.send('/api/inkwell/envelopes/' + id, undefined, h.owner)).value.envelope
+  assert.equal(done.status, 'completed', 'the colleague signs in Ann’s place and routing continues')
+  assert.ok(done.events.some(e => e.action === 'signer.email_verified' && e.detail.email === bea), 'the colleague verified their own email')
+ } finally { await h.close() }
+})

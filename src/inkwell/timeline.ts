@@ -8,7 +8,7 @@ import { envelopeMessages, type Message } from './delivery'
 import { accountTimeZone } from './zone'
 import { bouncedRecipients } from './bounces'
 
-export type Step = 'sent' | 'delivered' | 'viewed' | 'authenticated' | 'signed' | 'declined' | 'bounced' | 'added' | 'corrected' | 'removed'
+export type Step = 'sent' | 'delivered' | 'viewed' | 'authenticated' | 'signed' | 'declined' | 'bounced' | 'added' | 'corrected' | 'removed' | 'reassigned'
 export type Place = 'signed' | 'declined' | 'current' | 'waiting' | 'stopped' | 'removed'
 export interface RecipientTimeline { signer: number; order: number; place: Place; waitingOn: string | null; bounced?: boolean; steps: { step: Step; at: string; detail?: string }[] }
 
@@ -44,6 +44,11 @@ function recipientTimeline(envelope: Envelope, messages: Message[], signer: numb
     const was = e.detail.before as Record<string, unknown> | undefined, now = e.detail.after as Record<string, unknown> | undefined
     const changed = was && now ? Object.keys({ ...was, ...now }).filter(key => String(was[key] ?? '') !== String(now[key] ?? '')).map(key => key === 'message' ? 'private message changed' : `${key} ${was[key] ?? '—'} → ${now[key] ?? '—'}`).join('; ') : undefined
     steps.push({ step: e.action === 'signer.added' ? 'added' : e.action === 'signer.removed' ? 'removed' : 'corrected', at: e.at, ...(changed ? { detail: changed } : {}) })
+  }
+  // ROUTE-006: a reassignment shows both people and the reason.
+  for (const e of envelope.events.filter(e => e.action === 'signer.reassigned' && e.detail.signer === signer)) {
+    const from = e.detail.before as { name: string; email: string }, to = e.detail.after as { name: string; email: string }
+    steps.push({ step: 'reassigned', at: e.at, detail: `${from.name} <${from.email}> to ${to.name} <${to.email}>: ${e.detail.reason}` })
   }
   steps.sort((a, b) => a.at.localeCompare(b.at))
   const order = routingOrder(envelope, signer), base = { signer, order, steps }

@@ -14,7 +14,7 @@ import { currentSigners, pill, routingOrder, preparedByAgent, titleParts } from 
 
 // DELIV-001: what each kind of message is, as the Messages list names it.
 // MANAGE-005: the timeline's step names.
-const steps: Record<string, string> = { sent: 'Sent', delivered: 'Delivered', viewed: 'Viewed', authenticated: 'Authenticated', signed: 'Signed', declined: 'Declined', bounced: 'Bounced', added: 'Added', corrected: 'Corrected', removed: 'Removed' }
+const steps: Record<string, string> = { sent: 'Sent', delivered: 'Delivered', viewed: 'Viewed', authenticated: 'Authenticated', signed: 'Signed', declined: 'Declined', bounced: 'Bounced', added: 'Added', corrected: 'Corrected', removed: 'Removed', reassigned: 'Reassigned' }
 const messageKinds: Record<string, string> = { invitation: 'Invitation', code: 'Verification code', notice: 'Notice', copy: 'Completed copy', copy_code: 'Completed-copy code' }
 type Invitation = { url: string; code: string; recipient: string; expiresAt: string }
 type InvitationResult = { invitations?: Invitation[]; signInApp?: boolean }

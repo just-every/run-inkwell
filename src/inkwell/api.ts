@@ -19,6 +19,7 @@ import { extendEnvelope } from './expiry'
 import { remindNow } from './reminders'
 import { alertBounces, correctBounced } from './bounces'
 import { correctEnvelope } from './corrections'
+import { reassignSigning } from './reassign'
 import { reviewPaper, uploadPaper } from './paper'
 import { saveProgress } from './progress'
 import { importContacts, recentRecipients, removeContact, saveContact, searchContacts } from './contacts'
@@ -70,6 +71,7 @@ api.post('/api/sign/:token/code',async c=>{sameOrigin(c.req.raw,c.env);return c.
 api.post('/api/sign/:token/verify',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096),cookie=await verifyCode(c.env,context,body);c.header('set-cookie',cookie);return c.json({ok:true})})
 api.post('/api/sign/:token/sign',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,800_000);return c.json({ok:true,result:await signEnvelope(c.env,context,body,c.req.raw)})})
 api.post('/api/sign/:token/decline',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096);return c.json({ok:true,result:await declineEnvelope(c.env,context,body,c.req.raw)})})
+api.post('/api/sign/:token/reassign',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096);return c.json({ok:true,result:await reassignSigning(c.env,context,body)})})
 api.post('/api/sign/:token/disclosure',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096);return c.json({ok:true,result:await acceptDisclosure(c.env,context,body,c.req.raw)})})
 api.post('/api/sign/:token/paper',async c=>{sameOrigin(c.req.raw,c.env);return c.json({ok:true,result:await uploadPaper(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),c.req.raw)})})
 api.post('/api/sign/:token/progress',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,64000);return c.json({ok:true,result:await saveProgress(c.env,context,body)})})

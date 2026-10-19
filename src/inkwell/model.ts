@@ -11,7 +11,7 @@ export interface Adoption { method: 'typed' | 'drawn' | 'uploaded'; style?: 'san
 /** SIGNX-008: a hand-signed scan the recipient uploaded instead of signing electronically, and the sender's review. */
 export interface Paper { sha256: string; pages: number; mediaType: string; uploadedAt: string; status: 'pending' | 'accepted' | 'rejected'; reviewedAt?: string; reviewedBy?: string; reason?: string }
 export interface AuditEvent { action: string; at: string; actor: string; detail: Record<string, unknown>; previousHash: string; hash: string }
-export interface Envelope { id: string; version: number; title: string; filename: string; status: 'prepared' | 'awaiting_signature' | 'completed' | 'declined' | 'voided' | 'expired' | 'imported'; createdAt: string; createdBy: string; expiresAt: string; signers: Signer[]; fields: Field[]; pageSizes: { width: number; height: number }[]; originalSha256: string; signedSha256?: string; certificateSha256?: string; events: AuditEvent[]; imported?: boolean; source?: unknown; copiedFrom?: string; allowPaper?: boolean; reminders?: { afterDays: number; everyDays: number }; copies?: { name: string; email: string }[]; subject?: string; message?: string; scheduled?: { at: string; local: string; timeZone: string } }
+export interface Envelope { id: string; version: number; title: string; filename: string; status: 'prepared' | 'awaiting_signature' | 'completed' | 'declined' | 'voided' | 'expired' | 'imported'; createdAt: string; createdBy: string; expiresAt: string; signers: Signer[]; fields: Field[]; pageSizes: { width: number; height: number }[]; originalSha256: string; signedSha256?: string; certificateSha256?: string; events: AuditEvent[]; imported?: boolean; source?: unknown; copiedFrom?: string; allowPaper?: boolean; reminders?: { afterDays: number; everyDays: number }; copies?: { name: string; email: string }[]; allowReassign?: boolean; subject?: string; message?: string; scheduled?: { at: string; local: string; timeZone: string } }
 export type Env = Bindings
 /** RECORD-002: one request's network evidence: Cloudflare's connecting IP and the user agent, as printable ASCII. */
 export interface Client { ip: string; userAgent: string }
@@ -22,9 +22,9 @@ export const routingOrder = (envelope: Envelope, signer: number) => envelope.sig
 /** DELIV-006: a recipient removed by a correction keeps their place (so the audit trail's signer numbers stay true) and
  * never signs, receives or holds up anything again. */
 export const removed = (envelope: Envelope, signer: number) => Boolean(envelope.signers[signer]?.removedAt)
-/** DELIV-006: the audit events about the person now at `signer`: those after the last correction of that recipient's
- * name or email, so a corrected recipient's evidence never borrows the person they replaced. */
-export function identityEvents(envelope: Envelope, signer: number) { let last = -1; envelope.events.forEach((e, i) => { if (e.action === 'signer.corrected' && e.detail.signer === signer && (e.detail.after as { email?: string } | undefined)?.email !== (e.detail.before as { email?: string } | undefined)?.email) last = i }); return envelope.events.slice(last + 1) }
+/** DELIV-006 / ROUTE-006: the audit events about the person now at `signer`: those after the last correction or
+ * reassignment that changed that place's email, so a corrected recipient's evidence never borrows the person they replaced. */
+export function identityEvents(envelope: Envelope, signer: number) { let last = -1; envelope.events.forEach((e, i) => { if (['signer.corrected', 'signer.reassigned'].includes(e.action) && e.detail.signer === signer && (e.detail.after as { email?: string } | undefined)?.email !== (e.detail.before as { email?: string } | undefined)?.email) last = i }); return envelope.events.slice(last + 1) }
 /** ROUTE-002: whose turn it is: every unsigned signer at the lowest routing order any unsigned signer has. Signers who
  * share that order act in parallel; higher orders wait until all of them have finished. */
 export function currentSigners(envelope: Envelope) { const open = envelope.signers.flatMap((s, i) => s.signedAt || s.removedAt ? [] : [i]); const lowest = Math.min(...open.map(i => routingOrder(envelope, i))); return open.filter(i => routingOrder(envelope, i) === lowest) }
