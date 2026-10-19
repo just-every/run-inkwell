@@ -61,6 +61,14 @@ sent. With mail configured, choose **Email me a code** there as any recipient wo
 mail suppressed, the owner's code is filled in for you. Verify the code, review the
 document and sign.
 
+## Copy an envelope
+
+To send the same agreement again, open any sent, completed, declined, voided or expired
+envelope and choose **Copy to a new envelope**. Inkwell prepares a new envelope with the
+original, unsigned PDF, the same recipients in the same order and the same fields, with no
+entered values or signatures. It opens ready for approval like any prepared envelope, and
+its audit trail, handoff manifest and certificate name the envelope it was copied from.
+
 ## Void an envelope
 
 To stop an envelope that is not finished, open it and choose **Void envelope…**, enter the

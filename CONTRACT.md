@@ -368,8 +368,8 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 6 | 4 | 0 | 10 |
-| Target and push further | 1 | 29 | 77 | 107 |
-| All | 7 | 33 | 77 | 117 |
+| Target and push further | 2 | 29 | 76 | 107 |
+| All | 8 | 33 | 76 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -392,7 +392,7 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `PREP-007` | Text tags and existing PDF form fields | target | missing |  | No text tags or AcroForm field import |
 | `PREP-008` | Prefill from business data | target | missing |  | No sender, CRM or API prefill |
 | `PREP-009` | Messages, drafts and scheduled sending | target | partial | `src/inkwell/envelopes.ts` | A prepared envelope is saved before approval but cannot be edited; no subject, messages or scheduled sending |
-| `PREP-010` | Copy an envelope | target | missing |  | No envelope copy |
+| `PREP-010` | Copy an envelope | target | done | `tests/api.test.mjs`; `src/inkwell/envelopes.ts`; `src/ui/envelope-detail.tsx` |  |
 | `PREP-011` | Free-form signing | target | missing |  | Every envelope needs placed fields; signers cannot place their own |
 | `PREP-012` | Document generation from Word templates | target | missing |  | No DOCX templates, merge fields, repeating tables or conditional sections |
 | `TMPL-001` | Reusable templates with saved roles | target | missing |  | No templates |

@@ -100,6 +100,27 @@ test('RECORD-004: a signed-out visitor verifies a genuine executed PDF; altered 
  for(const bytes of [altered,original,await (await PDFDocument.create()).save()]) assert.deepEqual(Object.keys(await check(bytes)).sort(),['match','sha256'],'a file that matches nothing reveals nothing else')
  assert.equal((await check(altered)).match,false)
 })
+test('PREP-010: copying a completed envelope makes an unsigned draft that names its source',async()=>{
+ const casey={name:'Casey Rivera',email:'casey@harbour.example'},sourceId=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio renewal',signers:[casey],fields:[fields[0]]})).result.id
+ await h.command('envelope.approve',{id:sourceId,eligible:true})
+ const signer=await verified(casey.email)
+ await h.post(signer.path+'/sign',{values:{'signature-0':'Casey Rivera'},consent:true,commandId:crypto.randomUUID()},signer.cookie)
+ const source=(await snapshot()).envelopes.find(e=>e.id===sourceId)
+ assert.equal(source.status,'completed')
+ await h.command('envelope.copy',{id:sourceId},member,403)
+ const copy=(await h.command('envelope.copy',{id:sourceId})).result
+ const draft=(await snapshot()).envelopes.find(e=>e.id===copy.id)
+ assert.notEqual(copy.id,sourceId);assert.equal(draft.status,'prepared');assert.equal(draft.copiedFrom,sourceId)
+ assert.deepEqual(draft.signers,source.signers.map(({name,email})=>({name,email})),'same recipients, no signatures or entered values')
+ assert.deepEqual(draft.fields,source.fields);assert.equal(draft.signedSha256,undefined)
+ assert.equal(digest((await h.send('/api/inkwell/envelopes/'+copy.id+'/artifacts/original',undefined,h.owner)).bytes),source.originalSha256,'the original, unsigned bytes')
+ await h.command('envelope.copy',{id:copy.id},h.owner,409)
+ await h.command('envelope.approve',{id:copy.id,eligible:true})
+ const sent=(await snapshot()).envelopes.find(e=>e.id===copy.id)
+ assert.equal(sent.status,'awaiting_signature');assert.equal(sent.events[0].detail.copiedFrom,sourceId)
+ assert.equal(JSON.parse(new TextDecoder().decode((await h.send('/api/inkwell/envelopes/'+copy.id+'/artifacts/audit',undefined,h.owner)).bytes)).envelope.copiedFrom,sourceId)
+ await h.command('envelope.void',{id:copy.id,reason:'Copy checked; not needed'})
+})
 test('agent credentials can prepare but cannot approve, sign or retain authority after revocation',async()=>{
  const issued=(await h.command('agent.issue')).result
  const headers={authorization:'Bearer '+issued.token}

@@ -14,7 +14,7 @@ type Invitation = { url: string; code: string; recipient: string; expiresAt: str
 type InvitationResult = { invitation?: Invitation }
 type OwnSigningResult = { signing: { url: string; code?: string } }
 
-export function EnvelopeDetail({ envelope, actor, refresh, onClose }: { envelope: Envelope; actor: Actor; refresh: () => Promise<void>; onClose: () => void }) {
+export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen }: { envelope: Envelope; actor: Actor; refresh: () => Promise<void>; onClose: () => void; onOpen: (id: string) => void }) {
   const action = useAction()
   const [eligible, setEligible] = useState(false)
   const [reason, setReason] = useState('')
@@ -26,6 +26,7 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose }: { envelope
   const [copied, setCopied] = useState(false)
   const base = `/api/inkwell/envelopes/${encodeURIComponent(envelope.id)}`
   const finished = ['completed', 'voided', 'expired', 'imported'].includes(envelope.status)
+  const copyable = ['awaiting_signature', 'completed', 'declined', 'voided', 'expired'].includes(envelope.status) && canEdit(actor)
   const currentRecipient = envelope.signers.find(signer => !signer.signedAt)?.email
   const privateInvitation = envelope.manualInvitationAvailable && !finished && invitation?.recipient === currentRecipient ? invitation : undefined
   async function saveInvitation(result: InvitationResult) {
@@ -38,7 +39,7 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose }: { envelope
   const deciding = envelope.status === 'prepared' && canApprove(actor), signingHere = Boolean(envelope.ownSigningAvailable)
   return <section className="iw-detail" aria-label={envelope.title}><div className="iw-detail-body">
     <div className="iw-detail-top"><Pill {...state} /><button className="iw-icon-button" aria-label="Close" onClick={onClose}><Icon name="close" /></button></div>
-    <h2>{name}</h2><p className="iw-detail-sub">{detail && <span>{detail}</span>}<span className="iw-detail-date">Prepared {dateTime(envelope.createdAt)}</span></p>
+    <h2>{name}</h2><p className="iw-detail-sub">{detail && <span>{detail}</span>}<span className="iw-detail-date">Prepared {dateTime(envelope.createdAt)}</span>{envelope.copiedFrom && <span>Copied from envelope {envelope.copiedFrom.slice(0, 8)}</span>}</p>
 
     <h3>Signing status</h3>
     <ol className="iw-signers">{envelope.signers.map((signer, index) => <li key={index} className={signer.signedAt ? 'iw-signed' : index === turn && envelope.status === 'awaiting_signature' ? 'iw-turn' : undefined}>
@@ -70,6 +71,7 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose }: { envelope
 
     <ArtifactIntegrity envelope={envelope} base={base} />
     <details className="iw-audit-trail"><summary>Audit trail ({envelope.events.length})</summary><ol className="iw-audit">{envelope.events.map((event, index) => <li key={index}><strong>{event.action.replaceAll('_', ' ')}</strong> <time>{dateTime(event.at)}</time>{event.actor && <span>{event.actor}</span>}{typeof event.detail?.reason === 'string' && <p>{event.detail.reason}</p>}</li>)}</ol></details>
+    {copyable && <div className="iw-quiet"><button disabled={action.busy} onClick={() => void action.run(async () => { const copy = await command<{ id: string }>('envelope.copy', { id: envelope.id }); await refresh(); onOpen(copy.id) })}>{action.busy ? 'Copying…' : 'Copy to a new envelope'}</button></div>}
     {canEdit(actor) && !finished && <div className="iw-quiet"><button disabled={action.busy} onClick={() => setVoiding(value => !value)}>Void envelope…</button>{voiding && <form className="iw-stack iw-callout" onSubmit={event => { event.preventDefault(); void action.run(async () => { await command('envelope.void', { id: envelope.id, reason }); setVoiding(false); await refresh() }) }}><label>Reason for voiding<textarea required minLength={3} maxLength={500} value={reason} onChange={event => setReason(event.target.value)} /></label><p>Recipients will no longer be able to sign this envelope.</p><button className="iw-danger iw-fit" disabled={action.busy}>Confirm void</button></form>}</div>}
     {actor.role === 'owner' && ['prepared', 'completed', 'voided'].includes(envelope.status) && <div className="iw-quiet"><button disabled={action.busy} onClick={() => setErasing(value => !value)}>Erase archived envelope…</button>{erasing && <form className="iw-stack iw-callout" onSubmit={event => { event.preventDefault(); void action.run(async () => { await request('/api/inkwell/erase', { id: envelope.id, confirmation }); await refresh(); onClose() }) }}><p>Download the full archive from the Archive tab first if you need to preserve these records. Erasure permanently removes the document and personal data. A tombstone remains to record the erasure.</p><label>Type ERASE to confirm<input required pattern="ERASE" value={confirmation} onChange={event => setConfirmation(event.target.value)} /></label><button className="iw-danger iw-fit" disabled={action.busy || confirmation !== 'ERASE'}>Permanently erase</button></form>}</div>}
     </div></div>

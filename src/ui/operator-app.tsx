@@ -66,7 +66,7 @@ export function OperatorApp() {
           {data && tab !== 'envelopes' && <section className="iw-heading"><h1>{headings[tab][0]}</h1><p className="iw-heading-line">{headings[tab][1]}</p></section>}
           {data && owner && tab === 'move-in' && <MoveIn />}{data && owner && tab === 'archive' && <ArchiveAccess empty={!data.envelopes.length} refresh={refresh} />}{data && owner && tab === 'agents' && <AgentAccess agents={data.agents} refresh={refresh} />}{data && tab === 'settings' && <AccountSettings actor={data.actor} />}
         </HydrationUnit></main>
-        {panel && data && <HydrationUnit><aside className="iw-panel-col"><EnvelopeDetail key={panel.id} envelope={panel} actor={data.actor} refresh={refresh} onClose={() => setSelected('')} /></aside></HydrationUnit>}
+        {panel && data && <HydrationUnit><aside className="iw-panel-col"><EnvelopeDetail key={panel.id} envelope={panel} actor={data.actor} refresh={refresh} onClose={() => setSelected('')} onOpen={setSelected} /></aside></HydrationUnit>}
       </div>
     </div>
   </div>
