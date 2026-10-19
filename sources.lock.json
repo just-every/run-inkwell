@@ -783,7 +783,7 @@
       "executable": false
     },
     "src/inkwell/model.ts": {
-      "sha256": "e553bf573eb2f7a0435e092f4c200d41091090590f0005b4b5603185796030d5",
+      "sha256": "7264c31d37b097a8442b0b0c63e4d90a48688dec5909afc576dfde5f80bacbad",
       "executable": false
     },
     "src/inkwell/notices.ts": {
@@ -851,7 +851,7 @@
       "executable": false
     },
     "src/inkwell/signing.ts": {
-      "sha256": "c329266d593b6fbd78dfe5ad4ee15422ae1469eced175fc39d465ad1e85f7a09",
+      "sha256": "fb04d7e85ecb507550257a89bf419c32d26e716ddc44d607a3aad56f758d4849",
       "executable": false
     },
     "src/inkwell/storage.ts": {
