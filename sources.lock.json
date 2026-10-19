@@ -651,7 +651,7 @@
       "executable": false
     },
     "src/inkwell/archive-policy.mjs": {
-      "sha256": "9bd50b623e9a637c2320925f70be67983f7970a75a92d71f3f4c9a0209e87130",
+      "sha256": "ff13b74b6d9201fe6ad6ab420fb58b01ca1a624dadc5e7e0abd957a2190de82a",
       "executable": false
     },
     "src/inkwell/archive.ts": {
@@ -2655,7 +2655,7 @@
       "executable": false
     },
     "src/ui/pdf-viewer.tsx": {
-      "sha256": "886b28ff864e1cecb6e84a5013676a9b67f52d5a973f97f2c76fb54e8c3bb242",
+      "sha256": "d531ddb6957281df0b0c6cfc8804c316e82765aa9fba72a3be8ca87554cd9459",
       "executable": false
     },
     "src/ui/people.tsx": {
@@ -2683,7 +2683,7 @@
       "executable": false
     },
     "src/ui/signer-app.tsx": {
-      "sha256": "41aa6d9e7414b8ca412b439477a7f694c12966c324f80d87db9b269705e7c490",
+      "sha256": "6a07b8e60aa774113b5f1be671da9effd4d8a627bcf7be8bb3194c7e7bb93c2b",
       "executable": false
     },
     "src/ui/signing-guide.tsx": {
@@ -2735,7 +2735,7 @@
       "executable": false
     },
     "tests/journeys/signing-mobile.mjs": {
-      "sha256": "d9ec978b461afd75d314122c8ca2aac8deaf1b3dfbd3d78e0b00843d4c53ddad",
+      "sha256": "943a053890b3f10be7a0c45a89b0eaf89a75aa6cef9939bcf5c08dbfc71ba4c2",
       "executable": false
     },
     "tests/manual-invitations.test.mjs": {

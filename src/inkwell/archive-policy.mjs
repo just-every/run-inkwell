@@ -6,7 +6,8 @@ import { canonicalJson, sha256 } from '@runeditrun/rer/modules/portability';
 export default {
   product: 'signatures/inkwell',
   excludeTables: ['iw_guards', 'iw_commands', 'iw_agents', 'iw_mail', 'iw_access_codes', 'iw_member_roles', 'iw_copy_links', 'iw_settings', 'iw_member_marks', 'iw_shares', 'ik_d1_assertions'],
-  secretColumns: { iw_signers: ['code_hash', 'session_hash'] },
+  // SIGNX-001: a signer's saved, unsigned entries stay behind like their codes and sessions.
+  secretColumns: { iw_signers: ['code_hash', 'session_hash', 'progress'] },
   requiredConfiguration: ['OWNER_EMAIL', 'SESSION_SECRET', 'AUTH_ORIGIN', 'MAIL_PROVIDER', 'MAIL_FROM'],
   async validateStaged({ read }) {
     const envelopes = await read('iw_envelopes'), blobs = await read('iw_blobs'), events = await read('iw_events');

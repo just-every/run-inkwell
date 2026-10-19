@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { HydrationUnit } from '../base/hydration/unit'
 import { request, type Field } from './types'
 import { ErrorNotice, useAction } from './feedback'
-import { PdfViewer } from './pdf-viewer'
+import { PdfViewer, preloadPdf } from './pdf-viewer'
 import { Check } from './marks'
 import { Brand } from './shell'
 import { readingOrder, SigningGuide } from './signing-guide'
@@ -29,7 +29,7 @@ export function SignerApp({ token }: { token: string }) {
   // ROUTE-009: a member's saved signature fills their signature fields; typing another replaces it next time.
   // SIGNX-001: what the signer saved before (Finish later, or each Next) comes back on the same link.
   async function refresh() { const next = await request<SigningSession>(base); setSession(next); const saved = next.savedSignature; setValues(current => ({ ...(saved ? Object.fromEntries(next.fields.filter(field => field.type === 'signature').map(field => [field.id, saved])) : {}), ...next.progress, ...current })) }
-  useEffect(() => { setSession(undefined); setCodeSent(false); setCode(''); setAccessCode(''); setValues({}); setConsent(false); setSigned(false); setDeclining(false); setReason(''); setAgreed(false); setWithdrawing(false); setPaperOpen(false); setScan(undefined); setCurrentField(undefined); void action.run(refresh) }, [token])
+  useEffect(() => { setSession(undefined); setCodeSent(false); setCode(''); setAccessCode(''); setValues({}); setConsent(false); setSigned(false); setDeclining(false); setReason(''); setAgreed(false); setWithdrawing(false); setPaperOpen(false); setScan(undefined); setCurrentField(undefined); void preloadPdf().catch(() => {}); void action.run(refresh) }, [token])
   const complete = session?.status === 'completed'
   const closed = ['voided', 'declined', 'expired'].includes(session?.status || '')
   const alreadySigned = signed || Boolean(session?.signedAt || session?.signer.signedAt)

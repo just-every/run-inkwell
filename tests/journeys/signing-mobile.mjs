@@ -119,6 +119,9 @@ try {
   }
   await back.page.getByRole('button', { name: 'Sign document' }).click()
   await back.page.getByRole('heading', { name: 'All signatures are complete.' }).waitFor()
+  // The executed PDF then opens in the same viewer (the preloaded pdf.js worker serves a second document).
+  await back.page.locator('.iw-pdf-page[data-rendered]').first().waitFor()
+  assert.equal(await back.page.getByText('Could not load this PDF').count(), 0)
   await back.context.close()
   const view = await (await fetch(`${origin}/api/inkwell/envelopes/${id}`, { headers: { cookie: owner } })).json()
   assert.equal(view.envelope.status, 'completed')

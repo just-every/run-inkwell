@@ -4,6 +4,13 @@ import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import type { Field } from './types'
 import { ErrorNotice } from './feedback'
 
+let pdfjsReady: Promise<typeof import('pdfjs-dist')> | undefined
+/** SIGNX-001: start loading pdf.js and its worker before the document is needed (the signing page calls this while it
+ * fetches the request), so the first page draws sooner on a slow phone. */
+export function preloadPdf() {
+  pdfjsReady ??= import('pdfjs-dist').then(pdfjs => { if (!pdfjs.GlobalWorkerOptions.workerPort) pdfjs.GlobalWorkerOptions.workerPort = new Worker(workerUrl, { type: 'module' }); return pdfjs })
+  return pdfjsReady
+}
 type Props = { source: string | Uint8Array; fields?: Field[]; values?: Record<string, string>; activeField?: string; onPlace?: (page: number, x: number, y: number) => void }
 function Page({ page, index, fields, values, activeField, onPlace }: { page: PDFPageProxy; index: number } & Omit<Props, 'source'>) {
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -42,9 +49,8 @@ export function PdfViewer(props: Props) {
     let disposed = false; let loadingTask: PDFDocumentLoadingTask | undefined
     setPages([]); setError('')
     void (async () => {
-      const pdfjs = await import('pdfjs-dist')
+      const pdfjs = await preloadPdf()
       if (disposed) return
-      pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
       loadingTask = pdfjs.getDocument(typeof props.source === 'string' ? { url: props.source, withCredentials: true } : { data: props.source.slice() })
       const document = await loadingTask.promise
       if (disposed) return
