@@ -37,8 +37,8 @@ export async function receiveDeliveryEvents(env: Env, request: Request) {
 async function sentHere(env: Env, provider: string, event: DeliveryEvent) {
   for (const recipient of event.recipients) {
     const row = provider === 'sendgrid'
-      ? event.deliveryId && await env.DB.prepare("SELECT 1 AS ok FROM iw_mail WHERE id=? AND provider='sendgrid' AND state='sent' AND lower(recipient)=lower(?)").bind(event.deliveryId, recipient).first()
-      : await env.DB.prepare("SELECT 1 AS ok FROM iw_mail WHERE provider=? AND provider_message_id=? AND state='sent' AND lower(recipient)=lower(?)").bind(provider, event.providerMessageId, recipient).first()
+      ? event.deliveryId && await env.DB.prepare("SELECT 1 AS ok FROM (SELECT id,provider,state,recipient FROM iw_mail UNION ALL SELECT id,provider,state,recipient FROM iw_import_retention_mail) WHERE id=? AND provider='sendgrid' AND state='sent' AND lower(recipient)=lower(?)").bind(event.deliveryId, recipient).first()
+      : await env.DB.prepare("SELECT 1 AS ok FROM (SELECT provider,provider_message_id,state,recipient FROM iw_mail UNION ALL SELECT provider,provider_message_id,state,recipient FROM iw_import_retention_mail) WHERE provider=? AND provider_message_id=? AND state='sent' AND lower(recipient)=lower(?)").bind(provider, event.providerMessageId, recipient).first()
     if (!row) return false
   }
   return event.recipients.length > 0
@@ -46,15 +46,22 @@ async function sentHere(env: Env, provider: string, event: DeliveryEvent) {
 
 export type MessageStatus = 'queued' | 'sent' | 'delivered' | 'opened' | 'bounced' | 'failed' | 'complained' | 'uncertain' | 'not_sent'
 export interface Message { id: string; kind: string; signer: number; recipient: string; subject: string; status: MessageStatus; label: string; createdAt: string; sentAt?: string; deliveredAt?: string; openedAt?: string; bouncedAt?: string; failedAt?: string }
-interface Row { id: string; kind: string; signer: number; recipient: string; subject: string; state: string; provider: string | null; provider_message_id: string | null; created_at: string; sent_at: string | null }
+export interface DeliveryMessageRow { id: string; kind: string; signer: number; recipient: string; subject: string; state: string; provider: string | null; provider_message_id: string | null; created_at: string; sent_at: string | null }
 const iso = (ms: number) => new Date(ms).toISOString()
 const earliest = (events: DeliveryEvent[], match: (event: DeliveryEvent) => boolean) => { const times = events.filter(match).map(event => event.occurredAt); return times.length ? iso(Math.min(...times)) : undefined }
 
 /** Every message sent for one envelope, oldest first, with the status its provider's events support. */
 export async function envelopeMessages(env: Env, envelopeId: string): Promise<Message[]> {
-  const rows = (await env.DB.prepare('SELECT id,kind,signer,recipient,subject,state,provider,provider_message_id,created_at,sent_at FROM iw_mail WHERE envelope_id=? ORDER BY created_at,rowid').bind(envelopeId).all<Row>()).results
-  const events = (await env.DB.prepare("SELECT r.event_json FROM rer_mail_event_receipts r JOIN iw_mail m ON m.envelope_id=? AND r.provider=m.provider AND r.tenant_id=? AND (json_extract(r.event_json,'$.providerMessageId')=m.provider_message_id OR json_extract(r.event_json,'$.deliveryId')=m.id)").bind(envelopeId, tenantId).all<{ event_json: string }>()).results.map(row => JSON.parse(row.event_json) as DeliveryEvent)
-  const own = (row: Row) => events.filter(event => event.provider === row.provider && (event.deliveryId === row.id || event.providerMessageId === row.provider_message_id) && event.recipients.some(r => r.toLowerCase() === row.recipient.toLowerCase()))
+  const rows = (await env.DB.prepare("SELECT id,kind,signer,recipient,subject,state,provider,provider_message_id,created_at,sent_at,rowid AS message_order,0 AS message_store FROM iw_mail WHERE envelope_id=? UNION ALL SELECT id,'retention',0,recipient,subject,state,provider,provider_message_id,created_at,sent_at,rowid,1 FROM iw_import_retention_mail WHERE group_id=? ORDER BY created_at,message_store,message_order").bind(envelopeId,`envelope:${envelopeId}`).all<DeliveryMessageRow>()).results
+  return deliveryMessages(env,rows)
+}
+
+/** One presentation for every outgoing message; only verified provider facts establish delivery. */
+export async function deliveryMessages(env:Env, rows:DeliveryMessageRow[]):Promise<Message[]> {
+  if (!rows.length) return []
+  const identities=JSON.stringify(rows.map(r=>({id:r.id,provider:r.provider,messageId:r.provider_message_id})))
+  const events=(await env.DB.prepare("SELECT event_json FROM rer_mail_event_receipts r WHERE r.tenant_id=? AND EXISTS(SELECT 1 FROM json_each(?) m WHERE r.provider=json_extract(m.value,'$.provider') AND (json_extract(r.event_json,'$.providerMessageId')=json_extract(m.value,'$.messageId') OR json_extract(r.event_json,'$.deliveryId')=json_extract(m.value,'$.id')))").bind(tenantId,identities).all<{event_json:string}>()).results.map(r=>JSON.parse(r.event_json) as DeliveryEvent)
+  const own = (row: DeliveryMessageRow) => events.filter(event => event.provider === row.provider && (event.deliveryId === row.id || event.providerMessageId === row.provider_message_id) && event.recipients.some(r => r.toLowerCase() === row.recipient.toLowerCase()))
   const states = await Promise.all(rows.map(async row => {
     const ids = [...new Set(own(row).map(event => event.providerMessageId))]
     if (!ids.length || !row.provider) return null
@@ -64,7 +71,7 @@ export async function envelopeMessages(env: Env, envelopeId: string): Promise<Me
     const mine = own(row), state = states[index]
     const base = { id: row.id, kind: row.kind, signer: row.signer, recipient: row.recipient, subject: row.subject, createdAt: row.created_at, ...(row.sent_at ? { sentAt: row.sent_at } : {}) }
     if (['pending', 'sending'].includes(row.state)) return { ...base, status: 'queued' as const, label: 'Queued' }
-    if (row.state === 'cancelled') return { ...base, status: 'not_sent' as const, label: 'Not sent: mail is not set up' }
+    if (row.state === 'cancelled') return { ...base, status: 'not_sent' as const, label: row.kind === 'retention' ? 'Not sent: retention warning superseded' : 'Not sent: mail is not set up' }
     if (row.state === 'uncertain') return { ...base, status: 'uncertain' as const, label: 'Uncertain: the provider’s answer was unclear, so it was not sent again' }
     if (row.state !== 'sent') return { ...base, status: 'failed' as const, label: 'Failed: the provider refused it' }
     if (!eventProviders.includes(row.provider ?? '')) return { ...base, status: 'sent' as const, label: row.provider === 'development' ? 'Sent to the development outbox, not to a mailbox' : 'Sent, no delivery confirmation from this provider' }

@@ -3,19 +3,22 @@ import type { Session } from '../../modules/operator-auth/index.mjs'
 import type { D1ImportContext, D1Sql } from '../../modules/import-kit/src/d1/index'
 import { archiveTargets } from './targets'
 import { MAPPING, NAMESPACE } from './source'
+import { unheldJob } from './retention-holds'
 
 export class ImportError extends Error { constructor(message:string, public status=400) {super(message)} }
-export async function importSession(request:Request, env:Bindings):Promise<Session> {
+export async function importSession(request:Request, env:Bindings, allowAdmin=false):Promise<Session> {
  const session=await operatorAuth(runtimeBindings(env)).getSession(request)
  if (!session) throw new ImportError('Sign in to open the archive.',401)
- if (session.operator.role!=='owner') throw new ImportError('Only the owner can manage imported archives.',403)
+ if (session.operator.role!=='owner' && !(allowAdmin && session.operator.role==='admin')) throw new ImportError('Only the owner can manage imported archives.',403)
  return session
 }
-export function ownerPredicate(session:Session):D1Sql {
- return {sql:`EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id WHERE s.id=? AND o.id=? AND o.status='active' AND o.role='owner' AND s.operator_version=o.version AND s.revoked_at IS NULL AND s.expires_at>?)`,params:[session.id,session.operator.id,Date.now()]}
+export function ownerPredicate(session:Session):D1Sql { return sessionPredicate(session,false) }
+export function retentionPredicate(session:Session):D1Sql { return sessionPredicate(session,true) }
+function sessionPredicate(session:Session, allowAdmin:boolean):D1Sql {
+ return {sql:`EXISTS(SELECT 1 FROM oa_sessions s JOIN oa_operators o ON o.id=s.operator_id WHERE s.id=? AND o.id=? AND o.status='active' AND o.role IN (${allowAdmin ? "'owner','admin'" : "'owner'"}) AND s.operator_version=o.version AND s.revoked_at IS NULL AND s.expires_at>?)`,params:[session.id,session.operator.id,Date.now()]}
 }
-export function importContext(env:Bindings, session:Session, operationKey?:string):D1ImportContext {
- return {destination:'inkwell',namespace:NAMESPACE,mappingVersion:MAPPING,operationKey,batchSize:1,maxBatches:10,storage:{database:env.DB,targets:archiveTargets},authorization:{principalId:'role:owner',predicate:()=>ownerPredicate(session)}}
+export function importContext(env:Bindings, session:Session, operationKey?:string, reversingJob?:string):D1ImportContext {
+ return {destination:'inkwell',namespace:NAMESPACE,mappingVersion:MAPPING,operationKey,batchSize:1,maxBatches:10,storage:{database:env.DB,targets:archiveTargets},authorization:{principalId:'role:owner',predicate:(action)=>{const owner=ownerPredicate(session);if(!reversingJob || !['undo','rollback'].includes(action))return owner;const hold=unheldJob(reversingJob);return {sql:`(${owner.sql}) AND (${hold.sql})`,params:[...owner.params??[],...hold.params??[]]}}}}
 }
 export function importSameOrigin(request:Request,env:Bindings) {
  if (request.headers.get('Origin')!==new URL(runtimeBindings(env).AUTH_ORIGIN).origin) throw new ImportError('Use this installation to change the archive.',403)

@@ -58,6 +58,7 @@ export async function startInkwellWithMail() {
       return { path, cookie }
     }
     const ownerCookie = () => ({ name: owner.slice(0, owner.indexOf('=')), value: owner.slice(owner.indexOf('=') + 1), url: origin })
-    return { origin, owner, ownerCookie, call, command, mail, sent: () => [...captured], deliver, verify, browser, close }
+    const scheduled = async at => { const result = await (await mf.getWorker()).scheduled({ scheduledTime: new Date(at), cron: '17 * * * *' }); assert.equal(result.outcome, 'ok') }
+    return { origin, owner, ownerCookie, call, command, mail, sent: () => [...captured], deliver, verify, scheduled, browser, close }
   } catch (error) { await close(); throw error }
 }

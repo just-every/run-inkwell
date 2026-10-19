@@ -1,8 +1,11 @@
 import type { Bindings } from '../../auth.server'
+import { Refusal } from '../model'
 import { createD1ImportJob, planD1Import, readD1ImportJob, resumeD1Import, rollbackD1Import, undoD1Import } from '../../modules/import-kit/src/d1/index'
 import { confirmOwner, importContext, importSameOrigin, importSession, ImportError } from './auth'
 import { archiveArtifact, archiveLibrary } from './library'
 import { MAX_ARCHIVE_BYTES, readArchive } from './source'
+import { registerArchiveClock, recoverArchiveClock } from './retention-groups'
+import { importRecordAction } from './retention-actions'
 export { eraseImportedArchive } from './library'
 export { importContext, importSession } from './auth'
 
@@ -24,11 +27,11 @@ export async function importResponse(request:Request,env:Bindings):Promise<Respo
  const url=new URL(request.url),prefix='/api/inkwell/import/'
  if (!url.pathname.startsWith(prefix)) return null
  try {
-  const session=await importSession(request,env),route=url.pathname.slice(prefix.length)
+  const route=url.pathname.slice(prefix.length),session=await importSession(request,env,request.method==='POST' && ['hold','lift-hold'].includes(route))
   if (request.method==='GET') {
    if(route==='records')return response(await archiveLibrary(env,session))
    const artifact=route.match(/^records\/([a-f0-9]{64})\/artifacts\/(signed|certificate|audit)$/)
-   if(artifact)return archiveArtifact(env,session,artifact[1],artifact[2],url.searchParams.get('index'))
+   if(artifact)return await archiveArtifact(env,session,artifact[1],artifact[2],url.searchParams.get('index'))
    if(route==='jobs') {
     const {results}=await env.DB.prepare("SELECT id FROM ik_jobs WHERE destination='inkwell' AND namespace='docuseal-completed-archive' ORDER BY rowid DESC LIMIT 100").all<{id:string}>()
     const jobs=[]
@@ -39,6 +42,7 @@ export async function importResponse(request:Request,env:Bindings):Promise<Respo
   } else if(request.method==='POST') {
    importSameOrigin(request,env)
    const p=await body(request)
+   if (['hold','lift-hold','erase'].includes(route)) return response(await importRecordAction(env,session,route,p))
    if(route==='preview'||route==='apply') {
     const {source,mapping,digest}=await readArchive(p.archive)
     const context=importContext(env,session,`docuseal:${digest}`)
@@ -46,12 +50,14 @@ export async function importResponse(request:Request,env:Bindings):Promise<Respo
     if(route==='preview')return response({fingerprint:plan.fingerprint,counts:plan.counts,diagnostics:plan.diagnostics})
     if(typeof p.fingerprint!=='string'||p.fingerprint!==plan.fingerprint)throw new ImportError('Apply exactly the dry run you reviewed; its fingerprint changed.',409)
     const job=await createD1ImportJob(plan,{...context,reviewedFingerprint:p.fingerprint})
+    await registerArchiveClock(env,session,job.id,plan)
     // Operation replay resumes the retained job, including an interrupted undo.
     return response({job:await resumeD1Import(job.id,context)})
    }
    if(route==='undo'||route==='resume') {
     if(typeof p.id!=='string'||p.id.length>128)throw new ImportError('Supply the import job id.')
-    const context=importContext(env,session)
+    await recoverArchiveClock(env,session,p.id)
+    const context=importContext(env,session,undefined,route==='undo'?p.id:undefined)
     if(route==='resume')return response({job:await resumeD1Import(p.id,context)})
     const current=await readD1ImportJob(p.id,context)
     return response({job:['queued','applying','failed','rolling_back','rolled_back'].includes(current.state)?await rollbackD1Import(p.id,context):await undoD1Import(p.id,context)})
@@ -60,7 +66,7 @@ export async function importResponse(request:Request,env:Bindings):Promise<Respo
   return response({error:'Import route not found.'},404)
  } catch(error) {
   const message=error instanceof Error?error.message:'Import failed.'
-  const status=error instanceof ImportError?error.status:/CONFLICT|MISMATCH|CHANGED|GUARD|BUSY|SUPERSEDED/.test(message)?409:400
+  const status=error instanceof ImportError || error instanceof Refusal?error.status:/CONFLICT|MISMATCH|CHANGED|GUARD|BUSY|SUPERSEDED/.test(message)?409:400
   return response({error:message},status)
  }
 }

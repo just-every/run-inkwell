@@ -10,14 +10,14 @@ const eventNames: Record<string, string> = { viewed: 'Viewed', signed: 'Signed',
 const channelNames: Record<string, string> = { email: 'Email', slack: 'Slack', teams: 'Microsoft Teams', nook: 'Nook' }
 const line = (notice: Notice) => ({ viewed: `${notice.recipient} viewed it`, signed: `${notice.recipient} signed`, declined: `${notice.recipient} declined`, completed: 'Everyone has signed', bounced: `The invitation to ${notice.recipient} bounced`, expiring: 'Expires soon', retention: 'Will be purged under the retention rule' } as Record<string, string>)[notice.event] ?? notice.event
 
-export function Activity({ onOpen }: { onOpen: (id: string) => void }) {
+export function Activity({ onOpen, onImport }: { onOpen: (id: string) => void; onImport?: () => void }) {
   const [notices, setNotices] = useState<Notice[]>()
   const action = useAction()
   useEffect(() => { void action.run(async () => setNotices((await request<{ notices: Notice[] }>('/api/inkwell/notices')).notices)) }, [])
   return <section className="iw-panel iw-stack" aria-label="Activity feed"><ErrorNotice error={action.error} />
     {notices && !notices.length && <p className="iw-muted">Nothing yet. Views, signatures, declines, completions, bounces and expiry warnings on envelopes you send show here.</p>}
     {notices && notices.length > 0 && <ul className="iw-activity">{notices.map(notice => <li key={notice.id}>
-      <div><strong>{eventNames[notice.event] ?? notice.event}</strong> · <button type="button" className="iw-text-button" onClick={() => onOpen(notice.envelopeId)}>{notice.title}</button></div>
+      <div><strong>{eventNames[notice.event] ?? notice.event}</strong> · {notice.envelopeId.startsWith('import:') ? onImport ? <button type="button" className="iw-text-button" onClick={onImport}>{notice.title}</button> : <span>{notice.title} · Imported archive; the owner manages it in Move in.</span> : <button type="button" className="iw-text-button" onClick={() => onOpen(notice.envelopeId)}>{notice.title}</button>}</div>
       <p>{line(notice)} · <time dateTime={notice.at}>{dateTime(notice.at)}</time></p>
       {notice.posts.length > 0 && <p className="iw-muted">{notice.posts.map(post => `${channelNames[post.channel]}: ${post.state === 'sent' ? 'delivered' : post.result || 'sending'}`).join(' · ')}</p>}
     </li>)}</ul>}

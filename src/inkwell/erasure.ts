@@ -1,3 +1,4 @@
+import { archiveMailErasure } from './imports/retention-mail-erasure'
 import type { createPortability } from '@runeditrun/rer/modules/portability'
 
 type Portability = Awaited<ReturnType<typeof createPortability>>
@@ -7,6 +8,7 @@ type Portability = Awaited<ReturnType<typeof createPortability>>
 export async function erasureWrites(db: D1Database, service: Portability, envelopeId: string) {
  const deleted = ['iw_blobs','iw_events','iw_signers','iw_mail','iw_access_codes','iw_copy_links','iw_shares'].map(table => db.prepare(`DELETE FROM ${table} WHERE envelope_id=?`).bind(envelopeId))
  return [
+  ...archiveMailErasure([`envelope:${envelopeId}`]).map(s=>db.prepare(s.sql).bind(...s.params??[])),
   ...await service.redactionStatements(), ...await service.erasureStatements('iw_envelopes',{id:envelopeId}), ...await service.invalidateTransfersStatements(),
   db.prepare("DELETE FROM rer_mail_development_outbox WHERE json_extract(message,'$.deliveryId') IN (SELECT id FROM iw_mail WHERE envelope_id=?)").bind(envelopeId),
   // DELIV-001: provider delivery events name the recipient; erase them with the messages they describe.
