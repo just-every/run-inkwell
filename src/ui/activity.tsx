@@ -6,9 +6,9 @@ import { ErrorNotice, useAction } from './feedback'
 
 type Notice = { id: string; envelopeId: string; event: string; at: string; title: string; recipient: string; posts: { channel: string; state: string; result: string }[] }
 type Settings = { events: string[]; channels: string[]; choices: Record<string, Record<string, boolean>>; connected: Record<string, string | null>; examples: Record<string, string> }
-const eventNames: Record<string, string> = { viewed: 'Viewed', signed: 'Signed', declined: 'Declined', completed: 'Completed', bounced: 'Bounced', expiring: 'Expiring' }
+const eventNames: Record<string, string> = { viewed: 'Viewed', signed: 'Signed', declined: 'Declined', completed: 'Completed', bounced: 'Bounced', expiring: 'Expiring', retention: 'Retention' }
 const channelNames: Record<string, string> = { email: 'Email', slack: 'Slack', teams: 'Microsoft Teams', nook: 'Nook' }
-const line = (notice: Notice) => ({ viewed: `${notice.recipient} viewed it`, signed: `${notice.recipient} signed`, declined: `${notice.recipient} declined`, completed: 'Everyone has signed', bounced: `The invitation to ${notice.recipient} bounced`, expiring: 'Expires soon' } as Record<string, string>)[notice.event] ?? notice.event
+const line = (notice: Notice) => ({ viewed: `${notice.recipient} viewed it`, signed: `${notice.recipient} signed`, declined: `${notice.recipient} declined`, completed: 'Everyone has signed', bounced: `The invitation to ${notice.recipient} bounced`, expiring: 'Expires soon', retention: 'Will be purged under the retention rule' } as Record<string, string>)[notice.event] ?? notice.event
 
 export function Activity({ onOpen }: { onOpen: (id: string) => void }) {
   const [notices, setNotices] = useState<Notice[]>()

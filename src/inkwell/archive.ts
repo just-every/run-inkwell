@@ -3,6 +3,7 @@ import { operatorAuth, runtimeBindings, type Bindings } from '../auth.server'
 import policy from './archive-policy.mjs'
 import { insist, Refusal, type Actor } from './model'
 import { getEnvelope, atomic, roleGuard, guardStatements } from './storage'
+import { erasureWrites } from './erasure'
 
 type Archive = { format: 'inkwell-archive'; ndjson: string }
 const json = (value: unknown, status = 200) => Response.json(value, { status, headers: { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' } })
@@ -55,19 +56,10 @@ async function erase(env: Bindings, actor: Actor, input: Record<string, unknown>
  insist(input.confirmation === 'ERASE' && typeof input.id === 'string', 'Type ERASE to confirm permanent deletion.')
  const before = await getEnvelope(env.DB,input.id)
  insist(before.status !== 'awaiting_signature', 'Void an active envelope before erasing it.', 409)
+ // RECORD-005: a legal hold stops erasure until an owner or admin lifts it.
+ insist(!before.legalHold, `This envelope is on legal hold (${before.legalHold?.reason}). Lift the hold before erasing it.`, 409)
  const service = await createPortability({ db: guardedDatabase(env.DB,actor), policy })
- const deleted = ['iw_blobs','iw_events','iw_signers','iw_mail','iw_access_codes','iw_copy_links','iw_shares'].map(table => env.DB.prepare(`DELETE FROM ${table} WHERE envelope_id=?`).bind(before.id))
- await atomic(env.DB,[roleGuard(actor,['owner']),{sql:'EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=?)',values:[before.id,before.version]}],[
-  ...await service.redactionStatements(), ...await service.erasureStatements('iw_envelopes',{id:before.id}), ...await service.invalidateTransfersStatements(),
-  env.DB.prepare("DELETE FROM rer_mail_development_outbox WHERE json_extract(message,'$.deliveryId') IN (SELECT id FROM iw_mail WHERE envelope_id=?)").bind(before.id),
-  // DELIV-001: provider delivery events name the recipient; erase them with the messages they describe.
-  env.DB.prepare("DELETE FROM rer_mail_event_states WHERE EXISTS(SELECT 1 FROM rer_mail_event_receipts r JOIN iw_mail m ON m.envelope_id=? AND r.provider=m.provider AND (json_extract(r.event_json,'$.providerMessageId')=m.provider_message_id OR json_extract(r.event_json,'$.deliveryId')=m.id) WHERE r.provider=rer_mail_event_states.provider AND r.tenant_id=rer_mail_event_states.tenant_id AND json_extract(r.event_json,'$.providerMessageId')=rer_mail_event_states.provider_message_id)").bind(before.id),
-  env.DB.prepare("DELETE FROM rer_mail_event_receipts WHERE EXISTS(SELECT 1 FROM iw_mail m WHERE m.envelope_id=? AND rer_mail_event_receipts.provider=m.provider AND (json_extract(rer_mail_event_receipts.event_json,'$.providerMessageId')=m.provider_message_id OR json_extract(rer_mail_event_receipts.event_json,'$.deliveryId')=m.id))").bind(before.id),
-  ...deleted, env.DB.prepare('DELETE FROM iw_envelopes WHERE id=?').bind(before.id),
-  // Command results and local mail can retain identity/link fragments. Delete
-  // this envelope's command results and messages, never another document's rows.
-  env.DB.prepare("DELETE FROM iw_commands WHERE json_extract(result,'$.id')=?").bind(before.id),
- ])
+ await atomic(env.DB,[roleGuard(actor,['owner']),{sql:"EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=? AND json_extract(data,'$.legalHold') IS NULL)",values:[before.id,before.version]}],await erasureWrites(env.DB,service,before.id))
  return json({ ok: true })
 }
 export async function archiveResponse(request: Request, original: Bindings): Promise<Response | null> {

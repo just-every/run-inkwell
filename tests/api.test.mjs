@@ -987,3 +987,49 @@ test('TMPL-005: a fresh copy of a template W-9 is offered that template with its
  await match(fresh,viewer,403)
  assert.deepEqual((await h.send('/api/inkwell/envelopes',undefined,xena.cookie)).value.total,0,'matching places and stores nothing')
 })
+// RECORD-005 runs last: its seven-year clock purges every completed envelope earlier tests left behind.
+test('RECORD-005: with the clock advanced, a seven-year rule purges an envelope after its warning, and a held envelope survives both the rule and an erase request',async()=>{
+ const day=86_400_000,admin=await h.invite('keeper@harbour.example','admin'),viewer=await h.invite('ledger@harbour.example','member'),field=[{...fields[0],signer:0}]
+ const complete=async(title,person)=>{const id=(await h.command('envelope.prepare',{...preparation(),title,signers:[person],fields:field})).result.id;await h.command('envelope.approve',{id,eligible:true});const signer=await verified(person.email);assert.equal((await h.post(signer.path+'/sign',{values:{'signature-0':person.name},consent:true,commandId:crypto.randomUUID()},signer.cookie)).value.result.status,'completed');return id}
+ const kept=await complete('Harbour Studio mooring lease',{name:'Rae Lind',email:'rae@harbour.example'}),held=await complete('Harbour Studio winter storage',{name:'Sol Park',email:'sol@harbour.example'})
+ const retention=async(cookie=admin)=>(await h.send('/api/inkwell',undefined,cookie)).value.settings.retention
+ // Owners and admins set the rule in whole years; a viewer can neither set it nor hold an envelope.
+ await h.command('account.retention',{years:7},viewer,403);await h.command('envelope.hold',{id:held,reason:'Litigation hold'},viewer,403)
+ for(const years of [0,7.5,100,'7']) await h.command('account.retention',{years},admin,400)
+ await h.command('account.retention',{years:7},admin)
+ assert.equal((await retention(h.owner)).rule.years,7,'the owner reads the rule an admin set')
+ await h.command('envelope.hold',{id:held,reason:'ok'},admin,400)
+ assert.equal((await h.command('envelope.hold',{id:held,reason:'Litigation:  Harbour v. Dock Co.'},admin)).result.legalHold.reason,'Litigation: Harbour v. Dock Co.')
+ await h.command('envelope.hold',{id:held,reason:'Again'},admin,409)
+ const refused=await h.post('/api/inkwell/erase',{id:held,confirmation:'ERASE'},h.owner,409)
+ assert.match(refused.value.error,/legal hold \(Litigation: Harbour v\. Dock Co\.\)/,'erasing a held envelope is refused, naming the hold')
+ assert.equal((await stored(held)).legalHold.reason,'Litigation: Harbour v. Dock Co.')
+ // The completion instant plus seven calendar years, UTC; the warning comes 30 days before.
+ const completedAt=(await stored(kept)).events.find(e=>e.action==='envelope.completed').at,due=new Date(completedAt);due.setUTCFullYear(due.getUTCFullYear()+7)
+ const warned=async id=>(await stored(id)).events.filter(e=>e.action==='envelope.retention_warned')
+ await h.scheduled(due-31*day)
+ assert.equal((await warned(kept)).length,0,'no warning 31 days before');assert.equal(await h.mail('keeper@harbour.example','Will be purged: Harbour Studio mooring lease'),undefined)
+ await h.scheduled(due-30*day);await h.scheduled(due-29*day)
+ const [warning]=await warned(kept)
+ assert.equal((await warned(kept)).length,1,'one warning 30 days before');assert.equal(warning.detail.purgeAt,due.toISOString())
+ for(const email of ['keeper@harbour.example','owner@harbour.example']){const notice=await h.mail(email,'Will be purged: Harbour Studio mooring lease');assert.ok(notice?.text.includes(due.toISOString())&&notice.text.includes('7-year retention rule'),`${email} is warned with the purge date and rule`)}
+ assert.ok((await h.send('/api/inkwell/notices',undefined,admin)).value.notices.some(n=>n.envelopeId===kept&&n.event==='retention'),'the warning is in the admin\'s activity feed')
+ assert.equal((await warned(held)).length,0,'a held envelope is not warned');assert.equal(await h.mail('keeper@harbour.example','Will be purged: Harbour Studio winter storage'),undefined)
+ await h.scheduled(due-3600_000);assert.equal((await stored(kept)).status,'completed','not purged before it falls due')
+ await h.scheduled(due.getTime())
+ assert.equal((await h.send('/api/inkwell/envelopes/'+kept,undefined,h.owner)).status,404,'purged on the due date after its warning')
+ assert.equal((await h.send('/api/inkwell/envelopes/'+kept+'/artifacts/signed',undefined,h.owner)).status,404)
+ assert.ok(!(await h.send('/api/inkwell/notices',undefined,admin)).value.notices.some(n=>n.envelopeId===kept),'its feed notices go with it')
+ const ledger=(await retention()).purged.find(p=>p.envelopeId===kept)
+ assert.deepEqual({years:ledger.years,completedAt:ledger.completedAt,warnedAt:ledger.warnedAt,purgedAt:ledger.purgedAt},{years:7,completedAt,warnedAt:new Date(due-30*day).toISOString(),purgedAt:due.toISOString()})
+ assert.ok(!JSON.stringify(await retention()).includes('mooring lease'),'the ledger keeps no title')
+ assert.equal((await stored(held)).status,'completed','the held envelope survives the rule')
+ // Lifting the hold restarts the warning: an overdue envelope is purged 30 days after its own warning, never before.
+ await h.command('envelope.lift_hold',{id:held},admin)
+ assert.deepEqual((await stored(held)).events.filter(e=>e.action.startsWith('envelope.legal_hold')).map(e=>[e.action,e.actor]),[['envelope.legal_hold_placed',(await h.send('/api/inkwell',undefined,admin)).value.actor.id],['envelope.legal_hold_lifted',(await h.send('/api/inkwell',undefined,admin)).value.actor.id]],'placing and lifting are in the envelope\'s audit trail')
+ await h.scheduled(due.getTime()+day)
+ assert.equal((await warned(held)).length,1,'warned at once when overdue');assert.ok(await h.mail('keeper@harbour.example','Will be purged: Harbour Studio winter storage'))
+ await h.scheduled(due.getTime()+30*day);assert.equal((await stored(held)).status,'completed','not purged until 30 days after its warning')
+ await h.scheduled(due.getTime()+31*day);assert.equal((await h.send('/api/inkwell/envelopes/'+held,undefined,h.owner)).status,404)
+ await h.command('account.retention',{years:null},admin);assert.equal((await retention()).rule,null,'the rule can be cleared')
+})
