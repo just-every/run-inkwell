@@ -19,6 +19,10 @@ type OwnSigningResult = { signing: { url: string } }
 export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEdit }: { envelope: Envelope; actor: Actor; refresh: () => Promise<void>; onClose: () => void; onOpen: (id: string) => void; onEdit: (envelope: Envelope) => void }) {
   const action = useAction()
   const [eligible, setEligible] = useState(false)
+  // PREP-009: approve now and send at a wall-clock time in a US time zone.
+  const [later, setLater] = useState(false)
+  const [sendAt, setSendAt] = useState('')
+  const [zone, setZone] = useState('America/New_York')
   const [reason, setReason] = useState('')
   const [voiding, setVoiding] = useState(false)
   const [extending, setExtending] = useState(false)
@@ -49,7 +53,7 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
   // ROUTE-009: an approver who signs at the first routing order signs here right after approving; nobody emails them.
   const signsFirst = deciding && currentSigners(envelope).some(index => me(envelope.signers[index].email))
   async function approve() {
-    const result = await command<InvitationResult>('envelope.approve', { id: envelope.id, eligible: true })
+    const result = await command<InvitationResult>('envelope.approve', { id: envelope.id, eligible: true, ...(later ? { sendAt: { at: sendAt, timeZone: zone } } : {}) })
     if (!result.signInApp) return saveInvitation(result)
     const { signing } = await command<OwnSigningResult>('envelope.open_signing', { id: envelope.id }); window.location.assign(signing.url)
   }
@@ -99,7 +103,9 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
     <ErrorNotice error={action.error} />
     {deciding && <div className="iw-detail-foot">
       <label className="iw-check"><input type="checkbox" checked={eligible} onChange={event => setEligible(event.target.checked)} />I reviewed this envelope, confirm it is eligible for electronic signature, and authorize the first invitation.</label>
-      <div className="iw-decision-actions"><button className="iw-primary" disabled={!eligible || action.busy} onClick={() => void action.run(approve)}>{action.busy ? 'Sending…' : signsFirst ? 'Approve and sign now' : 'Approve and invite first recipient'}</button><button onClick={() => onEdit(envelope)}>Edit draft</button><button onClick={onClose}>Keep as is</button></div>
+      <label className="iw-check"><input type="checkbox" checked={later} onChange={event => setLater(event.target.checked)} />Send later</label>
+      {later && <div className="iw-two"><label>Send at<input type="datetime-local" required value={sendAt} onChange={event => setSendAt(event.target.value)} /></label><label>Time zone<select value={zone} onChange={event => setZone(event.target.value)}>{[['America/New_York', 'Eastern'], ['America/Chicago', 'Central'], ['America/Denver', 'Mountain'], ['America/Phoenix', 'Arizona'], ['America/Los_Angeles', 'Pacific'], ['America/Anchorage', 'Alaska'], ['Pacific/Honolulu', 'Hawaii']].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>}
+      <div className="iw-decision-actions"><button className="iw-primary" disabled={!eligible || (later && !sendAt) || action.busy} onClick={() => void action.run(approve)}>{action.busy ? 'Sending…' : later ? 'Approve and schedule' : signsFirst ? 'Approve and sign now' : 'Approve and invite first recipient'}</button><button onClick={() => onEdit(envelope)}>Edit draft</button><button onClick={onClose}>Keep as is</button></div>
     </div>}
     {signingHere && <div className="iw-detail-foot"><div className="iw-decision-actions"><button className="iw-primary" disabled={action.busy} onClick={() => void action.run(async () => { const { signing } = await command<OwnSigningResult>('envelope.open_signing', { id: envelope.id }); window.location.assign(signing.url) })}>{action.busy ? 'Opening…' : 'Review and sign'}</button></div></div>}
   </section>

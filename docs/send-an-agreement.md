@@ -25,6 +25,11 @@ for everyone and a private message for each recipient, which only that person se
 their invitation and on their signing page. An access code you set earlier stays while
 that recipient keeps their place in the list; otherwise enter it again.
 
+To send later, tick **Send later** when you approve and choose the date, time and US time
+zone. The envelope reads **Scheduled** until then; invitations go out within the hour that
+time falls in (Inkwell checks every hour), and nobody can sign before. Scheduling needs mail
+set up.
+
 ## Place fields
 
 Once the PDF is chosen, its pages appear beside **Place fields**.

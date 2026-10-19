@@ -31,16 +31,17 @@ function businessDaysBetween(from: string, to: string) {
   for (let day = Date.parse(from + 'T12:00:00Z') + 86_400_000; day <= Date.parse(to + 'T12:00:00Z'); day += 86_400_000) if (businessDay(new Date(day).toISOString().slice(0, 10))) count++
   return count
 }
-/** When a current recipient was invited: at approval for the first order, otherwise when the last lower order signed. */
+/** When a current recipient was invited: at approval (or the scheduled send, PREP-009) for the first order, otherwise
+ * when the last lower order signed. */
 function invitedAt(envelope: Envelope, signer: number) {
   const lower = envelope.signers.filter((_, i) => routingOrder(envelope, i) < routingOrder(envelope, signer)).map(s => s.signedAt!)
-  return Date.parse(lower.length ? lower.sort().at(-1)! : envelope.events.find(e => e.action === 'envelope.approved')!.at)
+  return Date.parse(lower.length ? lower.sort().at(-1)! : (envelope.events.find(e => e.action === 'envelope.sent_scheduled') ?? envelope.events.find(e => e.action === 'envelope.approved')!).at)
 }
 
 /** The scheduled pass at `at`: send every reminder that is due. */
 export async function sendReminders(env: Env, at: number) {
   if (mailSuppressed(env) || !businessDay(localDate(at)) || localHour(at) < reminderHour) return { sent: 0 }
-  const rows = (await env.DB.prepare("SELECT data FROM iw_envelopes WHERE json_extract(data,'$.status')='awaiting_signature' AND json_extract(data,'$.reminders') IS NOT NULL AND json_extract(data,'$.expiresAt')>?")
+  const rows = (await env.DB.prepare("SELECT data FROM iw_envelopes WHERE json_extract(data,'$.status')='awaiting_signature' AND json_extract(data,'$.reminders') IS NOT NULL AND json_extract(data,'$.scheduled') IS NULL AND json_extract(data,'$.expiresAt')>?")
     .bind(new Date(at).toISOString()).all<{ data: string }>()).results
   const failures: unknown[] = []
   let sent = 0

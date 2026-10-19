@@ -36,7 +36,7 @@ export async function extendEnvelope(env: Env, context: CommandContext, input: R
 
 /** The scheduled pass: warn once for each expiry that falls within the warning window of `at`. */
 export async function warnExpiring(env: Env, at: number) {
-  const rows = (await env.DB.prepare("SELECT data FROM iw_envelopes WHERE json_extract(data,'$.status')='awaiting_signature' AND json_extract(data,'$.expiresAt')>? AND json_extract(data,'$.expiresAt')<=?")
+  const rows = (await env.DB.prepare("SELECT data FROM iw_envelopes WHERE json_extract(data,'$.status')='awaiting_signature' AND json_extract(data,'$.scheduled') IS NULL AND json_extract(data,'$.expiresAt')>? AND json_extract(data,'$.expiresAt')<=?")
     .bind(new Date(at).toISOString(), new Date(at + warningDays * day).toISOString()).all<{ data: string }>()).results
   const failures: unknown[] = []
   for (const row of rows) {

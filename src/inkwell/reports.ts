@@ -1,5 +1,5 @@
 import { insist, type Actor, type Env } from './model'
-import { accountTimeZone } from './zone'
+import { accountTimeZone, zoneInstant } from './zone'
 
 /** MANAGE-004: what happened to envelopes over a range of whole days in the account's time zone, both days included.
  * Sent counts approvals in the range, completed and declined count those outcomes in the range, and expired counts
@@ -9,15 +9,10 @@ import { accountTimeZone } from './zone'
  * Imported records are not counted. Per-template turnaround is added by TMPL-001 before it ships. */
 export const reportLimitDays = 731
 const day = /^(\d{4})-(\d{2})-(\d{2})$/
-// The zone's offset from UTC at an instant, in milliseconds.
-function offset(at: number) {
-  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: accountTimeZone, year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' }).formatToParts(new Date(at)).map(part => [part.type, Number(part.value)]))
-  return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - Math.floor(at / 1000) * 1000
-}
 /** Midnight at the start of `value` (YYYY-MM-DD) in the account's zone, plus `days`. */
 function midnight(value: string, days = 0) {
   const [, y, m, d] = day.exec(value)!.map(Number), wall = Date.UTC(y, m - 1, d + days)
-  return wall - offset(wall - offset(wall))
+  return zoneInstant(wall)
 }
 
 interface Row { sender: string; name: string | null; email: string | null; sent: string | null; completed: string | null; declined: string | null; expired: string | null }

@@ -14,7 +14,7 @@ const myTurn = (envelope: Envelope, actor: Actor) => envelope.status === 'awaiti
 export function pill(envelope: Envelope, actor: Actor): { label: string; tone: Tone } {
   switch (envelope.status) {
     case 'prepared': return { label: 'Needs approval', tone: 'rose' }
-    case 'awaiting_signature': return myTurn(envelope, actor) ? { label: 'Waiting for you', tone: 'amber' } : signedCount(envelope) ? { label: 'In progress', tone: 'blue' } : { label: 'Waiting', tone: 'amber' }
+    case 'awaiting_signature': return envelope.scheduled ? { label: 'Scheduled', tone: 'blue' } : myTurn(envelope, actor) ? { label: 'Waiting for you', tone: 'amber' } : signedCount(envelope) ? { label: 'In progress', tone: 'blue' } : { label: 'Waiting', tone: 'amber' }
     case 'completed': return { label: 'Completed', tone: 'mint' }
     case 'declined': return { label: 'Declined', tone: 'rose' }
     case 'expired': return { label: 'Expired', tone: 'rose' }
@@ -27,7 +27,7 @@ export function pill(envelope: Envelope, actor: Actor): { label: string; tone: T
 export function nextAction(envelope: Envelope, actor: Actor): { label: string; urgent: boolean } {
   switch (envelope.status) {
     case 'prepared': return envelope.access === 'edit' ? { label: 'Approve and send', urgent: true } : { label: 'Waiting for approval', urgent: false }
-    case 'awaiting_signature': return myTurn(envelope, actor) ? { label: 'Your turn to sign', urgent: true } : { label: `Waiting on ${currentSigners(envelope).map(index => envelope.signers[index].name).join(' and ') || 'the next signer'}`, urgent: false }
+    case 'awaiting_signature': return envelope.scheduled ? { label: `Sends ${envelope.scheduled.local.replace('T', ' ')} ${envelope.scheduled.timeZone.split('/').at(-1)!.replaceAll('_', ' ')} time`, urgent: false } : myTurn(envelope, actor) ? { label: 'Your turn to sign', urgent: true } : { label: `Waiting on ${currentSigners(envelope).map(index => envelope.signers[index].name).join(' and ') || 'the next signer'}`, urgent: false }
     case 'completed': return { label: 'Executed PDF ready', urgent: false }
     case 'declined': { const by = envelope.signers.find(signer => signer.declinedAt); return { label: `${by?.consentWithdrawn ? 'Consent withdrawn by' : 'Declined by'} ${by?.name ?? 'a signer'}`, urgent: false } }
     case 'expired': return { label: 'Prepare a new one', urgent: true }

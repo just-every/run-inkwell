@@ -564,14 +564,14 @@ test('ADMIN-001: two senders cannot see each other\'s envelopes until one shares
  const e=await stored(id);assert.deepEqual(e.events.filter(x=>x.action==='envelope.shared'||x.action==='envelope.unshared').map(x=>[x.action,x.detail.access??null]),[['envelope.shared','view'],['envelope.shared','edit'],['envelope.shared','edit'],['envelope.unshared',null],['envelope.shared','edit']],'every grant and removal is audited')
  assert.equal(e.events.find(x=>x.action==='envelope.voided').actor,ben.id)
 })
-// PREP-009 (drafts and messages; scheduled sending is the next slice): a saved draft reopens with everything editable.
-test('PREP-009: a saved draft reopens and is saved again with a new PDF, recipients, fields and private messages; each recipient sees only their own private message',async()=>{
+// PREP-009: a saved draft reopens with everything editable, and its approval can send it later in a US time zone.
+test('PREP-009: a saved draft reopens and is saved again with a new PDF, recipients, fields and private messages, is scheduled for the next business day at 9:00 Chicago time and sends then, each recipient seeing only their own private message',async()=>{
  const first=[{name:'Dana Draft',email:'dana@harbour.example',accessCode:'MOOR-11'},{name:'Eli Early',email:'eli@harbour.example'}]
  const id=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio draft terms',signers:first})).result.id
  const draft=await stored(id);assert.equal(draft.status,'prepared');assert.equal(draft.signers[0].accessCode,true)
  const pdf=await PDFDocument.create();pdf.addPage([595,842]);pdf.addPage([595,842]);const bytes=await pdf.save()
  const revised={id,title:'Harbour Studio final terms',filename:'final.pdf',pdfBase64:Buffer.from(bytes).toString('base64'),subject:'Final terms for your signature',message:'Thanks for the call today.',
-  signers:[{name:'Dana Draft',email:'dana@harbour.example',keepAccessCode:true,message:'Dana: clause 4 is yours.'},{name:'Fay Final',email:'fay@harbour.example',order:2,message:'Fay: please check the dates.'}],
+  signers:[{name:'Dana Draft',email:'dana@harbour.example',keepAccessCode:true,message:'Dana: clause 4 is yours.'},{name:'Fay Final',email:'fay@harbour.example',order:1,message:'Fay: please check the dates.'}],
   fields:[0,1].map(signer=>({...fields[0],id:`signature-${signer}`,signer,page:1,y:.3+signer*.2}))}
  await h.command('envelope.update',{...revised,signers:[revised.signers[1],revised.signers[0]]},h.owner,400)
  await h.command('envelope.update',revised,member,403)
@@ -580,10 +580,21 @@ test('PREP-009: a saved draft reopens and is saved again with a new PDF, recipie
  assert.deepEqual([saved.title,saved.filename,saved.pageSizes.length,saved.subject,saved.message,saved.signers.map(s=>s.email),saved.fields.map(f=>f.page)],['Harbour Studio final terms','final.pdf',2,'Final terms for your signature','Thanks for the call today.',['dana@harbour.example','fay@harbour.example'],[1,1]])
  assert.equal(saved.originalSha256,digest(bytes));assert.equal(digest((await h.send(`/api/inkwell/envelopes/${id}/artifacts/original`,undefined,h.owner)).bytes),digest(bytes),'the new PDF replaced the old one')
  assert.ok(saved.events.some(e=>e.action==='envelope.updated'&&e.detail.originalSha256===digest(bytes)),'the record keeps every saved version')
- await h.command('envelope.approve',{id,eligible:true})
+ // the next business day at 09:00 in Chicago, found from Chicago's own calendar and clock
+ const chicago=t=>Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(t).map(p=>[p.type,p.value]))
+ let day=Date.now()+86_400_000;while(['Sat','Sun'].includes(chicago(day).weekday))day+=86_400_000
+ const d=chicago(day),local=`${d.year}-${d.month}-${d.day}T09:00`;let sendAt=Date.UTC(+d.year,+d.month-1,+d.day,9);while(chicago(sendAt).hour!=='09')sendAt+=3_600_000
+ await h.command('envelope.approve',{id,eligible:true,sendAt:{at:local,timeZone:'Europe/London'}},h.owner,400)
+ const approved=(await h.command('envelope.approve',{id,eligible:true,sendAt:{at:local,timeZone:'America/Chicago'}})).result
+ assert.equal(approved.scheduled.at,new Date(sendAt).toISOString())
+ const record=await stored(id);assert.ok(record.events.some(e=>e.action==='envelope.approved'&&e.detail.approvedForLater===true&&e.detail.sendAt===new Date(sendAt).toISOString()),'approved for later is on the record')
  await h.command('envelope.update',revised,h.owner,409)
+ await h.scheduled(sendAt-3_600_000);assert.equal(await h.mail('dana@harbour.example','Final terms for your signature'),undefined,'nothing is sent before the time')
+ await h.scheduled(sendAt+17*60_000)
+ assert.ok((await stored(id)).events.some(e=>e.action==='envelope.sent_scheduled'),'the pass at or after the time sends it')
  const invite=await h.mail('dana@harbour.example','Final terms for your signature')
  assert.match(invite.text,/Thanks for the call today\.\n\nDana: clause 4 is yours\./);assert.doesNotMatch(invite.text,/Fay:/,'only their own private message')
+ const fay=await h.mail('fay@harbour.example','Final terms for your signature');assert.match(fay.text,/Thanks for the call today\.\n\nFay: please check the dates\./);assert.doesNotMatch(fay.text,/Dana:/,'each recipient sees only their own private message')
  const path='/api/sign/'+new URL(invite.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)
  await h.post(path+'/access',{accessCode:'MOOR-11'},'')
  await h.post(path+'/code',{},'');const code=(await h.mail('dana@harbour.example','verification code')).text.match(/\b\d{6}\b/)[0]
