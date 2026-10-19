@@ -1,6 +1,7 @@
 // TMPL-001: a template keeps one fixed PDF with its roles in routing order, fields, messages, reminders, expiry and
 // identity settings; sending from it asks only for each role's person (and the access code a role needs), and the new
 // envelope is prepared exactly as `envelope.prepare` would prepare it, then approved like any other.
+import { applyPrefillPayload } from './prefill'
 import { blobWrites, download, fromBase64, readBlob } from './blobs'
 import { parsePdf, validateFields, validatePdfText } from './pdf'
 import { appendEvent, id, insist, now, object, sha256, text, type Actor, type Env, type Field, type Envelope } from './model'
@@ -80,6 +81,7 @@ async function readTemplate(input: Record<string, unknown>) {
   })
   insist(new Set(roles.map(r => r.role.toLowerCase())).size === roles.length, 'Give each role a different name.')
   const fields = validateFields(input.fields, roles.length, pageSizes.length)
+  await validatePdfText(fields.flatMap(field => field.prefill ? [field.prefill.value] : []))
   insist(roles.every((_, i) => fields.some(f => f.signer === i && f.type === 'signature')), 'Place at least one signature field for every role.')
   const expiryDays = input.expiryDays === undefined ? defaultExpiryDays : input.expiryDays
   insist(Number.isInteger(expiryDays) && (expiryDays as number) >= 1 && (expiryDays as number) <= maxExpiryDays, `Set the expiry from 1 to ${maxExpiryDays} whole days.`)
@@ -153,7 +155,7 @@ export async function useTemplate(env: Env, context: CommandContext, input: Reco
     return { name: person.name, email: person.email, order: role.order, ...(role.linkOnly ? { linkOnly: true } : {}), ...(code === undefined ? {} : { accessCode: code }), ...(role.message ? { message: role.message } : {}) }
   })
   const createdAt = now()
-  const { draft, accessCodes } = await readDraft(env, { title: template.title, filename: template.filename, pdfBase64: base64(bytes), signers, fields: template.fields, expiresAt: new Date(Date.parse(createdAt) + template.expiryDays * day).toISOString(), ...(template.reminders ? { reminders: template.reminders } : {}), ...(template.allowPaper ? { allowPaperSigning: true } : {}), ...(template.allowReassign ? { allowReassignment: true } : {}), ...(template.subject ? { subject: template.subject } : {}), ...(template.message ? { message: template.message } : {}) }, createdAt)
+  const { draft, accessCodes } = await readDraft(env, { title: template.title, filename: template.filename, pdfBase64: base64(bytes), signers, fields: applyPrefillPayload(template.fields, input.prefill), expiresAt: new Date(Date.parse(createdAt) + template.expiryDays * day).toISOString(), ...(template.reminders ? { reminders: template.reminders } : {}), ...(template.allowPaper ? { allowPaperSigning: true } : {}), ...(template.allowReassign ? { allowReassignment: true } : {}), ...(template.subject ? { subject: template.subject } : {}), ...(template.message ? { message: template.message } : {}) }, createdAt)
   const from = { id: template.id, title: template.title, version: versionOf(template) }
   const envelope = { id: id(), version: 1, status: 'prepared' as const, createdAt, createdBy: context.actor.id, ...draft, template: from, events: [] }
   await appendEvent(envelope, 'envelope.prepared', context.actor.id, { ...draftDetail(draft), template: { ...from, roles: template.roles.map(r => r.role) } })

@@ -38,12 +38,20 @@ export function SignerApp({ token }: { token: string }) {
   // signing with another replaces it next time.
   // SIGNX-001: what the signer saved before (Finish later, or each Next) comes back on the same link.
   async function finish(path: string, body: unknown) { const result = await request<{ returnTo?: string }>(path, body); if (result.returnTo) { window.location.replace(result.returnTo); return true }; return false }
-  async function refresh() { const next = await request<SigningSession>(base); setSession(next); setAdoption(current => current ?? (next.savedMark ? fromSaved(next.savedMark) : undefined)); const saved = next.savedSignature; setValues(current => ({ ...(saved ? Object.fromEntries(next.fields.filter(field => field.type === 'signature').map(field => [field.id, saved])) : {}), ...next.progress, ...current })) }
+  async function refresh() {
+    const next = await request<SigningSession>(base)
+    setSession(next); setAdoption(current => current ?? (next.savedMark ? fromSaved(next.savedMark) : undefined))
+    const saved = next.savedSignature
+    const prefills = Object.fromEntries(next.fields.filter(field => field.prefill).map(field => [field.id, field.prefill!.value]))
+    const locked = Object.fromEntries(next.fields.filter(field => field.prefill && field.readOnly).map(field => [field.id, field.prefill!.value]))
+    setValues(current => ({ ...prefills, ...(saved ? Object.fromEntries(next.fields.filter(field => field.type === 'signature').map(field => [field.id, saved])) : {}), ...next.progress, ...current, ...locked }))
+  }
   useEffect(() => { setSession(undefined); setCodeSent(false); setCode(''); setAccessCode(''); setValues({}); setConsent(false); setSigned(false); setDeclining(false); setReason(''); setAgreed(false); setWithdrawing(false); setPaperOpen(false); setScan(undefined); setCurrentField(undefined); setAdoption(undefined); void preloadPdf().catch(() => {}); void action.run(refresh) }, [token])
   let resolved = values, fieldError = ''
   try { resolved = resolveFieldValues(session?.fields ?? [], values) } catch (error) { fieldError = error instanceof Error ? error.message : 'Check your numeric fields.' }
   const shown = visibleFields(session?.fields ?? [], values)
-  const displayed = { ...values, ...Object.fromEntries(shown.filter(field => field.calculation).map(field => [field.id, resolved[field.id] ?? ''])) }
+  // Editable values stay exactly as typed; defaults and locked/calculated values come from the shared resolver.
+  const displayed = { ...values, ...Object.fromEntries(shown.filter(field => field.calculation || field.readOnly || (field.prefill && !Object.hasOwn(values, field.id))).map(field => [field.id, resolved[field.id] ?? ''])) }
   const complete = session?.status === 'completed'
   const closed = ['voided', 'declined', 'expired'].includes(session?.status || '')
   const alreadySigned = signed || Boolean(session?.signedAt || session?.signer.signedAt)

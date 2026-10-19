@@ -90,7 +90,7 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
   if (subject) after.subject = subject; else delete after.subject
   if (message) after.message = message; else delete after.message
   if (input.expiresAt !== undefined) after.expiresAt = chooseExpiry(input.expiresAt, at)
-  await validatePdfText(after.signers.flatMap(s => [s.name, s.email]))
+  await validatePdfText([...after.signers.flatMap(s => [s.name, s.email]), ...after.fields.flatMap(field => field.prefill ? [field.prefill.value] : [])])
 
   // The audit trail: one event per recipient change and one for the envelope's own settings, each with before and after.
   const writes: D1PreparedStatement[] = [], rotated = new Set<number>()

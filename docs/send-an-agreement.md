@@ -160,3 +160,41 @@ reason and choose **Confirm void**. Recipients can no longer sign it, and the re
 in the audit trail.
 
 Next: [What signers see](/docs/signing).
+
+## Prefill business values (PREP-008)
+
+Select a text, date, checkbox or USD number field in the preparation inspector.
+Set its **Prefill value** and reported source; choose **Read-only for signer**
+when the recipient must keep that value. Signatures and calculated fields take
+their values through signing and calculation instead. Drafts and templates keep
+these defaults. A signer may replace an editable default or clear an optional
+one; locked terms are enforced by the server too.
+
+An API caller using `template.use` supplies values by field ID:
+
+```json
+{
+  "command": "template.use",
+  "commandId": "your-unique-command-id",
+  "input": {
+    "id": "the-template-id",
+    "recipients": [{"name": "Mara Quinn", "email": "mara@example.com"}],
+    "prefill": {
+      "company": {"value": "Acme Workshops LLC", "source": "Deal 902 / company"},
+      "amount": {"value": "1250.25", "source": "Deal 902 / amount", "readOnly": true}
+    }
+  }
+}
+```
+
+Use the signed-in command door at `POST /api/inkwell/commands`, with its ordinary
+origin and session checks. This prepares a draft for human approval. Direct
+`envelope.prepare` and `envelope.update` calls put `prefill: {value, source}` and
+`readOnly: true` on the field definition. Values and source labels are supplied
+by the caller, not verified with the CRM. Native CRM fetching and merging are
+part of the HubSpot, Salesforce and Orbit connectors (`INTEG-001/002/003`).
+
+Values are one line, at most 500 characters; sources are one line, at most 200.
+Dates use `YYYY-MM-DD`, checkboxes use `true` or `false`, and USD values have at
+most two decimal places. The record keeps the prepared value and reported
+source separately from the recipient's final signed value.

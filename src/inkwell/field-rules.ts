@@ -1,4 +1,5 @@
 import { insist, Refusal, type Field } from './model'
+import { normalizePrefill } from './prefill'
 
 const simpleId = (value: unknown): value is string => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(value) && !['__proto__', 'constructor', 'prototype'].includes(value)
 const maxCents = BigInt(Number.MAX_SAFE_INTEGER)
@@ -39,6 +40,7 @@ export function normalizeFieldSchema(value: unknown): Field[] {
       insist(Array.isArray(calculation.fields) && calculation.fields.length > 0 && calculation.fields.length <= 100 && calculation.fields.every(simpleId), `Choose number fields for ${field.label}'s calculation.`)
       field.calculation = { operation: calculation.operation, fields: [...calculation.fields] }
     }
+    normalizePrefill(field, f)
     return field
   })
   const byId = new Map(fields.map(field => [field.id, field]))
@@ -107,19 +109,20 @@ function evaluate(fields: Field[], raw: Record<string, unknown>, strict: boolean
       if (!shown.has(source.id) || values[source.id] !== equals) continue
     }
     shown.add(field.id)
+    const input = field.readOnly ? field.prefill?.value : Object.hasOwn(raw, field.id) ? raw[field.id] : field.prefill?.value
     try {
       if (field.calculation) {
         if (field.calculation.fields.some(id => shown.has(id) && values[id] === undefined)) continue
         values[field.id] = calculate(field, field.calculation.fields.map(id => shown.has(id) ? cents(values[id], field.label) : 0n))
       } else if (field.type === 'checkbox') {
-        const value = Object.hasOwn(raw, field.id) ? raw[field.id] : undefined
+        const value = input
         insist(value === undefined || value === 'true' || value === 'false', `Choose true or false for ${field.label}.`)
         values[field.id] = value === 'true' ? 'true' : 'false'
-      } else if (Object.hasOwn(raw, field.id) && raw[field.id] !== undefined && raw[field.id] !== '') {
-        if (field.type === 'number') values[field.id] = decimal(cents(raw[field.id], field.label))
+      } else if (input !== undefined && input !== '') {
+        if (field.type === 'number') values[field.id] = decimal(cents(input, field.label))
         else {
-          insist(typeof raw[field.id] === 'string', `Provide a text value for ${field.label}.`)
-          values[field.id] = (raw[field.id] as string).trim()
+          insist(typeof input === 'string', `Provide a text value for ${field.label}.`)
+          values[field.id] = (input as string).trim()
         }
       }
     } catch (error) { if (strict || !(error instanceof Refusal)) throw error }

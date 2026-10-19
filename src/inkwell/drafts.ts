@@ -42,6 +42,7 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   })
   insist(new Set(signers.map(s => s.email)).size === signers.length, 'Each ordered signer must use a different email.')
   const fields = validateFields(input.fields, signers.length, pageSizes.length), copies = chooseCopies(input.copies, signers)
+  await validatePdfText(fields.flatMap(field => field.prefill ? [field.prefill.value] : []))
   insist(input.allowPaperSigning === undefined || typeof input.allowPaperSigning === 'boolean', 'Choose whether recipients may sign on paper.')
   // ROUTE-006: whether a recipient may reassign their signing to someone else; off unless the sender turns it on.
   insist(input.allowReassignment === undefined || typeof input.allowReassignment === 'boolean', 'Choose whether recipients may reassign their signing.')
