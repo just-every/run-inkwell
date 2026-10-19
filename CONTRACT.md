@@ -368,8 +368,8 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 6 | 4 | 0 | 10 |
-| Target and push further | 3 | 29 | 75 | 107 |
-| All | 9 | 33 | 75 | 117 |
+| Target and push further | 4 | 29 | 74 | 107 |
+| All | 10 | 33 | 74 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -423,7 +423,7 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `SIGNX-009` | Recipient comments and supplemental documents | target | missing |  | No comments or supplemental documents |
 | `IDV-001` | Per-recipient authentication choice | target | partial | `src/inkwell/signing.ts` | Email code is the only method and is always required |
 | `IDV-002` | SMS one-time codes | target | missing |  | No SMS codes |
-| `IDV-003` | Access codes | target | missing |  | No access codes |
+| `IDV-003` | Access codes | target | done | `tests/api.test.mjs`; `src/inkwell/signing.ts`; `src/inkwell/envelopes.ts`; `src/ui/signer-app.tsx`; `src/ui/prepare-envelope.tsx` |  |
 | `IDV-004` | Identity document verification through a provider | target | missing |  | No identity verification provider |
 | `IDV-005` | Knowledge-based and phone authentication | target | missing |  | No knowledge-based or phone authentication |
 | `DELIV-001` | Live delivery with per-message status | target | partial | `src/inkwell/mail.ts` | Sent and uncertain states only; no delivered, opened or bounced events from provider webhooks |

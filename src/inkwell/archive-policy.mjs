@@ -4,7 +4,7 @@ import { canonicalJson, sha256 } from '@runeditrun/rer/modules/portability';
 // access keys and pending mail are installation state; document custody travels.
 export default {
   product: 'signatures/inkwell',
-  excludeTables: ['iw_guards', 'iw_commands', 'iw_agents', 'iw_mail', 'ik_d1_assertions'],
+  excludeTables: ['iw_guards', 'iw_commands', 'iw_agents', 'iw_mail', 'iw_access_codes', 'ik_d1_assertions'],
   secretColumns: { iw_signers: ['code_hash', 'session_hash'] },
   requiredConfiguration: ['OWNER_EMAIL', 'SESSION_SECRET', 'AUTH_ORIGIN', 'MAIL_PROVIDER', 'MAIL_FROM'],
   async validateStaged({ read }) {

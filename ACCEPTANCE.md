@@ -71,7 +71,7 @@ Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed her
 
 - **IDV-001 — Per-recipient authentication choice** (partial). One envelope with four recipients using four different methods, one of them link only; each must pass their own method, the link-only recipient signs with no code, and the certificate lists each method and result.
 - **IDV-002 — SMS one-time codes** (missing). Through an SMS provider fake, a recipient receives and enters a code, a wrong code and an expired code are refused, and the certificate records the masked number.
-- **IDV-003 — Access codes** (missing). A recipient is refused with a wrong code, locked after five attempts, and admitted with the right one.
+- **IDV-003 — Access codes** (done). A recipient is refused with a wrong code, locked after five attempts, and admitted with the right one.
 - **IDV-004 — Identity document verification through a provider** (missing). Through a provider fake, a matching verification admits the signer, a failed one refuses with a retry, and the record holds only the reference and outcome.
 - **IDV-005 — Knowledge-based and phone authentication** (missing). Through provider fakes, a recipient who passes the questions is admitted, one who fails twice is locked and the sender notified; a voice-call code admits a second recipient; the record holds only the references and outcomes.
 

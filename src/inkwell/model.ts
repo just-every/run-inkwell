@@ -4,7 +4,7 @@ export function insist(condition: unknown, message: string, status = 400): asser
 export type Role = 'owner' | 'admin' | 'member'
 export interface Actor { id: string; name: string; email: string; role: Role; version: number; sessionId?: string; agentId?: string }
 export interface Field { id: string; label: string; type: 'signature' | 'text' | 'date'; signer: number; page: number; x: number; y: number; width: number; height: number }
-export interface Signer { name: string; email: string; signedAt?: string; values?: Record<string, string>; declinedAt?: string; declineReason?: string }
+export interface Signer { name: string; email: string; accessCode?: boolean; signedAt?: string; values?: Record<string, string>; declinedAt?: string; declineReason?: string }
 export interface AuditEvent { action: string; at: string; actor: string; detail: Record<string, unknown>; previousHash: string; hash: string }
 export interface Envelope { id: string; version: number; title: string; filename: string; status: 'prepared' | 'awaiting_signature' | 'completed' | 'declined' | 'voided' | 'expired' | 'imported'; createdAt: string; createdBy: string; expiresAt: string; signers: Signer[]; fields: Field[]; pageSizes: { width: number; height: number }[]; originalSha256: string; signedSha256?: string; certificateSha256?: string; events: AuditEvent[]; imported?: boolean; source?: unknown; copiedFrom?: string }
 export type Env = Bindings
@@ -12,6 +12,8 @@ export function object(value: unknown): Record<string, unknown> { insist(value &
 export function text(value: unknown, label: string, max = 200): string { insist(typeof value === 'string' && value.trim().length > 0 && value.length <= max && !/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(value), `Provide ${label} (at most ${max} characters).`); return value.trim() }
 export const now = () => new Date().toISOString()
 export const id = () => crypto.randomUUID()
+/** IDV-003: access codes are stored keyed with the installation secret, never in the envelope or its exports. */
+export function accessCodeHash(env: Env, envelopeId: string, signer: number, code: string) { return sha256(`${env.SESSION_SECRET}:access:${envelopeId}:${signer}:${code}`) }
 export function randomCode() { const limit=4_294_000_000;let n:number;do n=crypto.getRandomValues(new Uint32Array(1))[0];while(n>=limit);return String(Math.floor(n/4294)).padStart(6,'0') }
 export function secret() { return Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2, '0')).join('') }
 export async function sha256(value: Uint8Array | string) { const bytes = typeof value === 'string' ? new TextEncoder().encode(value) : value; return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes as BufferSource)), b => b.toString(16).padStart(2, '0')).join('') }

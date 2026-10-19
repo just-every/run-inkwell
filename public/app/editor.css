@@ -3,7 +3,7 @@
 .iw-app .iw-prepare h1 { margin: 0 0 6px; font-size: 56px; font-weight: 800; letter-spacing: -.05em; line-height: 1.05; }
 .iw-prepare .iw-section-head p { color: var(--body); font-size: 16px; }
 .iw-prepare > form > .iw-two, .iw-prepare > form > fieldset { padding-bottom: 20px; border-bottom: 1px solid var(--line); }
-.iw-recipient { display: grid; grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr) 76px; align-items: center; gap: 10px; }
+.iw-recipient { display: grid; grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr) minmax(0, .7fr) 76px; align-items: center; gap: 10px; }
 .iw-recipient .iw-order { width: 31px; height: 31px; }
 
 .iw-editor { display: grid; grid-template-columns: 340px minmax(0, 1fr); align-items: start; gap: 24px; }
@@ -61,7 +61,8 @@
   .iw-prepare .iw-section-head p { font-size: 15px; }
   .iw-recipient { grid-template-columns: 31px minmax(0, 1fr) auto; gap: 8px; }
   .iw-recipient .iw-order { grid-row: span 2; align-self: start; }
-  .iw-recipient > label:nth-of-type(2) { grid-column: 2 / -1; }
+  .iw-recipient > label:nth-of-type(2), .iw-recipient > label:nth-of-type(3) { grid-column: 2 / -1; }
+  .iw-recipient .iw-order { grid-row: span 3; }
   .iw-recipient > button { grid-column: 3; grid-row: 1; }
   .iw-field-tools { padding: 14px; }
   .iw-pdf-viewer { gap: 12px; padding: 10px; }

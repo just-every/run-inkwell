@@ -1,5 +1,5 @@
 export type Field = { id: string; signer: number; type: 'signature' | 'text' | 'date'; label: string; page: number; x: number; y: number; width: number; height: number }
-export type Signer = { name: string; email: string; signedAt?: string; declinedAt?: string; declineReason?: string }
+export type Signer = { name: string; email: string; accessCode?: boolean; signedAt?: string; declinedAt?: string; declineReason?: string }
 export type Envelope = { manualInvitationAvailable?: boolean; ownSigningAvailable?: boolean; id: string; title: string; status: string; createdAt: string; signers: Signer[]; fields: Field[]; originalSha256: string; signedSha256?: string; certificateSha256?: string; copiedFrom?: string; events: { action: string; at: string; actor?: string; detail?: Record<string, unknown> }[] }
 export type Actor = { id: string; name: string; email: string; role: string }
 export type Dashboard = { actor: Actor; envelopes: Envelope[]; agents?: { id: string; createdAt?: string; revokedAt?: string; label?: string }[] }

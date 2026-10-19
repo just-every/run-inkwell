@@ -9,6 +9,11 @@ Prepare an envelope, approve it, and Inkwell invites each recipient in order.
    the order they should sign. You can add up to five with **Add recipient**; each needs a
    different email address.
 
+   To ask a recipient for an access code before they can see the document, type one (4–32
+   characters, no spaces) in their **Access code (optional)** box and tell them the code
+   yourself, by phone or in person, never in the invitation email. Five wrong entries lock
+   that recipient's invitation; void the envelope and prepare a new one to start again.
+
 ## Place fields
 
 Once the PDF is chosen, its pages appear beside **Place fields**.

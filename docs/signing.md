@@ -7,6 +7,14 @@ shares the private link and verification code directly. The page shows the docum
 and who the request is for. If an earlier recipient has not signed yet, the page says **Waiting for
 your turn.** and **Check status** refreshes it.
 
+## Enter the access code
+
+If the sender set an access code for you, the page first asks for it under **Enter your access
+code**. The sender gives you the code separately, never in the invitation email. Enter it and
+choose **Continue**; the page then moves on to the email or verification code. Each wrong code
+shows how many attempts remain. After five wrong codes the page reads **This invitation is
+locked.** and only the sender can start again with a new envelope.
+
 ## Confirm the email address
 
 With mail set up, recipients verify access to the invited mailbox before viewing or signing:

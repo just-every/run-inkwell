@@ -10,7 +10,7 @@ import { mailSuppressed, reissueInvitation } from './manual-invitations'
 import { openOwnSigning } from './own-signing'
 import { readBytes } from './body'
 import { publicVerification } from './verification'
-import { signingContext, signingView, signingDocument, requestCode, verifyCode, signEnvelope, declineEnvelope, signerArtifact } from './signing'
+import { signingContext, signingView, signingDocument, requestCode, verifyCode, signEnvelope, declineEnvelope, signerArtifact, enterAccessCode } from './signing'
 export async function requireActor(request: Request, original: Bindings, roles: readonly string[] = ['owner','admin','member']):Promise<Actor> { const env=runtimeBindings(original),session=await operatorAuth(env).getSession(request);insist(session,'Sign in to continue.',401);insist(roles.includes(session.operator.role),'Your role does not allow this action.',403);return{id:session.operator.id,name:session.operator.displayName,email:session.operator.email,role:session.operator.role as Role,version:session.operator.version,sessionId:session.id} }
 export function sameOrigin(request: Request, original: Bindings) { const env=runtimeBindings(original),origin=request.headers.get('origin');insist(origin===new URL(env.AUTH_ORIGIN).origin&&new URL(request.url).origin===new URL(env.AUTH_ORIGIN).origin,'Use this application’s own page to make changes.',403);insist(request.headers.get('sec-fetch-site')!=='cross-site','Cross-site changes are not allowed.',403) }
 /** Bound JSON reads before decoding a base64 upload. */
@@ -27,6 +27,7 @@ api.get('/api/inkwell/envelopes/:id/verify',async c=>{await requireActor(c.req.r
 api.post('/api/verify',async c=>c.json(await publicVerification(c.env,c.req.raw)))
 api.get('/api/sign/:token',async c=>c.json({...signingView(await signingContext(c.env,c.req.param('token'),c.req.raw)),mailSuppressed:mailSuppressed(c.env)}))
 api.get('/api/sign/:token/document',async c=>signingDocument(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw)))
+api.post('/api/sign/:token/access',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096);return c.json(await enterAccessCode(c.env,context,body))})
 api.post('/api/sign/:token/code',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await requestCode(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw)))})
 api.post('/api/sign/:token/verify',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096),cookie=await verifyCode(c.env,context,body);c.header('set-cookie',cookie);return c.json({ok:true})})
 api.post('/api/sign/:token/sign',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,64000);return c.json({ok:true,result:await signEnvelope(c.env,context,body,c.req.raw)})})
