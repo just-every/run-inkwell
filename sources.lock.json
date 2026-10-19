@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "ca9654e6efc1b2fb87608f7ad6393c9fe79bdbace68d976f8b30989f564f9aa7",
+      "sha256": "c9c643d57dc6f71deb32d268b8d03c43b4cdab5ab159e7c9b50e5120d9867d75",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "802550fb8f766b4fcdde426e74cf95ad1aac8ffe051be4eaff8bae75f671acc3",
+      "sha256": "5f318a0756150604f1140090f5b62a51b6891ecce750b6eefac69a5836bcaee9",
       "executable": false
     },
     "DEMO.md": {
@@ -275,11 +275,11 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "539181b84c23c5c5d4056369f4f26d6df2eadfe86bbd3d017e2fd1cbbfacf2bb",
+      "sha256": "fb243f4ac32200b1a20b2fc13e063f1ff000c38f213bdfa8bd29f0ad5f740c66",
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "e0678755a089c7cb75e476c8c2643385153743ba9d9374c6f852eb9c4d33b9dc",
+      "sha256": "27cfe01794884fb06e52c1cb003f71bbedb962b9137d5ac55079ccf9b2cb1e88",
       "executable": false
     },
     "public/app/controls.css": {
@@ -291,7 +291,7 @@
       "executable": false
     },
     "public/app/editor.css": {
-      "sha256": "b7474b02354d90697b9bea7d0a995994112d936ab402061f59502d803458bec9",
+      "sha256": "6b1f9f9506dd15207aa2eddab3929c99d0e877eae1345a247513c078b2b69494",
       "executable": false
     },
     "public/app/envelopes.css": {
@@ -2711,7 +2711,7 @@
       "executable": false
     },
     "src/ui/signing-guide.tsx": {
-      "sha256": "d4814076009edb303154a52c5b1f1c7f0446280b205176f5f8567f1fc910f0ca",
+      "sha256": "de9d8a6271d28e0f56ca64d2fe65b6e2d4e21de6c1b78383745e3527e5307b34",
       "executable": false
     },
     "src/ui/styles.ts": {
@@ -2760,6 +2760,10 @@
     },
     "tests/harness.mjs": {
       "sha256": "461f2a9fa2bb39c3418da08c64098adb386857c7ec589298104e2ffd5acb0cb0",
+      "executable": false
+    },
+    "tests/journeys/accessible-signing.mjs": {
+      "sha256": "a1f6e714c2cfa95453a6b4ed19b8ad4509622e56bda2f1bd68cf29c2490ee8ec",
       "executable": false
     },
     "tests/journeys/contacts.mjs": {

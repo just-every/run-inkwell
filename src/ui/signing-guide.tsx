@@ -13,20 +13,26 @@ export function SigningGuide({ fields, values, current, onCurrent, onChange, onS
   const ordered = readingOrder(fields), filled = (field: Field) => Boolean(values[field.id]?.trim())
   const done = ordered.filter(filled).length, left = ordered.length - done, field = ordered.find(candidate => candidate.id === current)
   const [saved, setSaved] = useState(false)
-  const input = useRef<HTMLInputElement>(null)
+  const input = useRef<HTMLInputElement>(null), guide = useRef<HTMLDivElement>(null)
   const save = useAction()
   useEffect(() => {
     if (!current) return
     if (current === 'review') { const consent = document.getElementById(consentId); consent?.scrollIntoView({ block: 'center' }); consent?.focus({ preventScroll: true }); return }
     input.current?.focus({ preventScroll: true })
   }, [current])
+  // SIGNX-003: the page knows the guide's height, so focus and scrolling keep every control above it (editor.css).
+  useEffect(() => {
+    const root = document.documentElement, observer = new ResizeObserver(([entry]) => root.style.setProperty('--iw-guide-height', `${Math.ceil(entry.borderBoxSize[0].blockSize)}px`))
+    observer.observe(guide.current!)
+    return () => { observer.disconnect(); root.style.removeProperty('--iw-guide-height') }
+  }, [])
   function next() {
     const start = field ? ordered.indexOf(field) + 1 : 0
     const following = [...ordered.slice(start), ...ordered.slice(0, start)].find(candidate => !filled(candidate))
     setSaved(false); onCurrent(following?.id ?? 'review')
     if (current) void save.run(async () => { await onSave() })
   }
-  return <div className="iw-guide" role="group" aria-label="Guided signing">
+  return <div ref={guide} className="iw-guide" role="group" aria-label="Guided signing">
     <p className="iw-guide-count" role="status">{left ? `${done} of ${ordered.length} required fields complete · ${left} left` : `All ${ordered.length} required fields complete`}</p>
     {field && <label className="iw-guide-field">{field.label}<small>Field {ordered.indexOf(field) + 1} of {ordered.length} · Page {field.page + 1} · {field.type}</small><input ref={input} className={field.type === 'signature' ? 'iw-typed-signature' : undefined} disabled={disabled} maxLength={field.type === 'signature' ? 160 : 500} type={field.type === 'date' ? 'date' : 'text'} autoComplete={field.type === 'signature' ? 'name' : 'off'} enterKeyHint="next" value={values[field.id] || ''} onChange={event => onChange(field.id, event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); next() } }} /></label>}
     {current === 'review' && !left && <p>Every field is complete. Confirm your consent, then sign.</p>}
