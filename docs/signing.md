@@ -49,6 +49,23 @@ agree once per envelope; if the disclosure changes, the page shows the new versi
 The page then shows **Your signature has been recorded.** When everyone has signed, the
 same link offers **Download executed PDF** and **Download certificate**.
 
+## Download or print the document
+
+Once you have agreed to the disclosure, **Download PDF** saves the exact document you are
+asked to sign and **Print** opens your browser's print dialog for it. Both stay available
+after you sign, while the others finish; once everyone has signed, download the executed
+PDF and certificate instead.
+
+## Sign on paper
+
+When the sender allows it, the page offers **Sign on paper instead…**. Download or print the
+document, sign it by hand, then upload a scan (PDF) or a phone photo (JPEG or PNG) of the
+signed pages, up to 2 MiB, with **Upload paper signature**. The page then reads **Your paper
+signature is with the sender.** If the sender accepts it, it counts as your wet-ink signature
+and the next recipient is invited; if not, you get an email with the reason and can upload
+a new scan or sign electronically. When the sender has not allowed paper signing, the option
+does not appear.
+
 ## Decline to sign
 
 A recipient whose turn it is can refuse instead: choose **Decline to sign…**, give a reason

@@ -57,6 +57,16 @@ Creating a replacement revokes the previous link, code and signing session. The 
 and code are shown manually only when mail is suppressed; with a configured provider,
 the existing emailed-link and code flow remains in place.
 
+## Paper signatures
+
+Tick **Allow recipients to sign on paper and upload a scan for you to review** while
+preparing to let recipients sign by hand instead. When one uploads a scan, you get an email
+and the envelope shows **Paper signature to review.** Choose **View upload** to check every
+page, then **Accept paper signature**, or **Reject…** with a reason the recipient receives
+by email. An accepted upload counts as that recipient's wet-ink signature: the next
+recipient is invited, the scan's pages are appended to the executed PDF, and the certificate
+marks the signature as wet ink with the scan's SHA-256 fingerprint.
+
 ## Expiry and extensions
 
 Every envelope expires 120 days after it is prepared unless you change **Expires after

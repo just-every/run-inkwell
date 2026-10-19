@@ -368,8 +368,8 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 6 | 4 | 0 | 10 |
-| Target and push further | 6 | 27 | 74 | 107 |
-| All | 12 | 31 | 74 | 117 |
+| Target and push further | 7 | 26 | 74 | 107 |
+| All | 13 | 30 | 74 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -419,7 +419,7 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `SIGNX-005` | ESIGN and UETA consumer disclosure | target | done | `tests/api.test.mjs`; `src/inkwell/disclosure.ts`; `src/inkwell/signing.ts`; `src/inkwell/pdf.ts`; `src/ui/signer-app.tsx` |  |
 | `SIGNX-006` | Branded sending and signing | target | missing |  | No customer branding |
 | `SIGNX-007` | English and Spanish signing | target | missing |  | English only |
-| `SIGNX-008` | Signer document actions and paper signing | target | partial | `src/inkwell/signing.ts`; `src/ui/signer-app.tsx` | The verified signer reviews every page in the viewer; no download or print action before signing and no paper-signing path |
+| `SIGNX-008` | Signer document actions and paper signing | target | done | `tests/api.test.mjs`; `src/inkwell/paper.ts`; `src/inkwell/pdf.ts`; `src/ui/signer-app.tsx`; `src/ui/envelope-detail.tsx` |  |
 | `SIGNX-009` | Recipient comments and supplemental documents | target | missing |  | No comments or supplemental documents |
 | `IDV-001` | Per-recipient authentication choice | target | partial | `src/inkwell/signing.ts` | Email code is the only method and is always required |
 | `IDV-002` | SMS one-time codes | target | missing |  | No SMS codes |

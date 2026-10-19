@@ -21,6 +21,8 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen }: { 
   const [voiding, setVoiding] = useState(false)
   const [extending, setExtending] = useState(false)
   const [extendDays, setExtendDays] = useState(14)
+  const [rejecting, setRejecting] = useState(false)
+  const [rejectReason, setRejectReason] = useState('')
   const [erasing, setErasing] = useState(false)
   const [confirmation, setConfirmation] = useState('')
   const [showPdf, setShowPdf] = useState(false)
@@ -46,7 +48,7 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen }: { 
     <h3>Signing status</h3>
     <ol className="iw-signers">{envelope.signers.map((signer, index) => <li key={index} className={signer.declinedAt ? 'iw-declined' : signer.signedAt ? 'iw-signed' : index === turn && envelope.status === 'awaiting_signature' ? 'iw-turn' : undefined}>
       <span className="iw-order" aria-hidden="true">{signer.signedAt ? <Check /> : index + 1}</span>
-      <div><strong>{signer.name}</strong><span className="iw-signer-email">{signer.email}{signer.accessCode ? ' · access code' : ''}</span><small>{signer.declinedAt ? `${signer.consentWithdrawn ? 'Withdrew consent' : 'Declined'} ${dateTime(signer.declinedAt)} · ${signer.declineReason}` : signer.signedAt ? `Signed ${dateTime(signer.signedAt)}` : envelope.status === 'declined' ? 'Not invited' : envelope.status === 'awaiting_signature' && index === turn ? me(signer.email) ? 'Waiting for your signature' : 'Invited, awaiting signature' : 'Awaiting signature'}</small></div>
+      <div><strong>{signer.name}</strong><span className="iw-signer-email">{signer.email}{signer.accessCode ? ' · access code' : ''}</span><small>{signer.declinedAt ? `${signer.consentWithdrawn ? 'Withdrew consent' : 'Declined'} ${dateTime(signer.declinedAt)} · ${signer.declineReason}` : signer.signedAt ? `${signer.paper?.status === 'accepted' ? 'Signed on paper' : 'Signed'} ${dateTime(signer.signedAt)}` : signer.paper?.status === 'pending' ? 'Paper signature to review' : envelope.status === 'declined' ? 'Not invited' : envelope.status === 'awaiting_signature' && index === turn ? me(signer.email) ? 'Waiting for your signature' : 'Invited, awaiting signature' : 'Awaiting signature'}</small></div>
     </li>)}</ol>
 
     {deciding && <div className="iw-decision">
@@ -56,6 +58,7 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen }: { 
     </div>}
     {signingHere && <div className="iw-decision"><div className="iw-alert iw-alert-turn"><span className="iw-alert-mark" aria-hidden="true">!</span><div><strong>Waiting for you.</strong><p>Review the document and sign it on your own signing page. Opening it replaces the link you were sent.</p></div></div></div>}
 
+    {canEdit(actor) && envelope.status === 'awaiting_signature' && envelope.signers[turn]?.paper?.status === 'pending' && <div className="iw-decision iw-stack"><div className="iw-alert iw-alert-turn"><span className="iw-alert-mark" aria-hidden="true">!</span><div><strong>Paper signature to review.</strong><p>{envelope.signers[turn].name} signed on paper and uploaded {envelope.signers[turn].paper?.pages} page(s). Accept it as their wet-ink signature, or reject it with a reason.</p></div></div><div className="iw-actions"><a className="iw-button" href={`${base}/artifacts/paper-${turn}`} download>View upload</a><button className="iw-primary" disabled={action.busy} onClick={() => void action.run(async () => { await command('envelope.paper_review', { id: envelope.id, accept: true }); await refresh() })}>Accept paper signature</button><button disabled={action.busy} onClick={() => setRejecting(value => !value)}>Reject…</button></div>{rejecting && <form className="iw-stack iw-callout" onSubmit={event => { event.preventDefault(); void action.run(async () => { await command('envelope.paper_review', { id: envelope.id, accept: false, reason: rejectReason }); setRejecting(false); setRejectReason(''); await refresh() }) }}><label>Reason for rejecting<textarea required minLength={3} maxLength={500} value={rejectReason} onChange={event => setRejectReason(event.target.value)} /></label><button className="iw-danger iw-fit" disabled={action.busy}>Reject upload</button></form>}</div>}
     {actor.role === 'owner' && !signingHere && (privateInvitation || envelope.manualInvitationAvailable) && <div className="iw-manual-invitation">
       <p>Email was not sent because mail is not set up.</p>
       {privateInvitation && <>

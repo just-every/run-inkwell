@@ -77,3 +77,5 @@
   .iw-sign-fields { padding: 18px 16px; }
   .iw-footer { padding: 16px; }
 }
+/* SIGNX-008: the hidden frame that hands the PDF to the browser's print dialog. */
+.iw-print-frame { position: fixed; width: 0; height: 0; border: 0; visibility: hidden; }
