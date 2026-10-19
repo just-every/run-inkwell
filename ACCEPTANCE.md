@@ -141,7 +141,7 @@ Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed her
 
 ### Mobile
 
-- **MOBILE-001 — Responsive sending and tracking** (partial). At 390 pixels, send from a template, remind a signer and void an envelope.
+- **MOBILE-001 — Responsive sending and tracking** (done). At 390 pixels, send from a template, remind a signer and void an envelope. Proven by `tests/journeys/mobile-sending.mjs` (a 390 by 844 touch screen at 3x: the owner sends from a template with the Resend fake, sees the envelope's status and waiting-on line on its detail page and its row in the list, taps Remind and one reminder reaches the signer, sends a second and voids it with a reason; no screen scrolls sideways; Chrome's own manifest parser reads `/manifest.webmanifest` with no error, both icons load, and Chrome reports no installability error) and `tests/journeys/correct-envelope.mjs` (correcting in flight at 390 pixels).
 - **MOBILE-002 — Native iOS and Android apps** (missing). On iOS and Android simulators, sign a received envelope with a drawn signature using guided Next; send from a template, track its recipients and send a reminder; scan a two-page document and send it; and receive a push notification on each signature and on completion.
 
 ### Migration and portability

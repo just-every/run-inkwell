@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "20a0da6c79e7612f8bdc3574783787a14f72efe1b00499e1d7389f410dde701e",
+      "sha256": "6e63d34df3ed092bbcc0a42e8d5cc17f2f7a44659a8d80b59684456770d485a4",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "3375c57f8b78dee2a1b63765922c1e0fc2126f953733ef8b13affcd62bf0075b",
+      "sha256": "a60eb77f5ee1be5bce69469ccf07935e1bf3c5c50a454421cce5deb79e4ccedc",
       "executable": false
     },
     "DEMO.md": {
@@ -287,7 +287,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "9c9f50c3e708ab01175a4c975a3586f6d1fc7c7bbfffcec1946878f6a504aca2",
+      "sha256": "9ae43d3e9e4ea6f6aceef2bdad8c3ad3872f5883bf44366f6d31abbc363c97f1",
       "executable": false
     },
     "pnpm-lock.yaml": {
@@ -424,6 +424,10 @@
     },
     "public/frame.css": {
       "sha256": "883dff360288736a800b9dfc3dbb6036cf4872d18540e963ce8f6a478e7ef368",
+      "executable": false
+    },
+    "public/manifest.webmanifest": {
+      "sha256": "dc2448759209d7987f2eb5f6836f2228b1e274919f48461bfd51d721646fdfec",
       "executable": false
     },
     "public/rer-theme.css": {
@@ -2447,7 +2451,7 @@
       "executable": false
     },
     "src/routes/__root.tsx": {
-      "sha256": "aa25aa676a39df75763e08d404a5e6938a50c5d7674eb0c14e78e23a36d52519",
+      "sha256": "35e5f9a63ec4f4e8b774e3a4145e40fe81c0565ea1d7cdd81bcbfa155d10287b",
       "executable": false
     },
     "src/routes/app.tsx": {
@@ -2840,6 +2844,10 @@
     },
     "tests/journeys/mail-worker.mjs": {
       "sha256": "aef4c0b17131e0aa627f425bccda1662934d856bae41ca4adfd2452d29c045c7",
+      "executable": false
+    },
+    "tests/journeys/mobile-sending.mjs": {
+      "sha256": "0fd4ed0a88ce27b694ad52188a9c2515c6a014948a55a2651392d54db5b7f096",
       "executable": false
     },
     "tests/journeys/signing-mobile.mjs": {

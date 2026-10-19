@@ -14,6 +14,9 @@ export const Route = createRootRoute({
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" type="image/svg+xml" href="/brand/favicon-32.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    {/* MOBILE-001: the app installs from a phone browser as a PWA (public/manifest.webmanifest). */}
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0A9E6C" />
     <link rel="stylesheet" href="/rer-theme.css" />
     <HeadContent />
     <script dangerouslySetInnerHTML={{ __html: introGuardScript }} />

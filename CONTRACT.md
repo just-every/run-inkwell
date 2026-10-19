@@ -283,7 +283,7 @@ Inkwell is one product. Where the market sells a neighbouring product separately
 
 ### Mobile
 
-- **MOBILE-001 — Responsive sending and tracking.** Senders send from templates, track status, remind, correct and void from a phone browser at 390 pixels, with the app installable as a PWA. **Acceptance evidence:** at 390 pixels, send from a template, remind a signer and void an envelope.
+- **MOBILE-001 — Responsive sending and tracking.** Senders send from templates, track status, remind, correct and void from a phone browser at 390 pixels, with the app installable as a PWA. A phone browser here is a 390 by 844 pixel touch screen at 3x density; each of those screens (the Templates send form, the envelope list, the envelope detail page with its status, timeline, Remind, Correct and Void actions, and the correction screen) works there by touch without sideways scrolling. Installable means the app's web manifest (`/manifest.webmanifest`, linked from every app page: the Inkwell name, standalone display, start at `/app`, 192 and 512 pixel icons) parses in the browser with no error and the browser reports nothing that stops installation; the installed app is the same web app and needs the network, with no offline mode. Screens later clauses add to sending and tracking work at 390 pixels before they ship. **Acceptance evidence:** at 390 pixels, send from a template, remind a signer and void an envelope.
 
 - **MOBILE-002 — Native iOS and Android apps.** Native apps sign, send from templates, track and remind, receive push notifications, and scan paper pages with the camera into a PDF to send. **Acceptance evidence:** on iOS and Android simulators, sign a received envelope with a drawn signature using guided Next; send from a template, track its recipients and send a reminder; scan a two-page document and send it; and receive a push notification on each signature and on completion.
 
@@ -368,8 +368,8 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 2 | 0 | 10 |
-| Target and push further | 27 | 16 | 64 | 107 |
-| All | 35 | 18 | 64 | 117 |
+| Target and push further | 28 | 15 | 64 | 107 |
+| All | 36 | 17 | 64 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -469,7 +469,7 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `INTEG-009` | Zapier, Make, Power Automate, n8n and Crank | target | missing |  | No automation apps |
 | `INTEG-010` | Payment at signing through Stripe | target | missing |  | No payment at signing |
 | `INTEG-011` | Signing service for sibling products | target | missing |  | No scoped API for sibling products |
-| `MOBILE-001` | Responsive sending and tracking | target | partial | `public/app/shell.css`; `public/app/envelopes.css` | Responsive operator layout; no 390-pixel sending journey test or PWA install |
+| `MOBILE-001` | Responsive sending and tracking | target | done | `public/manifest.webmanifest`; `src/routes/__root.tsx`; `src/ui/templates.tsx`; `public/app/shell.css`; `tests/journeys/mobile-sending.mjs`; `tests/journeys/correct-envelope.mjs` | At 390 pixels by touch: send from a template, track the status in the list and detail page, remind and void (journey `tests/journeys/mobile-sending.mjs`), correct (`tests/journeys/correct-envelope.mjs`); the web manifest parses with no error and the browser reports no installability error |
 | `MOBILE-002` | Native iOS and Android apps | target | missing |  | No native apps |
 | `MOVE-002` | Docusign move-in | target | missing |  | No Docusign import |
 | `MOVE-003` | Adobe Acrobat Sign move-in | target | missing |  | No Adobe Acrobat Sign import |
