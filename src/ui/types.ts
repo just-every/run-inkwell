@@ -12,7 +12,7 @@ export const buckets = ['draft', 'waiting_for_me', 'waiting_for_others', 'comple
 export type Bucket = typeof buckets[number]
 export type Page = { envelopes: (Envelope & { bucket: Bucket })[]; counts: Record<Bucket, number>; total: number; next: string | null }
 // RECORD-005: the account's retention rule and the latest purges (envelope IDs and times only).
-export type Retention = { rule: { years: number; updatedAt: string; updatedBy: string } | null; warningDays: number; purged: { envelopeId: string; years: number; completedAt: string; warnedAt: string; purgedAt: string }[] }
+export type Retention = { rule: { years: number; updatedAt: string; updatedBy: string } | null; warningDays: number; purged: { envelopeId: string; ended: string; years: number; endedAt: string; warnedAt: string; purgedAt: string }[] }
 export type Workspace = { actor: Actor; people?: Person[]; settings?: { completedCopies: 'link' | 'attachment'; retention: Retention }; agents?: { id: string; createdAt?: string; revokedAt?: string; label?: string }[] }
 export async function request<T>(url: string, body?: unknown): Promise<T> {
   const response = await fetch(url, body === undefined ? { credentials: 'same-origin' } : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })

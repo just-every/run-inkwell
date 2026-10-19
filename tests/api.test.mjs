@@ -988,10 +988,14 @@ test('TMPL-005: a fresh copy of a template W-9 is offered that template with its
  assert.deepEqual((await h.send('/api/inkwell/envelopes',undefined,xena.cookie)).value.total,0,'matching places and stores nothing')
 })
 // RECORD-005 runs last: its seven-year clock purges every completed envelope earlier tests left behind.
-test('RECORD-005: with the clock advanced, a seven-year rule purges an envelope after its warning, and a held envelope survives both the rule and an erase request',async()=>{
+test('RECORD-005: with the clock advanced, a seven-year rule purges an envelope after its warning, and a held envelope survives both the rule and an erase request; voided and expired envelopes fall under it, open ones never',async()=>{
  const day=86_400_000,admin=await h.invite('keeper@harbour.example','admin'),viewer=await h.invite('ledger@harbour.example','member'),field=[{...fields[0],signer:0}]
  const complete=async(title,person)=>{const id=(await h.command('envelope.prepare',{...preparation(),title,signers:[person],fields:field})).result.id;await h.command('envelope.approve',{id,eligible:true});const signer=await verified(person.email);assert.equal((await h.post(signer.path+'/sign',{values:{'signature-0':person.name},consent:true,commandId:crypto.randomUUID()},signer.cookie)).value.result.status,'completed');return id}
  const kept=await complete('Harbour Studio mooring lease',{name:'Rae Lind',email:'rae@harbour.example'}),held=await complete('Harbour Studio winter storage',{name:'Sol Park',email:'sol@harbour.example'})
+ // Ended other ways: voided now, and expiring in 10 days unsigned; one more stays open with the default 120-day expiry.
+ const sent=async(title,person,extra={})=>{const id=(await h.command('envelope.prepare',{...preparation(),title,signers:[person],fields:field,...extra})).result.id;await h.command('envelope.approve',{id,eligible:true});return id}
+ const voided=await sent('Harbour Studio berth swap',{name:'Ida Voss',email:'ida@harbour.example'});await h.command('envelope.void',{id:voided,reason:'Berth no longer available'})
+ const lapsed=await sent('Harbour Studio haul-out quote',{name:'Ned Ash',email:'ned@harbour.example'},{expiresAt:new Date(Date.now()+10*day).toISOString()}),open=await sent('Harbour Studio fuel account',{name:'Oli Fenn',email:'oli@harbour.example'})
  const retention=async(cookie=admin)=>(await h.send('/api/inkwell',undefined,cookie)).value.settings.retention
  // Owners and admins set the rule in whole years; a viewer can neither set it nor hold an envelope.
  await h.command('account.retention',{years:7},viewer,403);await h.command('envelope.hold',{id:held,reason:'Litigation hold'},viewer,403)
@@ -1021,15 +1025,22 @@ test('RECORD-005: with the clock advanced, a seven-year rule purges an envelope 
  assert.equal((await h.send('/api/inkwell/envelopes/'+kept+'/artifacts/signed',undefined,h.owner)).status,404)
  assert.ok(!(await h.send('/api/inkwell/notices',undefined,admin)).value.notices.some(n=>n.envelopeId===kept),'its feed notices go with it')
  const ledger=(await retention()).purged.find(p=>p.envelopeId===kept)
- assert.deepEqual({years:ledger.years,completedAt:ledger.completedAt,warnedAt:ledger.warnedAt,purgedAt:ledger.purgedAt},{years:7,completedAt,warnedAt:new Date(due-30*day).toISOString(),purgedAt:due.toISOString()})
+ assert.deepEqual({ended:ledger.ended,years:ledger.years,endedAt:ledger.endedAt,warnedAt:ledger.warnedAt,purgedAt:ledger.purgedAt},{ended:'completed',years:7,endedAt:completedAt,warnedAt:new Date(due-30*day).toISOString(),purgedAt:due.toISOString()})
+ // The void came seconds after the completion, so it was first warned a day later and is purged 30 days after that.
+ assert.equal((await stored(voided)).status,'voided','the voided envelope waits out its own warning')
  assert.ok(!JSON.stringify(await retention()).includes('mooring lease'),'the ledger keeps no title')
  assert.equal((await stored(held)).status,'completed','the held envelope survives the rule')
  // Lifting the hold restarts the warning: an overdue envelope is purged 30 days after its own warning, never before.
  await h.command('envelope.lift_hold',{id:held},admin)
  assert.deepEqual((await stored(held)).events.filter(e=>e.action.startsWith('envelope.legal_hold')).map(e=>[e.action,e.actor]),[['envelope.legal_hold_placed',(await h.send('/api/inkwell',undefined,admin)).value.actor.id],['envelope.legal_hold_lifted',(await h.send('/api/inkwell',undefined,admin)).value.actor.id]],'placing and lifting are in the envelope\'s audit trail')
  await h.scheduled(due.getTime()+day)
+ assert.equal((await h.send('/api/inkwell/envelopes/'+voided,undefined,h.owner)).status,404,'the voided envelope is purged 30 days after its warning');assert.equal((await retention()).purged.find(p=>p.envelopeId===voided).ended,'voided')
  assert.equal((await warned(held)).length,1,'warned at once when overdue');assert.ok(await h.mail('keeper@harbour.example','Will be purged: Harbour Studio winter storage'))
+ // The unsigned envelope expired 10 days after it was sent, so it came within 30 days of falling due at the hour-before pass.
+ assert.equal((await warned(lapsed))[0]?.detail.purgeAt,new Date(due-3600_000+30*day).toISOString(),'the expired envelope is due 7 years after its expiry and purged 30 days after its warning')
  await h.scheduled(due.getTime()+30*day);assert.equal((await stored(held)).status,'completed','not purged until 30 days after its warning')
+ assert.equal((await h.send('/api/inkwell/envelopes/'+lapsed,undefined,h.owner)).status,404,'the expired envelope is purged');assert.equal((await retention()).purged.find(p=>p.envelopeId===lapsed).ended,'expired')
  await h.scheduled(due.getTime()+31*day);assert.equal((await h.send('/api/inkwell/envelopes/'+held,undefined,h.owner)).status,404)
+ assert.equal((await stored(open)).status,'awaiting_signature');assert.equal((await warned(open)).length,0,'an envelope still open for signing is never warned or purged')
  await h.command('account.retention',{years:null},admin);assert.equal((await retention()).rule,null,'the rule can be cleared')
 })

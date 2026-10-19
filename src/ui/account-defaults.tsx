@@ -21,11 +21,11 @@ export function RetentionRule({ retention, refresh }: { retention: Retention; re
   const [years, setYears] = useState(retention.rule ? String(retention.rule.years) : '')
   const action = useAction(), chosen = years === '' ? null : Number(years)
   return <section className="iw-panel iw-stack"><h2>Retention</h2>
-    <p className="iw-muted">Completed envelopes are kept this many years after completion, then permanently erased. Owners and admins are warned {retention.warningDays} days before; a legal hold keeps an envelope until it is lifted. Leave empty to keep everything.</p>
+    <p className="iw-muted">Envelopes that have ended (completed, declined, voided or expired) are kept this many years, then permanently erased. Owners and admins are warned {retention.warningDays} days before; a legal hold keeps an envelope until it is lifted. Leave empty to keep everything.</p>
     <form className="iw-stack" onSubmit={event => { event.preventDefault(); void action.run(async () => { await command('account.retention', { years: chosen }); await refresh() }) }}>
-      <label>Years to keep completed envelopes<input type="number" inputMode="numeric" min={1} max={99} step={1} value={years} onChange={event => setYears(event.target.value)} /></label>
+      <label>Years to keep ended envelopes<input type="number" inputMode="numeric" min={1} max={99} step={1} value={years} onChange={event => setYears(event.target.value)} /></label>
       <ErrorNotice error={action.error} /><button className="iw-fit" disabled={action.busy || chosen === (retention.rule?.years ?? null)}>{action.busy ? 'Saving…' : 'Save'}</button>
     </form>
-    {retention.purged.length > 0 && <details><summary>Purged ({retention.purged.length})</summary><ul>{retention.purged.map(p => <li key={p.envelopeId}>{p.envelopeId} · completed {dateTime(p.completedAt)} · warned {dateTime(p.warnedAt)} · purged {dateTime(p.purgedAt)} under {p.years} years</li>)}</ul></details>}
+    {retention.purged.length > 0 && <details><summary>Purged ({retention.purged.length})</summary><ul>{retention.purged.map(p => <li key={p.envelopeId}>{p.envelopeId} · {p.ended} {dateTime(p.endedAt)} · warned {dateTime(p.warnedAt)} · purged {dateTime(p.purgedAt)} under {p.years} years</li>)}</ul></details>}
   </section>
 }
