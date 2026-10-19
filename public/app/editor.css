@@ -81,3 +81,9 @@
 }
 /* SIGNX-008: the hidden frame that hands the PDF to the browser's print dialog. */
 .iw-print-frame { position: fixed; width: 0; height: 0; border: 0; visibility: hidden; }
+/* SIGNX-001: the guided bar stays at the foot of the screen while the signer moves through the document. */
+.iw-guide { grid-column: 1 / -1; position: sticky; bottom: 0; z-index: 2; display: grid; gap: 10px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--app-shadow); }
+.iw-app .iw-guide p { margin: 0; }
+.iw-guide-count { font-weight: 600; }
+.iw-guide-field small { margin-left: 8px; color: var(--soft); }
+.iw-field-active { border-width: 2.5px; box-shadow: 0 0 0 3px rgb(37 99 235 / 30%); }

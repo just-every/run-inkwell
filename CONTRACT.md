@@ -151,7 +151,7 @@ Inkwell is one product. Where the market sells a neighbouring product separately
 
 ### Signer experience
 
-- **SIGNX-001 — Guided mobile-first signing.** Signing works on a phone at 360 pixels without zooming: a Start and Next button walks the signer through every required field, a progress count shows what remains, the document pages render sharply and load progressively, and the signer can finish later from the same link. **Acceptance evidence:** a signer completes a ten-field, five-page envelope at 390 pixels using only Next, leaves halfway, returns and finishes; the journey records time to first page under 3 seconds on a throttled mobile profile.
+- **SIGNX-001 — Guided mobile-first signing.** Signing works on a phone at 360 pixels without zooming: a Start and Next button walks the signer through every required field, a progress count shows what remains, the document pages render sharply and load progressively, and the signer can finish later from the same link. **Acceptance evidence:** a signer completes a ten-field, five-page envelope at 390 pixels using only Next, leaves halfway, returns and finishes; the journey records time to first page under 3 seconds on a throttled mobile profile. Start, then each Next, goes to the next of the signer's required fields still empty in reading order (by page, then top to bottom, then left to right), scrolls the document to it and puts its entry at the foot of the screen; after the last, Next goes to the consent. Every field placed today is required; optional fields (`PREP-003`) and fields a signer places themselves (`PREP-011`) join Next and the count before they ship. The count reads how many of the signer's required fields are complete and how many are left. Each Next, and Finish later, saves the signer's entries on the server; reopening the same link (after the same verification as signing: the 24-hour signing session, or a new code) brings them back, and Start resumes at the first empty field. Saved entries sign nothing, are not evidence and are not archived; they are cleared when the signer signs, electronically or on paper, or the envelope is declined or voided. Pages appear as each one loads and are drawn only near the screen, at the screen's pixel density up to 3x. Time to first page runs from opening the signing link to the first page drawn; the throttled mobile profile is a 390 by 844 pixel screen at 3x density with touch, the CPU slowed 4x and the network held to 150 ms round trips, 9 Mbit/s down and 1.5 Mbit/s up (Chrome DevTools Protocol), on a cold HTTP cache.
 
 - **SIGNX-002 — Draw, type or upload signatures and initials.** The signer adopts a signature and initials by typing (choice of styles), drawing with finger or mouse, or uploading an image; the adopted marks are applied to every signature and initials field, and the record keeps the adoption method. A signed-in member's adopted marks are saved and reused (`ROUTE-009`). **Acceptance evidence:** one signer draws on a touch screen, another types and a third uploads; all three appear in the executed PDF and the certificate records each method.
 
@@ -368,8 +368,8 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 8 | 2 | 0 | 10 |
-| Target and push further | 16 | 21 | 70 | 107 |
-| All | 24 | 23 | 70 | 117 |
+| Target and push further | 17 | 20 | 70 | 107 |
+| All | 25 | 22 | 70 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -412,7 +412,7 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `ROUTE-010` | Witnesses nominated by their signer | target | missing |  | No witness role |
 | `ROUTE-011` | Recipients who name, edit or only view | target | missing |  | No specify-recipients, editor, needs-to-view or certified-delivery recipients |
 | `ROUTE-012` | Document visibility per recipient | target | missing |  | One document per envelope; no per-recipient visibility |
-| `SIGNX-001` | Guided mobile-first signing | target | partial | `src/ui/signer-app.tsx` | Responsive signing page only; no guided Next flow, progress count or mobile journey test |
+| `SIGNX-001` | Guided mobile-first signing | target | done | `src/ui/signing-guide.tsx`; `src/inkwell/progress.ts`; `tests/journeys/signing-mobile.mjs` |  |
 | `SIGNX-002` | Draw, type or upload signatures and initials | target | partial | `src/inkwell/pdf.ts` | Typed signature only; no drawn or uploaded signature, no initials, no adoption record |
 | `SIGNX-003` | Accessible signing | target | partial | `src/ui/signer-app.tsx` | Labelled form controls only; no WCAG audit, keyboard or screen-reader journey |
 | `SIGNX-004` | Decline with reason | target | done | `tests/api.test.mjs`; `src/inkwell/signing.ts`; `src/inkwell/pdf.ts`; `src/ui/signer-app.tsx` |  |

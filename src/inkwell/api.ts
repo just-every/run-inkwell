@@ -15,6 +15,7 @@ import { readBytes } from './body'
 import { publicVerification } from './verification'
 import { extendEnvelope } from './expiry'
 import { reviewPaper, uploadPaper } from './paper'
+import { saveProgress } from './progress'
 import { presentEnvelope, searchEnvelopes } from './search'
 import { envelopeReport, reportCsv } from './reports'
 import { savedSignature, sessionMember } from './saved-marks'
@@ -54,6 +55,7 @@ api.post('/api/sign/:token/sign',async c=>{sameOrigin(c.req.raw,c.env);const con
 api.post('/api/sign/:token/decline',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096);return c.json({ok:true,result:await declineEnvelope(c.env,context,body,c.req.raw)})})
 api.post('/api/sign/:token/disclosure',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096);return c.json({ok:true,result:await acceptDisclosure(c.env,context,body,c.req.raw)})})
 api.post('/api/sign/:token/paper',async c=>{sameOrigin(c.req.raw,c.env);return c.json({ok:true,result:await uploadPaper(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),c.req.raw)})})
+api.post('/api/sign/:token/progress',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,64000);return c.json({ok:true,result:await saveProgress(c.env,context,body)})})
 api.post('/api/sign/:token/withdraw',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096);return c.json({ok:true,result:await withdrawConsent(c.env,context,body,c.req.raw)})})
 api.get('/api/sign/:token/artifacts/:kind',async c=>signerArtifact(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),c.req.param('kind')))
 // DELIV-007: a party's completed copy, opened with a code sent to their own mailbox.

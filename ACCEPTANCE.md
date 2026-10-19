@@ -57,7 +57,7 @@ Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed her
 
 ### Signer experience
 
-- **SIGNX-001 — Guided mobile-first signing** (partial). A signer completes a ten-field, five-page envelope at 390 pixels using only Next, leaves halfway, returns and finishes; the journey records time to first page under 3 seconds on a throttled mobile profile.
+- **SIGNX-001 — Guided mobile-first signing** (done). A signer completes a ten-field, five-page envelope at 390 pixels using only Next, leaves halfway, returns and finishes; the journey records time to first page under 3 seconds on a throttled mobile profile: a 390 by 844 screen at 3x density with touch, CPU slowed 4x, 150 ms round trips, 9 Mbit/s down and 1.5 Mbit/s up, cold cache (`tests/journeys/signing-mobile.mjs`, which also checks no sideways scroll at 360 pixels, pages drawn at 3x and only near the screen, and the saved entries on return).
 - **SIGNX-002 — Draw, type or upload signatures and initials** (partial). One signer draws on a touch screen, another types and a third uploads; all three appear in the executed PDF and the certificate records each method.
 - **SIGNX-003 — Accessible signing** (partial). An automated accessibility scan with no serious violations on the signing and preparation pages, plus a keyboard-only and a screen-reader journey that complete an envelope.
 - **SIGNX-004 — Decline with reason** (done). The second signer declines; the third is never invited, the sender receives a notice with the reason, and the certificate records the decline.
