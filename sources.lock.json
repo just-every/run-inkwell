@@ -811,7 +811,7 @@
       "executable": false
     },
     "src/inkwell/timeline.ts": {
-      "sha256": "d4f9569f2b16c7ba8e5b73ff17b1dc6a869efdd91bbc7a64f37b1797107d191b",
+      "sha256": "b3f064a8f9342e5bb6644c8c14c3cd70f9ce06ab65795cc677deb4b3515f8e43",
       "executable": false
     },
     "src/inkwell/verification.ts": {
@@ -2799,7 +2799,7 @@
       "executable": false
     },
     "tests/journeys/envelope-detail.mjs": {
-      "sha256": "7149f44e0329471d84b91a4f030335d591bc5a3de57dfcf4530f199b76e6f70e",
+      "sha256": "b03b0733d6ee7999a194b75027d3ec37ec79ed9eb8e1e921cf210d676f23e5bd",
       "executable": false
     },
     "tests/journeys/mail-worker.mjs": {

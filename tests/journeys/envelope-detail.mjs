@@ -35,11 +35,10 @@ try {
   const audit = (action, signer) => envelope.events.find(e => e.action === action && e.detail.signer === signer).at
   const invitation = signer => envelope.messages.find(m => m.kind === 'invitation' && m.signer === signer)
   const expected = [
-    [['Sent', invitation(0).sentAt], ['Delivered', new Date(delivered[0]).toISOString()], ['Viewed', audit('signer.viewed', 0)], ['Signed', envelope.signers[0].signedAt]],
+    [['Sent', invitation(0).sentAt], ['Delivered', new Date(delivered[0]).toISOString()], ['Viewed', audit('signer.viewed', 0)], ['Signed', audit('signer.signed', 0)]],
     [['Sent', invitation(1).sentAt], ['Delivered', new Date(delivered[1]).toISOString()], ['Viewed', audit('signer.viewed', 1)]],
     [],
   ]
-  assert.equal(audit('signer.signed', 0), envelope.signers[0].signedAt, 'the signed time is the audit trail’s')
 
   let reminders = 0
   for (const [width, height] of [[1440, 900], [390, 844]]) {

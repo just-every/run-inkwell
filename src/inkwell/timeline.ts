@@ -1,7 +1,7 @@
 // MANAGE-005: each recipient's place in routing, their timeline and what they are waiting on, for the envelope detail
 // page. Every step comes from a recorded fact: sent, delivered and bounced from the invitation's message status
 // (DELIV-001), viewed from the first opening of the document after verification, authenticated from the first
-// verification, signed and declined from the signer record. Times are ISO instants; the page shows each in the account's
+// verification, signed from the audit trail's signature event, declined from the signer record. Times are ISO instants; the page shows each in the account's
 // time zone and in UTC.
 import { currentSigners, routingOrder, type Envelope, type Env } from './model'
 import { envelopeMessages, type Message } from './delivery'
@@ -34,7 +34,9 @@ function recipientTimeline(envelope: Envelope, messages: Message[], signer: numb
   if (viewed) steps.push({ step: 'viewed', at: viewed.at })
   const verified = envelope.events.find(e => e.action in verifications && e.detail.signer === signer)
   if (verified) steps.push({ step: 'authenticated', at: verified.at, detail: verifications[verified.action] })
-  if (recipient.signedAt) steps.push({ step: 'signed', at: recipient.signedAt, ...(recipient.paper?.status === 'accepted' ? { detail: 'On paper' } : {}) })
+  // The audit trail's time for the signature (the signer record's own time can differ by a millisecond).
+  const signed = envelope.events.find(e => ['signer.signed', 'signer.signed_on_paper'].includes(e.action) && e.detail.signer === signer)
+  if (recipient.signedAt) steps.push({ step: 'signed', at: signed?.at ?? recipient.signedAt, ...(recipient.paper?.status === 'accepted' ? { detail: 'On paper' } : {}) })
   if (recipient.declinedAt) steps.push({ step: 'declined', at: recipient.declinedAt, detail: recipient.declineReason })
   steps.sort((a, b) => a.at.localeCompare(b.at))
   const order = routingOrder(envelope, signer), base = { signer, order, steps }
