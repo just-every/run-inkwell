@@ -1,11 +1,11 @@
 import { canonicalJson, sha256 } from '@runeditrun/rer/modules/portability';
 
 // The same policy drives the browser and `rer export/import`. Authentication,
-// access keys, member roles, pending mail and its delivery events (DELIV-001), completed-copy links, account settings, saved signatures, envelope shares and the contact book (ROUTE-008) are installation state;
+// access keys, member roles, pending mail and its delivery events (DELIV-001), completed-copy links, account settings, saved signatures, envelope and template shares (TMPL-002) and the contact book (ROUTE-008) are installation state;
 // document custody travels. A restored member is a viewer until an owner or admin chooses.
 export default {
   product: 'signatures/inkwell',
-  excludeTables: ['iw_guards', 'iw_commands', 'iw_agents', 'iw_mail', 'iw_access_codes', 'iw_member_roles', 'iw_copy_links', 'iw_settings', 'iw_member_marks', 'iw_shares', 'iw_contacts', 'ik_d1_assertions', 'rer_mail_event_receipts', 'rer_mail_event_states'],
+  excludeTables: ['iw_guards', 'iw_commands', 'iw_agents', 'iw_mail', 'iw_access_codes', 'iw_member_roles', 'iw_copy_links', 'iw_settings', 'iw_member_marks', 'iw_shares', 'iw_template_shares', 'iw_contacts', 'ik_d1_assertions', 'rer_mail_event_receipts', 'rer_mail_event_states'],
   // SIGNX-001: a signer's saved, unsigned entries stay behind like their codes and sessions; DELIV-005: so does the sealed link.
   secretColumns: { iw_signers: ['code_hash', 'session_hash', 'progress', 'link_sealed'] },
   requiredConfiguration: ['OWNER_EMAIL', 'SESSION_SECRET', 'AUTH_ORIGIN', 'MAIL_PROVIDER', 'MAIL_FROM'],

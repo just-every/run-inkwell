@@ -873,6 +873,49 @@ test('TMPL-003: editing a template makes version 2 while version 1 envelopes kee
  assert.equal(digest((await h.send(`/api/inkwell/templates/${saved.id}/document`,undefined,val.cookie)).bytes),e1.originalSha256)
 })
 
+// TMPL-002: templates live in personal or shared folders, are shared with people to use or to edit (directly or through a
+// folder) and searched by name and tag; a member without access cannot find one through the API.
+test('TMPL-002: a member uses a shared template but cannot edit it, a folder editor changes it, and a member without access cannot find it',async()=>{
+ const zoe=await sender('zoe.shares@harbour.example'),amy=await sender('amy.shares@harbour.example'),ben=await sender('ben.shares@harbour.example'),cal=await sender('cal.shares@harbour.example'),viewer=await h.invite('vi.shares@harbour.example','member')
+ const list=async(cookie,query='')=>(await h.send('/api/inkwell/templates'+query,undefined,cookie)).value
+ const folderId=(await h.command('template.folder_create',{name:'Vendor onboarding'},zoe.cookie)).result.id
+ const fields=[{id:'vendor-sign',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.3,width:.35,height:.06}]
+ const definition={title:'Vendor packet',filename:'packet.pdf',pdfBase64:Buffer.from(original).toString('base64'),roles:[{role:'Vendor',order:1}],fields,tags:['W-9','procurement']}
+ await h.command('template.save',{...definition,folderId},amy.cookie,404)
+ const templateId=(await h.command('template.save',{...definition,folderId},zoe.cookie)).result.id
+ assert.deepEqual((await list(zoe.cookie,'?q=PROCURE')).templates.map(t=>[t.id,t.access,t.folder?.name]),[[templateId,'manage','Vendor onboarding']],'the maker finds it by tag, in its folder')
+ assert.deepEqual((await list(zoe.cookie,'?q=vendor pac')).templates.map(t=>t.id),[templateId],'and by name');assert.deepEqual((await list(zoe.cookie,'?q=lease')).templates,[])
+ assert.deepEqual((await list(zoe.cookie,'?folder=personal')).templates,[],'it is not in the personal folder')
+ await h.command('template.share',{id:templateId,email:'amy.shares@harbour.example',access:'use'},ben.cookie,404)
+ await h.command('template.share',{id:templateId,email:'vi.shares@harbour.example',access:'use'},zoe.cookie,409)
+ await h.command('template.share',{id:templateId,email:'amy.shares@harbour.example',access:'use'},zoe.cookie)
+ await h.command('template.share',{folderId,email:'ben.shares@harbour.example',access:'edit'},zoe.cookie)
+ for(const cookie of [cal.cookie,viewer]) assert.notEqual((await h.send('/api/inkwell/templates?q=procurement',undefined,cookie)).value?.templates?.length,1,'no access, no result')
+ assert.deepEqual((await list(cal.cookie)).templates,[],'a member without access cannot find it');assert.deepEqual((await list(cal.cookie)).folders,[])
+ assert.equal((await h.send(`/api/inkwell/templates/${templateId}/document`,undefined,cal.cookie)).status,404)
+ await h.command('template.use',{id:templateId,recipients:[{name:'Val Vendor',email:'val@vendor.example'}]},cal.cookie,404)
+ const shared=(await list(amy.cookie,'?q=w-9')).templates
+ assert.deepEqual(shared.map(t=>[t.id,t.access,t.shares]),[[templateId,'use',undefined]],'the member sees it to use and not who else has it')
+ const sent=(await h.command('template.use',{id:templateId,recipients:[{name:'Val Vendor',email:'val@vendor.example'}]},amy.cookie)).result.id
+ assert.equal((await stored(sent,amy.cookie)).template.id,templateId,'the member sends from it')
+ await h.command('template.update',{...definition,id:templateId,expiryDays:10},amy.cookie,403)
+ await h.command('template.remove',{id:templateId},amy.cookie,403)
+ await h.command('template.share',{id:templateId,email:'cal.shares@harbour.example',access:'use'},amy.cookie,403)
+ assert.deepEqual((await list(ben.cookie)).templates.map(t=>[t.id,t.access]),[[templateId,'edit']],'the folder share reaches the template to edit')
+ assert.equal((await h.command('template.update',{...definition,id:templateId,expiryDays:10,tags:['W-9']},ben.cookie)).result.version,2,'an editor changes it')
+ assert.deepEqual((await list(zoe.cookie)).templates.find(t=>t.id===templateId).folder.id,folderId,'an edit keeps the template in its folder')
+ await h.command('template.update',{...definition,id:templateId,folderId:null},ben.cookie,403)
+ await h.command('template.remove',{id:templateId},ben.cookie,403)
+ assert.deepEqual((await list(amy.cookie,'?q=procurement')).templates,[],'search follows the edited tags')
+ const managed=(await list(zoe.cookie)).templates.find(t=>t.id===templateId)
+ assert.deepEqual([managed.version,managed.expiryDays,managed.shares.map(s=>[s.email,s.access])],[2,10,[['amy.shares@harbour.example','use']]])
+ assert.deepEqual((await list(zoe.cookie)).folders.find(f=>f.id===folderId).shares.map(s=>[s.email,s.access]),[['ben.shares@harbour.example','edit']])
+ assert.ok((await list(h.owner)).templates.some(t=>t.id===templateId&&t.access==='manage'),'the owner manages every template')
+ await h.command('template.unshare',{id:templateId,operatorId:amy.id},zoe.cookie)
+ assert.deepEqual((await list(amy.cookie)).templates,[],'taking the share back hides it again')
+ await h.command('template.use',{id:templateId,recipients:[{name:'Val Vendor',email:'val@vendor.example'}]},amy.cookie,404)
+})
+
 // TMPL-005: an upload that matches a template's document (the same file, or a fresh copy whose text is nearly the same)
 // is offered that template with its confidence, only to people who may use it; an unrelated agreement is offered nothing.
 test('TMPL-005: a fresh copy of a template W-9 is offered that template with its confidence; an unrelated agreement gets nothing',async()=>{

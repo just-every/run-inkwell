@@ -4,7 +4,9 @@
 // template's fields, routing, reminders and expiry with no placement, and each first role is invited by email. On the
 // built Worker with the Resend fake (tests/journeys/mail-worker.mjs). TMPL-005: on the prepare screen a fresh copy of a
 // template's W-9 is offered that template with its confidence, applying it places every template field and its role, and
-// an unrelated agreement is offered nothing.
+// an unrelated agreement is offered nothing. TMPL-002: the owner shares a template in a folder with one sender to use
+// and the folder with another to edit; the first finds it by tag and sends from it with no Edit offered, the second
+// saves its next version, and a third sender cannot find it.
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { PDFDocument, StandardFonts } from 'pdf-lib'
@@ -133,6 +135,57 @@ try {
   assert.deepEqual(placed.signers.map(s => [s.name, s.order, s.message]), [['Vera Vendor', 1, 'Your W-9, please.']])
   await matching.close()
   console.log('TMPL-005 passed: a fresh W-9 copy was offered its template, applying placed every field; an unrelated agreement was offered nothing')
+  // TMPL-002: shares to use and, through the folder, to edit; search by tag; no access, no result.
+  const member = async email => {
+    await inkwell.call('/auth/invite', { body: { email, displayName: email.split('@')[0], role: 'member' }, cookie: inkwell.owner, status: 202 })
+    const token = new URL(inkwell.mail(email, '').text.match(/http:\/\/[^\s]+\/auth\/confirm\?token=[^\s]+/)[0]).searchParams.get('token'), cookie = (await inkwell.call('/auth/confirm', { body: { token }, status: 303 })).cookie
+    await inkwell.command('member.role', { operatorId: (await inkwell.call('/api/inkwell', { cookie })).value.actor.id, role: 'sender' })
+    return cookie
+  }
+  const [uma, eli, nia] = [await member('uma@harbour.example'), await member('eli@harbour.example'), await member('nia@harbour.example')]
+  const folderId = await inkwell.command('template.folder_create', { name: 'Vendor onboarding' }).then(r => r.id)
+  await inkwell.command('template.save', { title: 'Vendor NDA', filename: 'nda.pdf', pdfBase64, roles: [{ role: 'Vendor', order: 1 }], fields: [{ id: 'nda-sign', label: 'Signature', type: 'signature', signer: 0, page: 0, x: .1, y: .3, width: .4, height: .07 }], tags: ['vendors', 'NDA'], folderId })
+  const as = async (cookie, width = 1440) => { const context = await inkwell.browser.newContext({ viewport: { width, height: width === 390 ? 844 : 900 } }); await context.addCookies([{ name: cookie.slice(0, cookie.indexOf('=')), value: cookie.slice(cookie.indexOf('=') + 1), url: inkwell.origin }]); const page = await context.newPage(); await page.goto(`${inkwell.origin}/app`); await page.getByRole('button', { name: 'Templates' }).click(); return { context, page } }
+  const ownerView = await as(inkwell.owner)
+  await ownerView.page.getByRole('button', { name: 'Share Vendor NDA' }).click()
+  const panel = ownerView.page.getByRole('region', { name: 'Sharing Vendor NDA' })
+  await panel.getByLabel('Share with (member email)').fill('uma@harbour.example'); await panel.getByRole('button', { name: 'Share' }).click()
+  await panel.getByText('uma@harbour.example · can use').waitFor()
+  await ownerView.page.getByLabel('Folder', { exact: true }).selectOption({ label: 'Vendor onboarding' })
+  const folderPanel = ownerView.page.getByRole('region', { name: 'Sharing the folder Vendor onboarding' })
+  await folderPanel.getByLabel('Share with (member email)').fill('eli@harbour.example'); await folderPanel.getByLabel('Access').selectOption('edit'); await folderPanel.getByRole('button', { name: 'Share' }).click()
+  await folderPanel.getByText('eli@harbour.example · can edit').waitFor()
+  await ownerView.context.close()
+  for (const width of [1440, 390]) {
+    const user = await as(uma, width)
+    await user.page.getByLabel('Search templates').fill('nda')
+    await user.page.getByText(/shared with you to use/).waitFor()
+    assert.equal(await user.page.getByRole('button', { name: 'Edit Vendor NDA' }).count(), 0, `${width}px: a member with use access is not offered Edit`)
+    assert.equal(await user.page.getByRole('button', { name: 'Share Vendor NDA' }).count(), 0, `${width}px: nor Share`)
+    assert.ok(await user.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}px: no sideways scroll on the Templates screen`)
+    if (width === 1440) {
+      await user.page.getByRole('button', { name: 'Use Vendor NDA' }).click()
+      await user.page.getByLabel('Vendor name').fill('Val Vendor'); await user.page.getByLabel('Vendor email').fill('val@vendors.example')
+      await user.page.getByRole('button', { name: 'Prepare to send' }).click()
+      await user.page.getByRole('region', { name: 'Vendor NDA' }).waitFor()
+    }
+    await user.context.close()
+  }
+  const editor = await as(eli)
+  await editor.page.getByRole('button', { name: 'Edit Vendor NDA' }).click()
+  await editor.page.waitForFunction(() => document.querySelector('[aria-label="Role 1 name"]')?.value === 'Vendor')
+  await editor.page.getByLabel('Expires after (days)').fill('14')
+  await editor.page.getByRole('button', { name: 'Save new version' }).click()
+  await editor.page.getByText(/Version 2 · 1\. Vendor/).waitFor()
+  await editor.context.close()
+  const outsider = await as(nia)
+  await outsider.page.getByLabel('Search templates').fill('nda')
+  await outsider.page.getByText('No templates match.').waitFor()
+  assert.equal(await outsider.page.getByLabel('Folder', { exact: true }).locator('option', { hasText: 'Vendor onboarding' }).count(), 0, 'nor its folder')
+  await outsider.context.close()
+  const nda = (await inkwell.call('/api/inkwell/templates?q=nda', { cookie: inkwell.owner })).value.templates
+  assert.deepEqual(nda.map(t => [t.title, t.version, t.expiryDays, t.folder.name]), [['Vendor NDA', 2, 14, 'Vendor onboarding']], 'the editor saved version 2 in its folder')
+  console.log('TMPL-002 passed: shared to use (found by tag, sent, no Edit), edited through a folder share, and not found without access')
   console.log('TMPL-001 and TMPL-003 passed at 1440 and 390 pixels: a three-role template saved once and sent twice with its fields, routing, reminders and expiry; a sent envelope saved as a template; an edit made version 2')
 } catch (error) {
   await screenshots(inkwell.browser, 'tmpl-001-failure')

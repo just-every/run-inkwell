@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "cc8377189685e7108cf2f84f68f1a5c310b402569bd8878ac74e5bbc89de4e81",
+      "sha256": "54e5de7acf61417844c05a8b5fb0d56c49030f829f86da7505d43912362a5295",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "abd20867bcb4f7f8764d455ce8f0cb5f2207613ce286704ebb11694970468a6b",
+      "sha256": "7e017f59d38e5059dcaa1c0bb0b2195c2a6355afb638f254e5045938a4d7d1bd",
       "executable": false
     },
     "DEMO.md": {
@@ -272,6 +272,10 @@
     },
     "migrations/core/0028_templates.sql": {
       "sha256": "5fb1985a2e81225df38d26616b661af67c904e450b49a12d1d40f79d7411b2ce",
+      "executable": false
+    },
+    "migrations/core/0029_template_shares.sql": {
+      "sha256": "fc26228a1bffb74f3fa00d39b2df717ca2befbf376e201de6b8ca7439fc0f2e5",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -667,7 +671,7 @@
       "executable": false
     },
     "src/inkwell/api.ts": {
-      "sha256": "991ad18a0b50b42cd1bfffd703bc00f2def04262c914d0114fd7872d6e468069",
+      "sha256": "c204d2c5b9e2709ce274efbaf4804976405f43e1d660a5d935711634f6d10ec1",
       "executable": false
     },
     "src/inkwell/archive-policy.d.mts": {
@@ -675,7 +679,7 @@
       "executable": false
     },
     "src/inkwell/archive-policy.mjs": {
-      "sha256": "91b540268ff4a25a9af9e71829f25448756d5ae51c4dc2c17944b90fbe24cf4c",
+      "sha256": "8ae2e455cd042d720d5eaf40c13ab92d5e3d32bb1a4e1b26abed2e64e88eb791",
       "executable": false
     },
     "src/inkwell/archive.ts": {
@@ -846,8 +850,12 @@
       "sha256": "2218a34054e171b508217579976244a8f49d7d95793b49690b1ce5b714d9d1b8",
       "executable": false
     },
+    "src/inkwell/template-shares.ts": {
+      "sha256": "352d9b8b84fcbd38154efd98a137de2cc04dfbf05a5657c7d4931e29f0f4a4c1",
+      "executable": false
+    },
     "src/inkwell/templates.ts": {
-      "sha256": "fc510d6cb2d98aa22510cbfabc8a5078e2f50044e7522bdd4e2b99d2c218b228",
+      "sha256": "8e5cacec9964974f323438a349704349aa4fc565ac114be3d5a2a876e754aa63",
       "executable": false
     },
     "src/inkwell/timeline.ts": {
@@ -2751,7 +2759,7 @@
       "executable": false
     },
     "src/ui/prepare-envelope.tsx": {
-      "sha256": "f520df42a221ad25bee3f097a29fdf5df18736fbba7bff020b38e0f02dc40d65",
+      "sha256": "b1f8400482d7653a73f68d8e935d04d184898bc7493e42c791d30342ed1be8b3",
       "executable": false
     },
     "src/ui/public-verify.tsx": {
@@ -2786,8 +2794,12 @@
       "sha256": "9a23c3f137fea57bb23379f8ec9b13f9b1cca27f4d306c73ddfa3e5e11164c08",
       "executable": false
     },
+    "src/ui/template-sharing.tsx": {
+      "sha256": "e4c22d6f749317a5a10987ca837ed09863cc012da341d00078b169b374573548",
+      "executable": false
+    },
     "src/ui/templates.tsx": {
-      "sha256": "d8fe6645c4eb0ce209b252d67efbab0c579614084cfa60f99f6545e8745fb3bb",
+      "sha256": "aa7d3c70e67af2ced590d32025c28fac376d92fbfee65197f28f8704f2d5a771",
       "executable": false
     },
     "src/ui/types.ts": {
@@ -2803,7 +2815,7 @@
       "executable": false
     },
     "tests/api.test.mjs": {
-      "sha256": "9057e1d0f87690d27a7b1d20b43d441aabf59139d9c421f622c91a46f65878f3",
+      "sha256": "8302eeea0a01ad95d2cc2e6cfc528aae33e6dbb5b2790ed7f742202e9698bc48",
       "executable": false
     },
     "tests/delivery.test.mjs": {
@@ -2871,7 +2883,7 @@
       "executable": false
     },
     "tests/journeys/templates.mjs": {
-      "sha256": "3676f6537dee2fc5672572b44a09475f6eac1962e19dc892e315bcc71d68132d",
+      "sha256": "4fbbbd29f2a88ff1ca31dc85cde502b0a639011bf141468c7d5153c6a39f0cf7",
       "executable": false
     },
     "tests/journeys/worker.mjs": {
