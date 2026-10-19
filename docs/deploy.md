@@ -31,3 +31,10 @@ owner.
 
 Open the address, claim the owner, sign in and finish setup. Then send yourself a test
 envelope to check that invitations and codes arrive from your mail provider.
+
+To see each message's delivery on the envelope (delivered, opened, bounced), point your
+provider's delivery webhook at `https://<your address>/api/inkwell/mail/events` and store its
+signing key as the Worker secret `MAIL_WEBHOOK_KEY`: Resend's `whsec_…` signing secret, or
+SendGrid's signed event webhook public key. Without it, messages show as sent with delivery
+events not set up. Cloudflare Email reports no delivery events, so its messages always show as
+sent with no delivery confirmation from the provider.

@@ -9,6 +9,7 @@ import { updateDraft } from './drafts'
 import { prepareEnvelope, approveEnvelope, copyEnvelope, voidEnvelope, envelopeArtifact, verifyEnvelope } from './envelopes'
 import { authenticateAgent, issueAgent, revokeAgent, listAgents } from './agents'
 import { dispatchMail } from './mail'
+import { envelopeMessages, receiveDeliveryEvents } from './delivery'
 import { mailSuppressed, reissueInvitation } from './manual-invitations'
 import { openOwnSigning } from './own-signing'
 import { readBytes } from './body'
@@ -38,7 +39,7 @@ api.get('/api/inkwell/envelopes',async c=>{const actor=await requireActor(c.req.
 // MANAGE-004: the envelope report over whole days in the account's zone, as JSON or as the same numbers in CSV.
 api.get('/api/inkwell/reports/envelopes',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json(await envelopeReport(c.env,actor,new URL(c.req.url).searchParams))})
 api.get('/api/inkwell/reports/envelopes.csv',async c=>{const actor=await requireActor(c.req.raw,c.env),report=await envelopeReport(c.env,actor,new URL(c.req.url).searchParams);return new Response(reportCsv(report),{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':`attachment; filename="inkwell-envelopes-${report.from}-to-${report.to}.csv"`}})})
-api.get('/api/inkwell/envelopes/:id',async c=>{const actor=await requireActor(c.req.raw,c.env),envelope=await getEnvelope(c.env.DB,c.req.param('id')),access=await insistAccess(c.env,actor,envelope,'view');return c.json({envelope:{...presentEnvelope(c.env,actor,envelope,access),...(mayShare(actor,envelope)?{shares:await listShares(c.env,envelope.id)}:{})}})})
+api.get('/api/inkwell/envelopes/:id',async c=>{const actor=await requireActor(c.req.raw,c.env),envelope=await getEnvelope(c.env.DB,c.req.param('id')),access=await insistAccess(c.env,actor,envelope,'view');return c.json({envelope:{...presentEnvelope(c.env,actor,envelope,access),...(mayShare(actor,envelope)?{shares:await listShares(c.env,envelope.id)}:{}),messages:await envelopeMessages(c.env,envelope.id)}})})
 // ROUTE-008: the shared contact book and the member's recent recipients, for owners, admins and senders.
 const contactRoles=['owner','admin','sender'] as const
 api.get('/api/inkwell/contacts',async c=>{const actor=await requireActor(c.req.raw,c.env,contactRoles);return c.json({...await searchContacts(c.env,new URL(c.req.url).searchParams),recent:await recentRecipients(c.env,actor)})})
@@ -53,6 +54,8 @@ if(actor.role==='sender'&&command!=='envelope.prepare'&&command!=='envelope.open
 api.post('/api/inkwell/agent/prepare',async c=>{const actor=await authenticateAgent(c.req.raw,c.env),body=await readJson(c.req.raw),commandId=text(body.commandId,'a command ID',100),fingerprint=await sha256(canonical(body));const previous=await previousCommand(c.env.DB,actor.agentId!,commandId,fingerprint);if(previous)return c.json({ok:true,result:previous});return c.json({ok:true,result:await prepareEnvelope(c.env,{actor,commandId,fingerprint},body)})})
 api.get('/api/inkwell/envelopes/:id/artifacts/:kind',async c=>{const actor=await requireActor(c.req.raw,c.env),envelope=await getEnvelope(c.env.DB,c.req.param('id'));await insistAccess(c.env,actor,envelope,'view');return envelopeArtifact(c.env,envelope,c.req.param('kind'))})
 api.get('/api/inkwell/envelopes/:id/verify',async c=>{const actor=await requireActor(c.req.raw,c.env),envelope=await getEnvelope(c.env.DB,c.req.param('id'));await insistAccess(c.env,actor,envelope,'view');return c.json(await verifyEnvelope(c.env,envelope))})
+// DELIV-001: the mail provider's signed delivery webhook (Resend or SendGrid), verified by Base's intake. No session.
+api.post('/api/inkwell/mail/events',async c=>c.json({ok:true,...await receiveDeliveryEvents(c.env,c.req.raw)}))
 api.post('/api/verify',async c=>c.json(await publicVerification(c.env,c.req.raw)))
 // ROUTE-009: a member signing with their session is offered the signature they saved.
 api.get('/api/sign/:token',async c=>{const context=await signingContext(c.env,c.req.param('token'),c.req.raw),member=context.verified?sessionMember(context.envelope,context.recipient.signer):undefined;return c.json({...signingView(context),mailSuppressed:mailSuppressed(c.env),...(member?await savedMarkView(c.env,member):{})})})

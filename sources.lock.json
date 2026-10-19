@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "c9c643d57dc6f71deb32d268b8d03c43b4cdab5ab159e7c9b50e5120d9867d75",
+      "sha256": "7a0a86cb3897e639d7942025b4a4e21246a3c01625b51b8fdd15bcf9e51812c9",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "5f318a0756150604f1140090f5b62a51b6891ecce750b6eefac69a5836bcaee9",
+      "sha256": "897451b9e30278adf2d9ee6eaa3cecda33069a298e75ae247e4aff2677a2c987",
       "executable": false
     },
     "DEMO.md": {
@@ -111,7 +111,7 @@
       "executable": false
     },
     "docs/deploy.md": {
-      "sha256": "d3eda46ccc750f7581e17bab181e2817738309dbdb68bf7e604d892ae2edcce7",
+      "sha256": "35f9818f889c283c88a6db71aad8b7b2955eacbf4be2c7b899934a4c58193275",
       "executable": false
     },
     "docs/getting-started.md": {
@@ -260,6 +260,10 @@
     },
     "migrations/core/0025_member_mark_adoption.sql": {
       "sha256": "b1bdd4453860e3664ee847d1a82f9046b33e0102fd27b424a45f84aac4fda89d",
+      "executable": false
+    },
+    "migrations/core/0026_mail_delivery.sql": {
+      "sha256": "ac7a87e8e4b2b425eaf3d7f5d0cabaff745a69dc0938736f3afba0331e37432f",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -511,7 +515,7 @@
       "executable": false
     },
     "src/auth.server.ts": {
-      "sha256": "fd3abe981c1a78e20b96babe1565fb423ebec9ac53a0fa4577872de0eb2b4e5d",
+      "sha256": "e431a8f8b1600b70384cc570b22d26bd7d903cee075e8158fda1a7319cb6870d",
       "executable": false
     },
     "src/base/contract-filter.ts": {
@@ -651,7 +655,7 @@
       "executable": false
     },
     "src/inkwell/api.ts": {
-      "sha256": "50fa15babb0dac8ebc1bc890f0d395e8b12d29308fe63adab9cf8ba0246dc75b",
+      "sha256": "f8aecfa5fa4f994b3aee642ee3b877f1482f4831a88fb39e35e0867867218170",
       "executable": false
     },
     "src/inkwell/archive-policy.d.mts": {
@@ -659,11 +663,11 @@
       "executable": false
     },
     "src/inkwell/archive-policy.mjs": {
-      "sha256": "f838ac47959e1b77bb38313ba6f93ebffba6e8cbd11b1daba48615a88bc1d265",
+      "sha256": "d2dfa66ddee1643ff2ace5e81ebec7835c34d4f3657e5e9d529d485b2b1a1abc",
       "executable": false
     },
     "src/inkwell/archive.ts": {
-      "sha256": "92c76725cf00bf06d10964383082711291d931f108e6121a1cd0ab0c99438e14",
+      "sha256": "2ad8204646ebcdba5ddc956acba2f1f440eda34f2888b8bb0e955122f7b68a4a",
       "executable": false
     },
     "src/inkwell/blobs.ts": {
@@ -684,6 +688,10 @@
     },
     "src/inkwell/contacts.ts": {
       "sha256": "956cfcc1d0e07ccb7c57793ffcc781b330db3d046472ee31a27e6be61d3d2171",
+      "executable": false
+    },
+    "src/inkwell/delivery.ts": {
+      "sha256": "d2c8d67914fc6ed514f328ae035a4db2dc972c5813e5f8a5ce08489e4436be59",
       "executable": false
     },
     "src/inkwell/disclosure.ts": {
@@ -727,7 +735,7 @@
       "executable": false
     },
     "src/inkwell/mail.ts": {
-      "sha256": "5d2cf2fbbd31e0fcc8cbb655ff100ce5cdbb379b223a7fff31edee2fd54ac006",
+      "sha256": "ed2f1b9c5b5abe15bd9938fc2c4a79eb30e9817badae82ea61d7af385fb60dc9",
       "executable": false
     },
     "src/inkwell/manual-invitations.ts": {
@@ -804,6 +812,14 @@
     },
     "src/inkwell/zone.ts": {
       "sha256": "5cb0c4c4ee4c6d7c65af943b04054423faf206b1762636c11ec419057b475ce6",
+      "executable": false
+    },
+    "src/mail-events.server.d.mts": {
+      "sha256": "d339b22bd1cd297b38800e5368a252b1f68a6d4863be61733f9092efde5213ab",
+      "executable": false
+    },
+    "src/mail-events.server.mjs": {
+      "sha256": "913cdfdb5733387314fa953103449218ff1acff4e9d6398bc40f539fd8a39e3f",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -2643,7 +2659,7 @@
       "executable": false
     },
     "src/ui/envelope-detail.tsx": {
-      "sha256": "976197cc29a91355315efb7ccbeb853c2c37e139992b184658b592271d125599",
+      "sha256": "92139b39b32991ce115d72042cfca61e248b2ad7ac8c60069afc2398d835767c",
       "executable": false
     },
     "src/ui/envelope-list.tsx": {
@@ -2719,7 +2735,7 @@
       "executable": false
     },
     "src/ui/types.ts": {
-      "sha256": "b9014a7ca663a138a7f0f0fd70dd6b76bd33da11a17c39f88d6f7bde03f04c80",
+      "sha256": "3eb65ba8c3617d4076a84ff6347c40e80287aa83a4c6189cfdcf79c8d021b0e4",
       "executable": false
     },
     "test-budget.json": {
@@ -2732,6 +2748,10 @@
     },
     "tests/api.test.mjs": {
       "sha256": "8ecea09ced510b0286a8218b99fb60370b8a8404f0fac4c8c519e8c5c78e2c9f",
+      "executable": false
+    },
+    "tests/delivery.test.mjs": {
+      "sha256": "6f050ff6111e5b60e5307da247cf4887c9e6d014e8a65d6a14ec93a41a1f8b93",
       "executable": false
     },
     "tests/fixtures/docuseal/archive.json": {
@@ -2759,7 +2779,7 @@
       "executable": false
     },
     "tests/harness.mjs": {
-      "sha256": "461f2a9fa2bb39c3418da08c64098adb386857c7ec589298104e2ffd5acb0cb0",
+      "sha256": "8f9a177a67be21cfdf78ce0899d9bae5e2e9150f048355cf8381ac91fb69bfb2",
       "executable": false
     },
     "tests/journeys/accessible-signing.mjs": {

@@ -8,13 +8,22 @@ import { build } from 'esbuild'
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare'
 import { unstable_splitSqlQuery } from 'wrangler'
 
-export async function harness({ mailProvider = 'resend' } = {}) {
+// The paid mail edge, faked per provider: each accepted message is captured as {to, subject, text}. DELIV-001: SendGrid
+// messages keep their custom_args (rer_delivery_id), Resend and SendGrid return a message id, and failSends(n) makes the
+// next n requests answer 500, which the provider adapters classify as uncertain.
+const edges = {
+ 'api.resend.com': async request => { const body = await request.json(), id = crypto.randomUUID(); return [{ ...body, id }, Response.json({ id })] },
+ 'api.sendgrid.com': async request => { const body = await request.json(), id = crypto.randomUUID().replaceAll('-', '').slice(0, 22); return [{ to: body.personalizations.flatMap(p => p.to.map(t => t.email)), subject: body.subject, text: body.content.find(c => c.type === 'text/plain')?.value, customArgs: body.custom_args, id }, new Response(null, { status: 202, headers: { 'x-message-id': id } })] },
+ 'api.cloudflare.com': async request => { const body = await request.json(); return [body, Response.json({ success: true, errors: [], messages: [], result: { delivered: body.to, permanent_bounces: [], queued: [] } })] },
+}
+export async function harness({ mailProvider = 'resend', bindings = {} } = {}) {
  const socket = createServer(); await new Promise(r => socket.listen(0,'127.0.0.1',r)); const port = socket.address().port; await new Promise(r => socket.close(r))
  const origin = `http://127.0.0.1:${port}`, directory = await mkdtemp(join(tmpdir(),'inkwell-test-'))
  const bundle = await build({entryPoints:['tests/api-worker.ts'],bundle:true,write:false,format:'esm',platform:'neutral',mainFields:['module','main'],conditions:['workerd','worker','browser'],external:['node:*','cloudflare:*'],target:'es2023'})
  const bootstrapToken = randomBytes(32).toString('hex')
- const capturedMail = []
- const mf = new Miniflare({...convertV4MiniflareOptions({host:'127.0.0.1',port,outboundService:async request=>{ if(new URL(request.url).hostname!=='api.resend.com') throw new Error('Unexpected test network request'); capturedMail.push(await request.json()); return Response.json({id:crypto.randomUUID()}) },modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'inkwell'},bindings:{AUTH_ORIGIN:origin,AUTH_LOCAL:'true',OWNER_EMAIL:'owner@harbour.example',SESSION_SECRET:randomBytes(32).toString('hex'),SETUP_TOKEN:bootstrapToken,...(mailProvider ? {MAIL_PROVIDER:mailProvider} : {}),MAIL_API_KEY:'test-mail-edge',MAIL_FROM:'Inkwell <inkwell@harbour.example>'}}),resourcePersistencePath:directory})
+ const capturedMail = [], attempts = []
+ let failing = 0
+ const mf = new Miniflare({...convertV4MiniflareOptions({host:'127.0.0.1',port,outboundService:async request=>{ const edge=edges[new URL(request.url).hostname]; if(!edge) throw new Error('Unexpected test network request'); const [message,response]=await edge(request); attempts.push(message); if(failing>0){failing--;return new Response('provider unavailable',{status:500})} capturedMail.push(message); return response },modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'inkwell'},bindings:{AUTH_ORIGIN:origin,AUTH_LOCAL:'true',OWNER_EMAIL:'owner@harbour.example',SESSION_SECRET:randomBytes(32).toString('hex'),SETUP_TOKEN:bootstrapToken,...(mailProvider ? {MAIL_PROVIDER:mailProvider} : {}),MAIL_API_KEY:'test-mail-edge',MAIL_FROM:'Inkwell <inkwell@harbour.example>',...(mailProvider==='cloudflare'?{MAIL_ACCOUNT_ID:'0123456789abcdef0123456789abcdef'}:{}),...bindings}}),resourcePersistencePath:directory})
  try {
   const db = await mf.getD1Database('DB')
   for(const file of (await readdir('migrations/core')).filter(f=>f.endsWith('.sql')).sort()) await db.batch(unstable_splitSqlQuery(await readFile('migrations/core/'+file,'utf8')).map(sql=>db.prepare(sql)))
@@ -43,6 +52,8 @@ export async function harness({ mailProvider = 'resend' } = {}) {
   const scheduled=async at=>{const result=await (await mf.getWorker()).scheduled({scheduledTime:new Date(at),cron:'17 * * * *'});assert.equal(result.outcome,'ok','the scheduled pass succeeds')}
   // How many messages the mail edge has received so far.
   const sent=()=>capturedMail.length
-  return {mf,db,origin,owner,send,post,command,mail,invite,agree,scheduled,sent,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
+  // DELIV-001: every request the mail edge received, including ones it failed, and failing the next n.
+  const attempted=()=>[...attempts],failSends=n=>{failing=n}
+  return {mf,db,origin,owner,send,post,command,mail,invite,agree,scheduled,sent,attempted,failSends,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
  }catch(e){await mf.dispose();await rm(directory,{recursive:true,force:true});throw e}
 }

@@ -60,6 +60,9 @@ async function erase(env: Bindings, actor: Actor, input: Record<string, unknown>
  await atomic(env.DB,[roleGuard(actor,['owner']),{sql:'EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=?)',values:[before.id,before.version]}],[
   ...await service.redactionStatements(), ...await service.erasureStatements('iw_envelopes',{id:before.id}), ...await service.invalidateTransfersStatements(),
   env.DB.prepare("DELETE FROM rer_mail_development_outbox WHERE json_extract(message,'$.deliveryId') IN (SELECT id FROM iw_mail WHERE envelope_id=?)").bind(before.id),
+  // DELIV-001: provider delivery events name the recipient; erase them with the messages they describe.
+  env.DB.prepare("DELETE FROM rer_mail_event_states WHERE EXISTS(SELECT 1 FROM rer_mail_event_receipts r JOIN iw_mail m ON m.envelope_id=? AND r.provider=m.provider AND (json_extract(r.event_json,'$.providerMessageId')=m.provider_message_id OR json_extract(r.event_json,'$.deliveryId')=m.id) WHERE r.provider=rer_mail_event_states.provider AND r.tenant_id=rer_mail_event_states.tenant_id AND json_extract(r.event_json,'$.providerMessageId')=rer_mail_event_states.provider_message_id)").bind(before.id),
+  env.DB.prepare("DELETE FROM rer_mail_event_receipts WHERE EXISTS(SELECT 1 FROM iw_mail m WHERE m.envelope_id=? AND rer_mail_event_receipts.provider=m.provider AND (json_extract(rer_mail_event_receipts.event_json,'$.providerMessageId')=m.provider_message_id OR json_extract(rer_mail_event_receipts.event_json,'$.deliveryId')=m.id))").bind(before.id),
   ...deleted, env.DB.prepare('DELETE FROM iw_envelopes WHERE id=?').bind(before.id),
   // Command results and local mail can retain identity/link fragments. Delete
   // this envelope's command results and messages, never another document's rows.

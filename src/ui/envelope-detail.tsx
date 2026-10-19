@@ -12,6 +12,8 @@ import { Check, Pill } from './marks'
 import { Icon } from './icons'
 import { currentSigners, pill, routingOrder, preparedByAgent, titleParts } from './envelope-view'
 
+// DELIV-001: what each kind of message is, as the Messages list names it.
+const messageKinds: Record<string, string> = { invitation: 'Invitation', code: 'Verification code', notice: 'Notice', copy: 'Completed copy', copy_code: 'Completed-copy code' }
 type Invitation = { url: string; code: string; recipient: string; expiresAt: string }
 type InvitationResult = { invitations?: Invitation[]; signInApp?: boolean }
 type OwnSigningResult = { signing: { url: string } }
@@ -94,6 +96,7 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
     {envelope.status === 'completed' && mayEdit && <SendCopy id={envelope.id} refresh={refresh} />}
     {envelope.mayShare && <EnvelopeShares envelope={envelope} refresh={refresh} />}
     <ArtifactIntegrity envelope={envelope} base={base} />
+    {envelope.messages?.length ? <details className="iw-audit-trail"><summary>Messages ({envelope.messages.length})</summary><ol className="iw-audit">{envelope.messages.map(message => <li key={message.id}><strong>{messageKinds[message.kind] ?? message.kind} to {message.recipient}</strong> <span>{message.label}</span><p>{[['Queued', message.createdAt], ['Sent', message.sentAt], ['Delivered', message.deliveredAt], ['Opened', message.openedAt], ['Bounced', message.bouncedAt], ['Failed', message.failedAt]].filter(([, at]) => at).map(([what, at]) => `${what} ${dateTime(at!)}`).join(' · ')}</p></li>)}</ol></details> : null}
     <details className="iw-audit-trail"><summary>Audit trail ({envelope.events.length})</summary><ol className="iw-audit">{envelope.events.map((event, index) => <li key={index}><strong>{event.action.replaceAll('_', ' ')}</strong> <time>{dateTime(event.at)}</time>{event.actor && <span>{event.actor}</span>}{typeof event.detail?.reason === 'string' && <p>{event.detail.reason}</p>}</li>)}</ol></details>
     {copyable && <div className="iw-quiet"><button disabled={action.busy} onClick={() => void action.run(async () => { const copy = await command<{ id: string }>('envelope.copy', { id: envelope.id }); await refresh(); onOpen(copy.id) })}>{action.busy ? 'Copying…' : 'Copy to a new envelope'}</button></div>}
     {mayEdit && ['prepared', 'awaiting_signature', 'expired'].includes(envelope.status) && <div className="iw-quiet"><button disabled={action.busy} onClick={() => setExtending(value => !value)}>Extend expiry…</button>{extending && <form className="iw-stack iw-callout" onSubmit={event => { event.preventDefault(); void action.run(async () => { await command('envelope.extend', { id: envelope.id, days: extendDays }); setExtending(false); await refresh() }) }}><label>Extend by (days)<input type="number" required min={1} max={365} step={1} value={extendDays} onChange={event => setExtendDays(Math.round(Number(event.target.value)))} /></label><p>{envelope.status === 'expired' ? 'The envelope reopens from today with the same document, recipients and links.' : `The new expiry counts from ${dateTime(envelope.expiresAt)}. Links and signatures so far stay as they are.`}</p><button className="iw-primary iw-fit" disabled={action.busy}>Extend</button></form>}</div>}
