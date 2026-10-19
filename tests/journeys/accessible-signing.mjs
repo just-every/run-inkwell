@@ -7,6 +7,7 @@
 //    accessibility tree gives every field its label, page, required state and value, and the consent its checked state.
 // 4. 200% zoom: a 1440 by 900 screen at 200% (720 by 450 CSS pixels at 2x) shows preparation and signing without
 //    sideways scrolling.
+// DELIV-008's activity feed and notification settings join the scan above.
 // PREP-005's field editing (place on a page or thumbnail, drag, resize, duplicate, align, reassign) joins the scan and
 // the keyboard-only pass with the same checks (./a11y.mjs) in tests/journeys/field-placement.mjs.
 import assert from 'node:assert/strict'
@@ -43,6 +44,9 @@ try {
     await app.getByRole('button', { name: /Place field on page 1/ }).waitFor(); minor += await axe(app, `${label} template preparation`)
     await app.getByRole('button', { name: 'Cancel' }).click(); await app.getByRole('button', { name: 'Use Scan template' }).click()
     await app.getByRole('heading', { name: 'Send Scan template' }).waitFor(); minor += await axe(app, `${label} template send`)
+    // DELIV-008's screens: the activity feed (the signer's view above is in it) and the notification choices.
+    await app.getByRole('button', { name: 'Activity' }).click(); await app.getByText(`Scan ${label}`).first().waitFor(); minor += await axe(app, `${label} activity`)
+    await app.getByRole('button', { name: 'Settings' }).click(); await app.getByRole('checkbox', { name: 'Declined by Email' }).waitFor(); minor += await axe(app, `${label} notification settings`)
     await signer.close(); await operator.close()
   }
   console.log(`SIGNX-003 scan: no serious or critical WCAG 2.2 A/AA violation on preparation and signing (light and dark, 1440 and 390; ${minor} minor or moderate)`)

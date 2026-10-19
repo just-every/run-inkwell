@@ -120,7 +120,7 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
   }
   for (const [i, code] of codes) writes.push(env.DB.prepare('DELETE FROM iw_access_codes WHERE envelope_id=? AND signer=?').bind(after.id, i), env.DB.prepare('INSERT INTO iw_access_codes(envelope_id,signer,code_hash) VALUES(?,?,?)').bind(after.id, i, await accessCodeHash(env, after.id, i, code)))
   const result = { id: after.id, invited: nowCurrent.filter(i => !wasCurrent.includes(i) || rotated.has(i) || !before.signers[i]).map(i => after.signers[i].email), emailSent: mail }
-  await commitEnvelope(env.DB, before, after, context.actor, [...writes, commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
+  await commitEnvelope(env, before, after, context.actor, [...writes, commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   await dispatchMail(env, after.id)
   return result
 }

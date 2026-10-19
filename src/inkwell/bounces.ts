@@ -26,9 +26,10 @@ export async function alertBounces(env: Env) {
     const before = await getEnvelope(env.DB, envelope_id)
     const fresh = bouncedRecipients(before, await envelopeMessages(env, before.id)).filter(({ message }) => !before.events.some(e => e.action === 'signer.bounced' && e.detail.message === message.id))
     if (!fresh.length) continue
-    const after = structuredClone(before), sender = await env.DB.prepare('SELECT email,display_name FROM oa_operators WHERE id=?').bind(before.createdBy).first<{ email: string; display_name: string }>()
-    for (const { signer, message } of fresh) await appendEvent(after, 'signer.bounced', 'inkwell', { signer, email: message.recipient, message: message.id, status: message.status, senderAlerted: Boolean(sender) })
-    await commitEnvelope(env.DB, before, after, null, sender ? fresh.map(({ signer, message }) => noticeWrite(env.DB, after, signer, sender.email, `Bounced: ${after.title}`, `${sender.display_name},\n\nThe invitation to ${after.signers[signer].name} at ${message.recipient} could not be delivered (${message.label.toLowerCase()}). Reminders to them are paused.\n\nOpen the envelope in Inkwell, correct their email address and the new invitation goes out at once.\n${new URL('/app', env.AUTH_ORIGIN).href}`)) : [])
+    // DELIV-008 alerts the sender (and edit-share holders) as each of them chose, from the signer.bounced event.
+    const after = structuredClone(before)
+    for (const { signer, message } of fresh) await appendEvent(after, 'signer.bounced', 'inkwell', { signer, email: message.recipient, message: message.id, status: message.status })
+    await commitEnvelope(env, before, after, null)
     await dispatchMail(env, after.id)
   }
 }
@@ -48,7 +49,7 @@ export async function correctBounced(env: Env, context: CommandContext, input: R
   await appendEvent(after, 'signer.corrected', context.actor.id, { signer, reason: 'bounced', before: { name: before.signers[signer].name, email: before.signers[signer].email }, after: { name, email } })
   after.signers[signer] = { ...after.signers[signer], name, email }
   const result = { id: after.id, signer, email }
-  await commitEnvelope(env.DB, before, after, context.actor, [
+  await commitEnvelope(env, before, after, context.actor, [
     env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=?,code_hash=NULL,code_expires=NULL,code_attempts=0,code_sent_at=NULL,session_hash=NULL,session_expires=NULL,progress=NULL WHERE envelope_id=? AND signer=?').bind(await sha256(token), await sealLink(env, after.id, signer, token), after.id, signer),
     env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND signer=? AND recipient=? AND state='pending'").bind(after.id, signer, before.signers[signer].email),
     invitationWrite(env, after, signer, token), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])

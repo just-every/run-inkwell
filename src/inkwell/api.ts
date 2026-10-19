@@ -9,6 +9,7 @@ import { updateDraft } from './drafts'
 import { prepareEnvelope, approveEnvelope, copyEnvelope, voidEnvelope, envelopeArtifact, verifyEnvelope } from './envelopes'
 import { authenticateAgent, issueAgent, revokeAgent, listAgents } from './agents'
 import { dispatchMail } from './mail'
+import { activityFeed, noticeSettings, saveNoticeSettings } from './notices'
 import { receiveDeliveryEvents } from './delivery'
 import { envelopeTimeline } from './timeline'
 import { mailSuppressed, reissueInvitation } from './manual-invitations'
@@ -55,6 +56,10 @@ api.get('/api/inkwell/templates',async c=>{const actor=await requireActor(c.req.
 // TMPL-005: the templates whose document an upload on the prepare screen matches; nothing is placed or stored.
 api.post('/api/inkwell/templates/match',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);return c.json(await matchTemplates(c.env,actor,await readJson(c.req.raw)))})
 api.get('/api/inkwell/templates/:id/document',async c=>{const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);return templateDocument(c.env,actor,c.req.param('id'))})
+// DELIV-008: each member's activity feed and notification choices; every role has its own.
+api.get('/api/inkwell/notices',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json(await activityFeed(c.env,actor,new URL(c.req.url).searchParams))})
+api.get('/api/inkwell/notices/settings',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json(await noticeSettings(c.env,actor))})
+api.post('/api/inkwell/notices/settings',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env);return c.json({ok:true,result:await saveNoticeSettings(c.env,actor,await readJson(c.req.raw,8192))})})
 // ROUTE-008: the shared contact book and the member's recent recipients, for owners, admins and senders.
 const contactRoles=['owner','admin','sender'] as const
 api.get('/api/inkwell/contacts',async c=>{const actor=await requireActor(c.req.raw,c.env,contactRoles);return c.json({...await searchContacts(c.env,new URL(c.req.url).searchParams),recent:await recentRecipients(c.env,actor)})})

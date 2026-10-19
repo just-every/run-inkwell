@@ -39,6 +39,6 @@ async function send(env: Env, before: Envelope, at: number) {
   await appendEvent(after, 'envelope.sent_scheduled', 'inkwell', { scheduledFor: schedule.at, local: schedule.local, timeZone: schedule.timeZone, passAt: new Date(at).toISOString(), invited: first })
   const writes: D1PreparedStatement[] = []
   for (const i of first) { const token = secret(); writes.push(env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=? WHERE envelope_id=? AND signer=?').bind(await sha256(token), await sealLink(env, after.id, i, token), after.id, i), invitationWrite(env, after, i, token)) }
-  await commitEnvelope(env.DB, before, after, null, writes)
+  await commitEnvelope(env, before, after, null, writes)
   await dispatchMail(env, after.id)
 }

@@ -28,7 +28,7 @@ export async function uploadPaper(env: Env, context: SigningContext, request: Re
   after.signers[index] = { ...signer, paper: { sha256: fingerprint, pages, mediaType, uploadedAt: now(), status: 'pending' } }
   await appendEvent(after, 'signer.paper_uploaded', `signer:${index + 1}`, { signer: index, email: signer.email, sha256: fingerprint, pages, mediaType, bytes: bytes.length, ...context.client })
   const sender = await env.DB.prepare('SELECT email,display_name FROM oa_operators WHERE id=?').bind(after.createdBy).first<{ email: string; display_name: string }>()
-  await commitEnvelope(env.DB, before, after, null, [
+  await commitEnvelope(env, before, after, null, [
     env.DB.prepare('DELETE FROM iw_blobs WHERE envelope_id=? AND kind=?').bind(after.id, paperKind(index)),
     ...blobWrites(env.DB, after.id, paperKind(index), bytes),
     ...(sender && !mailSuppressed(env) ? [noticeWrite(env.DB, after, index, sender.email, `Paper signature to review: ${after.title}`, `${sender.display_name},\n\n${signer.name} signed ${after.title} on paper and uploaded ${pages} page(s).\nOpen the envelope in Inkwell to accept or reject the upload.`)] : []),
@@ -52,7 +52,7 @@ export async function reviewPaper(env: Env, context: CommandContext, input: Reco
     after.signers[index] = { ...signer, paper: { ...paper, status: 'rejected', reviewedAt, reviewedBy: context.actor.id, reason } }
     await appendEvent(after, 'signer.paper_rejected', context.actor.id, { signer: index, sha256: paper.sha256, reason })
     const result = { id: after.id, status: after.status, paper: 'rejected' }
-    await commitEnvelope(env.DB, before, after, context.actor, [
+    await commitEnvelope(env, before, after, context.actor, [
       ...(mailSuppressed(env) ? [] : [noticeWrite(env.DB, after, index, signer.email, `Paper signature not accepted: ${after.title}`, `${signer.name},\n\nThe sender did not accept your paper signature for ${after.title}.\nReason: ${reason}\n\nOpen your signing link to upload a new scan or sign electronically.`)]),
       commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
     await dispatchMail(env, after.id)
@@ -62,7 +62,7 @@ export async function reviewPaper(env: Env, context: CommandContext, input: Reco
   await appendEvent(after, 'signer.signed_on_paper', context.actor.id, { signer: index, email: signer.email, wetInk: true, sha256: paper.sha256, pages: paper.pages, originalSha256: after.originalSha256 })
   const writes = await advanceAfterSigning(env, after, index)
   const result = { id: after.id, status: after.status, paper: 'accepted' }
-  await commitEnvelope(env.DB, before, after, context.actor, [...writes, commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
+  await commitEnvelope(env, before, after, context.actor, [...writes, commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   if (after.status === 'completed') { await readBlob(env.DB, after.id, 'signed', after.signedSha256); await readBlob(env.DB, after.id, 'certificate', after.certificateSha256) }
   await dispatchMail(env, after.id)
   return result

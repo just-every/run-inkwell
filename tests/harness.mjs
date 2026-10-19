@@ -16,14 +16,17 @@ const edges = {
  'api.sendgrid.com': async request => { const body = await request.json(), id = crypto.randomUUID().replaceAll('-', '').slice(0, 22); return [{ to: body.personalizations.flatMap(p => p.to.map(t => t.email)), subject: body.subject, text: body.content.find(c => c.type === 'text/plain')?.value, customArgs: body.custom_args, id }, new Response(null, { status: 202, headers: { 'x-message-id': id } })] },
  'api.cloudflare.com': async request => { const body = await request.json(); return [body, Response.json({ success: true, errors: [], messages: [], result: { delivered: body.to, permanent_bounces: [], queued: [] } })] },
 }
+// DELIV-008: the chat edges, faked by host: each accepted post is captured as {channel, path, body}. Nook's stands in for
+// a Nook installation's Slack-compatible incoming webhook (NOOK-063), which answers like Slack's.
+const hooks = { 'hooks.slack.com': 'slack', 'harbour.webhook.office.com': 'teams', 'nook.harbour.example': 'nook' }
 export async function harness({ mailProvider = 'resend', bindings = {} } = {}) {
  const socket = createServer(); await new Promise(r => socket.listen(0,'127.0.0.1',r)); const port = socket.address().port; await new Promise(r => socket.close(r))
  const origin = `http://127.0.0.1:${port}`, directory = await mkdtemp(join(tmpdir(),'inkwell-test-'))
  const bundle = await build({entryPoints:['tests/api-worker.ts'],bundle:true,write:false,format:'esm',platform:'neutral',mainFields:['module','main'],conditions:['workerd','worker','browser'],external:['node:*','cloudflare:*'],target:'es2023'})
  const bootstrapToken = randomBytes(32).toString('hex')
- const capturedMail = [], attempts = []
+ const capturedMail = [], attempts = [], posts = []
  let failing = 0
- const mf = new Miniflare({...convertV4MiniflareOptions({host:'127.0.0.1',port,outboundService:async request=>{ const edge=edges[new URL(request.url).hostname]; if(!edge) throw new Error('Unexpected test network request'); const [message,response]=await edge(request); attempts.push(message); if(failing>0){failing--;return new Response('provider unavailable',{status:500})} capturedMail.push(message); return response },modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'inkwell'},bindings:{AUTH_ORIGIN:origin,AUTH_LOCAL:'true',OWNER_EMAIL:'owner@harbour.example',SESSION_SECRET:randomBytes(32).toString('hex'),SETUP_TOKEN:bootstrapToken,...(mailProvider ? {MAIL_PROVIDER:mailProvider} : {}),MAIL_API_KEY:'test-mail-edge',MAIL_FROM:'Inkwell <inkwell@harbour.example>',...(mailProvider==='cloudflare'?{MAIL_ACCOUNT_ID:'0123456789abcdef0123456789abcdef'}:{}),...bindings}}),resourcePersistencePath:directory})
+ const mf = new Miniflare({...convertV4MiniflareOptions({host:'127.0.0.1',port,outboundService:async request=>{ const hook=hooks[new URL(request.url).hostname]; if(hook){ posts.push({channel:hook,path:new URL(request.url).pathname,body:await request.json()}); return new Response(hook==='teams'?'1':'ok') } const edge=edges[new URL(request.url).hostname]; if(!edge) throw new Error('Unexpected test network request'); const [message,response]=await edge(request); attempts.push(message); if(failing>0){failing--;return new Response('provider unavailable',{status:500})} capturedMail.push(message); return response },modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2026-09-08',compatibilityFlags:['nodejs_compat'],d1Databases:{DB:'inkwell'},bindings:{AUTH_ORIGIN:origin,AUTH_LOCAL:'true',OWNER_EMAIL:'owner@harbour.example',SESSION_SECRET:randomBytes(32).toString('hex'),SETUP_TOKEN:bootstrapToken,...(mailProvider ? {MAIL_PROVIDER:mailProvider} : {}),MAIL_API_KEY:'test-mail-edge',MAIL_FROM:'Inkwell <inkwell@harbour.example>',...(mailProvider==='cloudflare'?{MAIL_ACCOUNT_ID:'0123456789abcdef0123456789abcdef'}:{}),...bindings}}),resourcePersistencePath:directory})
  try {
   const db = await mf.getD1Database('DB')
   for(const file of (await readdir('migrations/core')).filter(f=>f.endsWith('.sql')).sort()) await db.batch(unstable_splitSqlQuery(await readFile('migrations/core/'+file,'utf8')).map(sql=>db.prepare(sql)))
@@ -54,6 +57,6 @@ export async function harness({ mailProvider = 'resend', bindings = {} } = {}) {
   const sent=()=>capturedMail.length
   // DELIV-001: every request the mail edge received, including ones it failed, and failing the next n.
   const attempted=()=>[...attempts],failSends=n=>{failing=n}
-  return {mf,db,origin,owner,send,post,command,mail,invite,agree,scheduled,sent,attempted,failSends,async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
+  return {mf,db,origin,owner,send,post,command,mail,invite,agree,scheduled,sent,attempted,failSends,posts:()=>[...posts],async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
  }catch(e){await mf.dispose();await rm(directory,{recursive:true,force:true});throw e}
 }

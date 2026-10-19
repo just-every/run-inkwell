@@ -65,7 +65,7 @@ export async function updateDraft(env: Env, context: CommandContext, input: Reco
   const after: Envelope = { id: before.id, version: before.version, status: 'prepared', createdAt: before.createdAt, createdBy: before.createdBy, ...(before.copiedFrom ? { copiedFrom: before.copiedFrom } : {}), events: structuredClone(before.events), ...draft }
   await appendEvent(after, 'envelope.updated', context.actor.id, draftDetail(draft))
   const result = { id: after.id }
-  await commitEnvelope(env.DB, before, after, context.actor, [
+  await commitEnvelope(env, before, after, context.actor, [
     ...(draft.originalSha256 === before.originalSha256 ? [] : [env.DB.prepare("DELETE FROM iw_blobs WHERE envelope_id=? AND kind='original'").bind(after.id), ...blobWrites(env.DB, after.id, 'original', bytes)]),
     env.DB.prepare(`DELETE FROM iw_access_codes WHERE envelope_id=?${accessCodes.some(code => code === 'keep') ? ` AND signer NOT IN (${accessCodes.flatMap((code, i) => code === 'keep' ? [i] : []).join(',')})` : ''}`).bind(after.id),
     ...await accessCodeWrites(env, after.id, accessCodes),

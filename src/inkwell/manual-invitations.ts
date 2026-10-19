@@ -29,7 +29,7 @@ export async function reissueInvitation(env: Env, context: CommandContext, input
   const after = structuredClone(before)
   const issued = await manualInvitation(env, after, signer, secret(), row.code_generation + 1, context.actor.id)
   const result = { id: after.id, status: after.status }
-  await commitEnvelope(env.DB, before, after, context.actor, [issued.write,
+  await commitEnvelope(env, before, after, context.actor, [issued.write,
     env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND signer=? AND state='pending'").bind(after.id, signer),
     commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   return { ...result, invitations: [issued.invitation] }

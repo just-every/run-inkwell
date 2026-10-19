@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Icon, type IconName } from './icons'
 import { clockTime, type Actor } from './types'
 
-export type Place = 'envelopes' | 'me' | 'templates' | 'reports' | 'move-in' | 'archive' | 'agents' | 'settings'
+export type Place = 'envelopes' | 'me' | 'activity' | 'templates' | 'reports' | 'move-in' | 'archive' | 'agents' | 'settings'
 export const roleLabel = { owner: 'Owner', admin: 'Admin', sender: 'Sender', viewer: 'Viewer' } as Record<string, string>
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]?.toUpperCase()).join('') || '·'
 
@@ -20,6 +20,7 @@ export function Sidebar({ place, actor, waiting, onGo }: { place: Place; actor?:
     <nav aria-label="Workspace"><ul>
       {item('envelopes', 'envelope', 'Envelopes')}
       {item('me', 'clock', 'Waiting for me', waiting > 0 && <span className="iw-nav-count">{waiting}</span>)}
+      {item('activity', 'alert', 'Activity')}
       {actor && ['owner', 'admin', 'sender'].includes(actor.role) && item('templates', 'document', 'Templates')}
       {item('reports', 'chart', 'Reports')}
       {owner && <>{item('move-in', 'movein', 'Move in')}{item('archive', 'archive', 'Archive')}{item('agents', 'agent', 'Agent access')}</>}

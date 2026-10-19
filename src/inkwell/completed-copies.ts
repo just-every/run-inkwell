@@ -79,7 +79,7 @@ export async function sendCompletedCopy(env: Env, context: CommandContext, input
   const bytes = (await readBlob(env.DB, after.id, 'signed', after.signedSha256!)).length + (await readBlob(env.DB, after.id, 'certificate', after.certificateSha256!)).length
   const writes = await copyWrites(env, after, bytes, added.map((_, i) => start + i), 'envelope.copy_sent', context.actor.id)
   const result = { id: after.id, sent: added.map(c => c.email) }
-  await commitEnvelope(env.DB, before, after, context.actor, [...writes, commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
+  await commitEnvelope(env, before, after, context.actor, [...writes, commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   await dispatchMail(env, after.id)
   return result
 }
@@ -110,7 +110,7 @@ export async function requestCopyCode(env: Env, context: CopyContext) {
   insist(l.code_generation < 10, 'The code request limit was reached. Contact the sender.', 429)
   const code = randomCode(), generation = l.code_generation + 1, at = Date.now(), after = structuredClone(context.envelope)
   await appendEvent(after, 'copy.code_requested', `copy:${l.party + 1}`, { party: l.party, email: l.email })
-  await commitEnvelope(env.DB, context.envelope, after, null, [
+  await commitEnvelope(env, context.envelope, after, null, [
     env.DB.prepare('UPDATE iw_copy_links SET code_hash=?,code_expires=?,code_attempts=0,code_sent_at=?,code_generation=? WHERE token_hash=?').bind(await sha256(`${env.SESSION_SECRET}:copy:${l.token_hash}:${generation}:${code}`), at + 10 * 60_000, at, generation, l.token_hash),
     copyWrite(env, after, l.party, parties(after)[l.party], undefined, code)], [linkGuard(context, 'code_generation=?', [l.code_generation])])
   await dispatchMail(env, after.id)
@@ -125,12 +125,12 @@ export async function verifyCopyCode(env: Env, context: CopyContext, input: Reco
   const guards = [linkGuard(context, 'code_hash=? AND code_attempts=? AND code_attempts<5 AND code_expires>?', [l.code_hash, l.code_attempts, Date.now()])], after = structuredClone(context.envelope)
   if (!correct) {
     await appendEvent(after, 'copy.code_rejected', `copy:${l.party + 1}`, { party: l.party, ...context.client })
-    await commitEnvelope(env.DB, context.envelope, after, null, [env.DB.prepare('UPDATE iw_copy_links SET code_attempts=code_attempts+1 WHERE token_hash=?').bind(l.token_hash)], guards)
+    await commitEnvelope(env, context.envelope, after, null, [env.DB.prepare('UPDATE iw_copy_links SET code_attempts=code_attempts+1 WHERE token_hash=?').bind(l.token_hash)], guards)
     insist(false, 'The code is incorrect.', 401)
   }
   const session = secret()
   await appendEvent(after, 'copy.email_verified', `copy:${l.party + 1}`, { party: l.party, email: l.email, ...context.client })
-  await commitEnvelope(env.DB, context.envelope, after, null, [env.DB.prepare('UPDATE iw_copy_links SET code_hash=NULL,code_expires=NULL,session_hash=?,session_expires=? WHERE token_hash=?').bind(await sha256(session), Date.now() + 24 * 60 * 60_000, l.token_hash)], guards)
+  await commitEnvelope(env, context.envelope, after, null, [env.DB.prepare('UPDATE iw_copy_links SET code_hash=NULL,code_expires=NULL,session_hash=?,session_expires=? WHERE token_hash=?').bind(await sha256(session), Date.now() + 24 * 60 * 60_000, l.token_hash)], guards)
   return `${cookieName}=${session}; Path=/api/copy/${context.token}; HttpOnly; SameSite=Strict; Max-Age=86400${new URL(env.AUTH_ORIGIN).protocol === 'https:' ? '; Secure' : ''}`
 }
 export async function copyArtifact(env: Env, context: CopyContext, kind: string) {

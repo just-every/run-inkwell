@@ -33,7 +33,7 @@ export async function resendInvitation(env: Env, context: CommandContext, input:
   const after = structuredClone(before)
   await appendEvent(after, 'signer.resent', context.actor.id, { signer, email: after.signers[signer].email, newLink: rotated, ...(forced ? { reason: 'The previous link could not be reopened, so a new link was sent.' } : {}) })
   const result = { id: after.id, signer, email: after.signers[signer].email, newLink: rotated, ...(forced ? { reason: 'This link was issued before Inkwell kept links for resending, so a new link was sent and the previous one no longer works.' } : {}) }
-  await commitEnvelope(env.DB, before, after, context.actor, [
+  await commitEnvelope(env, before, after, context.actor, [
     ...(rotated ? [env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=?,code_hash=NULL,code_expires=NULL,code_attempts=0,code_sent_at=NULL,session_hash=NULL,session_expires=NULL WHERE envelope_id=? AND signer=?').bind(await sha256(token), await sealLink(env, after.id, signer, token), after.id, signer),
       env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND signer=? AND kind='invitation' AND state='pending'").bind(after.id, signer)] : []),
     invitationWrite(env, after, signer, token), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])

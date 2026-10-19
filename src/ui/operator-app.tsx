@@ -11,11 +11,13 @@ import { PeopleRoles } from './people'
 import { ContactBook } from './contacts'
 import { CompletedCopies } from './account-defaults'
 import { Reports } from './reports'
+import { Activity, NoticeSettings } from './activity'
 import { Templates } from './templates'
 import { AgentStrip, EmptyEnvelopes, EnvelopesHeading, EnvelopeTable, FilterChips, MoreEnvelopes, NarrowFilters, needingMe, type Filter, type Narrow } from './envelope-list'
 
-type Tab = 'envelopes' | 'templates' | 'reports' | 'move-in' | 'archive' | 'agents' | 'settings'
+type Tab = 'envelopes' | 'activity' | 'templates' | 'reports' | 'move-in' | 'archive' | 'agents' | 'settings'
 const headings: Record<Exclude<Tab, 'envelopes'>, [string, string]> = {
+  activity: ['Activity', 'What happened to the envelopes you send.'],
   templates: ['Templates', 'Prepare once, send again.'],
   reports: ['Reports', 'See how envelopes move.'],
   'move-in': ['Move in', 'Bring your history with you.'],
@@ -99,7 +101,7 @@ export function OperatorApp() {
             </>}
           </>)}
           {data && tab !== 'envelopes' && <section className="iw-heading"><h1>{headings[tab][0]}</h1><p className="iw-heading-line">{headings[tab][1]}</p></section>}
-          {data && tab === 'templates' && canEdit(data.actor) && <Templates onSent={async id => { setTab('envelopes'); setFilter('all'); choose(id); await refresh() }} />}{data && tab === 'reports' && <Reports />}{data && owner && tab === 'move-in' && <MoveIn />}{data && owner && tab === 'archive' && <ArchiveAccess empty={summary?.total === 0} refresh={refresh} />}{data && owner && tab === 'agents' && <AgentAccess agents={data.agents} refresh={refresh} />}{data && tab === 'settings' && <AccountSettings actor={data.actor} />}{data && tab === 'settings' && ['owner', 'admin', 'sender'].includes(data.actor.role) && <ContactBook />}{data && tab === 'settings' && ['owner', 'admin'].includes(data.actor.role) && <PeopleRoles people={data.people ?? []} refresh={refresh} />}{data && tab === 'settings' && data.settings && <CompletedCopies key={data.settings.completedCopies} settings={data.settings} refresh={refresh} />}
+          {data && tab === 'templates' && canEdit(data.actor) && <Templates onSent={async id => { setTab('envelopes'); setFilter('all'); choose(id); await refresh() }} />}{data && tab === 'activity' && <Activity onOpen={id => { setTab('envelopes'); setFilter('all'); choose(id) }} />}{data && tab === 'reports' && <Reports />}{data && owner && tab === 'move-in' && <MoveIn />}{data && owner && tab === 'archive' && <ArchiveAccess empty={summary?.total === 0} refresh={refresh} />}{data && owner && tab === 'agents' && <AgentAccess agents={data.agents} refresh={refresh} />}{data && tab === 'settings' && <AccountSettings actor={data.actor} />}{data && tab === 'settings' && <NoticeSettings />}{data && tab === 'settings' && ['owner', 'admin', 'sender'].includes(data.actor.role) && <ContactBook />}{data && tab === 'settings' && ['owner', 'admin'].includes(data.actor.role) && <PeopleRoles people={data.people ?? []} refresh={refresh} />}{data && tab === 'settings' && data.settings && <CompletedCopies key={data.settings.completedCopies} settings={data.settings} refresh={refresh} />}
         </HydrationUnit></main>
         {panel && data && <HydrationUnit><aside className="iw-panel-col"><EnvelopeDetail key={panel.id} envelope={panel} actor={data.actor} refresh={refresh} onClose={() => choose('')} onOpen={choose} onEdit={draft => { setEditing(draft); setPreparing(true) }} onCorrect={sent => { setCorrecting(sent); setPreparing(true) }} /></aside></HydrationUnit>}
       </div>

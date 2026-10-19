@@ -30,7 +30,7 @@ export async function extendEnvelope(env: Env, context: CommandContext, input: R
   after.expiresAt = to.toISOString()
   await appendEvent(after, 'envelope.extended', context.actor.id, { from, to: after.expiresAt, days, afterExpiry: expired })
   const result = { id: after.id, expiresAt: after.expiresAt }
-  await commitEnvelope(env.DB, before, after, context.actor, [commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
+  await commitEnvelope(env, before, after, context.actor, [commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   return result
 }
 
@@ -49,14 +49,12 @@ export async function warnExpiring(env: Env, at: number) {
 }
 
 async function warn(env: Env, before: Envelope) {
-  const current = currentSigners(before), waitingOn = current.map(i => before.signers[i].name).join(' and ')
-  const sender = await env.DB.prepare('SELECT email,display_name FROM oa_operators WHERE id=?').bind(before.createdBy).first<{ email: string; display_name: string }>()
+  const current = currentSigners(before)
   const after = structuredClone(before), emailSent = !mailSuppressed(env)
   const notices = emailSent ? [
     ...current.map(i => noticeWrite(env.DB, after, i, before.signers[i].email, `Expires soon: ${after.title}`, `${before.signers[i].name},\n\nYour invitation to sign ${after.title} expires ${after.expiresAt}.\nUse the link in your invitation email to review and sign before then.`)),
-    ...(sender ? [noticeWrite(env.DB, after, current[0], sender.email, `Expires soon: ${after.title}`, `${sender.display_name},\n\n${after.title} expires ${after.expiresAt} and is waiting for ${waitingOn}.\nExtend it from the envelope in Inkwell if they need more time.`)] : []),
   ] : []
-  await appendEvent(after, 'envelope.expiry_warned', 'inkwell', { expiresAt: after.expiresAt, signers: current, recipients: [...current.map(i => before.signers[i].email), ...(sender ? [sender.email] : [])], emailSent })
-  await commitEnvelope(env.DB, before, after, null, notices)
+  await appendEvent(after, 'envelope.expiry_warned', 'inkwell', { expiresAt: after.expiresAt, signers: current, recipients: current.map(i => before.signers[i].email), emailSent })
+  await commitEnvelope(env, before, after, null, notices)
   await dispatchMail(env, after.id)
 }

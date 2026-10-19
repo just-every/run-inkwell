@@ -289,3 +289,54 @@ test('DELIV-005: the sender resends the invitation by email on the same link, th
   await h.command('envelope.resend', { id, signer: 0 }, h.owner, 409)
  } finally { await h.close() }
 })
+
+test('DELIV-008: subscribed to declines and completions in Slack, Teams, Nook and email, the sender gets each there and nothing else; after turning off completions in Teams the next completion skips only Teams; every notice is in the activity feed', async () => {
+ const h = await harness()
+ try {
+  const settings = (body, status) => h.post('/api/inkwell/notices/settings', body, h.owner, status)
+  const hooks = { slack: 'https://hooks.slack.com/services/T0001/B0001/slack-secret', teams: 'https://harbour.webhook.office.com/webhookb2/a1/IncomingWebhook/b2/teams-secret', nook: 'https://nook.harbour.example/hooks/slack/nook-secret' }
+  await settings({ connect: { channel: 'slack', url: 'https://hooks.slack.example/services/T0001/B0001/x' } }, 400)
+  await settings({ connect: { channel: 'teams', url: 'http://harbour.webhook.office.com/webhookb2/x' } }, 400)
+  await settings({ connect: { channel: 'nook', url: 'https://nook.harbour.example/api/chat.postMessage' } }, 400)
+  for (const [channel, url] of Object.entries(hooks)) await settings({ connect: { channel, url } })
+  const events = ['viewed', 'signed', 'declined', 'completed', 'bounced', 'expiring'], channels = ['email', 'slack', 'teams', 'nook']
+  const saved = (await settings({ choices: Object.fromEntries(events.map(e => [e, Object.fromEntries(channels.map(c => [c, e === 'declined' || e === 'completed']))])) })).value.result
+  assert.ok(Object.values(saved.connected).every(url => url && !/secret/.test(url)), 'connected webhook URLs are shown masked')
+  assert.ok(!JSON.stringify((await h.db.prepare('SELECT * FROM iw_notice_channels').all()).results).includes('secret'), 'and are sealed at rest')
+  assert.equal(saved.choices.viewed.email, false); assert.equal(saved.choices.completed.teams, true)
+
+  const run = async (title, decline) => {
+   const id = (await h.command('envelope.prepare', { title, filename: 'notice.pdf', pdfBase64: await pdf(), signers: [{ name: 'Ann Lee', email: 'ann@harbour.example' }], fields: [{ id: 'signature-0', label: 'Signature', type: 'signature', signer: 0, page: 0, x: .1, y: .6, width: .4, height: .07 }] })).result.id
+   await h.command('envelope.approve', { id, eligible: true })
+   const path = '/api/sign/' + new URL((await h.mail('ann@harbour.example', `Please sign: ${title}`)).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)
+   await h.post(path + '/code', {}, '')
+   const cookie = (await h.post(path + '/verify', { code: (await h.mail('ann@harbour.example', 'verification code')).text.match(/\b\d{6}\b/)[0] }, '')).cookie
+   await h.agree(path, cookie)
+   assert.equal((await h.send(path + '/document', undefined, cookie)).status, 200)
+   if (decline) await h.post(path + '/decline', { reason: 'Wrong entity named', commandId: crypto.randomUUID() }, cookie)
+   else await h.post(path + '/sign', { values: { 'signature-0': 'Ann Lee' }, consent: true, commandId: crypto.randomUUID() }, cookie)
+   return id
+  }
+  const owner = () => h.attempted().filter(m => m.to.includes('owner@harbour.example')).map(m => m.subject)
+  const texts = channel => h.posts().filter(p => p.channel === channel).map(p => p.body.text)
+  await run('Supplier NDA', true)
+  await run('Dock lease', false)
+  for (const channel of ['slack', 'teams', 'nook']) assert.deepEqual(texts(channel), ['Ann Lee declined to sign Supplier NDA.', 'Everyone has signed Dock lease.'], `${channel} receives the decline and the completion, and nothing else`)
+  assert.deepEqual([...new Set(h.posts().map(p => p.path))].sort(), ['/hooks/slack/nook-secret', '/services/T0001/B0001/slack-secret', '/webhookb2/a1/IncomingWebhook/b2/teams-secret'], 'each post goes to the URL that person connected')
+  assert.deepEqual(owner(), ['Declined: Supplier NDA', 'Completed: Dock lease'], 'email receives the decline and the completion, and nothing else')
+  assert.match(h.attempted().find(m => m.subject === 'Declined: Supplier NDA').text, /Reason: Wrong entity named/)
+
+  await settings({ choices: { completed: { teams: false } } })
+  await run('Berth rental', false)
+  assert.deepEqual(texts('teams'), ['Ann Lee declined to sign Supplier NDA.', 'Everyone has signed Dock lease.'], 'Teams no longer receives completions')
+  for (const channel of ['slack', 'nook']) assert.equal(texts(channel).at(-1), 'Everyone has signed Berth rental.', `${channel} still does`)
+  assert.equal(owner().at(-1), 'Completed: Berth rental', 'and so does email')
+
+  const feed = (await h.send('/api/inkwell/notices', undefined, h.owner)).value.notices
+  assert.deepEqual(feed.map(n => `${n.event} ${n.title}`).reverse(), ['viewed Supplier NDA', 'declined Supplier NDA', 'viewed Dock lease', 'signed Dock lease', 'completed Dock lease', 'viewed Berth rental', 'signed Berth rental', 'completed Berth rental'], 'every notice is in the activity feed, in order')
+  assert.deepEqual(feed[0].posts.map(p => `${p.channel} ${p.result}`).sort(), ['nook delivered', 'slack delivered'], 'the feed shows where each notice went')
+  assert.equal(feed.find(n => n.event === 'viewed').recipient, 'Ann Lee')
+  const signer = await h.invite('sam@harbour.example', 'admin')
+  assert.deepEqual((await h.send('/api/inkwell/notices', undefined, signer)).value.notices, [], 'another member sees none of them')
+ } finally { await h.close() }
+})

@@ -1,0 +1,137 @@
+import { id, insist, now, object, type Actor, type AuditEvent, type Env, type Envelope } from './model'
+import { noticeWrite } from './mail'
+import { mailSuppressed } from './manual-invitations'
+import { seal, unseal } from './seal'
+
+// DELIV-008: sender notifications. When an envelope records one of these events, everyone who sent it or holds an edit
+// share of it (ADMIN-001) gets a notice in their in-app activity feed, always, and by email, Slack, Microsoft Teams or Nook
+// as each of them chose. A notice names the envelope, the recipient and what happened; by email a decline also gives its
+// reason. A channel post is tried at most three times and its outcome shows on the feed. Webhook URLs are sealed at rest
+// (seal.ts), shown only masked, never archived, and a post goes to the URL connected when it is sent.
+export const noticeEvents = ['viewed', 'signed', 'declined', 'completed', 'bounced', 'expiring'] as const
+export const noticeChannels = ['email', 'slack', 'teams', 'nook'] as const
+type NoticeEvent = typeof noticeEvents[number]
+type Channel = typeof noticeChannels[number]
+type Hook = Exclude<Channel, 'email'>
+const kinds: Record<string, NoticeEvent> = { 'signer.viewed': 'viewed', 'signer.signed': 'signed', 'signer.signed_on_paper': 'signed', 'signer.declined': 'declined', 'signer.consent_withdrawn': 'declined', 'envelope.completed': 'completed', 'signer.bounced': 'bounced', 'envelope.expiry_warned': 'expiring' }
+/** Until a person chooses: email for declined, completed, bounced and expiring; nothing else outside the feed. */
+const byDefault = (event: NoticeEvent, channel: Channel) => channel === 'email' && !['viewed', 'signed'].includes(event)
+// Slack's and Teams' incoming webhooks live on their own hosts; Nook's Slack-compatible ones (NOOK-063) on the
+// installation's own https origin under /hooks/slack/.
+const hookRules: Record<Hook, { label: string; valid: (url: URL) => boolean; example: string }> = {
+  slack: { label: 'Slack', valid: url => url.hostname === 'hooks.slack.com' && url.pathname.startsWith('/services/'), example: 'https://hooks.slack.com/services/…' },
+  teams: { label: 'Microsoft Teams', valid: url => /\.(webhook\.office\.com|logic\.azure\.com|environment\.api\.powerplatform\.com)$/.test(url.hostname), example: 'https://<tenant>.webhook.office.com/… or a Workflows URL' },
+  nook: { label: 'Nook', valid: url => url.pathname.startsWith('/hooks/slack/'), example: 'https://<your Nook>/hooks/slack/…' },
+}
+const labels: Record<NoticeEvent, string> = { viewed: 'Viewed', signed: 'Signed', declined: 'Declined', completed: 'Completed', bounced: 'Bounced', expiring: 'Expires soon' }
+const mask = (url: URL) => `${url.origin}/…${url.pathname.slice(-4)}`
+const purpose = 'notice-webhook-seal', bound = (operator: string, channel: Hook) => `${operator}:${channel}`
+
+type Member = { id: string; email: string; name: string }
+type Notice = { event: NoticeEvent; signer: number; actor?: string; recipient: string; line: string; subject: string; body: (name: string) => string }
+
+/** What one new audit event tells the sender, or nothing for events that are not notices. */
+function describe(env: Env, envelope: Envelope, event: AuditEvent): Notice | undefined {
+  const kind = kinds[event.action]
+  if (!kind) return undefined
+  const d = event.detail, who = typeof d.signer === 'number' ? envelope.signers[d.signer]?.name ?? '' : '', title = envelope.title, app = new URL('/app', env.AUTH_ORIGIN).href
+  const waiting = Array.isArray(d.signers) ? d.signers.map(i => envelope.signers[i as number]?.name).filter(Boolean).join(' and ') : ''
+  const withdrawn = event.action === 'signer.consent_withdrawn'
+  const line = { viewed: `${who} viewed ${title}.`, signed: `${who} signed ${title}.`, declined: `${who} ${withdrawn ? 'withdrew consent for' : 'declined to sign'} ${title}.`, completed: `Everyone has signed ${title}.`, bounced: `The invitation to ${who} for ${title} could not be delivered.`, expiring: `${title} expires ${envelope.expiresAt}${waiting ? ` and is waiting for ${waiting}` : ''}.` }[kind]
+  const body = {
+    viewed: () => `${line}\n${app}`, signed: () => `${line}\n${app}`, completed: () => `${line} The executed PDF and certificate are in Inkwell.\n${app}`,
+    declined: () => `${who} ${withdrawn ? 'withdrew consent to electronic records and signatures for' : 'declined to sign'} ${title}.\nReason: ${String(d.reason ?? '')}\n\nThe envelope has stopped and no further recipients will be invited.`,
+    bounced: () => `The invitation to ${who} at ${String(d.email ?? '')} could not be delivered (${String(d.status ?? 'bounced')}). Reminders to them are paused.\n\nOpen the envelope in Inkwell, correct their email address and the new invitation goes out at once.\n${app}`,
+    expiring: () => `${line}\nExtend it from the envelope in Inkwell if they need more time.`,
+  }[kind]
+  return { event: kind, signer: typeof d.signer === 'number' ? d.signer : Array.isArray(d.signers) && typeof d.signers[0] === 'number' ? d.signers[0] : 0, recipient: who, line, subject: `${withdrawn ? 'Consent withdrawn' : labels[kind]}: ${title}`, body: name => `${name},\n\n${body()}` }
+}
+
+/** The writes that record and send the notices for the events `after` adds to `before`, in the same batch as the change. */
+export async function noticeWrites(env: Env, before: Envelope, after: Envelope): Promise<D1PreparedStatement[]> {
+  // The recipient who acted: the event's own, or for a completion the last to sign in this change. A member is never
+  // emailed or posted about their own action (ROUTE-009: signing your own document sends nothing); the feed still has it.
+  let last: number | undefined
+  const notices = after.events.slice(before.events.length).flatMap(event => { if (typeof event.detail.signer === 'number') last = event.detail.signer; const notice = describe(env, after, event); return notice ? [{ ...notice, actor: last === undefined ? undefined : after.signers[last]?.email.toLowerCase() }] : [] })
+  if (!notices.length) return []
+  const db = env.DB
+  const members = (await db.prepare("SELECT id, email, display_name AS name FROM oa_operators WHERE status='active' AND (id=? OR id IN (SELECT operator_id FROM iw_shares WHERE envelope_id=? AND access='edit'))").bind(after.createdBy, after.id).all<Member>()).results
+  if (!members.length) return []
+  const ids = members.map(m => m.id), marks = ids.map(() => '?').join(',')
+  const prefs = (await db.prepare(`SELECT operator_id, event, channel, enabled FROM iw_notice_prefs WHERE operator_id IN (${marks})`).bind(...ids).all<{ operator_id: string; event: string; channel: string; enabled: number }>()).results
+  const hooks = (await db.prepare(`SELECT operator_id, channel FROM iw_notice_channels WHERE operator_id IN (${marks})`).bind(...ids).all<{ operator_id: string; channel: Hook }>()).results
+  const wants = (member: string, event: NoticeEvent, channel: Channel) => { const row = prefs.find(p => p.operator_id === member && p.event === event && p.channel === channel); return row ? row.enabled === 1 : byDefault(event, channel) }
+  // With mail not set up no notice email is written (SEND-001); the feed and the channels still get it.
+  const at = now(), email = !mailSuppressed(env), writes: D1PreparedStatement[] = []
+  for (const notice of notices) for (const member of members) {
+    const noticeId = id()
+    writes.push(db.prepare('INSERT INTO iw_notices(id,operator_id,envelope_id,event,at,title,recipient) VALUES(?,?,?,?,?,?,?)').bind(noticeId, member.id, after.id, notice.event, at, after.title, notice.recipient))
+    const own = notice.actor === member.email.toLowerCase()
+    if (email && !own && wants(member.id, notice.event, 'email')) writes.push(noticeWrite(db, after, notice.signer, member.email, notice.subject, notice.body(member.name)))
+    for (const hook of hooks.filter(h => !own && h.operator_id === member.id && wants(member.id, notice.event, h.channel)))
+      writes.push(db.prepare('INSERT INTO iw_notice_posts(id,notice_id,operator_id,channel,body) VALUES(?,?,?,?,?)').bind(id(), noticeId, member.id, hook.channel, JSON.stringify(hook.channel === 'teams' ? { text: notice.line } : { text: notice.line, username: 'Inkwell' })))
+  }
+  return writes
+}
+
+/** Sends the waiting Slack, Teams and Nook posts. Each is claimed before it is sent; a refused or failed post is tried
+ * again on the next pass, at most three times in all, and its last answer is kept for the feed. */
+export async function dispatchNotices(env: Env) {
+  const posts = (await env.DB.prepare("SELECT p.id, p.operator_id, p.channel, p.body, c.sealed FROM iw_notice_posts p LEFT JOIN iw_notice_channels c ON c.operator_id=p.operator_id AND c.channel=p.channel WHERE p.state='pending' AND p.attempts<3 LIMIT 50").all<{ id: string; operator_id: string; channel: Hook; body: string; sealed: string | null }>()).results
+  for (const post of posts) {
+    const claimed = await env.DB.prepare("UPDATE iw_notice_posts SET state='sending', attempts=attempts+1 WHERE id=? AND state='pending' RETURNING attempts").bind(post.id).first<{ attempts: number }>()
+    if (!claimed) continue
+    let result: string, sent = false
+    const url = await unseal(env, purpose, bound(post.operator_id, post.channel), post.sealed)
+    if (!url) { await env.DB.prepare("UPDATE iw_notice_posts SET state='failed', result='not delivered, disconnected' WHERE id=?").bind(post.id).run(); continue }
+    try { const response = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: post.body }); sent = response.ok; result = sent ? 'delivered' : `not delivered, ${response.status}` } catch { result = 'not delivered, no answer' }
+    await env.DB.prepare('UPDATE iw_notice_posts SET state=?, result=? WHERE id=?').bind(sent ? 'sent' : claimed.attempts >= 3 ? 'failed' : 'pending', result, post.id).run()
+  }
+}
+
+/** The signed-in person's activity feed, newest first, 50 at a time, each with how its channel posts went. */
+export async function activityFeed(env: Env, actor: Actor, params: URLSearchParams) {
+  const before = params.get('before') ?? ''
+  insist(!before || !Number.isNaN(Date.parse(before)), 'Provide before as a time.')
+  const rows = (await env.DB.prepare(`SELECT id, envelope_id AS envelopeId, event, at, title, recipient FROM iw_notices WHERE operator_id=?${before ? ' AND at<?' : ''} ORDER BY at DESC, rowid DESC LIMIT 50`).bind(actor.id, ...(before ? [before] : [])).all<{ id: string; envelopeId: string; event: NoticeEvent; at: string; title: string; recipient: string }>()).results
+  const posts = rows.length ? (await env.DB.prepare(`SELECT notice_id, channel, state, result FROM iw_notice_posts WHERE notice_id IN (${rows.map(() => '?').join(',')})`).bind(...rows.map(r => r.id)).all<{ notice_id: string; channel: Hook; state: string; result: string }>()).results : []
+  return { notices: rows.map(row => ({ ...row, posts: posts.filter(p => p.notice_id === row.id).map(p => ({ channel: p.channel, state: p.state, result: p.result })) })) }
+}
+
+/** The person's choices per event and channel, and which channels they connected (URLs masked). */
+export async function noticeSettings(env: Env, actor: Actor) {
+  const prefs = (await env.DB.prepare('SELECT event, channel, enabled FROM iw_notice_prefs WHERE operator_id=?').bind(actor.id).all<{ event: string; channel: string; enabled: number }>()).results
+  const hooks = (await env.DB.prepare('SELECT channel, masked FROM iw_notice_channels WHERE operator_id=?').bind(actor.id).all<{ channel: Hook; masked: string }>()).results
+  return {
+    events: noticeEvents, channels: noticeChannels,
+    choices: Object.fromEntries(noticeEvents.map(event => [event, Object.fromEntries(noticeChannels.map(channel => { const row = prefs.find(p => p.event === event && p.channel === channel); return [channel, row ? row.enabled === 1 : byDefault(event, channel)] }))])),
+    connected: Object.fromEntries((Object.keys(hookRules) as Hook[]).map(hook => { const row = hooks.find(h => h.channel === hook); return [hook, row ? row.masked : null] })),
+    examples: Object.fromEntries((Object.keys(hookRules) as Hook[]).map(hook => [hook, hookRules[hook].example])),
+  }
+}
+
+/** Saves `choices` ({event: {channel: on}}), connects a channel with its webhook URL or disconnects it (url null). */
+export async function saveNoticeSettings(env: Env, actor: Actor, value: unknown) {
+  const input = object(value), writes: D1PreparedStatement[] = []
+  if (input.choices !== undefined) for (const [event, channels] of Object.entries(object(input.choices))) {
+    insist((noticeEvents as readonly string[]).includes(event), `Choose events among: ${noticeEvents.join(', ')}.`)
+    for (const [channel, on] of Object.entries(object(channels))) {
+      insist((noticeChannels as readonly string[]).includes(channel) && typeof on === 'boolean', `Turn each of ${noticeChannels.join(', ')} on or off.`)
+      writes.push(env.DB.prepare('INSERT INTO iw_notice_prefs(operator_id,event,channel,enabled) VALUES(?,?,?,?) ON CONFLICT(operator_id,event,channel) DO UPDATE SET enabled=excluded.enabled').bind(actor.id, event, channel, on ? 1 : 0))
+    }
+  }
+  if (input.connect !== undefined) {
+    const connect = object(input.connect), channel = connect.channel as Hook
+    insist(channel in hookRules, 'Connect slack, teams or nook.')
+    if (connect.url === null) writes.push(env.DB.prepare('DELETE FROM iw_notice_channels WHERE operator_id=? AND channel=?').bind(actor.id, channel))
+    else {
+      let url: URL | undefined
+      try { url = new URL(String(connect.url)) } catch { url = undefined }
+      insist(url && url.protocol === 'https:' && !url.username && !url.password && String(connect.url).length <= 600 && hookRules[channel].valid(url), `Paste a ${hookRules[channel].label} incoming webhook URL (${hookRules[channel].example}).`)
+      writes.push(env.DB.prepare('INSERT INTO iw_notice_channels(operator_id,channel,sealed,masked,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(operator_id,channel) DO UPDATE SET sealed=excluded.sealed, masked=excluded.masked, updated_at=excluded.updated_at').bind(actor.id, channel, await seal(env, purpose, bound(actor.id, channel), url.href), mask(url), now()))
+    }
+  }
+  insist(writes.length, 'Nothing to save.')
+  await env.DB.batch(writes)
+  return noticeSettings(env, actor)
+}

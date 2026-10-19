@@ -17,7 +17,7 @@ export async function shareEnvelope(env: Env, context: CommandContext, input: Re
   insist(target.id !== before.createdBy, 'That member sent this envelope.', 409)
   const after = structuredClone(before), at = new Date().toISOString(), result = { id: after.id, operatorId: target.id, access }
   await appendEvent(after, 'envelope.shared', context.actor.id, { operator: target.id, email, access })
-  await commitEnvelope(env.DB, before, after, context.actor, [
+  await commitEnvelope(env, before, after, context.actor, [
     env.DB.prepare('INSERT INTO iw_shares(envelope_id,operator_id,access,granted_by,granted_at) VALUES(?,?,?,?,?) ON CONFLICT(envelope_id,operator_id) DO UPDATE SET access=excluded.access,granted_by=excluded.granted_by,granted_at=excluded.granted_at').bind(after.id, target.id, access, context.actor.id, at),
     commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   return result
@@ -28,7 +28,7 @@ export async function unshareEnvelope(env: Env, context: CommandContext, input: 
   insist(await env.DB.prepare('SELECT 1 FROM iw_shares WHERE envelope_id=? AND operator_id=?').bind(before.id, operatorId).first(), 'This envelope is not shared with that member.', 404)
   const after = structuredClone(before), result = { id: after.id, operatorId }
   await appendEvent(after, 'envelope.unshared', context.actor.id, { operator: operatorId })
-  await commitEnvelope(env.DB, before, after, context.actor, [env.DB.prepare('DELETE FROM iw_shares WHERE envelope_id=? AND operator_id=?').bind(after.id, operatorId), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
+  await commitEnvelope(env, before, after, context.actor, [env.DB.prepare('DELETE FROM iw_shares WHERE envelope_id=? AND operator_id=?').bind(after.id, operatorId), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   return result
 }
 /** Who an envelope is shared with, for the people who may change that. */

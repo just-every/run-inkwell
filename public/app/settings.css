@@ -36,3 +36,9 @@
 .iw-contact-results li:last-child { border-bottom: 0; }
 .iw-contact-results li > span:first-child { display: grid; min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 860px) { .iw-contact-form { grid-template-columns: minmax(0, 1fr); } .iw-contact-results li { flex-wrap: wrap; } }
+/* DELIV-008: the activity feed and the notification choices. */
+.iw-activity { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.iw-activity li { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.iw-activity li:last-child { border-bottom: 0; }
+.iw-app .iw-activity p { margin: 4px 0 0; font-size: 14px; }
+.iw-table .iw-notice-row { display: grid; grid-template-columns: minmax(0, 1.3fr) repeat(4, minmax(0, 1fr)); align-items: center; gap: 8px; min-height: 40px; padding: 0 8px; overflow-wrap: anywhere; }
