@@ -28,6 +28,7 @@
       "pages": [
         { "slug": "agent-preparation", "title": "Agent preparation", "file": "agent-commands.md", "summary": "The preparation token and the request an agent sends to prepare an envelope for your approval." },
         { "slug": "import-format", "title": "DocuSeal import format", "file": "import-docuseal.md", "summary": "The archive file Move in reads, and the HTTP flow behind preview, apply, resume and undo." },
+        { "slug": "healthcare", "title": "Healthcare shared responsibility", "file": "healthcare.md", "summary": "Enable the healthcare profile, review member access and configure your providers." },
         { "slug": "provenance", "title": "Source and boundaries", "file": "provenance.md", "summary": "Where Inkwell's code comes from, and what its fingerprints and certificate do and do not prove." }
       ]
     }

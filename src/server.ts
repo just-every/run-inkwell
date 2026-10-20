@@ -1,3 +1,4 @@
+import { complianceRequest } from './inkwell/compliance/requests'
 import { hostedResponse } from './inkwell/in-person'
 import { withDemo } from './modules/demo/index.mjs'
 import { seedDemo } from './demo'
@@ -25,6 +26,7 @@ function noTransform(response: Response): Response {
 
 export default withDemo({
   async fetch(request, env, execution) {
+    return complianceRequest(request, env, async () => {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
     const hosted = await hostedResponse(request, runtimeBindings(env))
@@ -40,6 +42,7 @@ export default withDemo({
     const lobby = await lobbyResponse(request, runtimeBindings(env), identity)
     if (lobby) return lobby
     return rejectedResponse(request, await dispatch(request, () => api.fetch(request, env, execution), async () => noTransform(await start.fetch(request))))
+    })
   },
   // The hourly pass: DELIV-004 expiry warnings and DELIV-003 reminders.
   async scheduled(controller, env) { await scheduledPass(runtimeBindings(env), controller.scheduledTime) },

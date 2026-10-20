@@ -309,7 +309,7 @@ Inkwell is one product. Where the market sells a neighboring product separately,
 
 - **COMPLY-001 — 21 CFR Part 11 signing profile.** An optional profile for life-science buyers requires re-authentication at each signature, a signing reason, the signature manifestation (printed name, date and meaning) on the document, and a validation package: installation, operational and performance qualification (IQ, OQ and PQ) scripts with their executed results for the installed version, a traceability matrix from each Part 11 requirement (11.10, 11.50, 11.70, 11.100, 11.200 and 11.300) to the feature and test that meets it, and the change log since the last validated version. **Acceptance evidence:** with the profile on, a signer re-authenticates and picks a reason; the executed PDF shows the manifestation; the validation package for the installed version contains IQ, OQ and PQ scripts with executed results, and every traceability-matrix row cites a test that passed in that run.
 
-- **COMPLY-002 — HIPAA-ready installation.** Healthcare buyers can run Inkwell with logging that excludes document content, access reviews, and a documented shared-responsibility guide for their Cloudflare account; a business associate agreement is the buyer's arrangement with their providers. **Acceptance evidence:** in the profile, logs contain no field values or document text after a full signing journey, and the access review report lists every member's last access.
+- **COMPLY-002 — HIPAA-ready installation.** Healthcare buyers can run Inkwell with logging that excludes document content, access reviews, and a documented shared-responsibility guide for their Cloudflare account; a business associate agreement is the buyer's arrangement with their providers. The owner or admin enables the healthcare profile in Settings and reviews every member, including invited and inactive members, with their current role, status and last successful authenticated request (HTTP status below 400, stored in UTC, displayed in the reviewer's local time); no recorded access is explicit. Tracking covers every current page, API, auth, import and archive door and continues with the profile off. Newly issued member sessions count; anonymous recipient and preparation-agent sessions do not. Operational request logs contain only a fixed event, fixed door category and status; provider receipt logs retain normalized delivery facts and fingerprints, excluding raw payloads. Document content and field values are excluded from operational and provider logs while signed documents, field values and audit evidence are preserved. This profile makes no certification or provider-verification claim; the shared-responsibility guide names provider agreements, logging configuration, access, retention and incident duties. Existing capabilities conform; future doors, providers and record kinds added under API-001 through API-004, INTEG-001 through INTEG-011, IDV-002 through IDV-005 and AGENT-001 through AGENT-009 inherit this logging boundary before shipping. **Acceptance evidence:** in the profile, logs contain no field values or document text after a full signing journey, and the access review report lists every member's last access.
 
 ## Push further
 
@@ -368,8 +368,8 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 1 | 0 | 10 |
-| Target and push further | 43 | 12 | 52 | 107 |
-| All | 52 | 13 | 52 | 117 |
+| Target and push further | 44 | 12 | 51 | 107 |
+| All | 53 | 13 | 51 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -480,7 +480,7 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `MOVE-008` | Throttled, resumable imports at account size | target | partial | `src/inkwell/imports/index.ts`; `src/modules/import-kit/src/d1/index.ts` | Checkpointed, resumable apply for archive imports only; no remote API pull, rate-limit pause or duplicate-free resume of a remote import |
 | `PORT-002` | Self-service export at any size | target | partial | `src/inkwell/archive.ts` | Whole-installation archive capped at 24 MiB in the browser; no selective export, CSV index or resumable streaming |
 | `COMPLY-001` | 21 CFR Part 11 signing profile | target | missing |  | No Part 11 profile |
-| `COMPLY-002` | HIPAA-ready installation | target | missing |  | No HIPAA-ready profile |
+| `COMPLY-002` | HIPAA-ready installation | target | done | `tests/compliance.test.mjs`; `tests/journeys/healthcare.mjs`; `src/inkwell/compliance/profile.ts`; `src/inkwell/compliance/requests.ts`; `src/ui/healthcare.tsx`; `docs/healthcare.md` | Profile, fixed-schema operational logs, normalized provider receipts, whole-dispatcher member activity and owner/admin access review; signed evidence retained; shared-responsibility guide (tests `COMPLY-002`) |
 | `AGENT-001` | Assemble the envelope from CRM and email context | push-further | partial | `src/inkwell/agents.ts`; `tests/api.test.mjs` | Agents prepare envelopes for human approval; no CRM or email context assembly |
 | `AGENT-002` | Fill what is missing | push-further | missing |  | No missing-information agent |
 | `AGENT-003` | Chase stalled signers under the sender's rules | push-further | missing |  | No follow-up agent |

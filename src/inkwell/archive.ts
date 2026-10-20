@@ -82,7 +82,7 @@ export async function archiveResponse(request: Request, original: Bindings): Pro
  } catch (e) {
   if (e instanceof PortabilityError) return json({error:`Archive refused: ${e.code}. Restore needs an empty document store and a complete, unchanged archive.`},e.status)
   if (e instanceof Refusal) return json({error:e.message},e.status)
-  console.error('Archive operation failed', e instanceof Error ? e.name : 'Error')
+  console.error('inkwell.archive.failed')
   return json({error:'Archive operation failed. No success was recorded.'},500)
  }
 }
