@@ -2923,7 +2923,7 @@
       "executable": false
     },
     "src/ui/signing-groups.tsx": {
-      "sha256": "2b34a00c5b3d06de5087a5895e89eee87f2bfb88c3a5184ec17ceb5f6d44a1f8",
+      "sha256": "4a5ae94c6dc1772d2ab9049144d8c8b4435a1cddf8c9855dd84f716260916de6",
       "executable": false
     },
     "src/ui/signing-guide.tsx": {
