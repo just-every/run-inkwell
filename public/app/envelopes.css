@@ -10,7 +10,7 @@
 .iw-app .iw-chip { gap: 7px; min-height: 42px; padding: 0 10px 0 14px; border: 0; border-radius: 16px; background: #f2f5f8; color: #1d2433; font-size: 14px; font-weight: 450; }
 .iw-chip > span { min-width: 24px; padding: 3px 6px; border-radius: 9px; background: #e3e8ee; font-weight: 700; }
 .iw-app .iw-chip:hover { background: #e9edf2; }
-.iw-app .iw-chip[aria-pressed=true] { background: #e8f4ff; color: #0067ff; font-weight: 700; box-shadow: none; }
+.iw-app .iw-chip[aria-pressed=true] { background: #e8f4ff; color: #005de7; font-weight: 700; box-shadow: none; }
 .iw-chip[aria-pressed=true] > span { background: #d4e9ff; }
 .iw-app .iw-chip-amber { background: #fffbec; }
 .iw-chip-amber > span { background: #ffda84; }
