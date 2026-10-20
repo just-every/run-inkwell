@@ -2,7 +2,7 @@ import { now, type Adoption, type Envelope, type Env } from './model'
 
 /** ROUTE-009: a member who signs with their Inkwell session (MANAGE-003) adopts a signature once; it is saved to them
  * and offered for their later in-app signing, and signing with a different one replaces it. SIGNX-002: the saved
- * signature keeps how it was adopted, with a drawn or uploaded image itself. Initials join when PREP-003 adds them. */
+ * signature keeps how it was adopted, with a drawn or uploaded image itself. PREP-003 saves an independent initials value and mark in the same installation-only record. */
 const authActions = ['signer.email_verified', 'signer.code_verified', 'signer.session_verified', 'signer.link_opened']
 /** The member whose session last authenticated this signer, if their latest authentication was a session. */
 export function sessionMember(envelope: Envelope, signer: number) {

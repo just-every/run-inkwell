@@ -94,7 +94,14 @@ function adoptionLines(envelope: Envelope, signer: number) {
   const s = envelope.signers[signer]
   if (s.paper?.status === 'accepted') return ['Signed on paper (wet ink)', 'Adopted signature: handwritten on the paper scan']
   const signed = forSigner(envelope, signer, ['signer.signed']).at(-1), saved = signed?.detail.saved === true || signed?.detail.adoption === 'saved' ? signed!.detail.operator as string : undefined
-  return envelope.fields.filter(f => f.signer === signer && ['signature', 'initials'].includes(f.type) && s.values?.[f.id]).map(f => `Adopted ${f.type} (${f.label}): "${s.values![f.id]}", ${describeAdoption(f.type === 'initials' ? s.initialsAdoption ?? { method: 'typed', style: 'sans' } : adoptionOf(envelope, signer), f.type === 'signature' ? saved : undefined).replace(f.type === 'initials' ? /signature/g : /$^/g, 'initials')}`).concat(s.signingTimeZone ? [`Date signed time zone: ${s.signingTimeZone} (from signing instant ${s.signedAt})`] : [])
+  const lines = envelope.fields.filter(f => f.signer === signer && ['signature', 'initials'].includes(f.type) && s.values?.[f.id]).map(field => {
+    const initials = field.type === 'initials'
+    const adoption = initials ? s.initialsAdoption ?? { method: 'typed' as const, style: 'sans' as const } : adoptionOf(envelope, signer)
+    const description = describeAdoption(adoption, initials ? undefined : saved)
+    return `Adopted ${field.type} (${field.label}): "${s.values![field.id]}", ${initials ? description.replace(/signature/g, 'initials').replace('typed name', 'typed initials') : description}`
+  })
+  if (s.signingTimeZone) lines.push(`Date signed time zone: ${s.signingTimeZone} (from signing instant ${s.signedAt})`)
+  return lines
 }
 
 /** ROUTE-007: host attestation is evidence of what the host said, never a provider verification. */

@@ -144,6 +144,12 @@ test('PREP-003 round A: initials adoption, automatic US signing dates, business-
   await h.command('envelope.approve',{id:next,eligible:true})
   const opened=await h.post('/api/inkwell/commands',{command:'envelope.open_signing',input:{id:next},commandId:crypto.randomUUID()},h.owner),path=new URL(opened.value.result.signing.url).pathname.replace('/sign/','/api/sign/'),view=(await h.send(path,undefined,opened.cookie)).value
   assert.equal(view.savedInitials.value,'HO');assert.equal(view.savedInitials.adoption.method,'uploaded');assert.equal(view.savedInitials.imageBase64,png.toString('base64'))
+  await h.agree(path,opened.cookie)
+  await h.post(path+'/sign',{values:e.signers[1].values,consent:true,timeZone:'America/New_York',initialsAdoption:{method:view.savedInitials.adoption.method,mediaType:view.savedInitials.adoption.mediaType,imageBase64:view.savedInitials.imageBase64},commandId:crypto.randomUUID()},opened.cookie)
+  const reused=(await h.send(`/api/inkwell/envelopes/${next}/artifacts/audit`,undefined,h.owner)).value.envelope
+  assert.equal(reused.status,'completed');assert.equal(reused.signers[0].initialsAdoption.sha256,e.signers[1].initialsAdoption.sha256,'saved initials are actually reused in the next executed record')
+  const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value,fresh=await harness({mailProvider:null})
+  try{await fresh.post('/api/inkwell/archive/restore',{archive},fresh.owner);const restored=(await fresh.send(`/api/inkwell/envelopes/${id}/artifacts/signed`,undefined,fresh.owner)).bytes;assert.deepEqual(restored,executed,'the executed fields and initials survive whole-installation restore')}finally{await fresh.close()}
   // Generated evidence is never accepted as caller prefill, and new patterns are schema checked before sending.
   for(const change of [{id:'ini0',prefill:{value:'MQ',source:'Sender'}},{id:'signed0',prefill:{value:'1900-01-01',source:'Sender'}},{id:'zip0',pattern:'invented'},{id:'zip0',prefill:{value:'invalid',source:'Sender'}},{id:'ssn0',masked:'false'}])await h.command('template.save',{...base,fields:fields.map(f=>f.id===change.id?{...f,...change}:f)},h.owner,400)
  }finally{await h.close()}

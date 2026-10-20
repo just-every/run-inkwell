@@ -55,7 +55,7 @@ export function SignerApp({ token }: { token: string }) {
   const signingValues = { ...values, ...Object.fromEntries((session?.fields ?? []).filter(f => f.type === 'date_signed').map(f => [f.id, signingDay(new Date().toISOString(), timeZone)])) }
   let resolved = signingValues, fieldError = ''
   try { resolved = resolveFieldValues(session?.fields ?? [], signingValues) } catch (error) { fieldError = error instanceof Error ? error.message : 'Check your numeric fields.' }
-  const shown = visibleFields(session?.fields ?? [], values)
+  const shown = visibleFields(session?.fields ?? [], signingValues)
   // Editable values stay exactly as typed; defaults and locked/calculated values come from the shared resolver.
   const displayed = { ...signingValues, ...Object.fromEntries(shown.filter(field => field.calculation || field.readOnly || (field.prefill && !Object.hasOwn(values, field.id))).map(field => [field.id, resolved[field.id] ?? ''])) }
   const complete = session?.status === 'completed'
