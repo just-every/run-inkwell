@@ -1,13 +1,13 @@
 // PREP-003 rounds A and B choice/note fields join PREP-008 and SIGNX-003 at desktop and phone widths.
 import assert from 'node:assert/strict'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { PDFDocument } from 'pdf-lib'
 import { startInkwell, screenshots } from './worker.mjs'
 import { axe, tabTo } from './a11y.mjs'
 
 const app=await startInkwell(),images=process.env.INKWELL_FIELD_PROOF_DIR??'/tmp/inkwell-field-types'
 await mkdir(images,{recursive:true})
-const stampBase64='iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVQImWP4z8Dwn4GBgYGJAQoAHgQCAZK7TscAAAAASUVORK5CYII=',stampValue='data:image/png;base64,'+stampBase64,stampFile=images+'/fixture-stamp.png'
+const stampBase64=(await readFile('public/brand/icon-192.png')).toString('base64'),stampValue='data:image/png;base64,'+stampBase64,stampFile=images+'/fixture-stamp.png'
 await writeFile(stampFile,Buffer.from(stampBase64,'base64'))
 try {
  const pdf=await PDFDocument.create();pdf.addPage([612,792]);pdf.addPage([612,792]);pdf.addPage([612,792])
