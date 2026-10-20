@@ -215,6 +215,13 @@ test('PREP-003 round B: radio, dropdown, checkbox group bounds and notes retain 
   const saved=(await h.command('template.from_envelope',{id,title:'Retained choices'})).result.id,reused=(await h.command('template.use',{id:saved,recipients})).result.id;assert.deepEqual((await read(reused)).fields,completed.fields)
   const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value,fresh=await harness({mailProvider:null})
   try{await fresh.post('/api/inkwell/archive/restore',{archive},fresh.owner);const restored=(await fresh.send(`/api/inkwell/envelopes/${id}/artifacts/audit`,undefined,fresh.owner)).value.envelope;assert.deepEqual(restored.fields,completed.fields);assert.deepEqual(restored.signers[0].values,signed);assert.deepEqual((await fresh.send(`/api/inkwell/envelopes/${id}/artifacts/signed`,undefined,fresh.owner)).bytes,bytes)}finally{await fresh.close()}
+  // Each new business-data type can also be optional and explicitly left blank, including a group with a nonzero minimum.
+  const optionalFields=completed.fields.map(field=>definitions.some(([type])=>type===field.type)?{...field,required:false,readOnly:undefined,prefill:undefined}:field)
+  await h.command('envelope.update',{...base,id:copied,signers:recipients,fields:optionalFields})
+  const optionalInvite=(await h.command('envelope.approve',{id:copied,eligible:true})).result.invitations[0],optionalPath=new URL(optionalInvite.url).pathname.replace('/sign/','/api/sign/'),optionalCookie=(await h.post(optionalPath+'/verify',{code:optionalInvite.code},'')).cookie
+  await h.agree(optionalPath,optionalCookie)
+  await h.post(optionalPath+'/sign',{values:{signature:'Mara Quinn',optional:''},consent:true,commandId:crypto.randomUUID()},optionalCookie)
+  const optionalRecord=await read(copied);assert.equal(optionalRecord.status,'completed');for(const field of optionalFields.filter(field=>definitions.some(([type])=>type===field.type)))assert.ok(!optionalRecord.signers[0].values[field.id],`optional ${field.type} may remain blank`)
   // Invalid declarations and prefills refuse the whole template, not a truncated set of choices.
   for(const change of [{id:'radio',options:['Same',' Same ']},{id:'radio',options:['Only']},{id:'radio',prefill:{value:'Invented',source:'Sender'}},{id:'dropdown',options:['Good','Bad\nchoice']},{id:'checkbox_group',minimum:3,maximum:2},{id:'checkbox_group',minimum:1.5},{id:'checkbox_group',maximum:4},{id:'checkbox_group',prefill:{value:'["Phone"]',source:'Sender'}},{id:'note',options:['Yes','No']}])await h.command('template.save',{...base,fields:fields.map(f=>f.id===change.id?{...f,...change}:f)},h.owner,400)
  }finally{await h.close()}
