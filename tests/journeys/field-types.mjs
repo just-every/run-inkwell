@@ -22,7 +22,7 @@ try {
   const template=(await app.command('template.save',{title,filename:'round-a.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),roles:[{role:'Client'}],fields})).id
   const context=await app.browser.newContext({viewport:{width,height:width===390?844:1000},hasTouch:width===390});await context.addCookies([app.ownerCookie()]);const page=await context.newPage();page.setDefaultTimeout(20000)
   const capture=async(name,p=page)=>{assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`PREP-003 ${name} ${width}: no sideways scroll`);await p.screenshot({path:`${images}/${width}-${name}.png`})}
-  const tab=async(p,target)=>{await target.waitFor({state:'visible',timeout:5000});await tabTo(p,target)}
+  const tab=async(p,target)=>{await target.waitFor({state:'visible',timeout:5000});if(await target.evaluate(el=>el===document.activeElement))return;const backwards=await target.evaluate(el=>Boolean(document.activeElement?.compareDocumentPosition(el)&Node.DOCUMENT_POSITION_PRECEDING));await tabTo(p,target,{backwards})}
   const keyboardSet=async(p,locator,value)=>{await tab(p,locator);await p.keyboard.press('ControlOrMeta+A');await p.keyboard.type(value)}
   await page.goto(app.origin+'/app');await page.getByRole('button',{name:'Templates',exact:true}).click();await page.getByRole('button',{name:`Edit ${title}`,exact:true}).click()
   // Every new type has an inspector and a native keyboard type picker; prefills and source labels survive authoring.
