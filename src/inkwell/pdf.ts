@@ -3,12 +3,14 @@
 // manual handoff, Inkwell parses actual page trees and overlays each signer's adopted mark (SIGNX-002).
 import { PDFDocument, StandardFonts, rgb, pushGraphicsState, popGraphicsState, concatTransformationMatrix, type PDFFont, type PDFImage } from 'pdf-lib'
 import { insist, Refusal, type Adoption, type Envelope, type Field } from './model'
+import { parseStamp } from './stamps'
 import { adoptionOf, typedStyles, markKind } from './marks'
 import { displayFieldValue, markField } from './business-fields'
 import { normalizeFieldSchema, resolveFieldValues, visibleFields, requiredField } from './field-rules'
 export async function parsePdf(bytes: Uint8Array) { try { const document = await PDFDocument.load(bytes, { updateMetadata:false }); insist(!document.isEncrypted, 'Encrypted PDFs cannot be signed.'); insist(document.getPageCount() > 0 && document.getPageCount() <= 100, 'Use a PDF with 1–100 pages.'); const pageSizes = document.getPages().map(page => { const {width,height} = page.getCropBox(), rotation = ((page.getRotation().angle % 360)+360)%360; insist([0,90,180,270].includes(rotation), 'This PDF has an unsupported page rotation.'); insist(width > 0 && height > 0 && width <= 14400 && height <= 14400, 'This PDF has an unsupported page size.'); return rotation % 180 ? {width:height,height:width} : {width,height} }); return {document,pageSizes} } catch (error) { if (error instanceof Refusal) throw error; throw new Refusal('The file could not be parsed as an unencrypted PDF.') } }
 export function encodable(font: PDFFont, value: string) { try { font.encodeText(value) } catch { throw new Refusal('PDF text must use characters supported by the standard Latin PDF font.') } }
 export async function validatePdfText(values: string[]) { const pdf = await PDFDocument.create(), font = await pdf.embedFont(StandardFonts.Helvetica); for (const value of values) encodable(font,value) }
+export async function validatePrefilledFields(fields: Field[]) { await validatePdfText(fields.filter(field => field.type !== 'stamp').flatMap(field => field.prefill ? [field.prefill.value] : [])); for (const field of fields) if (field.type === 'stamp' && field.prefill) await parseStamp(field.prefill.value, field.label) }
 export function validateFields(value: unknown, signers: number, pages: number, removed: number[] = []): Field[] {
   const fields = normalizeFieldSchema(value)
   for (const field of fields) insist(field.signer < signers && !removed.includes(field.signer) && field.page < pages, 'Each field must name an existing signer and PDF page.')
@@ -28,7 +30,7 @@ export async function signedPdf(original: Uint8Array, envelope: Envelope, scans:
       const raw = values[field.id]
       if (!raw && !requiredField(field, assigned, values)) continue
       insist(raw, 'A required signing value is missing.', 409)
-      const value = printedValue(field, raw), adoption = field.type === 'initials' ? envelope.signers[signer].initialsAdoption ?? { method: 'typed', style: 'sans' } : adoptionOf(envelope, signer), image = markField(field) && adoption.method !== 'typed', kind = markKind(signer, field.type === 'initials')
+      const value = printedValue(field, raw), adoption = field.type === 'initials' ? envelope.signers[signer].initialsAdoption ?? { method: 'typed', style: 'sans' } : adoptionOf(envelope, signer), image = field.type === 'stamp' || markField(field) && adoption.method !== 'typed', kind = field.type === 'stamp' ? `stamp-${signer}-${field.id}` : markKind(signer, field.type === 'initials')
       const font = markField(field) ? await fontFor(typedStyles[adoption.style ?? 'sans'].font) : regular
       if (field.type !== 'checkbox') encodable(font, value)
       const page = document.getPage(field.page), size = envelope.pageSizes[field.page], actual = page.getCropBox(), rotation = ((page.getRotation().angle % 360) + 360) % 360
@@ -46,9 +48,10 @@ export async function signedPdf(original: Uint8Array, envelope: Envelope, scans:
           page.drawLine({ start: { x: x + side * .42, y: y + side * .25 }, end: { x: x + side * .82, y: y + side * .8 }, thickness: 1.5, color })
         }
       } else if (image) {
-        const bytes = marks.get(kind)
+        const stamp = field.type === 'stamp' ? await parseStamp(raw, field.label) : undefined
+        const bytes = stamp?.image ?? marks.get(kind)
         insist(bytes, 'A signer\'s adopted signature image is missing.', 409)
-        const embedded = images.get(kind) ?? images.set(kind, adoption.mediaType === 'image/png' ? await document.embedPng(bytes) : await document.embedJpg(bytes)).get(kind)!
+        const embedded = images.get(kind) ?? images.set(kind, (stamp?.adoption.mediaType ?? adoption.mediaType) === 'image/png' ? await document.embedPng(bytes) : await document.embedJpg(bytes)).get(kind)!
         const scale = Math.min(boxW / embedded.width, boxH / embedded.height), width = embedded.width * scale, height = embedded.height * scale
         page.drawImage(embedded, { x: left + (boxW - width) / 2, y: bottom + (boxH - height) / 2, width, height })
       } else {
@@ -74,6 +77,7 @@ export async function validateSigningValues(envelope: Envelope, signer: number, 
   for (const field of visibleFields(fields, values)) {
     if (field.type === 'checkbox' || (!values[field.id] && !requiredField(field, fields, values))) continue
     insist(values[field.id], `Complete ${field.label}.`)
+    if (field.type === 'stamp') { await parseStamp(values[field.id], field.label); continue }
     const mark = field.type === 'initials' ? initialsAdoption : adoption
     const font = field.type === 'initials' ? await pdf.embedFont(typedStyles[mark.style ?? 'sans'].font) : field.type === 'signature' ? signature : regular, value = printedValue(field, values[field.id])
     encodable(font, value)

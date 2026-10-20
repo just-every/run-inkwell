@@ -1,3 +1,5 @@
+import { validateBusinessValue } from './business-fields'
+import { MAX_STAMP_VALUE } from './stamp-value'
 import { visibleFields } from './field-rules'
 import { assertLockedValues } from './prefill'
 import { active, currentSigners, insist, object, type Env } from './model'
@@ -16,7 +18,8 @@ export async function saveProgress(env: Env, context: SigningContext, input: Rec
   for (const [id, value] of Object.entries(object(input.values))) {
     const field = fields.find(candidate => candidate.id === id)
     insist(field, 'Save only the fields assigned to you.')
-    insist(typeof value === 'string' && value.length <= 500 && !/[\r\n\t]/.test(value), `${field.label} must be one line of at most 500 characters.`)
+    insist(typeof value === 'string' && value.length <= (field.type === 'stamp' ? MAX_STAMP_VALUE : 500) && !/[\r\n\t]/.test(value), field.type === 'stamp' ? `Upload a stamp of at most 512 KiB for ${field.label}.` : `${field.label} must be one line of at most 500 characters.`)
+    if (field.type === 'stamp') validateBusinessValue(field, value)
     if (value.trim() || field.prefill) values[id] = value
   }
   const saved = await env.DB.prepare('UPDATE iw_signers SET progress=? WHERE envelope_id=? AND signer=? AND session_hash=? AND session_expires>?').bind(Object.keys(values).length ? JSON.stringify(values) : null, context.envelope.id, context.recipient.row, context.recipient.session_hash, Date.now()).run()

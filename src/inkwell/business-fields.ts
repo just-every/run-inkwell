@@ -1,3 +1,4 @@
+import { stampParts } from './stamp-value'
 import { insist, type Field } from './model'
 
 /** PREP-003: one catalog for preparation and signing. Validation checks syntax, never identity or tax registration. */
@@ -5,7 +6,7 @@ export const fieldTypes = [
   ['signature', 'Signature'], ['text', 'Text'], ['date', 'Date'], ['checkbox', 'Checkbox'], ['number', 'Number (USD)'],
   ['initials', 'Initials'], ['date_signed', 'Date signed'], ['full_name', 'Full name'],
   ['email', 'Email'], ['company', 'Company'], ['title', 'Title'],
-  ['radio', 'Radio group'], ['dropdown', 'Dropdown'], ['checkbox_group', 'Checkbox group'], ['note', 'Note'],
+  ['radio', 'Radio group'], ['dropdown', 'Dropdown'], ['checkbox_group', 'Checkbox group'], ['note', 'Note'], ['stamp', 'Stamp'],
 ] as const
 export const markField = (field: Field) => field.type === 'signature' || field.type === 'initials'
 export const generatedField = (field: Field) => markField(field) || field.type === 'date_signed'
@@ -23,6 +24,7 @@ export function selectedOptions(value: string): string[] {
 }
 export function validateBusinessValue(field: Field, value: string) {
   if (!value) return
+  if (field.type === 'stamp') { stampParts(value, field.label); return }
   if (choiceField(field)) {
     if (field.type === 'checkbox_group') {
       let selected: unknown
@@ -43,7 +45,7 @@ export function validateBusinessValue(field: Field, value: string) {
   insist(valid, `Enter a valid ${pattern ? patterns[pattern] : 'value'} for ${field.label}.`)
 }
 export const maskedField = (field: Field) => Boolean(field.masked || field.pattern === 'ssn' || field.pattern === 'ein')
-export const displayFieldValue = (field: Field, value: string) => value && maskedField(field) ? '••••••••' : field.type === 'checkbox_group' && value ? selectedOptions(value).join(', ') : value
+export const displayFieldValue = (field: Field, value: string) => value && maskedField(field) ? '••••••••' : field.type === 'stamp' && value ? 'Uploaded stamp image' : field.type === 'checkbox_group' && value ? selectedOptions(value).join(', ') : value
 
 export function displayReferencedValue(fields: Field[], id: string, value: string) {
   const field = fields.find(field => field.id === id)

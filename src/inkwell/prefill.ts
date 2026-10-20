@@ -1,3 +1,4 @@
+import { MAX_STAMP_VALUE } from './stamp-value'
 import { generatedField } from './business-fields'
 import { insist, object, type Field } from './model'
 
@@ -8,7 +9,7 @@ export function normalizePrefill(field: Field, raw: Field) {
   if (raw.prefill !== undefined) {
     insist(!generatedField(field) && !field.calculation, 'Signatures, initials, date signed and calculated fields cannot be prefilled.')
     const prefill = object(raw.prefill)
-    insist(typeof prefill.value === 'string' && prefill.value.length <= 500 && prefill.value.trim().length > 0 && !/[\x00-\x1f\x7f]/.test(prefill.value), `Prefill ${field.label} with one line of at most 500 characters.`)
+    insist(typeof prefill.value === 'string' && prefill.value.length <= (field.type === 'stamp' ? MAX_STAMP_VALUE : 500) && prefill.value.trim().length > 0 && !/[\x00-\x1f\x7f]/.test(prefill.value), field.type === 'stamp' ? `Prefill ${field.label} with a PNG or JPEG stamp of at most 512 KiB.` : `Prefill ${field.label} with one line of at most 500 characters.`)
     insist(typeof prefill.source === 'string' && prefill.source.trim().length > 0 && prefill.source.length <= 200 && !/[\x00-\x1f\x7f]/.test(prefill.source), 'Name the reported source in one line of at most 200 characters.')
     const value = prefill.value.trim()
     if (field.type === 'checkbox') insist(['true', 'false'].includes(value), `Prefill ${field.label} with true or false.`)

@@ -25,7 +25,7 @@ export function FieldInspector({ selection, recipients, who, pages, fields, acti
     else if (!field.options) field = { ...field, options: ['Option 1', 'Option 2'] }
     if (field.type !== 'checkbox_group') { const { minimum: _minimum, maximum: _maximum, ...plain } = field; field = plain }
     if (generatedField(field) || choiceField(field) || field.type === 'checkbox') { const { pattern: _pattern, masked: _masked, ...plain } = field; field = plain }
-    if (['number', 'date', 'email'].includes(field.type)) { const { pattern: _pattern, ...plain } = field; field = plain }
+    if (['number', 'date', 'email', 'stamp'].includes(field.type)) { const { pattern: _pattern, ...plain } = field; field = plain }
     actions.change(field)
   }
   const number = (key: 'x' | 'y' | 'width' | 'height', name: string) => only && <label>{name} (%)<input aria-label={`${name} (%) of the selected field`} type="number" min={0} max={100} step={.5} value={percent(only[key])} onChange={event => { const value = Number(event.target.value); if (Number.isFinite(value)) actions.change(fit(only, { [key]: value / 100 })) }} /></label>

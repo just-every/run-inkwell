@@ -54,7 +54,7 @@ export function normalizeFieldSchema(value: unknown): Field[] {
       } else insist(f.minimum === undefined && f.maximum === undefined, `Only checkbox groups have selection bounds: ${field.label}.`)
     } else insist(f.options === undefined && f.minimum === undefined && f.maximum === undefined, `Only choice fields have options or selection bounds: ${field.label}.`)
     if (f.pattern !== undefined) {
-      insist(typeof f.pattern === 'string' && Object.hasOwn(patterns, f.pattern) && !generatedField(field) && !choiceField(field) && !['checkbox', 'number'].includes(field.type), `Choose a text validation pattern for ${field.label}.`)
+      insist(typeof f.pattern === 'string' && Object.hasOwn(patterns, f.pattern) && !generatedField(field) && !choiceField(field) && !['checkbox', 'number', 'stamp'].includes(field.type), `Choose a text validation pattern for ${field.label}.`)
       field.pattern = f.pattern
     }
     if (f.masked !== undefined) { insist(typeof f.masked === 'boolean' && !generatedField(field) && !choiceField(field) && field.type !== 'checkbox', 'Mask only business-data fields.'); field.masked = f.masked }

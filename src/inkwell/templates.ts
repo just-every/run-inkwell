@@ -4,7 +4,7 @@ import { normalizeRoutingRule, validateRouting } from './routing'
 // envelope is prepared exactly as `envelope.prepare` would prepare it, then approved like any other.
 import { applyPrefillPayload } from './prefill'
 import { blobWrites, download, fromBase64, readBlob } from './blobs'
-import { parsePdf, validateFields, validatePdfText } from './pdf'
+import { parsePdf, validateFields, validatePdfText, validatePrefilledFields } from './pdf'
 import { appendEvent, id, insist, now, object, sha256, text, type Actor, type Env, type Field, type Envelope } from './model'
 import { atomic, commandWrite, getEnvelope, insertEnvelope, roleGuard, type Guard } from './storage'
 import { normalizeApprovalRule } from './internal-approval'
@@ -86,7 +86,7 @@ async function readTemplate(env: Env, input: Record<string, unknown>) {
   const fields = validateFields(input.fields, roles.length, pageSizes.length)
   validateRouting(roles, fields)
   await validatePdfText(roles.flatMap(person=>person.includeWhen?[person.includeWhen.value]:[]))
-  await validatePdfText(fields.flatMap(field => field.prefill ? [field.prefill.value] : []))
+  await validatePrefilledFields(fields)
   insist(roles.every((_, i) => fields.some(f => f.signer === i && f.type === 'signature')), 'Place at least one signature field for every role.')
   const expiryDays = input.expiryDays === undefined ? defaultExpiryDays : input.expiryDays
   insist(Number.isInteger(expiryDays) && (expiryDays as number) >= 1 && (expiryDays as number) <= maxExpiryDays, `Set the expiry from 1 to ${maxExpiryDays} whole days.`)

@@ -155,15 +155,16 @@ test('PREP-003 round A: initials adoption, automatic US signing dates, business-
  }finally{await h.close()}
 })
 
-test('PREP-003 round B: radio, dropdown, checkbox group bounds and notes retain source/locks and signed-record custody', async()=>{
+test('PREP-003 round B: radio, dropdown, checkbox group bounds, notes and image stamps retain source/locks and signed-record custody', async()=>{
  const h=await harness({mailProvider:null})
  try {
   const pdf=await PDFDocument.create();pdf.addPage([612,792]);pdf.addPage([612,792])
+  const stamp='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVQImWP4z8Dwn4GBgYGJAQoAHgQCAZK7TscAAAAASUVORK5CYII='
   const definitions=[
    ['radio','Delivery method','Courier',['Courier','Pickup','Mail']],
    ['dropdown','Service level','Standard',['Standard','Priority','Economy']],
    ['checkbox_group','Contact methods','["Email","Phone"]',['Email','Phone','Post']],
-   ['note','Service note','Please deliver to reception'],
+   ['note','Service note','Please deliver to reception'],['stamp','Approval stamp',stamp],
   ]
   const make=(id,type,page,y,extra={})=>({id,label:id,type,signer:0,page,x:.1,y,width:.8,height:.04,...extra})
   const fields=[make('signature','signature',0,.08),...definitions.flatMap(([type,label,value,options],i)=>[
@@ -187,16 +188,18 @@ test('PREP-003 round B: radio, dropdown, checkbox group bounds and notes retain 
   for(const [type,,value] of definitions) {
    const locked=view.fields.find(f=>f.id===`${type}_locked`)
    assert.equal(locked.prefill.value,value);assert.equal(locked.prefill.source,`API fixture / ${type}`);assert.equal(locked.readOnly,true)
-   const changed={[locked.id]:type==='checkbox_group'?'["Phone","Post"]':type==='note'?'Changed note':locked.options[1]}
+   const changed={[locked.id]:type==='checkbox_group'?'["Phone","Post"]':type==='note'?'Changed note':type==='stamp'?'data:image/png;base64,aW52YWxpZA==':locked.options[1]}
    const progress=await h.post(path+'/progress',{values:changed},cookie,400);assert.match(progress.value.error,new RegExp(locked.label))
    const failed=await h.post(path+'/sign',{values:{signature:'Mara Quinn',...changed},consent:true,commandId:crypto.randomUUID()},cookie,400);assert.match(failed.value.error,new RegExp(locked.label))
   }
-  const values={signature:'Mara Quinn',radio:'Pickup',dropdown:'Economy',checkbox_group:'["Post","Phone"]',note:'Leave with the concierge',optional:''}
+  const values={signature:'Mara Quinn',radio:'Pickup',dropdown:'Economy',checkbox_group:'["Post","Phone"]',note:'Leave with the concierge',stamp,optional:''}
   const sign=changes=>({values:{...values,conditional:'Back door',...changes},consent:true,commandId:crypto.randomUUID()})
-  for(const [field,value,message] of [['radio','Invented','Delivery method'],['dropdown','Invented','Service level'],['checkbox_group','["Email"]','Contact methods'],['checkbox_group','["Email","Phone","Post"]','Contact methods'],['checkbox_group','["Email","Email"]','Contact methods'],['checkbox_group','["Invented","Phone"]','Contact methods'],['checkbox_group','Email','Contact methods'],['checkbox_group','[]','Contact methods'],['conditional','','conditional']]) {
+  for(const [field,value,message] of [['radio','Invented','Delivery method'],['dropdown','Invented','Service level'],['checkbox_group','["Email"]','Contact methods'],['checkbox_group','["Email","Phone","Post"]','Contact methods'],['checkbox_group','["Email","Email"]','Contact methods'],['checkbox_group','["Invented","Phone"]','Contact methods'],['checkbox_group','Email','Contact methods'],['checkbox_group','[]','Contact methods'],['conditional','','conditional'],['stamp','https://outside.example/stamp.png','Approval stamp']]) {
    const result=await h.post(path+'/sign',sign({[field]:value}),cookie,400);assert.match(result.value.error,new RegExp(message))
    assert.equal((await read(id)).status,'awaiting_signature','a refusal writes no signature')
   }
+  await h.post(path+'/progress',{values:{stamp:'https://outside.example/stamp.png'}},cookie,400)
+  const badStamp=await h.post(path+'/sign',sign({stamp:'data:image/png;base64,aW52YWxpZA=='}),cookie,415);assert.match(badStamp.value.error,/Approval stamp/)
   // Partial selections survive Finish later, but cannot finish outside the inclusive bounds.
   await h.post(path+'/progress',{values:{...values,checkbox_group:'["Phone"]'}},cookie)
   assert.equal((await h.send(path,undefined,cookie)).value.progress.checkbox_group,'["Phone"]')
@@ -206,8 +209,8 @@ test('PREP-003 round B: radio, dropdown, checkbox group bounds and notes retain 
   assert.equal(signed.radio,'Pickup');assert.equal(signed.dropdown,'Economy');assert.equal(signed.checkbox_group,'["Phone","Post"]','selected labels are stored in declared option order');assert.equal(signed.note,'Leave with the concierge');assert.equal(signed.optional,'');assert.equal(signed.conditional,'Back door')
   for(const [type,,value] of definitions)assert.equal(signed[`${type}_locked`],value)
   const bytes=(await h.send(`/api/inkwell/envelopes/${id}/artifacts/signed`,undefined,h.owner)).bytes
-  const {getDocument}=await import('pdfjs-dist/legacy/build/pdf.mjs'),executed=await getDocument({data:new Uint8Array(bytes),standardFontDataUrl:new URL('../node_modules/pdfjs-dist/standard_fonts/',import.meta.url).pathname}).promise
-  const texts=[];for(let i=1;i<=executed.numPages;i++)texts.push((await (await executed.getPage(i)).getTextContent()).items.map(item=>item.str).join(' '))
+  const {getDocument,OPS}=await import('pdfjs-dist/legacy/build/pdf.mjs'),executed=await getDocument({data:new Uint8Array(bytes),standardFontDataUrl:new URL('../node_modules/pdfjs-dist/standard_fonts/',import.meta.url).pathname}).promise
+  const texts=[];for(let i=1;i<=executed.numPages;i++){const page=await executed.getPage(i);texts.push((await page.getTextContent()).items.map(item=>item.str).join(' '));assert.equal((await page.getOperatorList()).fnArray.filter(op=>op===OPS.paintImageXObject).length,1,`stamp image is embedded on page ${i}`)}
   for(const value of ['Pickup','Economy','Phone, Post','Leave with the concierge'])assert.ok(texts[0].includes(value),`executed PDF retains ${value}`)
   for(const value of ['Courier','Standard','Email, Phone','Please deliver to reception','Back door'])assert.ok(texts[1].includes(value),`locked field prints ${value}`)
   assert.equal((await h.send(`/api/inkwell/envelopes/${id}/verify`,undefined,h.owner)).value.ok,true)
@@ -215,6 +218,7 @@ test('PREP-003 round B: radio, dropdown, checkbox group bounds and notes retain 
   const saved=(await h.command('template.from_envelope',{id,title:'Retained choices'})).result.id,reused=(await h.command('template.use',{id:saved,recipients})).result.id;assert.deepEqual((await read(reused)).fields,completed.fields)
   const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value,fresh=await harness({mailProvider:null})
   try{await fresh.post('/api/inkwell/archive/restore',{archive},fresh.owner);const restored=(await fresh.send(`/api/inkwell/envelopes/${id}/artifacts/audit`,undefined,fresh.owner)).value.envelope;assert.deepEqual(restored.fields,completed.fields);assert.deepEqual(restored.signers[0].values,signed);assert.deepEqual((await fresh.send(`/api/inkwell/envelopes/${id}/artifacts/signed`,undefined,fresh.owner)).bytes,bytes)}finally{await fresh.close()}
+  const stampDefault=(await h.command('template.use',{id:t,recipients})).result.id;const stampInvite=(await h.command('envelope.approve',{id:stampDefault,eligible:true})).result.invitations[0],stampPath=new URL(stampInvite.url).pathname.replace('/sign/','/api/sign/'),stampCookie=(await h.post(stampPath+'/verify',{code:stampInvite.code},'')).cookie;await h.agree(stampPath,stampCookie);await h.post(stampPath+'/sign',{values:{signature:'Mara Quinn'},consent:true,commandId:crypto.randomUUID()},stampCookie);assert.equal((await read(stampDefault)).signers[0].values.stamp,stamp,'an omitted stamp uses its prepared image')
   // Each new business-data type can also be optional and explicitly left blank, including a group with a nonzero minimum.
   const optionalFields=completed.fields.map(field=>definitions.some(([type])=>type===field.type)?{...field,required:false,readOnly:undefined,prefill:undefined}:field)
   await h.command('envelope.update',{...base,id:copied,signers:recipients,fields:optionalFields})
@@ -223,6 +227,6 @@ test('PREP-003 round B: radio, dropdown, checkbox group bounds and notes retain 
   await h.post(optionalPath+'/sign',{values:{signature:'Mara Quinn',optional:''},consent:true,commandId:crypto.randomUUID()},optionalCookie)
   const optionalRecord=await read(copied);assert.equal(optionalRecord.status,'completed');for(const field of optionalFields.filter(field=>definitions.some(([type])=>type===field.type)))assert.ok(!optionalRecord.signers[0].values[field.id],`optional ${field.type} may remain blank`)
   // Invalid declarations and prefills refuse the whole template, not a truncated set of choices.
-  for(const change of [{id:'radio',options:['Same',' Same ']},{id:'radio',options:['Only']},{id:'radio',prefill:{value:'Invented',source:'Sender'}},{id:'dropdown',options:['Good','Bad\nchoice']},{id:'checkbox_group',minimum:3,maximum:2},{id:'checkbox_group',minimum:1.5},{id:'checkbox_group',maximum:4},{id:'checkbox_group',prefill:{value:'["Phone"]',source:'Sender'}},{id:'note',options:['Yes','No']}])await h.command('template.save',{...base,fields:fields.map(f=>f.id===change.id?{...f,...change}:f)},h.owner,400)
+  for(const change of [{id:'radio',options:['Same',' Same ']},{id:'radio',options:['Only']},{id:'radio',prefill:{value:'Invented',source:'Sender'}},{id:'dropdown',options:['Good','Bad\nchoice']},{id:'checkbox_group',minimum:3,maximum:2},{id:'checkbox_group',minimum:1.5},{id:'checkbox_group',maximum:4},{id:'checkbox_group',prefill:{value:'["Phone"]',source:'Sender'}},{id:'note',options:['Yes','No']},{id:'stamp',prefill:{value:'data:image/svg+xml;base64,aW52YWxpZA==',source:'Sender'}}])await h.command('template.save',{...base,fields:fields.map(f=>f.id===change.id?{...f,...change}:f)},h.owner,400)
  }finally{await h.close()}
 })

@@ -1,6 +1,6 @@
 import { normalizeRoutingRule, validateCopyRouting, validateRouting } from './routing'
 import { fromBase64, blobWrites, readBlob } from './blobs'
-import { parsePdf, validateFields, validatePdfText } from './pdf'
+import { parsePdf, validateFields, validatePdfText, validatePrefilledFields } from './pdf'
 import { accessCodeHash, appendEvent, insist, now, object, sha256, text, type Envelope, type Env, type Signer } from './model'
 import { commandWrite, commitEnvelope, getEnvelope } from './storage'
 import { chooseExpiry } from './expiry'
@@ -54,7 +54,7 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   validateRouting(signers, fields)
   validateCopyRouting(copies, fields)
   await validatePdfText([...signers, ...copies].flatMap(person=>person.includeWhen?[person.includeWhen.value]:[]))
-  await validatePdfText(fields.flatMap(field => field.prefill ? [field.prefill.value] : []))
+  await validatePrefilledFields(fields)
   insist(input.allowPaperSigning === undefined || typeof input.allowPaperSigning === 'boolean', 'Choose whether recipients may sign on paper.')
   // ROUTE-006: whether a recipient may reassign their signing to someone else; off unless the sender turns it on.
   insist(input.allowReassignment === undefined || typeof input.allowReassignment === 'boolean', 'Choose whether recipients may reassign their signing.')

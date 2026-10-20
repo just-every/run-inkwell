@@ -1,3 +1,4 @@
+import { StampInput } from './stamp-input'
 import { useId, type RefObject } from 'react'
 import { choiceField, selectedOptions, maskedField, markField, validateBusinessValue } from '../inkwell/business-fields'
 import type { Field } from './types'
@@ -9,6 +10,7 @@ export function SigningFieldInput({ field, values, disabled, onChange, inputRef,
   try { validateBusinessValue(field, values[field.id]?.trim() ?? '') } catch (failure) { error = failure instanceof Error ? failure.message : 'Check this value.' }
   const locked = Boolean(field.calculation || field.readOnly || field.type === 'date_signed')
   const details = <><small>{hint ?? `Page ${field.page + 1} · ${field.calculation ? 'Calculated USD' : field.type}`}{locked && ' · Read-only'}</small>{field.prefill && <><br /><small>Source (reported by sender/API): {field.prefill.source}. Supplied by the caller, not verified with the CRM.</small></>}</>
+  if (field.type === 'stamp') return <StampInput label={field.label} details={details} value={values[field.id] ?? ''} disabled={disabled} readOnly={locked} required={required} masked={maskedField(field)} inputRef={inputRef} onChange={value => onChange(field.id, value)} />
   if (choiceField(field)) {
     const value = values[field.id] ?? '', selection = selectedOptions(value)
     const errorNotice = error && <small id={errorId} className="iw-error">{error}</small>
