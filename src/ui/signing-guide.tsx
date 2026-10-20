@@ -38,7 +38,7 @@ export function SigningGuide({ fields, allFields = fields, values, current, onCu
   }
   return <div ref={guide} className="iw-guide" role="group" aria-label="Guided signing">
     <p className="iw-guide-count" role="status">{left ? `${done} of ${required.length} required fields complete · ${left} left` : `All ${required.length} required fields complete`}</p>
-    {field && <div className="iw-guide-field"><SigningFieldInput field={field} hint={`Field ${ordered.indexOf(field) + 1} of ${ordered.length} · Page ${field.page + 1} · ${field.type}`} required={requiredField(field, allFields, values)} values={values} disabled={disabled} onChange={onChange} inputRef={input} onNext={next} /></div>}
+    {field && <div className="iw-guide-field"><SigningFieldInput field={field} hint={`Field ${ordered.indexOf(field) + 1} of ${ordered.length} · Page ${field.page + 1} · ${field.type.replaceAll('_', ' ')}`} required={requiredField(field, allFields, values)} values={values} disabled={disabled} onChange={onChange} inputRef={input} onNext={next} /></div>}
     {current === 'review' && !left && <p>Every field is complete. Confirm your consent, then sign.</p>}
     <div className="iw-actions"><button type="button" className="iw-primary" disabled={disabled} onClick={next}>{current ? 'Next' : 'Start'}</button><button type="button" disabled={disabled || save.busy || !done} onClick={() => void save.run(async () => { await onSave(); setSaved(true) })}>Finish later</button></div>
     {saved && <p role="status">Saved. Open this same link to finish.</p>}

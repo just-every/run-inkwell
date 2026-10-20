@@ -14,7 +14,7 @@ export function StampInput({ label, details, value, onChange, disabled = false, 
   }
   let preview = ''; try { if (value) { stampParts(value); preview = value } } catch {}
   return <div className="iw-stack"><label>{label}<span>{details}</span><input ref={element => { own.current = element; if (inputRef) inputRef.current = element }} type="file" accept="image/png,image/jpeg" required={required && !value && !readOnly} disabled={disabled || readOnly} onChange={event => void choose(event.target.files?.[0])} aria-invalid={Boolean(error)} /><small>PNG or JPEG, up to 512 KiB. An uploaded image, not a verified seal.</small></label>
-    {value && <><p role="status">Stamp loaded{readOnly ? ' · Read-only' : ''}</p>{masked ? <p>Stamp hidden on display.</p> : <img src={preview || undefined} alt={`${label} stamp preview`} style={{ maxWidth: '100%', maxHeight: 160, objectFit: 'contain' }} />}{!readOnly && <button type="button" disabled={disabled} onClick={() => { if (own.current) own.current.value = ''; onChange(''); setError('') }}>Clear {label}</button>}</>}
+    {value && <><p role="status">Stamp loaded{readOnly ? ' · Read-only' : ''}</p>{masked ? <p>Stamp hidden on display.</p> : <img src={preview || undefined} alt={`Preview of ${label}`} style={{ maxWidth: '100%', maxHeight: 160, objectFit: 'contain' }} />}{!readOnly && <button type="button" disabled={disabled} onClick={() => { if (own.current) own.current.value = ''; onChange(''); setError('') }}>Clear {label}</button>}</>}
     {error && <p className="iw-error" role="alert">{error}</p>}
   </div>
 }

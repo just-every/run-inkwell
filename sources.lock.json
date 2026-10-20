@@ -2979,11 +2979,11 @@
       "executable": false
     },
     "src/ui/signing-guide.tsx": {
-      "sha256": "a0a66055dd175bedf1008779dd9d0bb561632b8472aa5a697b4a1cc21c97b7ad",
+      "sha256": "0d8d154ee74e87c85228e0a055eb1b5922269433a7bb0ca59a53a880e0ce3f1a",
       "executable": false
     },
     "src/ui/stamp-input.tsx": {
-      "sha256": "5c9a3a822874fbd142b5cd4eed23ec371d343c83a21436af853e7034a8cd878c",
+      "sha256": "27040fb8c0546d90a71840eaeb5d9257e017fc772741b41e651104a7472a0dfc",
       "executable": false
     },
     "src/ui/styles.ts": {
@@ -3099,7 +3099,7 @@
       "executable": false
     },
     "tests/journeys/field-types.mjs": {
-      "sha256": "4daa5a00930c6eded74a6b718ad1dc152f60ab7a1ad38cf16661a82965a41f27",
+      "sha256": "56d185b247fb11c50592b63be6068940e264b54c1a82fa40cfea922904a8cd6f",
       "executable": false
     },
     "tests/journeys/healthcare.mjs": {
