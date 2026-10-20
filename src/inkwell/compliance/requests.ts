@@ -16,8 +16,9 @@ const door = (request: Request) => {
  * A valid member session on a response below 400 counts. A freshly issued member session counts too.
  * Anonymous recipients and agent bearer tokens never count as a workspace member's access. */
 export async function complianceRequest(request: Request, original: Bindings, handle: () => Promise<Response>): Promise<Response> {
-  const env = runtimeBindings(original), auth = operatorAuth(env)
-  const session = await auth.getSession(request)
+  const env = runtimeBindings(original)
+  // Public documents and health work before auth is configured. Only a request carrying a cookie needs session lookup.
+  const session = request.headers.get('cookie') ? await operatorAuth(env).getSession(request) : null
   const enabled = await healthcareProfile(env)
   let response: Response
   try { response = await handle() }
@@ -26,7 +27,7 @@ export async function complianceRequest(request: Request, original: Bindings, ha
     const cookies = response.headers.getSetCookie().map(cookie => cookie.split(';')[0]).join('; ')
     const headers = new Headers(request.headers)
     if (cookies) headers.set('cookie', cookies)
-    const member = session ?? (cookies ? await auth.getSession(new Request(request.url, { headers })) : null)
+    const member = session ?? (cookies ? await operatorAuth(env).getSession(new Request(request.url, { headers })) : null)
     if (member) await env.DB.prepare(`INSERT INTO iw_member_access(operator_id,last_access_at) VALUES(?,?)
       ON CONFLICT(operator_id) DO UPDATE SET last_access_at=MAX(iw_member_access.last_access_at,excluded.last_access_at)`).bind(member.operator.id, now()).run()
   }
