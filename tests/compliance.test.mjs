@@ -14,6 +14,9 @@ test('COMPLY-002: healthcare signing keeps content out of operational/provider l
     await h.post('/auth/invite', { email: 'invited@harbour.example', displayName: 'Awaiting colleague', role: 'member' }, h.owner, 202)
     const who = async cookie => (await h.send('/api/inkwell', undefined, cookie)).value.actor
     const viewerId = (await who(viewer)).id
+    const departed = await h.invite('departed@harbour.example', 'member'), departedId = (await who(departed)).id
+    await h.post('/auth/operator/status', { operatorId: departedId, status: 'inactive' })
+    assert.equal((await h.send('/api/inkwell', undefined, departed)).status, 401)
     await h.command('account.healthcare', { enabled: false }, viewer, 403)
     assert.equal((await h.send('/api/inkwell/compliance/access-review', undefined, viewer)).status, 403)
     assert.equal((await h.send('/api/inkwell/compliance/access-review')).status, 401)
@@ -33,8 +36,10 @@ test('COMPLY-002: healthcare signing keeps content out of operational/provider l
     assert.equal((await h.send('/api/inkwell/import/jobs', undefined, h.owner)).status, 200)
     const report = await review()
     assert.equal(report.enabled, true)
-    assert.equal(report.members.length, 4, 'every member, including the invited person, is listed')
+    assert.equal(report.members.length, 5, 'every member, including the invited person, is listed')
     assert.equal(report.members.find(member => member.email === 'invited@harbour.example').lastAccessAt, null)
+    assert.equal(report.members.find(member => member.id === departedId).status, 'inactive')
+    assert.ok(report.members.find(member => member.id === departedId).lastAccessAt)
     for (const member of report.members.filter(member => member.status === 'active')) assert.ok(Number.isFinite(Date.parse(member.lastAccessAt)), member.email)
     assert.ok(Date.parse(report.members.find(member => member.role === 'owner').lastAccessAt) >= importAt)
     assert.ok(report.members.some(member => member.id === adminId && member.role === 'admin'))

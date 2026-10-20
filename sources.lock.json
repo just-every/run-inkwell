@@ -2871,7 +2871,7 @@
       "executable": false
     },
     "src/ui/healthcare.tsx": {
-      "sha256": "3d33eace0d0085691fcbcaa4dbbb92ca7bcc3429f6b92b4f5ec5d353b3d4db0d",
+      "sha256": "f74d600ebd9a6b520e0f276ff834ef46a5fe04d7a54842a4f041e8b91e6c51b7",
       "executable": false
     },
     "src/ui/host-signing.tsx": {
@@ -2991,7 +2991,7 @@
       "executable": false
     },
     "tests/compliance.test.mjs": {
-      "sha256": "b79e8553d54d7e81162e645f5517a288c9a5b0cb87befd4124f90be7938792ee",
+      "sha256": "fa0a86814231a887525bf540412eb2496e4a01e1b6e79c1f0b75d8a89dd2a6d1",
       "executable": false
     },
     "tests/delivery.test.mjs": {
@@ -3067,7 +3067,7 @@
       "executable": false
     },
     "tests/journeys/healthcare.mjs": {
-      "sha256": "a9586a521ac4d7e9acb892062cbb8c31994acd0b658e76ab88e03a7c60e1c589",
+      "sha256": "c0044ae9e1a196123bbacdbdce9751ccd22690c127bae83c9974a1e370bbe15d",
       "executable": false
     },
     "tests/journeys/import-retention.mjs": {
