@@ -890,6 +890,10 @@
       "sha256": "c9c610f4d6f8f6230a9470bd22243ef893954b208c5961520b4c4be9c006132d",
       "executable": false
     },
+    "src/inkwell/routing.ts": {
+      "sha256": "dc1a582c7d7aef69b0e1f33fef5694210c5ca7545b58d6be38472e0c0aa8a527",
+      "executable": false
+    },
     "src/inkwell/saved-marks.ts": {
       "sha256": "7f5e7e7a21a7770cd64fe98dac9edec2a511a18f64a4830d53fa22d7d9c6f601",
       "executable": false
@@ -2886,6 +2890,10 @@
       "sha256": "2f2301429b280b4de5f059c38bdf380bf1e258c94b7e6a986b095f86583e3f13",
       "executable": false
     },
+    "src/ui/routing-rules.tsx": {
+      "sha256": "f00c40cdba2d5be0b865443e77c034d43a8db9bc5a8f6da8cdea68e80aaf6d00",
+      "executable": false
+    },
     "src/ui/send-copy.tsx": {
       "sha256": "8f8658fb2883f6ff21ca30ce9d5ba78e753f4a5d91e2372245453bc4f9720975",
       "executable": false
@@ -3030,6 +3038,10 @@
       "sha256": "28e98b0d54aa44f79509c50db1455218fe15d89116c16060d49655be97badafb",
       "executable": false
     },
+    "tests/journeys/routing.mjs": {
+      "sha256": "616e65a9e5b1bf9b8d1468c4f443009457aec5c816eec9597de0a4485394bb0e",
+      "executable": false
+    },
     "tests/journeys/signing-mobile.mjs": {
       "sha256": "a855fde408562ce2376691b04838ffcf3c2ef79d68e4f6482c97cde43db8ba7a",
       "executable": false
@@ -3052,6 +3064,10 @@
     },
     "tests/prefill.test.mjs": {
       "sha256": "e28b12d72cc409ba52de3ac2977617eff81b103b7b12d28bd2a9dddd4626a14c",
+      "executable": false
+    },
+    "tests/routing.test.mjs": {
+      "sha256": "9d246847800bb5f96cfc2a234863675fd9fecd5ed81bc5007420ff13051c5e0e",
       "executable": false
     },
     "tests/runtime.mjs": {
