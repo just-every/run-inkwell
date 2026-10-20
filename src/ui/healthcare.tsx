@@ -18,7 +18,7 @@ export function Healthcare({ enabled, refresh }: { enabled: boolean; refresh: ()
     <ErrorNotice error={action.error} />
     <button className="iw-fit" disabled={action.busy} onClick={() => void action.run(async () => setReview(await request<Review>('/api/inkwell/compliance/access-review')))}>Review member access</button>
     {review && <section className="iw-stack" aria-label="Member access review"><h3>Member access review</h3><p>Generated {dateTime(review.generatedAt)}. Last successful authenticated request, in your local time. No recorded access is shown explicitly; anonymous signer and agent requests do not count as member access.</p>
-      <ul className="iw-signers">{review.members.map(member => <li key={member.id}><div><strong>{member.name}</strong><span className="iw-signer-email">{member.email}</span><small>{member.role} · {member.status}</small><small>{member.lastAccessAt ? <time dateTime={member.lastAccessAt}>{dateTime(member.lastAccessAt)}</time> : 'No recorded access'}</small></div></li>)}</ul>
+      <ul className="iw-contact-results">{review.members.map(member => <li key={member.id}><span><strong>{member.name}</strong><small className="iw-muted">{member.email}</small><small className="iw-muted">{member.role} · {member.status}</small><small className="iw-muted">{member.lastAccessAt ? <time dateTime={member.lastAccessAt}>{dateTime(member.lastAccessAt)}</time> : 'No recorded access'}</small></span></li>)}</ul>
     </section>}
   </section>
 }

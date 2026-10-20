@@ -2879,7 +2879,7 @@
       "executable": false
     },
     "src/ui/healthcare.tsx": {
-      "sha256": "65fc6b545eaac7b20c2d5af5adf250457abe100b672d6db36f730e892908beb1",
+      "sha256": "5586172b5375bc64d4693fbf45747f27aac9fc9853c84e7559076df7fe99c3fe",
       "executable": false
     },
     "src/ui/host-signing.tsx": {
