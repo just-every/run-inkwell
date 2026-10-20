@@ -6,7 +6,7 @@ import { applyPrefillPayload } from './prefill'
 import { blobWrites, download, fromBase64, readBlob } from './blobs'
 import { parsePdf, validateFields, validatePdfText } from './pdf'
 import { appendEvent, id, insist, now, object, sha256, text, type Actor, type Env, type Field, type Envelope } from './model'
-import { atomic, commandWrite, getEnvelope, insertEnvelope, roleGuard } from './storage'
+import { atomic, commandWrite, getEnvelope, insertEnvelope, roleGuard, type Guard } from './storage'
 import { normalizeApprovalRule } from './internal-approval'
 import { insistAccess } from './members'
 import { accessCodeWrites, draftDetail, readDraft } from './drafts'
@@ -17,14 +17,14 @@ import { accessContext, folderAccess, sharesOf, visibleSql, type TemplateAccess,
 
 /** A role is a place in the routing order with no person yet; `accessCode` says the sender gives that person a code. */
 export interface Role { includeWhen?: import('./model').RoutingRule; role: string; order: number; accessCode?: boolean; linkOnly?: boolean; message?: string }
-export interface Template { approval?: import('./model').ApprovalRule; id: string; title: string; filename: string; originalSha256: string; pageSizes: { width: number; height: number }[]; roles: Role[]; fields: Field[]; expiryDays: number; reminders?: { afterDays: number; everyDays: number }; allowPaper?: boolean; allowReassign?: boolean; subject?: string; message?: string; createdBy: string; createdAt: string; version?: number; updatedAt?: string; tags?: string[] }
+export interface Template { maintenance?: { proposalId: string; by: string; at: string; examples: { id: string; eventHash: string }[] }; approval?: import('./model').ApprovalRule; id: string; title: string; filename: string; originalSha256: string; pageSizes: { width: number; height: number }[]; roles: Role[]; fields: Field[]; expiryDays: number; reminders?: { afterDays: number; everyDays: number }; allowPaper?: boolean; allowReassign?: boolean; subject?: string; message?: string; createdBy: string; createdAt: string; version?: number; updatedAt?: string; tags?: string[] }
 /** TMPL-003: a template stored before versions is version 1. */
 const versionOf = (template: Template) => template.version ?? 1
 const day = 86_400_000
 const optional = (value: unknown, label: string, max: number) => value === undefined || value === '' ? undefined : text(value, label, max)
 
 /** TMPL-002: a template this person reaches with at least `needed`; one they cannot reach at all is not found. */
-async function loadTemplate(env: Env, actor: Actor, templateId: string, needed: Exclude<TemplateAccess, 'none'>) {
+export async function loadTemplate(env: Env, actor: Actor, templateId: string, needed: Exclude<TemplateAccess, 'none'>) {
   const row = await env.DB.prepare('SELECT id,data,created_by,folder_id FROM iw_templates WHERE id=?').bind(templateId).first<TemplateRow>()
   const access = row ? (await accessContext(env, actor)).templateAccess(row) : 'none'
   insist(row && access !== 'none', 'Template not found.', 404)
@@ -60,7 +60,8 @@ export async function listTemplates(env: Env, actor: Actor, params = new URLSear
   const rows = (await env.DB.prepare(`SELECT t.id,t.data,t.created_by,t.folder_id FROM iw_templates t WHERE ${where.sql} ORDER BY t.created_at DESC`).bind(...where.values).all<TemplateRow>()).results
   const templates = await Promise.all(rows.filter(row => !folder || (folder === 'personal' ? !row.folder_id : row.folder_id === folder)).map(row => ({ row, template: JSON.parse(row.data) as Template })).filter(({ template }) => !q || template.title.toLowerCase().includes(q) || (template.tags ?? []).some(tag => tag.toLowerCase().includes(q))).map(async ({ row, template }) => {
     const access = context.templateAccess(row), named = context.folders.find(f => f.id === row.folder_id)
-    return { ...template, access, folder: row.folder_id ? { id: row.folder_id, name: named?.name ?? 'Shared folder' } : null, ...(access === 'manage' ? { shares: await sharesOf(env, 'template', row.id) } : {}) }
+    const { maintenance, ...definition } = template
+    return { ...definition, ...(template.createdBy === actor.id && maintenance ? { maintenance } : {}), maintenanceAvailable: template.createdBy === actor.id, access, folder: row.folder_id ? { id: row.folder_id, name: named?.name ?? 'Shared folder' } : null, ...(access === 'manage' ? { shares: await sharesOf(env, 'template', row.id) } : {}) }
   }))
   const folders = await Promise.all(context.folders.map(async f => ({ ...f, ...(f.access === 'manage' ? { shares: await sharesOf(env, 'folder', f.id) } : {}) })))
   return { templates, folders }
@@ -113,14 +114,15 @@ export const saveTemplate = (env: Env, context: CommandContext, input: Record<st
 
 /** TMPL-003 `template.update`: an edit is the template's next version. Envelopes already sent keep their own bytes,
  * fields and settings and name the version they came from, so nothing sent changes. */
-export async function updateTemplate(env: Env, context: CommandContext, input: Record<string, unknown>) {
+export async function updateTemplate(env: Env, context: CommandContext, input: Record<string, unknown>, review?: { version: number; maintenance: NonNullable<Template['maintenance']>; guards: Guard[] }) {
   const { template: before, row } = await loadTemplate(env, context.actor, text(input.id, 'a template ID'), 'edit'), { definition, bytes } = await readTemplate(env, input)
-  const after: Template = { ...definition, id: before.id, createdBy: before.createdBy, createdAt: before.createdAt, version: versionOf(before) + 1, updatedAt: now() }
+  if (review) insist(before.createdBy === context.actor.id && versionOf(before) === review.version, 'This suggestion changed. Review it again before publishing.', 409)
+  const after: Template = { ...(review ? { maintenance: review.maintenance } : {}), ...definition, id: before.id, createdBy: before.createdBy, createdAt: before.createdAt, version: versionOf(before) + 1, updatedAt: now() }
   // TMPL-002: without `folderId` the template stays where it is; moving it is for those who manage it.
   const moving = input.folderId !== undefined && (input.folderId || null) !== row.folder_id
   if (moving) await loadTemplate(env, context.actor, before.id, 'manage')
   const folder = moving ? await targetFolder(env, context.actor, input.folderId) : row.folder_id, result = { id: after.id, version: after.version }
-  await atomic(env.DB, [roleGuard(context.actor), { sql: 'EXISTS(SELECT 1 FROM iw_templates WHERE id=? AND data=?)', values: [before.id, JSON.stringify(before)] }], [env.DB.prepare('UPDATE iw_templates SET data=?,folder_id=? WHERE id=?').bind(JSON.stringify(after), folder, after.id), env.DB.prepare('DELETE FROM iw_template_blobs WHERE template_id=?').bind(after.id), ...blobInserts(env, after.id, bytes), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
+  await atomic(env.DB, [roleGuard(context.actor), ...(review?.guards ?? []), { sql: 'EXISTS(SELECT 1 FROM iw_templates WHERE id=? AND data=?)', values: [before.id, JSON.stringify(before)] }], [env.DB.prepare('UPDATE iw_templates SET data=?,folder_id=? WHERE id=?').bind(JSON.stringify(after), folder, after.id), env.DB.prepare('DELETE FROM iw_template_blobs WHERE template_id=?').bind(after.id), ...blobInserts(env, after.id, bytes), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   return result
 }
 

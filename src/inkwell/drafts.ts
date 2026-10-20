@@ -79,7 +79,7 @@ export async function updateDraft(env: Env, context: CommandContext, input: Reco
   // ROUTE-004: a draft waiting for internal approval is locked; a rejected one keeps its rejection until it is sent again.
   insist(before.internalApproval?.state !== 'pending', 'This envelope is waiting for internal approval and cannot be edited.', 409)
   const { draft, bytes, accessCodes } = await readDraft(env, input, now(), before)
-  const after: Envelope = { id: before.id, version: before.version, status: 'prepared', createdAt: before.createdAt, createdBy: before.createdBy, ...(before.copiedFrom ? { copiedFrom: before.copiedFrom } : {}), ...(before.approvalRule ? { approvalRule: before.approvalRule } : {}), ...(before.internalApproval ? { internalApproval: before.internalApproval } : {}), events: structuredClone(before.events), ...draft }
+  const after: Envelope = { id: before.id, version: before.version, status: 'prepared', createdAt: before.createdAt, createdBy: before.createdBy, ...(before.template ? { template: before.template } : {}), ...(before.copiedFrom ? { copiedFrom: before.copiedFrom } : {}), ...(before.approvalRule ? { approvalRule: before.approvalRule } : {}), ...(before.internalApproval ? { internalApproval: before.internalApproval } : {}), events: structuredClone(before.events), ...draft }
   await appendEvent(after, 'envelope.updated', context.actor.id, draftDetail(draft))
   const result = { id: after.id }
   await commitEnvelope(env, before, after, context.actor, [

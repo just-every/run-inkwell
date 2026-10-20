@@ -329,7 +329,7 @@ Agents carry the agreement from request to filed record. Each clause says what t
 
 - **AGENT-006 — Keep integrations correct.** *What the agent does:* reconciles webhook deliveries and connector state against Inkwell's records, detects drift (a renamed CRM field, a moved folder, an expired token), proposes the mapping repair and proves a replay causes no duplicate. *Data:* webhook logs, connector configurations and the remote API state under grant. *Human control:* the owner approves scope changes and repairs; uncertain remote effects stay unresolved until confirmed. **Acceptance evidence:** rename a CRM field in the fake; the agent detects failed write-backs, proposes the new mapping, and after approval replays them without duplicates.
 
-- **AGENT-007 — Keep templates current.** *What the agent does:* learns from senders' repeated corrections (fields always added, recipients always changed) and outside changes (a new IRS W-9 revision, a new company address) and proposes a template revision with its reasons. *Data:* envelopes sent from the template and their corrections. *Human control:* the template owner reviews the diff and publishes a new version (`TMPL-003`); nothing changes without them. **Acceptance evidence:** ten envelopes where senders added the same field; the agent proposes adding it with the ten examples cited; the owner accepts and version 2 is published.
+- **AGENT-007 — Keep templates current.** *What the agent does:* learns from senders' repeated corrections (fields always added, recipients always changed) and outside changes (a new IRS W-9 revision, a new company address) and proposes a template revision with its reasons. *Data:* envelopes sent from the template and their corrections. *Human control:* the template owner reviews the diff and publishes a new version (`TMPL-003`); nothing changes without them. The template maker opens suggestions on Templates. Three distinct envelopes with the same correction establish repetition; a replacement PDF recorded in a corrected envelope is a source revision to review even on its own. Fields, their placement and prepared values, role count and routing, and replacement PDF fingerprints are compared against the template version the envelope came from. Names and emails supplied to fill a role are per-send inputs, not reusable role changes. Suggestions cite each supporting envelope and its correction event hash and time and show the before and after definition and original PDF. They use only envelopes the maker can already read under `ADMIN-001`; a recorded replacement or reported address is never labeled externally verified. The maker explicitly reviews and publishes through the normal template validator, preserving other template settings and producing the next version (`TMPL-003`); reviewing alone changes nothing, a stale template or withdrawn source suggestion is refused, and repeated approval with one command ID publishes once. The published template records the maker, time, proposal ID and supporting event references. **Acceptance evidence:** ten envelopes where senders added the same field; the agent proposes adding it with the ten examples cited; the owner accepts and version 2 is published.
 
 - **AGENT-008 — Signer assistant.** *What the agent does:* answers a signer's questions about what they are being asked to fill and sign, citing the page and passage, and explains each field in plain English or Spanish. *Data:* only the envelope's documents visible to that signer. *Human control:* the assistant gives no legal advice, cannot fill or sign, and a signer's questions are private unless they choose to send them to the sender. **Acceptance evidence:** a signer asks what the termination notice period is and receives the answer with its page cited; a request to sign for them is refused; the sender sees no question unless the signer sends it.
 
@@ -368,8 +368,8 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 9 | 1 | 0 | 10 |
-| Target and push further | 42 | 12 | 53 | 107 |
-| All | 51 | 13 | 53 | 117 |
+| Target and push further | 43 | 12 | 52 | 107 |
+| All | 52 | 13 | 52 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -487,6 +487,6 @@ Judged from the code and tests at commit `a78e38ffeb5588d9825b3da9cc72aafd7dd9a3
 | `AGENT-004` | Verify the intended revision and parties | push-further | partial | `src/inkwell/envelopes.ts` | Signers sign the approved fingerprinted bytes; no comparison with an external approved revision or signer-authority check |
 | `AGENT-005` | Complete the downstream work | push-further | missing |  | No downstream effects |
 | `AGENT-006` | Keep integrations correct | push-further | missing |  | No integration reconciliation |
-| `AGENT-007` | Keep templates current | push-further | missing |  | No template maintenance agent |
+| `AGENT-007` | Keep templates current | push-further | done | `src/inkwell/template-maintenance.ts`; `src/ui/template-maintenance.tsx`; `tests/template-maintenance.test.mjs`; `tests/journeys/template-maintenance.mjs` | Recorded correction proposals with event citations and before/after review; explicit template-maker publication creates the next version without changing sent envelopes |
 | `AGENT-008` | Signer assistant | push-further | missing |  | No signer assistant |
 | `AGENT-009` | Inbound agreements | push-further | missing |  | No inbound agreement handling |
