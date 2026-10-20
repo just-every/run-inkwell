@@ -21,7 +21,9 @@ body:has(.iw-app) { margin: 0; padding: 0; background: var(--paper); }
 .iw-app code { font: 13px/1.5 var(--rer-font-mono); }
 .iw-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .iw-icon { flex: none; display: block; }
-.iw-grad { background: var(--app-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* Gradient text starts a shade deeper in --app-grad-a's hue (HSL lightness 39.4% -> 37.7%) so every point reaches the 3:1
+   large text needs on white; the bars and navigation keep --app-gradient. */
+.iw-grad { --iw-grad-text-a: #16aa65; background: linear-gradient(90deg, var(--iw-grad-text-a), var(--app-grad-b)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
 /* Buttons: quiet outlined pills; the primary is ink. */
 .iw-app button, .iw-button {
@@ -45,8 +47,11 @@ body:has(.iw-app) { margin: 0; padding: 0; background: var(--paper); }
 .iw-app button:disabled, .iw-app input:disabled, .iw-app select:disabled, .iw-app textarea:disabled { cursor: not-allowed; opacity: .5; }
 .iw-app .iw-primary { min-height: 46px; padding: 10px 24px; border-color: var(--button); border-radius: 16px; background: var(--button); color: #fff; font-size: 15px; font-weight: 600; box-shadow: 0 10px 22px -14px rgb(11 13 18 / 70%); }
 .iw-app .iw-primary:hover { border-color: #000; background: #000; }
-.iw-app .iw-danger { border-color: var(--red); background: var(--red); color: #fff; }
+/* Danger paints --red darkened in its own hue (HSL lightness 53.7% -> 52.0%) so white text reaches 4.5:1; disabled, it is
+   the soft red pill (--red-ink on --red-tint, 4.8:1) instead of a faded button. */
+.iw-app .iw-danger { --iw-danger-bg: #e42a25; border-color: var(--iw-danger-bg); background: var(--iw-danger-bg); color: #fff; }
 .iw-app .iw-danger:hover { border-color: var(--red-ink); background: var(--red-ink); }
+.iw-app .iw-danger:disabled { border-color: var(--red-tint); background: var(--red-tint); color: var(--red-ink); opacity: 1; }
 .iw-app .iw-text-button, .iw-app .iw-link { min-height: 32px; padding: 0 4px; border: 0; border-radius: 6px; background: none; color: var(--blue-ink); font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
 .iw-app .iw-text-button:hover, .iw-app .iw-link:hover { background: none; color: var(--ink); }
 .iw-app .iw-icon-button { width: 36px; min-height: 36px; padding: 0; border-color: transparent; background: none; color: var(--soft); }
@@ -124,7 +129,7 @@ body:has(.iw-app) { margin: 0; padding: 0; background: var(--paper); }
 .iw-pill-amber { background: #fff3cc; color: #a34f00; }
 .iw-pill-blue { background: #e4f1ff; color: #0063f0; }
 .iw-pill-mint, .iw-status-completed, .iw-status-active { background: #d9fbee; color: #00804f; }
-.iw-pill-grey { background: #eef1f4; color: var(--soft); }
+.iw-pill-grey { background: #eef1f4; color: #686e7c; }
 
 /* Marks. */
 .iw-check-mark { flex: none; width: 22px; height: 22px; }
