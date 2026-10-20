@@ -25,7 +25,7 @@ try {
   for(const [index,f] of fields.entries()) {
    if(f.type==='signature'||f.type==='text'||f.id==='ini2')continue
    const selection=page.getByRole('checkbox',{name:new RegExp(`Select field ${index+1}: ${f.label}`)});await tabTo(page,selection);await page.keyboard.press('Space')
-   const type=page.getByLabel('Type of the selected field',{exact:true});await tabTo(page,type);assert.equal(await type.inputValue(),f.type)
+   const type=page.getByLabel('Type of the selected field',{exact:true});await tabTo(page,type);await page.keyboard.press('Home');for(let step=0;step<['signature','initials','date_signed','full_name','email','company','title','text','date','checkbox','number'].indexOf(f.type);step++)await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');assert.equal(await type.inputValue(),f.type)
    if(f.prefill){assert.equal(await page.getByLabel('Prefill value',{exact:true}).inputValue(),f.prefill.value);assert.equal(await page.getByLabel('Source (reported by sender/API)',{exact:true}).inputValue(),f.prefill.source);assert.equal(await page.getByLabel('Read-only for signer',{exact:true}).isChecked(),Boolean(f.readOnly))}
    else assert.equal(await page.getByLabel('Prefill value',{exact:true}).count(),0,'initials and date signed cannot be supplied as sender prefill')
    for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await axe(page,`PREP-003 ${f.type} inspector ${width} ${theme}`)}
@@ -56,7 +56,7 @@ try {
   await keyboardSet(signer,input('Full name'),'Mara Updated');await keyboardSet(signer,input('Job title'),'Principal')
   await keyboardSet(signer,input('Client signature'),'Mara Quinn');await keyboardSet(signer,input('Client initials'),'MQ');assert.equal(await input('Second initials').inputValue(),'MQ','one initials entry fills every initials field')
   const adopted=signer.getByRole('group',{name:'Adopt your initials applied to every initials field'})
-  const style=adopted.getByRole('radio',{name:/Serif italic$/});await tabTo(signer,style);await signer.keyboard.press('Space')
+  const style=adopted.getByRole('radio',{name:/Sans italic$/});await tabTo(signer,style);await signer.keyboard.press('ArrowDown');assert.ok(await adopted.getByRole('radio',{name:/Serif italic$/}).isChecked())
   assert.ok((await adopted.ariaSnapshot()).includes('[checked]'),'initials style exposes checked state to a screen reader')
   if(width===390){await adopted.getByRole('radio',{name:'Draw',exact:true}).check();const pad=adopted.getByRole('img',{name:/Initials drawing area/});await pad.scrollIntoViewIfNeeded();const box=await pad.boundingBox(),cdp=await context.newCDPSession(signer),stroke=[{x:box.x+20,y:box.y+box.height*.6},{x:box.x+45,y:box.y+20},{x:box.x+70,y:box.y+box.height*.7},{x:box.x+100,y:box.y+25}];await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[stroke[0]]});for(const point of stroke.slice(1))await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[point]});await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]})}
   for(const theme of ['light','dark']){await signer.emulateMedia({colorScheme:theme});await axe(signer,`PREP-003 all types signing ${width} ${theme}`)}
