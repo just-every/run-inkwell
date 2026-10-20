@@ -1,3 +1,4 @@
+import { displayReferencedValue } from './business-fields'
 import { appendEvent, canonical, currentSigners, insist, object, text, type Envelope, type Field, type RoutingRule, type RoutingResult } from './model'
 import { resolveFieldValues, visibleFields, usdCents, usdDecimal } from './field-rules'
 
@@ -61,7 +62,7 @@ export function copyPreview(copies:{ includeWhen?: RoutingRule; routeResult?: Ro
   return copies.map((copy,index)=>{
     const rule=copy.includeWhen
     if (!rule) return {index,state:'included' as const,reason:'Always gets the completed copy'}
-    const describe=(value:string)=>`${fields.find(f=>f.id===rule.field)?.label??rule.field} ${rule.operator.replaceAll('_',' ')} ${value}`
+    const describe=(value:string)=>`${fields.find(f=>f.id===rule.field)?.label??rule.field} ${rule.operator.replaceAll('_',' ')} ${displayReferencedValue(fields,rule.field,value)}`
     if (copy.routeResult) return {index,state:copy.routeResult.state,reason:describe(rule.value)}
     try {
       const checked={...rule};checkRule(checked,fields);const description=describe(checked.value)
@@ -75,7 +76,7 @@ export function routingPreview(people:Person[],fields:Field[]) {
   return people.map((person,signer)=>{
     const rule=person.includeWhen
     if (!rule) return {signer,state:'included' as const,reason:'Always included'}
-    const description=`${fields.find(f=>f.id===rule.field)?.label??rule.field} ${rule.operator.replaceAll('_',' ')} ${rule.value}`
+    const description=`${fields.find(f=>f.id===rule.field)?.label??rule.field} ${rule.operator.replaceAll('_',' ')} ${displayReferencedValue(fields,rule.field,rule.value)}`
     if (person.routeResult && person.routeResult.state!=='unresolved') return {signer,state:person.routeResult.state,reason:description}
     try {
       validateRouting(people.map(p=>({...p,...(p.includeWhen?{includeWhen:{...p.includeWhen}}:{})})),fields)

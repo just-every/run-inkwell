@@ -129,8 +129,9 @@ function evaluate(fields: Field[], raw: Record<string, unknown>, strict: boolean
         if (field.type === 'number') values[field.id] = decimal(cents(input, field.label))
         else {
           insist(typeof input === 'string', `Provide a text value for ${field.label}.`)
-          values[field.id] = (input as string).trim()
-          validateBusinessValue(field, values[field.id])
+          const value = (input as string).trim()
+          validateBusinessValue(field, value)
+          values[field.id] = value
         }
       }
     } catch (error) { if (strict || !(error instanceof Refusal)) throw error }

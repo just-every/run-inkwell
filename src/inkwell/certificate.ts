@@ -97,7 +97,7 @@ function adoptionLines(envelope: Envelope, signer: number) {
   const lines = envelope.fields.filter(f => f.signer === signer && ['signature', 'initials'].includes(f.type) && s.values?.[f.id]).map(field => {
     const initials = field.type === 'initials'
     const adoption = initials ? s.initialsAdoption ?? { method: 'typed' as const, style: 'sans' as const } : adoptionOf(envelope, signer)
-    const description = describeAdoption(adoption, initials ? undefined : saved)
+    const description = describeAdoption(adoption, initials ? signed?.detail.initialsSaved === true ? signed.detail.operator as string : undefined : saved)
     return `Adopted ${field.type} (${field.label}): "${s.values![field.id]}", ${initials ? description.replace(/signature/g, 'initials').replace('typed name', 'typed initials') : description}`
   })
   if (s.signingTimeZone) lines.push(`Date signed time zone: ${s.signingTimeZone} (from signing instant ${s.signedAt})`)

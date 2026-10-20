@@ -1,4 +1,4 @@
-// AGENT-007: the template maker reviews ten recorded corrections, their diff and citations, then publishes version 2.
+// AGENT-007 and PREP-003 masked displays: the template maker reviews ten recorded corrections, their diff and citations, then publishes version 2.
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -22,7 +22,7 @@ try {
     for (let i = 0; i < 10; i++) {
       const signers = [{ name: `Harbour client ${i + 1}`, email: `orders.${width}.${i}@clients.example` }]
       const created = await inkwell.command('template.use', { id, recipients: signers })
-      await inkwell.command('envelope.update', { id: created.id, title: `${title} — order ${i + 1}`, filename: 'services.pdf', pdfBase64, signers, fields: [signature, { id: `purchase-order-${i}`, label: 'Purchase order', type: 'text', signer: 0, page: 0, x: .1, y: .5, width: .5, height: .05 }] })
+      await inkwell.command('envelope.update', { id: created.id, title: `${title} — order ${i + 1}`, filename: 'services.pdf', pdfBase64, signers, fields: [signature, { id: `purchase-order-${i}`, label: 'Purchase order', type: 'text', masked: true, prefill: { value: 'PO-MASKED-2026', source: 'Sender fixture' }, signer: 0, page: 0, x: .1, y: .5, width: .5, height: .05 }] })
       await inkwell.command('envelope.approve', { id: created.id, eligible: true })
     }
     const context = await inkwell.browser.newContext({ viewport: { width, height } })
@@ -37,6 +37,8 @@ try {
     assert.equal(await review.getByRole('link', { name: /audit evidence/ }).count(), 10, 'AGENT-007: all ten example envelopes are cited')
     assert.equal(await review.getByRole('region', { name: 'Before', exact: true }).getByText('Purchase order', { exact: true }).count(), 0)
     await review.getByRole('region', { name: 'After', exact: true }).getByText('Purchase order', { exact: true }).waitFor()
+    assert.ok(!(await review.innerText()).includes('PO-MASKED-2026'), 'PREP-003: template suggestions conceal masked prefills')
+    assert.ok((await review.innerText()).includes('••••••••'), 'PREP-003: masked prefill marker appears in the suggestion')
     const publish = review.getByRole('button', { name: 'Publish suggested version' })
     assert.equal(await publish.isDisabled(), true, 'reviewing a proposal cannot publish it')
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: no sideways scroll`)

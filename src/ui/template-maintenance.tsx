@@ -1,3 +1,5 @@
+import { displayFieldValue, displayReferencedValue } from '../inkwell/business-fields'
+import { routingRuleText } from './routing-rules'
 import { useId, useState } from 'react'
 import { command, request, type Field } from './types'
 import type { Role } from '../inkwell/templates'
@@ -17,15 +19,15 @@ function SnapshotReview({ label, snapshot }: { label: string; snapshot: Snapshot
   return <section className="iw-stack" aria-label={label}>
     <h4>{label}</h4>
     <p><strong>Role routing</strong> · Roles with the same order sign at the same time.</p>
-    {snapshot.roles.length ? <div role="list">{snapshot.roles.map((role, index) => <div role="listitem" key={index}>Role {index + 1}: {role.role} · routing order {role.order} · {role.linkOnly ? 'Link only' : 'Email code'}{role.accessCode ? ' + sender access code' : ''}{role.message && <p>Private invitation message: {role.message}</p>}{role.includeWhen && <p>Include when {role.includeWhen.field} {role.includeWhen.operator} {role.includeWhen.value}</p>}</div>)}</div> : <p>No roles.</p>}
+    {snapshot.roles.length ? <div role="list">{snapshot.roles.map((role, index) => <div role="listitem" key={index}>Role {index + 1}: {role.role} · routing order {role.order} · {role.linkOnly ? 'Link only' : 'Email code'}{role.accessCode ? ' + sender access code' : ''}{role.message && <p>Private invitation message: {role.message}</p>}{role.includeWhen && <p>Include when {routingRuleText(role.includeWhen, snapshot.fields)}</p>}</div>)}</div> : <p>No roles.</p>}
     <p><strong>Fields</strong> · Positions and dimensions are fractions of the PDF page.</p>
     {snapshot.fields.length ? <div role="list" className="iw-stack">{snapshot.fields.map(field => <div role="listitem" key={field.id}>
       <strong>{field.label}</strong> · {field.type}
       <p>Assigned to role {field.signer + 1}{snapshot.roles[field.signer] ? `: ${snapshot.roles[field.signer].role}` : ' (unassigned)'} · page {field.page + 1}</p>
       <p>Position: x {field.x}, y {field.y} · size: {field.width} × {field.height}</p>
-      <p>{field.prefill ? <>Prefill: <q style={{ whiteSpace: 'pre-wrap' }}>{field.prefill.value}</q> · source (reported by sender/API): {field.prefill.source}</> : 'No prefill.'} · {field.readOnly ? 'Read-only' : 'Editable'} · {field.required ?? field.type !== 'checkbox' ? 'Required' : 'Optional'}</p>
-      {field.requiredWhen && <p>Required when field {field.requiredWhen.field} equals <q>{field.requiredWhen.equals}</q>.</p>}
-      {field.condition && <p>Shown when field {field.condition.field} equals <q>{field.condition.equals}</q>.</p>}
+      <p>{field.prefill ? <>Prefill: <q style={{ whiteSpace: 'pre-wrap' }}>{displayFieldValue(field, field.prefill.value)}</q> · source (reported by sender/API): {field.prefill.source}</> : 'No prefill.'} · {field.readOnly ? 'Read-only' : 'Editable'} · {field.required ?? field.type !== 'checkbox' ? 'Required' : 'Optional'}</p>
+      {field.requiredWhen && <p>Required when field {field.requiredWhen.field} equals <q>{displayReferencedValue(snapshot.fields, field.requiredWhen.field, field.requiredWhen.equals)}</q>.</p>}
+      {field.condition && <p>Shown when field {field.condition.field} equals <q>{displayReferencedValue(snapshot.fields, field.condition.field, field.condition.equals)}</q>.</p>}
       {field.calculation && <p>Calculation: {field.calculation.operation} of fields {field.calculation.fields.join(', ')}.</p>}
     </div>)}</div> : <p>No fields.</p>}
     <p><strong>PDF fingerprint (SHA-256)</strong><br /><span>{snapshot.originalSha256}</span></p>

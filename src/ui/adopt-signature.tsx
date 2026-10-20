@@ -23,7 +23,7 @@ type Props = { kind?: 'signature' | 'initials'; name: string; value: AdoptionInp
 export function AdoptSignature({ kind = 'signature', name, value, onChange, disabled }: Props) {
   const [method, setMethod] = useState<AdoptionInput['method']>(value.method)
   const [error, setError] = useState('')
-  const shown = name.trim() || 'Your name'
+  const shown = name.trim() || (kind === 'initials' ? 'Your initials' : 'Your name')
   function choose(next: AdoptionInput['method']) { setMethod(next); setError(''); if (next === 'typed') onChange(value.method === 'typed' ? value : defaultAdoption) }
   async function upload(file?: File) {
     setError('')

@@ -28,3 +28,8 @@ export function validateBusinessValue(field: Field, value: string) {
 }
 export const maskedField = (field: Field) => Boolean(field.masked || field.pattern === 'ssn' || field.pattern === 'ein')
 export const displayFieldValue = (field: Field, value: string) => value && maskedField(field) ? '••••••••' : value
+
+export function displayReferencedValue(fields: Field[], id: string, value: string) {
+  const field = fields.find(field => field.id === id)
+  return field ? displayFieldValue(field, value) : value
+}

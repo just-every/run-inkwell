@@ -1,4 +1,4 @@
-import { markField } from '../inkwell/business-fields'
+import { markField, maskedField, displayReferencedValue } from '../inkwell/business-fields'
 import { useId } from 'react'
 import type { RoutingRule } from '../inkwell/model'
 import { copyPreview, routingPreview } from '../inkwell/routing'
@@ -20,7 +20,7 @@ export function RoutingRuleEditor({ label, value, fields, disabled, copy, onChan
       {sources.map(field => <option key={field.id} value={field.id}>{field.label} · recipient {field.signer + 1} · page {field.page + 1}</option>)}
     </select></label>
     {value && <div className="iw-two"><label>Comparison<select aria-label={`${label} routing comparison`} value={value.operator} onChange={event => onChange({ ...value, operator: event.target.value as RoutingRule['operator'] })}>{operators.map(([operator, text]) => <option key={operator} value={operator}>{text}</option>)}</select></label>
-      <label>Compare with<input aria-label={`${label} routing value`} required maxLength={500} value={value.value} onChange={event => onChange({ ...value, value: event.target.value })} /></label></div>}
+      <label>Compare with<input aria-label={`${label} routing value`} type={fields.some(f => f.id === value.field && maskedField(f)) ? 'password' : 'text'} required maxLength={500} value={value.value} onChange={event => onChange({ ...value, value: event.target.value })} /></label></div>}
     <small id={hint} className="iw-muted">{copy ? 'Decided once at completion from locked prefills and every completed field. USD comparisons use exact amounts. If the answer is missing or hidden, the copy is still sent and the certificate says so.' : 'Use a locked sender/API prefill or a field completed by a recipient at a lower routing order. USD comparisons use exact amounts. Missing or hidden answers stop routing for correction.'}</small>
   </fieldset>
 }
@@ -46,5 +46,5 @@ export function RoutingPreview({ signers, fields, copies = [] }: { signers: Prev
 }
 
 export function routingRuleText(rule: RoutingRule, fields: Field[]) {
-  return `${fields.find(field => field.id === rule.field)?.label ?? 'Missing source field'} ${operators.find(([operator]) => operator === rule.operator)?.[1] ?? rule.operator} “${rule.value}”`
+  return `${fields.find(field => field.id === rule.field)?.label ?? 'Missing source field'} ${operators.find(([operator]) => operator === rule.operator)?.[1] ?? rule.operator} “${displayReferencedValue(fields, rule.field, rule.value)}”`
 }
