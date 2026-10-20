@@ -154,3 +154,68 @@ test('PREP-003 round A: initials adoption, automatic US signing dates, business-
   for(const change of [{id:'ini0',prefill:{value:'MQ',source:'Sender'}},{id:'signed0',prefill:{value:'1900-01-01',source:'Sender'}},{id:'zip0',pattern:'invented'},{id:'zip0',prefill:{value:'invalid',source:'Sender'}},{id:'ssn0',masked:'false'}])await h.command('template.save',{...base,fields:fields.map(f=>f.id===change.id?{...f,...change}:f)},h.owner,400)
  }finally{await h.close()}
 })
+
+test('PREP-003 round B: radio, dropdown, checkbox group bounds and notes retain source/locks and signed-record custody', async()=>{
+ const h=await harness({mailProvider:null})
+ try {
+  const pdf=await PDFDocument.create();pdf.addPage([612,792]);pdf.addPage([612,792])
+  const definitions=[
+   ['radio','Delivery method','Courier',['Courier','Pickup','Mail']],
+   ['dropdown','Service level','Standard',['Standard','Priority','Economy']],
+   ['checkbox_group','Contact methods','["Email","Phone"]',['Email','Phone','Post']],
+   ['note','Service note','Please deliver to reception'],
+  ]
+  const make=(id,type,page,y,extra={})=>({id,label:id,type,signer:0,page,x:.1,y,width:.8,height:.04,...extra})
+  const fields=[make('signature','signature',0,.08),...definitions.flatMap(([type,label,value,options],i)=>[
+   make(type,type,0,.18+i*.14,{label,...(options?{options}:{}),...(type==='checkbox_group'?{minimum:2,maximum:2}:{}),prefill:{value,source:`Sender fixture / ${type}`}}),
+   make(`${type}_locked`,type,1,.18+i*.14,{label:`Locked ${label}`,...(options?{options}:{}),...(type==='checkbox_group'?{minimum:2,maximum:2}:{}),prefill:{value,source:`API fixture / ${type}`},readOnly:true}),
+  ]),make('optional','radio',0,.82,{options:['Yes','No'],required:false,prefill:{value:'Yes',source:'Sender'}}),make('conditional','note',1,.82,{required:false,requiredWhen:{field:'radio',equals:'Pickup'}})]
+  const base={title:'PREP-003 round B choices and notes',filename:'choices.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),fields,roles:[{role:'Client'}]}
+  const t=(await h.command('template.save',base)).result.id
+  const recipients=[{name:'Mara Quinn',email:'mara@clients.example'}]
+  const id=(await h.command('template.use',{id:t,recipients,prefill:{dropdown:{value:'Priority',source:'API caller / request 902'}}})).result.id
+  const read=async target=>(await h.send(`/api/inkwell/envelopes/${target}/artifacts/audit`,undefined,h.owner)).value.envelope
+  const draft=await read(id)
+  assert.equal(draft.fields.find(f=>f.id==='dropdown').prefill.source,'API caller / request 902')
+  assert.deepEqual(draft.fields.find(f=>f.id==='checkbox_group').options,['Email','Phone','Post'])
+  const invitation=(await h.command('envelope.approve',{id,eligible:true})).result.invitations[0],path=new URL(invitation.url).pathname.replace('/sign/','/api/sign/')
+  assert.ok((await h.send(path)).value.fields.every(f=>!f.prefill),'choice/note prefill remains behind verification and disclosure')
+  const cookie=(await h.post(path+'/verify',{code:invitation.code},'')).cookie
+  assert.ok((await h.send(path,undefined,cookie)).value.fields.every(f=>!f.prefill))
+  await h.agree(path,cookie)
+  const view=(await h.send(path,undefined,cookie)).value
+  for(const [type,,value] of definitions) {
+   const locked=view.fields.find(f=>f.id===`${type}_locked`)
+   assert.equal(locked.prefill.value,value);assert.equal(locked.prefill.source,`API fixture / ${type}`);assert.equal(locked.readOnly,true)
+   const changed={[locked.id]:type==='checkbox_group'?'["Phone","Post"]':type==='note'?'Changed note':locked.options[1]}
+   const progress=await h.post(path+'/progress',{values:changed},cookie,400);assert.match(progress.value.error,new RegExp(locked.label))
+   const failed=await h.post(path+'/sign',{values:{signature:'Mara Quinn',...changed},consent:true,commandId:crypto.randomUUID()},cookie,400);assert.match(failed.value.error,new RegExp(locked.label))
+  }
+  const values={signature:'Mara Quinn',radio:'Pickup',dropdown:'Economy',checkbox_group:'["Post","Phone"]',note:'Leave with the concierge',optional:''}
+  const sign=changes=>({values:{...values,conditional:'Back door',...changes},consent:true,commandId:crypto.randomUUID()})
+  for(const [field,value,message] of [['radio','Invented','Delivery method'],['dropdown','Invented','Service level'],['checkbox_group','["Email"]','Contact methods'],['checkbox_group','["Email","Phone","Post"]','Contact methods'],['checkbox_group','["Email","Email"]','Contact methods'],['checkbox_group','["Invented","Phone"]','Contact methods'],['checkbox_group','Email','Contact methods'],['checkbox_group','[]','Contact methods'],['conditional','','conditional']]) {
+   const result=await h.post(path+'/sign',sign({[field]:value}),cookie,400);assert.match(result.value.error,new RegExp(message))
+   assert.equal((await read(id)).status,'awaiting_signature','a refusal writes no signature')
+  }
+  // Partial selections survive Finish later, but cannot finish outside the inclusive bounds.
+  await h.post(path+'/progress',{values:{...values,checkbox_group:'["Phone"]'}},cookie)
+  assert.equal((await h.send(path,undefined,cookie)).value.progress.checkbox_group,'["Phone"]')
+  await h.post(path+'/sign',sign({}),cookie)
+  const completed=await read(id),signed=completed.signers[0].values
+  assert.equal(completed.status,'completed')
+  assert.equal(signed.radio,'Pickup');assert.equal(signed.dropdown,'Economy');assert.equal(signed.checkbox_group,'["Phone","Post"]','selected labels are stored in declared option order');assert.equal(signed.note,'Leave with the concierge');assert.equal(signed.optional,'');assert.equal(signed.conditional,'Back door')
+  for(const [type,,value] of definitions)assert.equal(signed[`${type}_locked`],value)
+  const bytes=(await h.send(`/api/inkwell/envelopes/${id}/artifacts/signed`,undefined,h.owner)).bytes
+  const {getDocument}=await import('pdfjs-dist/legacy/build/pdf.mjs'),executed=await getDocument({data:new Uint8Array(bytes),standardFontDataUrl:new URL('../node_modules/pdfjs-dist/standard_fonts/',import.meta.url).pathname}).promise
+  const texts=[];for(let i=1;i<=executed.numPages;i++)texts.push((await (await executed.getPage(i)).getTextContent()).items.map(item=>item.str).join(' '))
+  for(const value of ['Pickup','Economy','Phone, Post','Leave with the concierge'])assert.ok(texts[0].includes(value),`executed PDF retains ${value}`)
+  for(const value of ['Courier','Standard','Email, Phone','Please deliver to reception','Back door'])assert.ok(texts[1].includes(value),`locked field prints ${value}`)
+  assert.equal((await h.send(`/api/inkwell/envelopes/${id}/verify`,undefined,h.owner)).value.ok,true)
+  const copied=(await h.command('envelope.copy',{id})).result.id;assert.deepEqual((await read(copied)).fields,completed.fields);assert.equal((await read(copied)).signers[0].values,undefined)
+  const saved=(await h.command('template.from_envelope',{id,title:'Retained choices'})).result.id,reused=(await h.command('template.use',{id:saved,recipients})).result.id;assert.deepEqual((await read(reused)).fields,completed.fields)
+  const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value,fresh=await harness({mailProvider:null})
+  try{await fresh.post('/api/inkwell/archive/restore',{archive},fresh.owner);const restored=(await fresh.send(`/api/inkwell/envelopes/${id}/artifacts/audit`,undefined,fresh.owner)).value.envelope;assert.deepEqual(restored.fields,completed.fields);assert.deepEqual(restored.signers[0].values,signed);assert.deepEqual((await fresh.send(`/api/inkwell/envelopes/${id}/artifacts/signed`,undefined,fresh.owner)).bytes,bytes)}finally{await fresh.close()}
+  // Invalid declarations and prefills refuse the whole template, not a truncated set of choices.
+  for(const change of [{id:'radio',options:['Same',' Same ']},{id:'radio',options:['Only']},{id:'radio',prefill:{value:'Invented',source:'Sender'}},{id:'dropdown',options:['Good','Bad\nchoice']},{id:'checkbox_group',minimum:3,maximum:2},{id:'checkbox_group',minimum:1.5},{id:'checkbox_group',maximum:4},{id:'checkbox_group',prefill:{value:'["Phone"]',source:'Sender'}},{id:'note',options:['Yes','No']}])await h.command('template.save',{...base,fields:fields.map(f=>f.id===change.id?{...f,...change}:f)},h.owner,400)
+ }finally{await h.close()}
+})

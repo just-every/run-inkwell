@@ -1,6 +1,6 @@
 import { insist, Refusal, type Field } from './model'
 import { normalizePrefill } from './prefill'
-import { fieldTypes, generatedField, markField, patterns, validateBusinessValue } from './business-fields'
+import { choiceField, selectedOptions, fieldTypes, generatedField, markField, patterns, validateBusinessValue } from './business-fields'
 
 const simpleId = (value: unknown): value is string => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(value) && !['__proto__', 'constructor', 'prototype'].includes(value)
 const maxCents = BigInt(Number.MAX_SAFE_INTEGER)
@@ -41,11 +41,23 @@ export function normalizeFieldSchema(value: unknown): Field[] {
       insist(Array.isArray(calculation.fields) && calculation.fields.length > 0 && calculation.fields.length <= 100 && calculation.fields.every(simpleId), `Choose number fields for ${field.label}'s calculation.`)
       field.calculation = { operation: calculation.operation, fields: [...calculation.fields] }
     }
+    if (choiceField(field)) {
+      insist(Array.isArray(f.options) && f.options.length >= 2 && f.options.length <= 20 && f.options.every(option => typeof option === 'string' && option.trim().length > 0 && option.length <= 100 && !/[\x00-\x1f\x7f]/.test(option)), `Give ${field.label} 2–20 single-line options of at most 100 characters.`)
+      field.options = f.options.map(option => option.trim())
+      insist(new Set(field.options).size === field.options.length, `Give ${field.label} distinct options.`)
+      insist(JSON.stringify(field.options).length <= 500, `The options for ${field.label} must fit within 500 characters together.`)
+      if (field.type === 'checkbox_group') {
+        const minimum = f.minimum ?? 0, maximum = f.maximum ?? field.options.length
+        insist(Number.isInteger(minimum) && Number.isInteger(maximum) && minimum >= 0 && minimum <= maximum && maximum <= field.options.length, `Choose whole-number minimum and maximum bounds within ${field.label}'s options.`)
+        field.minimum = minimum; field.maximum = maximum
+        insist(f.required === false || maximum > 0, `A required checkbox group needs at least one allowed selection: ${field.label}.`)
+      } else insist(f.minimum === undefined && f.maximum === undefined, `Only checkbox groups have selection bounds: ${field.label}.`)
+    } else insist(f.options === undefined && f.minimum === undefined && f.maximum === undefined, `Only choice fields have options or selection bounds: ${field.label}.`)
     if (f.pattern !== undefined) {
-      insist(typeof f.pattern === 'string' && Object.hasOwn(patterns, f.pattern) && !generatedField(field) && !['checkbox', 'number'].includes(field.type), `Choose a text validation pattern for ${field.label}.`)
+      insist(typeof f.pattern === 'string' && Object.hasOwn(patterns, f.pattern) && !generatedField(field) && !choiceField(field) && !['checkbox', 'number'].includes(field.type), `Choose a text validation pattern for ${field.label}.`)
       field.pattern = f.pattern
     }
-    if (f.masked !== undefined) { insist(typeof f.masked === 'boolean' && !generatedField(field) && field.type !== 'checkbox', 'Mask only business-data fields.'); field.masked = f.masked }
+    if (f.masked !== undefined) { insist(typeof f.masked === 'boolean' && !generatedField(field) && !choiceField(field) && field.type !== 'checkbox', 'Mask only business-data fields.'); field.masked = f.masked }
     normalizePrefill(field, f)
     if (field.prefill) validateBusinessValue(field, field.prefill.value)
     return field
@@ -131,7 +143,7 @@ function evaluate(fields: Field[], raw: Record<string, unknown>, strict: boolean
           insist(typeof input === 'string', `Provide a text value for ${field.label}.`)
           const value = (input as string).trim()
           validateBusinessValue(field, value)
-          values[field.id] = value
+          values[field.id] = field.type === 'checkbox_group' ? selectedOptions(value).length ? JSON.stringify(field.options!.filter(option => selectedOptions(value).includes(option))) : '' : value
         }
       }
     } catch (error) { if (strict || !(error instanceof Refusal)) throw error }

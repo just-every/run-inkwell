@@ -1,4 +1,4 @@
-import { fieldTypes } from '../inkwell/business-fields'
+import { choiceField, fieldTypes } from '../inkwell/business-fields'
 import { useId, useState, type Dispatch, type PointerEvent, type SetStateAction } from 'react'
 import type { Field } from './types'
 import { PdfViewer } from './pdf-viewer'
@@ -30,7 +30,7 @@ export function FieldEditor({ pdf, fields, setFields, signer, setSigner, recipie
   const selection = fields.filter(field => selected.includes(field.id))
   function place(page: number, x: number, y: number) {
     if (busy || locked(signer)) return
-    setFields(current => [...current, fit({ id: crypto.randomUUID(), signer, type, label: label.trim() || type, page, x, y, width, height })])
+    setFields(current => [...current, fit({ id: crypto.randomUUID(), signer, type, label: label.trim() || type, page, x, y, width, height, ...(choiceField({ type } as Field) ? { options: ['Option 1', 'Option 2'] } : {}) })])
   }
   const replace = (changed: Field[]) => setFields(current => current.map(field => changed.find(next => next.id === field.id) ?? field))
   const editing: FieldEditing = {

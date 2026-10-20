@@ -1,3 +1,4 @@
+import { selectedOptions, validateBusinessValue } from '../inkwell/business-fields'
 import { requiredField } from '../inkwell/field-rules'
 import { SigningFieldInput } from './signing-field-input'
 import { useEffect, useRef, useState } from 'react'
@@ -12,11 +13,11 @@ type Props = { allFields?: Field[]; fields: Field[]; values: Record<string, stri
  * to it (pdf-viewer.tsx) and its entry at the foot of the screen; once none is left, Next goes to the consent. The count shows
  * what remains. Each Next saves what is entered, and Finish later saves it so the same link reopens where they left off. */
 export function SigningGuide({ fields, allFields = fields, values, current, onCurrent, onChange, onSave, consentId, disabled }: Props) {
-  const ordered = readingOrder(fields), filled = (field: Field) => !requiredField(field,allFields,values) || (field.type === 'checkbox' ? values[field.id] === 'true' : Boolean(values[field.id]?.trim()))
+  const ordered = readingOrder(fields), filled = (field: Field) => { if (!requiredField(field, allFields, values)) return true; const value = values[field.id] ?? ''; if (field.type === 'checkbox_group') { try { validateBusinessValue(field, value); return selectedOptions(value).length > 0 } catch { return false } }; return field.type === 'checkbox' ? value === 'true' : Boolean(value.trim()) }
   const required = ordered.filter(field => requiredField(field, allFields, values))
   const done = required.filter(filled).length, left = required.length - done, field = ordered.find(candidate => candidate.id === current)
   const [saved, setSaved] = useState(false)
-  const input = useRef<HTMLInputElement>(null), guide = useRef<HTMLDivElement>(null)
+  const input = useRef<HTMLInputElement | HTMLSelectElement>(null), guide = useRef<HTMLDivElement>(null)
   const save = useAction()
   useEffect(() => {
     if (!current) return

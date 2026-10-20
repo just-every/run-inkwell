@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "6eb3a70f9f546e93c79efc259e4776b19b4079fb6acb1247bdfc02d9d70de1a7",
+      "sha256": "d9d25fb2b3cd62808fbfb9afeb931bb1b7ad2e16eae78f3bb2da38e98048f595",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c8e6c91c5550cdd8a539123a54e7a36e80b69b24ebda869f54c2a6c410a330ce",
+      "sha256": "67dae16c7e1a92fd2890363ef9ae34724bf69ff6f159b01b3fdcf82982350e0e",
       "executable": false
     },
     "DEMO.md": {
@@ -719,7 +719,7 @@
       "executable": false
     },
     "src/inkwell/business-fields.ts": {
-      "sha256": "b3bcf466f05ac4be9f140849bd5ade904873e0b92ec18d48c032a716b9d0492d",
+      "sha256": "ffd1e86105346ba96889778f95f5de1306b6f5128b83b0c0ed2ebd1282148df1",
       "executable": false
     },
     "src/inkwell/certificate.ts": {
@@ -779,7 +779,7 @@
       "executable": false
     },
     "src/inkwell/field-rules.ts": {
-      "sha256": "305f73b9cac247bc95bbffb77a9ace5a96cf57320a57a876c6a31424f223e226",
+      "sha256": "eda8544d178cf2f8d9cbbb0eedb1c3b645c7cc4a23c96c337c29846c1acdc7e6",
       "executable": false
     },
     "src/inkwell/imports/auth.ts": {
@@ -867,7 +867,7 @@
       "executable": false
     },
     "src/inkwell/model.ts": {
-      "sha256": "137889ffb9ffc4d9b390c16cbc313ceb8c72e33980bd0b55626dd892bc546f98",
+      "sha256": "3ea2f40012510431bed77fa727f5aef5b7fa1502d88453c8f060c818e82a8c63",
       "executable": false
     },
     "src/inkwell/notices.ts": {
@@ -887,7 +887,7 @@
       "executable": false
     },
     "src/inkwell/pdf.ts": {
-      "sha256": "f5d5635f6b32c55709efe8f29519cd7f2dd2bfd600fa3055b1ea4f6ea02d4212",
+      "sha256": "3b51a5c356c96b892478ce9ec3167524c644da897442472802287ee426016a28",
       "executable": false
     },
     "src/inkwell/prefill.ts": {
@@ -2862,12 +2862,16 @@
       "sha256": "fbdc6c5a502572eb7f944579cccf1a75e1e118baad65b99652dfa3bd5b21ba07",
       "executable": false
     },
+    "src/ui/field-choices-editor.tsx": {
+      "sha256": "990ece7b5e6ddd2aee99762d901486177077cf765f5dfb03a20e4fa22bd71fa1",
+      "executable": false
+    },
     "src/ui/field-editor.tsx": {
-      "sha256": "2be2f1eaff6acc0147d619a9632c50aa3c65862364238c0d5a92505a4fcf7efe",
+      "sha256": "2b1ae48b77f569fff065dff0ec2e757fc67c9af9c075374499c1a88d856585df",
       "executable": false
     },
     "src/ui/field-inspector.tsx": {
-      "sha256": "e77880af80c436b4c24915f841f6be0654172e62959d0fb0fa945c34a0becf95",
+      "sha256": "812e5b519ac9bb95270b2c5675db58c0a9f46ce7af96f5967c74cff88b7faf62",
       "executable": false
     },
     "src/ui/field-layout.ts": {
@@ -2875,7 +2879,7 @@
       "executable": false
     },
     "src/ui/field-prefill-editor.tsx": {
-      "sha256": "25a45231897b04a0574630f65e960668f04a2b603f1a30dd0941b3d4ae2480b5",
+      "sha256": "d3e2bf7e0ab2e86055ea6124c5379032683a54101ced3c6d842c2cd2ef321f64",
       "executable": false
     },
     "src/ui/field-rules-editor.tsx": {
@@ -2883,7 +2887,7 @@
       "executable": false
     },
     "src/ui/field-validation-editor.tsx": {
-      "sha256": "a84c98c72a2b13e6f8b78004d03d2c19e2c6fd85f34f03a15987ba4cf8fc0f54",
+      "sha256": "3da40064e5e8a10f3e89e87b6f27bf40582e8bfd1f2ace8ca1166664edac91d7",
       "executable": false
     },
     "src/ui/healthcare.tsx": {
@@ -2959,7 +2963,7 @@
       "executable": false
     },
     "src/ui/signing-field-input.tsx": {
-      "sha256": "1932af7a19cfd9f4b8ac437e7e146b1f0fa510ff7a4131377c1f2dac17c71fd1",
+      "sha256": "2287ed5fc3c08282192c776c03535eb27fabe9082e44f07a1a7e548bc457c997",
       "executable": false
     },
     "src/ui/signing-groups.tsx": {
@@ -2967,7 +2971,7 @@
       "executable": false
     },
     "src/ui/signing-guide.tsx": {
-      "sha256": "96ebafed71900f57895c9f15e5599667226285557f8db5dab1ac888ef7832c63",
+      "sha256": "a0a66055dd175bedf1008779dd9d0bb561632b8472aa5a697b4a1cc21c97b7ad",
       "executable": false
     },
     "src/ui/styles.ts": {
@@ -3083,7 +3087,7 @@
       "executable": false
     },
     "tests/journeys/field-types.mjs": {
-      "sha256": "1a743558e88aded4dfb2897073d04efc5f9274272f7bad3ea0906dffdddd613c",
+      "sha256": "c6cb6276718edd4a3ec2ad7fa3b459e6ef1581b890e338bd7cf733a30c7554e3",
       "executable": false
     },
     "tests/journeys/healthcare.mjs": {
@@ -3147,7 +3151,7 @@
       "executable": false
     },
     "tests/prefill.test.mjs": {
-      "sha256": "8cd02ec676463412a17f9b2e489372f401afd7b25ab661b520eb41979eb02887",
+      "sha256": "69fa192494efe1e10e72ef1c79b563b97be5d523b098136288a204117411e370",
       "executable": false
     },
     "tests/routing.test.mjs": {

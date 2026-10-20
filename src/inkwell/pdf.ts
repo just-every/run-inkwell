@@ -4,7 +4,7 @@
 import { PDFDocument, StandardFonts, rgb, pushGraphicsState, popGraphicsState, concatTransformationMatrix, type PDFFont, type PDFImage } from 'pdf-lib'
 import { insist, Refusal, type Adoption, type Envelope, type Field } from './model'
 import { adoptionOf, typedStyles, markKind } from './marks'
-import { markField } from './business-fields'
+import { displayFieldValue, markField } from './business-fields'
 import { normalizeFieldSchema, resolveFieldValues, visibleFields, requiredField } from './field-rules'
 export async function parsePdf(bytes: Uint8Array) { try { const document = await PDFDocument.load(bytes, { updateMetadata:false }); insist(!document.isEncrypted, 'Encrypted PDFs cannot be signed.'); insist(document.getPageCount() > 0 && document.getPageCount() <= 100, 'Use a PDF with 1–100 pages.'); const pageSizes = document.getPages().map(page => { const {width,height} = page.getCropBox(), rotation = ((page.getRotation().angle % 360)+360)%360; insist([0,90,180,270].includes(rotation), 'This PDF has an unsupported page rotation.'); insist(width > 0 && height > 0 && width <= 14400 && height <= 14400, 'This PDF has an unsupported page size.'); return rotation % 180 ? {width:height,height:width} : {width,height} }); return {document,pageSizes} } catch (error) { if (error instanceof Refusal) throw error; throw new Refusal('The file could not be parsed as an unencrypted PDF.') } }
 export function encodable(font: PDFFont, value: string) { try { font.encodeText(value) } catch { throw new Refusal('PDF text must use characters supported by the standard Latin PDF font.') } }
@@ -63,7 +63,7 @@ export async function signedPdf(original: Uint8Array, envelope: Envelope, scans:
   return document.save()
 }
 
-const printedValue = (field: Field, value: string) => field.type === 'number' ? (value.startsWith('-') ? `-$${value.slice(1)}` : `$${value}`) : value
+const printedValue = (field: Field, value: string) => field.type === 'number' ? (value.startsWith('-') ? `-$${value.slice(1)}` : `$${value}`) : displayFieldValue({ ...field, masked: false, pattern: undefined }, value)
 /** SIGNX-008: a hand-signed upload is a PDF scan or one JPEG or PNG photo; its pages follow the document in the executed PDF. */
 export const scanTypes = ['application/pdf', 'image/jpeg', 'image/png']
 export async function scanPages(bytes: Uint8Array, mediaType: string) { insist(scanTypes.includes(mediaType), 'Upload a PDF scan or a JPEG or PNG photo.', 415); if (mediaType === 'application/pdf') return (await parsePdf(bytes)).pageSizes.length; await appendScan(await PDFDocument.create(), bytes, mediaType); return 1 }

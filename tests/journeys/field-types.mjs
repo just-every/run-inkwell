@@ -1,4 +1,4 @@
-// PREP-003 round A joins PREP-008 and SIGNX-003 at desktop and phone widths.
+// PREP-003 rounds A and B choice/note fields join PREP-008 and SIGNX-003 at desktop and phone widths.
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { PDFDocument } from 'pdf-lib'
@@ -8,14 +8,17 @@ import { axe, tabTo } from './a11y.mjs'
 const app=await startInkwell(),images=process.env.INKWELL_FIELD_PROOF_DIR??'/tmp/inkwell-field-types'
 await mkdir(images,{recursive:true})
 try {
- const pdf=await PDFDocument.create();pdf.addPage([612,792]);pdf.addPage([612,792])
+ const pdf=await PDFDocument.create();pdf.addPage([612,792]);pdf.addPage([612,792]);pdf.addPage([612,792])
  for(const width of [1440,390]) {
-  const title=`PREP-003 round A ${width}`,make=(id,label,type,i,extra={})=>({id,label,type,signer:0,page:i<8?0:1,x:.1,y:.12+(i%8)*.09,width:.7,height:.04,...extra})
+  const title=`PREP-003 fields ${width}`,make=(id,label,type,i,extra={})=>({id,label,type,signer:0,page:Math.floor(i/8),x:.1,y:.12+(i%8)*.09,width:.7,height:.04,...extra})
   const fields=[make('sig','Client signature','signature',0),make('ini','Client initials','initials',1),make('ini2','Second initials','initials',2),make('signed','Date signed','date_signed',3),...[
    ['name','Full name','full_name','Mara Quinn'],['email','Contact email','email','mara@clients.example'],['company','Company','company','Acme Workshop'],['title','Job title','title','Director'],
   ].map(([id,label,type,value],i)=>make(id,label,type,i+4,{prefill:{value,source:`Sender fixture / ${id}`},readOnly:id==='company'})),...[
    ['zip','ZIP code','zip'],['phone','Phone number','phone'],['ssn','Social security number','ssn'],['ein','Employer number','ein'],['date','Agreement date','date'],
-  ].map(([id,label,pattern],i)=>make(id,label,'text',i+8,{pattern}))]
+  ].map(([id,label,pattern],i)=>make(id,label,'text',i+8,{pattern})),...[
+   ['radio','Delivery method','Courier',['Courier','Pickup','Mail']],['dropdown','Service level','Standard',['Standard','Priority','Economy']],
+   ['checkbox_group','Contact methods','["Email","Phone"]',['Email','Phone','Post']],['note','Service note','Please deliver to reception'],
+  ].flatMap(([type,label,value,options],i)=>[make(type,label,type,13+i*2,{...(options?{options}:{}),...(type==='checkbox_group'?{minimum:2,maximum:2}:{}),prefill:{value,source:`Sender fixture / ${type}`}}),make(`${type}_locked`,`Locked ${label}`,type,14+i*2,{...(options?{options}:{}),...(type==='checkbox_group'?{minimum:2,maximum:2}:{}),prefill:{value,source:`API fixture / ${type}`},readOnly:true})])]
   const template=(await app.command('template.save',{title,filename:'round-a.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),roles:[{role:'Client'}],fields})).id
   const context=await app.browser.newContext({viewport:{width,height:width===390?844:1000},hasTouch:width===390});await context.addCookies([app.ownerCookie()]);const page=await context.newPage();page.setDefaultTimeout(20000)
   const capture=async(name,p=page)=>{assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`PREP-003 ${name} ${width}: no sideways scroll`);await p.screenshot({path:`${images}/${width}-${name}.png`})}
@@ -27,9 +30,10 @@ try {
    if(f.type==='signature'||f.type==='text'||f.id==='ini2')continue
    console.log(`PREP-003 inspector ${width}: ${f.type}`)
    const selection=page.getByRole('checkbox',{name:new RegExp(`Select field ${index+1}: ${f.label}`)});await tab(page,selection);await page.keyboard.press('Space')
-   const type=page.getByLabel('Type of the selected field',{exact:true});await tab(page,type);await page.keyboard.press('Home');for(let step=0;step<['signature','text','date','checkbox','number','initials','date_signed','full_name','email','company','title'].indexOf(f.type);step++)await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');assert.equal(await type.inputValue(),f.type)
+   const type=page.getByLabel('Type of the selected field',{exact:true});await tab(page,type);await page.keyboard.press('Home');for(let step=0;step<['signature','text','date','checkbox','number','initials','date_signed','full_name','email','company','title','radio','dropdown','checkbox_group','note'].indexOf(f.type);step++)await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');assert.equal(await type.inputValue(),f.type)
    if(f.prefill){await keyboardSet(page,page.getByLabel('Prefill value',{exact:true}),f.prefill.value);await keyboardSet(page,page.getByLabel('Source (reported by sender/API)',{exact:true}),f.prefill.source);const locked=page.getByLabel('Read-only for signer',{exact:true});if(await locked.isChecked()!==Boolean(f.readOnly)){await tab(page,locked);await page.keyboard.press('Space')}assert.equal(await page.getByLabel('Prefill value',{exact:true}).inputValue(),f.prefill.value);assert.equal(await page.getByLabel('Source (reported by sender/API)',{exact:true}).inputValue(),f.prefill.source);assert.equal(await page.getByLabel('Read-only for signer',{exact:true}).isChecked(),Boolean(f.readOnly))}
    else assert.equal(await page.getByLabel('Prefill value',{exact:true}).count(),0,'initials and date signed cannot be supplied as sender prefill')
+   if(f.options){const options=page.getByLabel('Options (one per line)',{exact:true});await keyboardSet(page,options,f.options.join('\n'));assert.equal(await options.inputValue(),f.options.join('\n'));if(f.type==='checkbox_group'){for(const [label,value] of [['Minimum selections','2'],['Maximum selections','2']]){await keyboardSet(page,page.getByLabel(label,{exact:true}),value);assert.equal(await page.getByLabel(label,{exact:true}).inputValue(),value)}}}
    for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await axe(page,`PREP-003 ${f.type} inspector ${width} ${theme}`)}
    await type.scrollIntoViewIfNeeded();await capture(`inspector-${f.type}`)
    await tab(page,page.getByRole('button',{name:'Clear selection',exact:true}));await page.keyboard.press('Enter')
@@ -60,6 +64,15 @@ try {
    const control=input(label);await keyboardSet(signer,control,bad);assert.equal(await control.getAttribute('aria-invalid'),'true');assert.ok((await form.ariaSnapshot()).includes(`for ${label}.`),'field-level message appears in the accessibility tree');await keyboardSet(signer,control,good);assert.equal(await control.getAttribute('aria-invalid'),'false')
   }
   for(const label of ['Social security number','Employer number'])assert.equal(await input(label).getAttribute('type'),'password','masked entries use password display')
+  // PREP-003 round B: native radio/select/group controls expose checked/selected state and complete by keyboard.
+  const radio=form.getByRole('group',{name:'Delivery method (required)',exact:true});await tab(signer,radio.getByRole('radio',{name:'Courier',exact:true}));await signer.keyboard.press('ArrowDown');assert.ok(await radio.getByRole('radio',{name:'Pickup',exact:true}).isChecked());assert.ok((await radio.ariaSnapshot()).includes('Pickup" [checked]'))
+  const dropdown=input('Service level');assert.equal(await dropdown.inputValue(),'Standard');await tab(signer,dropdown);await signer.keyboard.press('End');await signer.keyboard.press('Enter');assert.equal(await dropdown.inputValue(),'Economy');assert.ok((await dropdown.ariaSnapshot()).includes('Economy" [selected]'))
+  const contacts=form.getByRole('group',{name:'Contact methods (required)',exact:true});await tab(signer,contacts.getByRole('checkbox',{name:'Email',exact:true}));await signer.keyboard.press('Space');assert.equal(await contacts.getAttribute('aria-invalid'),'true');assert.ok((await contacts.ariaSnapshot()).includes('Choose at least 2 options'));await tab(signer,contacts.getByRole('checkbox',{name:'Post',exact:true}));await signer.keyboard.press('Space');assert.equal(await contacts.getAttribute('aria-invalid'),'false');assert.ok((await contacts.ariaSnapshot()).includes('Post" [checked]'))
+  const lockedRadio=form.getByRole('group',{name:'Locked Delivery method (required)',exact:true});assert.ok(await lockedRadio.getByRole('radio',{name:'Courier',exact:true}).isChecked());assert.ok(await lockedRadio.getByRole('radio',{name:'Pickup',exact:true}).isDisabled())
+  assert.ok(await input('Locked Service level').isDisabled());assert.equal(await input('Locked Service level').inputValue(),'Standard')
+  const lockedContacts=form.getByRole('group',{name:'Locked Contact methods (required)',exact:true});assert.equal(await lockedContacts.getByRole('checkbox').count(),3);for(const control of await lockedContacts.getByRole('checkbox').all())assert.ok(await control.isDisabled());assert.ok(await lockedContacts.getByRole('checkbox',{name:'Email',exact:true}).isChecked())
+  await keyboardSet(signer,input('Service note'),'Leave with the concierge');await tab(signer,input('Locked Service note'));await signer.keyboard.type('Changed');assert.equal(await input('Locked Service note').inputValue(),'Please deliver to reception')
+  await contacts.scrollIntoViewIfNeeded();await capture('choice-controls',signer);await lockedContacts.scrollIntoViewIfNeeded();await capture('locked-choice-controls',signer)
   await keyboardSet(signer,input('Full name'),'Mara Updated');await keyboardSet(signer,input('Job title'),'Principal')
   await keyboardSet(signer,input('Client signature'),'Mara Quinn');await keyboardSet(signer,input('Client initials'),'MQ');assert.equal(await input('Second initials').inputValue(),'MQ','one initials entry fills every initials field')
   const adopted=signer.getByRole('group',{name:'Adopt your initials applied to every initials field'})
@@ -71,10 +84,10 @@ try {
   await tab(signer,signer.getByRole('button',{name:'Start',exact:true}));await signer.keyboard.press('Enter');await signer.getByText(`All ${fields.length} required fields complete`,{exact:true}).waitFor()
   await tab(signer,signer.getByRole('checkbox',{name:/consent to electronic signatures/}));await signer.keyboard.press('Space');await tab(signer,signer.getByRole('button',{name:'Sign document',exact:true}));await signer.keyboard.press('Enter')
   await signer.getByRole('heading',{name:'All signatures are complete.'}).waitFor();await signer.locator('.iw-pdf-page[data-rendered]').first().waitFor();await capture('completed',signer)
-  await page.goto(app.origin+'/app');await page.getByRole('row',{name:new RegExp(title)}).click();const displayed=page.getByRole('region',{name:'Entered field values'});await displayed.waitFor();const content=await displayed.innerText();assert.ok(content.includes('••••••••'));assert.ok(!content.includes('123-45-6789')&&!content.includes('12-3456789'),'dashboard conceals masked values');assert.ok(content.includes('Mara Updated')&&content.includes('Principal'));assert.ok(!(await page.locator('body').innerText()).includes('123-45-6789'),'PREP-003 dashboard routing outcomes also mask source answers');await displayed.scrollIntoViewIfNeeded()
+  await page.goto(app.origin+'/app');await page.getByRole('row',{name:new RegExp(title)}).click();const displayed=page.getByRole('region',{name:'Entered field values'});await displayed.waitFor();const content=await displayed.innerText();assert.ok(content.includes('••••••••'));assert.ok(!content.includes('123-45-6789')&&!content.includes('12-3456789'),'dashboard conceals masked values');assert.ok(content.includes('Mara Updated')&&content.includes('Principal'));for(const value of ['Pickup','Economy','Phone, Post','Leave with the concierge'])assert.ok(content.includes(value),`PREP-003 dashboard retains ${value}`);assert.ok(!(await page.locator('body').innerText()).includes('123-45-6789'),'PREP-003 dashboard routing outcomes also mask source answers');await displayed.scrollIntoViewIfNeeded()
   for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await axe(page,`PREP-003 dashboard ${width} ${theme}`)}await capture('masked-dashboard')
   const e=(await (await context.request.get(app.origin+'/api/inkwell/envelopes/'+id)).json()).envelope;assert.equal(e.signers[0].initialsAdoption.method,width===390?'drawn':'typed');assert.equal(e.signers[0].values.ini,e.signers[0].values.ini2);assert.equal(e.signers[0].values.ssn,'123-45-6789');assert.equal(e.signers[0].signingTimeZone,'Pacific/Honolulu')
   await context.close()
  }
- console.log('PREP-003 round A PASS: template field controls, validation, prefills/sources/locks, all-type keyboard/accessibility-tree completion, typed and touch-drawn initials, automatic dates and masked dashboard; 1440/390 light/dark axe')
+ console.log('PREP-003 rounds A and B choice/note PASS: template field controls, validation, prefills/sources/locks, all-type keyboard/accessibility-tree completion, typed and touch-drawn initials, automatic dates and masked dashboard; 1440/390 light/dark axe')
 } catch(error){await screenshots(app.browser,'prep-003');throw error}finally{await app.close()}
