@@ -1,3 +1,4 @@
+import guide from 'virtual:inkwell-healthcare-guide'
 // COMPLY-002: uses the existing Settings panel and member-list presentation.
 import { useState } from 'react'
 import { command, dateTime, request } from './types'
@@ -13,11 +14,11 @@ export function Healthcare({ enabled, refresh }: { enabled: boolean; refresh: ()
       <button className="iw-fit" disabled={action.busy || chosen === enabled}>{action.busy ? 'Saving…' : 'Save healthcare profile'}</button>
     </form>
     <p role="status">Healthcare profile {enabled ? 'enabled' : 'disabled'}.</p>
-    <a href="/docs/healthcare">Healthcare shared-responsibility guide</a>
+    <details className="iw-stack"><summary>Healthcare shared-responsibility guide</summary><section aria-label="Healthcare shared responsibility" className="iw-stack" dangerouslySetInnerHTML={{ __html: guide }} /></details>
     <ErrorNotice error={action.error} />
     <button className="iw-fit" disabled={action.busy} onClick={() => void action.run(async () => setReview(await request<Review>('/api/inkwell/compliance/access-review')))}>Review member access</button>
     {review && <section className="iw-stack" aria-label="Member access review"><h3>Member access review</h3><p>Generated {dateTime(review.generatedAt)}. Last successful authenticated request, in your local time. No recorded access is shown explicitly; anonymous signer and agent requests do not count as member access.</p>
-      <dl className="iw-account">{review.members.map(member => <div key={member.id} style={{ display: 'contents' }}><dt>{member.name}<br /><small className="iw-muted">{member.email}</small></dt><dd>{member.role} · {member.status}<br />{member.lastAccessAt ? <time dateTime={member.lastAccessAt}>{dateTime(member.lastAccessAt)}</time> : 'No recorded access'}</dd></div>)}</dl>
+      <ul className="iw-signers">{review.members.map(member => <li key={member.id}><div><strong>{member.name}</strong><span className="iw-signer-email">{member.email}</span><small>{member.role} · {member.status}</small><small>{member.lastAccessAt ? <time dateTime={member.lastAccessAt}>{dateTime(member.lastAccessAt)}</time> : 'No recorded access'}</small></div></li>)}</ul>
     </section>}
   </section>
 }

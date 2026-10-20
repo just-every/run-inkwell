@@ -1,5 +1,3 @@
-# Healthcare shared responsibility
-
 The healthcare profile is an installation aid. It does not certify HIPAA compliance, verify a provider's configuration, or create a business associate agreement. The buyer arranges agreements with its providers and decides whether this installation and its operating practices meet its obligations before using patient information.
 
 ## Inkwell's responsibility

@@ -119,7 +119,7 @@
       "executable": false
     },
     "docs/healthcare.md": {
-      "sha256": "5a108d9d4974946790cc83f3c552c0a0d60c85c3a85e6f7e7930087b76a4eadd",
+      "sha256": "717f27069636b7a3bf9f24406b23dae71013b2804e028c4497b829988fe9380e",
       "executable": false
     },
     "docs/import-docuseal.md": {
@@ -724,6 +724,14 @@
     },
     "src/inkwell/completed-copies.ts": {
       "sha256": "721b52485cbb3eb08da0c351bacf89fc9525322007d26096be6f464ccb8e5506",
+      "executable": false
+    },
+    "src/inkwell/compliance/guide-build.ts": {
+      "sha256": "c7db47bbfad072d996a27eae4da419fef4ebd86cc4dbfbced8ea82a669f7ed91",
+      "executable": false
+    },
+    "src/inkwell/compliance/guide.d.ts": {
+      "sha256": "f8851501f691766c87136191f861eb1b263f0d186ccaa3c52601cb66e40f9f66",
       "executable": false
     },
     "src/inkwell/compliance/profile.ts": {
@@ -2871,7 +2879,7 @@
       "executable": false
     },
     "src/ui/healthcare.tsx": {
-      "sha256": "f74d600ebd9a6b520e0f276ff834ef46a5fe04d7a54842a4f041e8b91e6c51b7",
+      "sha256": "65fc6b545eaac7b20c2d5af5adf250457abe100b672d6db36f730e892908beb1",
       "executable": false
     },
     "src/ui/host-signing.tsx": {
@@ -3067,7 +3075,7 @@
       "executable": false
     },
     "tests/journeys/healthcare.mjs": {
-      "sha256": "5393926e7e909fb495217fee2e4d755eb8a47c456e54919b9053fd23b7fb77e7",
+      "sha256": "058f2b7d54a2fc6504aa19b9bccda9c55371f9fa8068fc0c12f508bc98d9a08d",
       "executable": false
     },
     "tests/journeys/import-retention.mjs": {
@@ -3155,7 +3163,7 @@
       "executable": false
     },
     "vite.config.ts": {
-      "sha256": "1160e2c562531de6797984d9309132e4a69cb209b01706a77dde9e7c72e05c6e",
+      "sha256": "356eed0a9e22446324c5e9290b99b9eb821e796a036b6200809cdadbbf75822e",
       "executable": false
     },
     "vite.site.config.ts": {
