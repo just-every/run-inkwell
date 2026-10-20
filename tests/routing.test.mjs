@@ -206,6 +206,7 @@ test('ROUTE-005: the "Company Signers" group of three signs as one place; one me
   const paths=await Promise.all(members.map(m=>link(m.email)));assert.equal(new Set(paths).size,3)
   assert.ok((await h.mail('ada@harbour.example','Please sign:')).text.includes('signing group Company Signers'))
   await h.command('envelope.remind',{id});for(const m of members)assert.ok(await h.mail(m.email,'Reminder to sign'),`${m.name} is reminded`)
+  await h.scheduled(Date.parse((await read(id)).expiresAt)-2*86_400_000);for(const m of members)assert.ok(await h.mail(m.email,'Expires soon'),`${m.name} is warned before expiry`)
   const ben=await verify('ben@harbour.example',paths[1]);await h.post(paths[1]+'/reassign',{name:'Dee',email:'dee@harbour.example',reason:'Away',commandId:crypto.randomUUID()},ben,409)
   const ada=await verify('ada@harbour.example',paths[0]);await h.agree(paths[0],ada)
   // Ben signs for the group; nobody else's agreement or verification counts for him.

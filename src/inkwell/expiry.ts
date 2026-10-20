@@ -1,4 +1,4 @@
-import { appendEvent, currentSigners, insist, text, type Envelope, type Env } from './model'
+import { appendEvent, currentSigners, insist, party, text, type Envelope, type Env } from './model'
 import { commandWrite, commitEnvelope, getEnvelope } from './storage'
 import { dispatchMail, noticeWrite } from './mail'
 import { mailSuppressed } from './manual-invitations'
@@ -52,7 +52,8 @@ async function warn(env: Env, before: Envelope) {
   const current = currentSigners(before), remote = current.filter(i => !before.signers[i].inPerson)
   const after = structuredClone(before), emailSent = !mailSuppressed(env)
   const notices = emailSent ? [
-    ...remote.map(i => noticeWrite(env.DB, after, i, before.signers[i].email, `Expires soon: ${after.title}`, `${before.signers[i].name},\n\nYour invitation to sign ${after.title} expires ${after.expiresAt}.\nUse the link in your invitation email to review and sign before then.`)),
+    // ROUTE-005: a group place warns every member at their own address.
+    ...remote.flatMap(i => (before.signers[i].group?.members.map((_, m) => party(before, i, m)) ?? [before.signers[i]]).map(person => [i, person] as const)).map(([i, person]) => noticeWrite(env.DB, after, i, person.email, `Expires soon: ${after.title}`, `${person.name},\n\nYour invitation to sign ${after.title} expires ${after.expiresAt}.\nUse the link in your invitation email to review and sign before then.`)),
   ] : []
   await appendEvent(after, 'envelope.expiry_warned', 'inkwell', { expiresAt: after.expiresAt, signers: current, recipients: remote.map(i => before.signers[i].email), emailSent })
   await commitEnvelope(env, before, after, null, notices)
