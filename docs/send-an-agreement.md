@@ -73,6 +73,22 @@ Creating a replacement revokes the previous link, code and signing session. The 
 and code are shown manually only when mail is suppressed; with a configured provider,
 the existing emailed-link and code flow remains in place.
 
+## Internal approval (ROUTE-004)
+
+An owner or admin can require a named person to approve envelopes before they go out:
+**Settings > Internal approval**. A template can carry its own rule too (the **Internal
+approval** section of the template screen); both apply. A rule names one approver by email,
+an owner, admin or sender in this workspace, for every envelope or only when a USD number
+field with a given label is above an amount. An envelope with that field whose value is not
+a locked sender value also needs the approval, since its amount is not known before sending.
+
+When a rule covers an envelope, **Approve and invite first recipient** records your
+approval and the envelope waits, locked, for the approver: nobody is invited yet. The
+approver gets an **Approval needed** email and finds it under **Waiting for me**. **Approve
+and send** sends it exactly as your approval would have; **Reject…** returns it to your
+drafts with the reason. Edit it and approve it again to ask again. If you are the named
+approver, your own approval counts.
+
 ## Paper signatures
 
 Tick **Allow recipients to sign on paper and upload a scan for you to review** while

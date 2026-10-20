@@ -1,6 +1,7 @@
 import { currentSigners, insist, type Actor, type Envelope, type Env } from './model'
 import { mailSuppressed } from './manual-invitations'
 import { accessFrom, mayShare, type Access } from './members'
+import { pendingApprovers } from './internal-approval'
 
 /** MANAGE-001: the envelope dashboard's search, filters and paging run in D1, so a sender with thousands of envelopes
  * gets one page and every status count without loading the rest; the Envelopes screen reads only through here. Status buckets follow the dashboard:
@@ -12,7 +13,11 @@ type Bucket = typeof buckets[number]
 // ROUTE-002: it is my turn when I am an unsigned signer at the lowest routing order still open.
 const order = (s: string) => `COALESCE(json_extract(${s}.value,'$.order'),CAST(${s}.key AS INTEGER)+1)`, open = (s: string) => `json_extract(${s}.value,'$.signedAt') IS NULL AND json_extract(${s}.value,'$.removedAt') IS NULL AND COALESCE(json_extract(${s}.value,'$.routeResult.state'),'')!='skipped'`
 const myTurn = `EXISTS(SELECT 1 FROM json_each(e.data,'$.signers') s WHERE ${open('s')} AND (json_extract(s.value,'$.includeWhen') IS NULL OR json_extract(s.value,'$.routeResult.state')='included') AND lower(json_extract(s.value,'$.email'))=?2 AND ${order('s')}=(SELECT MIN(${order('o')}) FROM json_each(e.data,'$.signers') o WHERE ${open('o')}))`
-const bucket = `CASE WHEN json_extract(e.data,'$.status') IN ('prepared','awaiting_signature') AND json_extract(e.data,'$.expiresAt')<=?1 THEN 'expired' WHEN json_extract(e.data,'$.status')='prepared' THEN 'draft' WHEN json_extract(e.data,'$.status')='awaiting_signature' THEN CASE WHEN ${myTurn} THEN 'waiting_for_me' ELSE 'waiting_for_others' END ELSE json_extract(e.data,'$.status') END`
+// ROUTE-004 / MANAGE-003: a draft waiting for my internal approval is waiting for me.
+// A sender finds every envelope a request named them on (internal-approval.ts namedApprover).
+const pendingMine = `json_extract(e.data,'$.internalApproval.state')='pending' AND EXISTS(SELECT 1 FROM json_each(e.data,'$.internalApproval.steps') a WHERE json_extract(a.value,'$.approver')=?3 AND json_extract(a.value,'$.decision') IS NULL)`
+const namedMe = `EXISTS(SELECT 1 FROM json_each(e.data,'$.events') ev, json_each(ev.value,'$.detail.steps') a WHERE json_extract(ev.value,'$.action')='envelope.internal_approval_requested' AND json_extract(a.value,'$.approver')=?3)`
+const bucket = `CASE WHEN json_extract(e.data,'$.status') IN ('prepared','awaiting_signature') AND json_extract(e.data,'$.expiresAt')<=?1 THEN 'expired' WHEN json_extract(e.data,'$.status')='prepared' THEN CASE WHEN ${pendingMine} THEN 'waiting_for_me' ELSE 'draft' END WHEN json_extract(e.data,'$.status')='awaiting_signature' THEN CASE WHEN ${myTurn} THEN 'waiting_for_me' ELSE 'waiting_for_others' END ELSE json_extract(e.data,'$.status') END`
 // Envelopes an agent's preparation token prepared (DELEGATE-001), for the dashboard's agent strip.
 const byAgent = `EXISTS(SELECT 1 FROM json_each(e.data,'$.events') ev WHERE json_extract(ev.value,'$.action')='envelope.prepared' AND json_extract(ev.value,'$.actor') LIKE 'agent:%')`
 const like = (value: string) => '%' + value.replace(/[\\%_]/g, c => '\\' + c) + '%'
@@ -32,8 +37,8 @@ export async function searchEnvelopes(env: Env, actor: Actor, params: URLSearchP
   // TMPL-001: envelopes sent from one template, by the template ID the envelope records.
   if (template) { where.push(`json_extract(e.data,'$.template.id')=?${values.length + 1}`); values.push(template) }
   if (sender) { where.push(`json_extract(e.data,'$.createdBy')=?${values.length + 1}`); values.push(sender) }
-  // ACCESS-001 / ADMIN-001: a sender finds the envelopes they created and those shared with them.
-  if (actor.role === 'sender') where.push(`(json_extract(e.data,'$.createdBy')=?3 OR EXISTS(SELECT 1 FROM iw_shares x WHERE x.envelope_id=e.id AND x.operator_id=?3))`)
+  // ACCESS-001 / ADMIN-001: a sender finds the envelopes they created, those shared with them and (ROUTE-004) those they were asked to approve.
+  if (actor.role === 'sender') where.push(`(json_extract(e.data,'$.createdBy')=?3 OR EXISTS(SELECT 1 FROM iw_shares x WHERE x.envelope_id=e.id AND x.operator_id=?3) OR ${namedMe})`)
   if (from) { where.push(`json_extract(e.data,'$.createdAt')>=?${values.length + 1}`); values.push(new Date(from).toISOString()) }
   if (to) { where.push(`json_extract(e.data,'$.createdAt')<?${values.length + 1}`); values.push(new Date(to).toISOString()) }
   const filtered = `SELECT e.id, e.data, json_extract(e.data,'$.createdAt') AS created, ${bucket} AS bucket, (SELECT access FROM iw_shares x WHERE x.envelope_id=e.id AND x.operator_id=?3) AS share FROM iw_envelopes e${where.length ? ' WHERE ' + where.join(' AND ') : ''}`
@@ -61,5 +66,7 @@ export function presentEnvelope(env: Env, actor: Actor, envelope: Envelope, acce
   const open = !envelope.imported && envelope.status === 'awaiting_signature' && Date.parse(envelope.expiresAt) > Date.now()
   return { ...envelope, access, mayShare: mayShare(actor, envelope), status: ['prepared', 'awaiting_signature'].includes(envelope.status) && Date.parse(envelope.expiresAt) <= Date.now() ? 'expired' as const : envelope.status,
     manualInvitationAvailable: actor.role === 'owner' && mailSuppressed(env) && open && currentSigners(envelope).some(i=>!envelope.signers[i].inPerson),
+    // ROUTE-004: this person is a named approver who has not yet decided, and the draft has not expired.
+    approvalAvailable: pendingApprovers(envelope).some(s => s.approver === actor.id) && Date.parse(envelope.expiresAt) > Date.now(),
     ownSigningAvailable: open && currentSigners(envelope).some(i => !envelope.signers[i].inPerson && envelope.signers[i].email.toLowerCase() === actor.email.toLowerCase()) }
 }

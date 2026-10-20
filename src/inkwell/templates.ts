@@ -7,6 +7,7 @@ import { blobWrites, download, fromBase64, readBlob } from './blobs'
 import { parsePdf, validateFields, validatePdfText } from './pdf'
 import { appendEvent, id, insist, now, object, sha256, text, type Actor, type Env, type Field, type Envelope } from './model'
 import { atomic, commandWrite, getEnvelope, insertEnvelope, roleGuard } from './storage'
+import { normalizeApprovalRule } from './internal-approval'
 import { insistAccess } from './members'
 import { accessCodeWrites, draftDetail, readDraft } from './drafts'
 import { chooseReminders } from './reminders'
@@ -16,7 +17,7 @@ import { accessContext, folderAccess, sharesOf, visibleSql, type TemplateAccess,
 
 /** A role is a place in the routing order with no person yet; `accessCode` says the sender gives that person a code. */
 export interface Role { includeWhen?: import('./model').RoutingRule; role: string; order: number; accessCode?: boolean; linkOnly?: boolean; message?: string }
-export interface Template { id: string; title: string; filename: string; originalSha256: string; pageSizes: { width: number; height: number }[]; roles: Role[]; fields: Field[]; expiryDays: number; reminders?: { afterDays: number; everyDays: number }; allowPaper?: boolean; allowReassign?: boolean; subject?: string; message?: string; createdBy: string; createdAt: string; version?: number; updatedAt?: string; tags?: string[] }
+export interface Template { approval?: import('./model').ApprovalRule; id: string; title: string; filename: string; originalSha256: string; pageSizes: { width: number; height: number }[]; roles: Role[]; fields: Field[]; expiryDays: number; reminders?: { afterDays: number; everyDays: number }; allowPaper?: boolean; allowReassign?: boolean; subject?: string; message?: string; createdBy: string; createdAt: string; version?: number; updatedAt?: string; tags?: string[] }
 /** TMPL-003: a template stored before versions is version 1. */
 const versionOf = (template: Template) => template.version ?? 1
 const day = 86_400_000
@@ -67,7 +68,7 @@ export async function listTemplates(env: Env, actor: Actor, params = new URLSear
 
 /** The prepare screen's PDF, fields and settings, with roles in place of people, validated for a new template or a new
  * version of one. */
-async function readTemplate(input: Record<string, unknown>) {
+async function readTemplate(env: Env, input: Record<string, unknown>) {
   const title = text(input.title, 'a template name'), filename = text(input.filename, 'a filename', 240)
   insist(!/[\x00-\x1f/\\]/.test(filename) && filename.toLowerCase().endsWith('.pdf'), 'Choose a PDF filename.')
   insist(!/[\r\n\t]/.test(title), 'Use a single line for the template name.')
@@ -95,12 +96,14 @@ async function readTemplate(input: Record<string, unknown>) {
   insist(input.tags === undefined || (Array.isArray(input.tags) && input.tags.length <= 10), 'Add at most 10 tags.')
   const tags = [...new Set(((input.tags ?? []) as unknown[]).map(tag => text(tag, 'a tag', 40)))]
   await validatePdfText([title, ...roles.map(r => r.role)])
-  const definition = { title, ...(tags.length ? { tags } : {}), filename, originalSha256: await sha256(bytes), pageSizes, roles, fields, expiryDays: expiryDays as number, ...(reminders ? { reminders } : {}), ...(input.allowPaperSigning ? { allowPaper: true } : {}), ...(input.allowReassignment ? { allowReassign: true } : {}), ...(subject ? { subject } : {}), ...(message ? { message } : {}) }
+  // ROUTE-004: the template's internal approval rule, saved with this version.
+  const approval = await normalizeApprovalRule(env, input.approval)
+  const definition = { ...(approval ? { approval } : {}), title, ...(tags.length ? { tags } : {}), filename, originalSha256: await sha256(bytes), pageSizes, roles, fields, expiryDays: expiryDays as number, ...(reminders ? { reminders } : {}), ...(input.allowPaperSigning ? { allowPaper: true } : {}), ...(input.allowReassignment ? { allowReassign: true } : {}), ...(subject ? { subject } : {}), ...(message ? { message } : {}) }
   return { definition, bytes }
 }
 const blobInserts = (env: Env, templateId: string, bytes: Uint8Array) => { const parts: D1PreparedStatement[] = []; for (let offset = 0; offset < bytes.length; offset += 64 * 1024) parts.push(env.DB.prepare('INSERT INTO iw_template_blobs(template_id,part,data) VALUES(?,?,?)').bind(templateId, parts.length, bytes.slice(offset, offset + 64 * 1024).buffer)); return parts }
 async function insertTemplate(env: Env, context: CommandContext, input: Record<string, unknown>, extra: Record<string, unknown> = {}) {
-  const { definition, bytes } = await readTemplate(input), template: Template = { id: id(), ...definition, createdBy: context.actor.id, createdAt: now(), version: 1 }
+  const { definition, bytes } = await readTemplate(env, input), template: Template = { id: id(), ...definition, createdBy: context.actor.id, createdAt: now(), version: 1 }
   const folder = await targetFolder(env, context.actor, input.folderId), result = { id: template.id, version: 1, ...extra }
   await atomic(env.DB, [roleGuard(context.actor)], [env.DB.prepare('INSERT INTO iw_templates(id,created_by,created_at,data,folder_id) VALUES(?,?,?,?,?)').bind(template.id, template.createdBy, template.createdAt, JSON.stringify(template), folder), ...blobInserts(env, template.id, bytes), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   return result
@@ -111,7 +114,7 @@ export const saveTemplate = (env: Env, context: CommandContext, input: Record<st
 /** TMPL-003 `template.update`: an edit is the template's next version. Envelopes already sent keep their own bytes,
  * fields and settings and name the version they came from, so nothing sent changes. */
 export async function updateTemplate(env: Env, context: CommandContext, input: Record<string, unknown>) {
-  const { template: before, row } = await loadTemplate(env, context.actor, text(input.id, 'a template ID'), 'edit'), { definition, bytes } = await readTemplate(input)
+  const { template: before, row } = await loadTemplate(env, context.actor, text(input.id, 'a template ID'), 'edit'), { definition, bytes } = await readTemplate(env, input)
   const after: Template = { ...definition, id: before.id, createdBy: before.createdBy, createdAt: before.createdAt, version: versionOf(before) + 1, updatedAt: now() }
   // TMPL-002: without `folderId` the template stays where it is; moving it is for those who manage it.
   const moving = input.folderId !== undefined && (input.folderId || null) !== row.folder_id
@@ -132,7 +135,7 @@ export async function templateFromEnvelope(env: Env, context: CommandContext, in
   const bytes = await readBlob(env.DB, envelope.id, 'original', envelope.originalSha256), kept = envelope.signers.flatMap((s, i) => s.removedAt ? [] : [i])
   const names = (envelope.events.find(e => e.action === 'envelope.prepared')?.detail.template as { roles?: string[] } | undefined)?.roles ?? []
   const days = Math.min(maxExpiryDays, Math.max(1, Math.round((Date.parse(envelope.expiresAt) - Date.parse(envelope.createdAt)) / day)))
-  return insertTemplate(env, context, { title: input.title === undefined ? envelope.title : input.title, filename: envelope.filename, pdfBase64: base64(bytes), roles: kept.map((i, k) => ({ ...(envelope.signers[i].includeWhen?{includeWhen:envelope.signers[i].includeWhen}:{}), role: names[i] ?? `Signer ${k + 1}`, order: envelope.signers[i].order ?? i + 1, ...(envelope.signers[i].accessCode ? { accessCode: true } : {}), ...(envelope.signers[i].linkOnly ? { linkOnly: true } : {}), ...(envelope.signers[i].message ? { message: envelope.signers[i].message } : {}) })), fields: envelope.fields.filter(f => kept.includes(f.signer)).map(f => ({ ...f, signer: kept.indexOf(f.signer) })), expiryDays: days, ...(envelope.reminders ? { reminders: envelope.reminders } : {}), ...(envelope.allowPaper ? { allowPaperSigning: true } : {}), ...(envelope.allowReassign ? { allowReassignment: true } : {}), ...(envelope.subject ? { subject: envelope.subject } : {}), ...(envelope.message ? { message: envelope.message } : {}) }, { fromEnvelope: envelope.id })
+  return insertTemplate(env, context, { title: input.title === undefined ? envelope.title : input.title, filename: envelope.filename, pdfBase64: base64(bytes), roles: kept.map((i, k) => ({ ...(envelope.signers[i].includeWhen?{includeWhen:envelope.signers[i].includeWhen}:{}), role: names[i] ?? `Signer ${k + 1}`, order: envelope.signers[i].order ?? i + 1, ...(envelope.signers[i].accessCode ? { accessCode: true } : {}), ...(envelope.signers[i].linkOnly ? { linkOnly: true } : {}), ...(envelope.signers[i].message ? { message: envelope.signers[i].message } : {}) })), fields: envelope.fields.filter(f => kept.includes(f.signer)).map(f => ({ ...f, signer: kept.indexOf(f.signer) })), expiryDays: days, ...(envelope.reminders ? { reminders: envelope.reminders } : {}), ...(envelope.allowPaper ? { allowPaperSigning: true } : {}), ...(envelope.allowReassign ? { allowReassignment: true } : {}), ...(envelope.subject ? { subject: envelope.subject } : {}), ...(envelope.message ? { message: envelope.message } : {}), ...(envelope.approvalRule ? { approval: envelope.approvalRule } : {}) }, { fromEnvelope: envelope.id })
 }
 
 /** The template's current PDF, for its edit screen. */
@@ -160,7 +163,7 @@ export async function useTemplate(env: Env, context: CommandContext, input: Reco
   const createdAt = now()
   const { draft, accessCodes } = await readDraft(env, { title: template.title, filename: template.filename, pdfBase64: base64(bytes), signers, fields: applyPrefillPayload(template.fields, input.prefill), expiresAt: new Date(Date.parse(createdAt) + template.expiryDays * day).toISOString(), ...(template.reminders ? { reminders: template.reminders } : {}), ...(template.allowPaper ? { allowPaperSigning: true } : {}), ...(template.allowReassign ? { allowReassignment: true } : {}), ...(template.subject ? { subject: template.subject } : {}), ...(template.message ? { message: template.message } : {}) }, createdAt)
   const from = { id: template.id, title: template.title, version: versionOf(template) }
-  const envelope = { id: id(), version: 1, status: 'prepared' as const, createdAt, createdBy: context.actor.id, ...draft, template: from, events: [] }
+  const envelope = { id: id(), version: 1, status: 'prepared' as const, createdAt, createdBy: context.actor.id, ...draft, template: from, ...(template.approval ? { approvalRule: template.approval } : {}), events: [] }
   await appendEvent(envelope, 'envelope.prepared', context.actor.id, { ...draftDetail(draft), template: { ...from, roles: template.roles.map(r => r.role) } })
   const result = { id: envelope.id, template: template.id }
   await insertEnvelope(env.DB, envelope, context.actor, [...blobWrites(env.DB, envelope.id, 'original', bytes), ...await accessCodeWrites(env, envelope.id, accessCodes), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])

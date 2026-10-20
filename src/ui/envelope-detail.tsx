@@ -11,6 +11,7 @@ import { PdfViewer } from './pdf-viewer'
 import { ArtifactIntegrity } from './artifact-integrity'
 import { SendCopy } from './send-copy'
 import { LegalHold } from './legal-hold'
+import { InternalApprovalStatus } from './internal-approval'
 import { Check, Pill } from './marks'
 import { Icon } from './icons'
 import { currentSigners, pill, routingOrder, preparedByAgent, titleParts } from './envelope-view'
@@ -66,7 +67,8 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
   const [corrections, setCorrections] = useState<Record<number, string>>({})
   const state = pill(envelope, actor), { name, detail } = titleParts(envelope.title)
   const me = (email: string) => email.toLowerCase() === actor.email.toLowerCase()
-  const deciding = envelope.status === 'prepared' && mayEdit, signingHere = Boolean(envelope.ownSigningAvailable)
+  // ROUTE-004: a draft waiting for internal approval is not approved again by its sender.
+  const deciding = envelope.status === 'prepared' && mayEdit && envelope.internalApproval?.state !== 'pending', signingHere = Boolean(envelope.ownSigningAvailable)
   // DELIV-006: correct is offered to whoever may change the envelope while it is open for signing.
   const correctable = mayEdit && envelope.status === 'awaiting_signature' && !envelope.scheduled && Date.parse(envelope.expiresAt) > Date.now()
   const remindable = mayEdit && envelope.status === 'awaiting_signature' && !envelope.scheduled && !envelope.manualInvitationAvailable && !signingHere && turn.some(index => !envelope.signers[index].inPerson && envelope.signers[index].paper?.status !== 'pending')
@@ -94,6 +96,7 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
     {(remindable || correctable) && <div className="iw-actions">{remindable && <button disabled={action.busy} onClick={() => void action.run(async () => { const result = await command<{ reminded: string[] }>('envelope.remind', { id: envelope.id }); setReminded(result.reminded); await refresh() })}>{action.busy ? 'Sending…' : 'Remind'}</button>}{resendable.flatMap(index => [false, true].map(newLink => <button key={`${index}-${newLink}`} disabled={action.busy} onClick={() => void action.run(async () => { const result = await command<{ email: string; newLink: boolean; reason?: string }>('envelope.resend', { id: envelope.id, signer: index, ...(newLink ? { newLink } : {}) }); setResent(result.reason ?? `Invitation resent to ${result.email}${result.newLink ? ' with a new link; the previous link no longer works' : ' with the same link'}`); await refresh() })}>{newLink ? 'Resend with a new link' : 'Resend'}{resendable.length > 1 ? ` to ${envelope.signers[index].name}` : ''}</button>))}{correctable && <button disabled={action.busy} onClick={() => onCorrect(envelope)}>Correct…</button>}{reminded && <span role="status">Reminder sent to {reminded.join(', ')}</span>}{resent && <span role="status">{resent}</span>}</div>}
     {envelope.copies?.length ? <><h3>Receive a copy</h3><ul className="iw-signers">{envelope.copies.map(copy => <li key={copy.email}><span className="iw-order" aria-hidden="true">{envelope.status === 'completed' && copy.routeResult?.state !== 'skipped' ? <Check /> : '·'}</span><div><strong>{copy.name}</strong><span className="iw-signer-email">{copy.email}</span><small>{copy.routeResult?.state === 'skipped' ? 'Skipped by routing condition: no completed copy' : envelope.status !== 'completed' ? copy.includeWhen ? 'Gets the completed copy if its rule holds at completion' : 'Gets the completed copy when everyone has signed' : `${copy.routeResult?.state === 'unresolved' ? 'Routing rule unresolved at completion · ' : copy.routeResult?.state === 'included' ? 'Included by routing condition · ' : ''}${queued(copy.email) ? 'Completed copy queued for email' : 'No copy emailed: mail was not set up'}`}</small>{copy.includeWhen && <small>{routingRuleText(copy.includeWhen, envelope.fields)}{copy.routeResult?.value !== undefined ? ` · source answer: ${copy.routeResult.value}` : ''}</small>}</div></li>)}</ul></> : null}
 
+    <InternalApprovalStatus envelope={envelope} refresh={refresh} />
     {deciding && <div className="iw-decision">
       <div className="iw-alert"><span className="iw-alert-mark" aria-hidden="true">!</span><div><strong>{preparedByAgent(envelope) ? 'Prepared by the Inkwell agent.' : 'Prepared and saved.'}</strong><p>Nothing is sent until a person approves it.</p></div></div>
       <h3>Human approval</h3>

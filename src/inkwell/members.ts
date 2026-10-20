@@ -9,6 +9,7 @@ import type { CommandContext } from './envelopes'
 export const memberRoles = ['sender', 'viewer'] as const
 export type MemberRole = typeof memberRoles[number]
 
+import { namedApprover } from './internal-approval'
 export type Access = 'none' | 'view' | 'edit'
 /** ADMIN-001: what `actor` may do with `envelope`. Owners and admins edit every envelope; a sender edits their own and
  * those shared with them to edit, and reads those shared to view; a viewer reads every envelope, and an edit share
@@ -17,7 +18,8 @@ export type Access = 'none' | 'view' | 'edit'
 export function accessFrom(actor: Actor, envelope: Envelope, share?: string | null): Access {
   if (actor.role === 'owner' || actor.role === 'admin' || (actor.role === 'sender' && envelope.createdBy === actor.id)) return 'edit'
   if (actor.role === 'viewer') return 'view'
-  return share === 'edit' ? 'edit' : share === 'view' ? 'view' : 'none'
+  // ROUTE-004: a named internal approver reads the envelope from the request onward.
+  return share === 'edit' ? 'edit' : share === 'view' || namedApprover(envelope, actor.id) ? 'view' : 'none'
 }
 export async function envelopeAccess(env: Env, actor: Actor, envelope: Envelope) {
   return accessFrom(actor, envelope, (await env.DB.prepare('SELECT access FROM iw_shares WHERE envelope_id=? AND operator_id=?').bind(envelope.id, actor.id).first<{ access: string }>())?.access)

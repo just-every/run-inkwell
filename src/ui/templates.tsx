@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { command, request, type Field } from './types'
+import { command, request, type ApprovalRule, type Field } from './types'
 import type { RoutingRule } from '../inkwell/model'
 import { RoutingPreview } from './routing-rules'
 import { ErrorNotice, useAction } from './feedback'
@@ -9,7 +9,7 @@ import { SharePanel, type TemplateFolder, type TemplateShare } from './template-
 // TMPL-001: the templates this person may use, a new one from the prepare screen, and a send that asks only for each
 // role's person (and the access code a role needs); the new envelope opens for approval like any other draft.
 type Role = { includeWhen?: RoutingRule; role: string; order: number; accessCode?: boolean; linkOnly?: boolean; message?: string }
-export type Template = { id: string; title: string; filename: string; roles: Role[]; fields: Field[]; expiryDays: number; reminders?: { afterDays: number; everyDays: number }; subject?: string; message?: string; allowPaper?: boolean; allowReassign?: boolean; version?: number; tags?: string[]; access?: 'use' | 'edit' | 'manage'; folder?: { id: string; name: string } | null; shares?: TemplateShare[] }
+export type Template = { approval?: ApprovalRule; id: string; title: string; filename: string; roles: Role[]; fields: Field[]; expiryDays: number; reminders?: { afterDays: number; everyDays: number }; subject?: string; message?: string; allowPaper?: boolean; allowReassign?: boolean; version?: number; tags?: string[]; access?: 'use' | 'edit' | 'manage'; folder?: { id: string; name: string } | null; shares?: TemplateShare[] }
 type Person = { name: string; email: string; accessCode: string }
 
 export function Templates({ onSent }: { onSent: (id: string) => Promise<void> }) {

@@ -19,7 +19,7 @@ const myTurn = (envelope: Envelope, actor: Actor) => envelope.status === 'awaiti
 
 export function pill(envelope: Envelope, actor: Actor): { label: string; tone: Tone } {
   switch (envelope.status) {
-    case 'prepared': return { label: 'Needs approval', tone: 'rose' }
+    case 'prepared': return envelope.internalApproval?.state === 'pending' ? { label: envelope.approvalAvailable ? 'Needs your approval' : 'Internal approval', tone: envelope.approvalAvailable ? 'amber' : 'blue' } : { label: 'Needs approval', tone: 'rose' }
     case 'awaiting_signature': return envelope.scheduled ? { label: 'Scheduled', tone: 'blue' } : myTurn(envelope, actor) ? { label: 'Waiting for you', tone: 'amber' } : signedCount(envelope) ? { label: 'In progress', tone: 'blue' } : { label: 'Waiting', tone: 'amber' }
     case 'completed': return { label: 'Completed', tone: 'mint' }
     case 'declined': return { label: 'Declined', tone: 'rose' }
@@ -32,7 +32,7 @@ export function pill(envelope: Envelope, actor: Actor): { label: string; tone: T
 /** The next step, with an urgent dot when it is the signed-in person's to take. */
 export function nextAction(envelope: Envelope, actor: Actor): { label: string; urgent: boolean } {
   switch (envelope.status) {
-    case 'prepared': return envelope.access === 'edit' ? { label: 'Approve and send', urgent: true } : { label: 'Waiting for approval', urgent: false }
+    case 'prepared': return envelope.approvalAvailable ? { label: 'Approve or reject', urgent: true } : envelope.internalApproval?.state === 'pending' ? { label: `Waiting for ${envelope.internalApproval.steps.filter(step => !step.decision).map(step => step.name).join(' and ')}`, urgent: false } : envelope.access === 'edit' ? { label: envelope.internalApproval?.state === 'rejected' ? 'Rejected: edit and send again' : 'Approve and send', urgent: true } : { label: 'Waiting for approval', urgent: false }
     case 'awaiting_signature': return envelope.scheduled ? { label: `Sends ${envelope.scheduled.local.replace('T', ' ')} ${envelope.scheduled.timeZone.split('/').at(-1)!.replaceAll('_', ' ')} time`, urgent: false } : myTurn(envelope, actor) ? { label: 'Your turn to sign', urgent: true } : { label: `Waiting on ${currentSigners(envelope).map(index => envelope.signers[index].name).join(' and ') || (envelope.signers.some(signer => !signer.signedAt && !signer.removedAt && signer.includeWhen && signer.routeResult?.state !== 'included' && signer.routeResult?.state !== 'skipped') ? 'routing condition resolution' : 'the next signer')}`, urgent: false }
     case 'completed': return { label: 'Executed PDF ready', urgent: false }
     case 'declined': { const by = envelope.signers.find(signer => signer.declinedAt); return { label: `${by?.consentWithdrawn ? 'Consent withdrawn by' : 'Declined by'} ${by?.name ?? 'a signer'}`, urgent: false } }

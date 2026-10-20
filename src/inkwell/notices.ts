@@ -8,12 +8,12 @@ import { seal, unseal } from './seal'
 // as each of them chose. A notice names the envelope, the recipient and what happened; by email a decline also gives its
 // reason. A channel post is tried at most three times and its outcome shows on the feed. Webhook URLs are sealed at rest
 // (seal.ts), shown only masked, never archived, and a post goes to the URL connected when it is sent.
-export const noticeEvents = ['viewed', 'signed', 'declined', 'completed', 'bounced', 'expiring'] as const
+export const noticeEvents = ['viewed', 'signed', 'declined', 'completed', 'bounced', 'expiring', 'approval'] as const
 export const noticeChannels = ['email', 'slack', 'teams', 'nook'] as const
 type NoticeEvent = typeof noticeEvents[number]
 type Channel = typeof noticeChannels[number]
 type Hook = Exclude<Channel, 'email'>
-const kinds: Record<string, NoticeEvent> = { 'signer.viewed': 'viewed', 'signer.signed': 'signed', 'signer.signed_on_paper': 'signed', 'signer.declined': 'declined', 'signer.consent_withdrawn': 'declined', 'envelope.completed': 'completed', 'signer.bounced': 'bounced', 'envelope.expiry_warned': 'expiring' }
+const kinds: Record<string, NoticeEvent> = { 'signer.viewed': 'viewed', 'signer.signed': 'signed', 'signer.signed_on_paper': 'signed', 'signer.declined': 'declined', 'signer.consent_withdrawn': 'declined', 'envelope.completed': 'completed', 'signer.bounced': 'bounced', 'envelope.expiry_warned': 'expiring', 'envelope.internal_approval_requested': 'approval', 'envelope.internal_approved': 'approval', 'envelope.internal_rejected': 'approval' }
 /** Until a person chooses: email for declined, completed, bounced and expiring; nothing else outside the feed. */
 const byDefault = (event: NoticeEvent, channel: Channel) => channel === 'email' && !['viewed', 'signed'].includes(event)
 // Slack's and Teams' incoming webhooks live on their own hosts; Nook's Slack-compatible ones (NOOK-063) on the
@@ -23,17 +23,19 @@ const hookRules: Record<Hook, { label: string; valid: (url: URL) => boolean; exa
   teams: { label: 'Microsoft Teams', valid: url => /\.(webhook\.office\.com|logic\.azure\.com|environment\.api\.powerplatform\.com)$/.test(url.hostname), example: 'https://<tenant>.webhook.office.com/… or a Workflows URL' },
   nook: { label: 'Nook', valid: url => url.pathname.startsWith('/hooks/slack/'), example: 'https://<your Nook>/hooks/slack/…' },
 }
-const labels: Record<NoticeEvent, string> = { viewed: 'Viewed', signed: 'Signed', declined: 'Declined', completed: 'Completed', bounced: 'Bounced', expiring: 'Expires soon' }
+const labels: Record<NoticeEvent, string> = { viewed: 'Viewed', signed: 'Signed', declined: 'Declined', completed: 'Completed', bounced: 'Bounced', expiring: 'Expires soon', approval: 'Internal approval' }
 const mask = (url: URL) => `${url.origin}/…${url.pathname.slice(-4)}`
 const purpose = 'notice-webhook-seal', bound = (operator: string, channel: Hook) => `${operator}:${channel}`
 
 type Member = { id: string; email: string; name: string }
-type Notice = { event: NoticeEvent; signer: number; actor?: string; recipient: string; line: string; subject: string; body: (name: string) => string }
+/** `to`: the members a notice is for, instead of the envelope's sender and edit shares (ROUTE-004's approvers). */
+type Notice = { event: NoticeEvent; signer: number; actor?: string; to?: string[]; recipient: string; line: string; subject: string; body: (name: string) => string }
 
 /** What one new audit event tells the sender, or nothing for events that are not notices. */
 function describe(env: Env, envelope: Envelope, event: AuditEvent): Notice | undefined {
   const kind = kinds[event.action]
   if (!kind) return undefined
+  if (kind === 'approval') return approvalNotice(env, envelope, event)
   const d = event.detail, who = typeof d.signer === 'number' ? envelope.signers[d.signer]?.name ?? '' : '', title = envelope.title, app = new URL('/app', env.AUTH_ORIGIN).href
   const waiting = Array.isArray(d.signers) ? d.signers.map(i => envelope.signers[i as number]?.name).filter(Boolean).join(' and ') : ''
   const withdrawn = event.action === 'signer.consent_withdrawn'
@@ -47,15 +49,27 @@ function describe(env: Env, envelope: Envelope, event: AuditEvent): Notice | und
   return { event: kind, signer: typeof d.signer === 'number' ? d.signer : Array.isArray(d.signers) && typeof d.signers[0] === 'number' ? d.signers[0] : 0, recipient: who, line, subject: `${withdrawn ? 'Consent withdrawn' : labels[kind]}: ${title}`, body: name => `${name},\n\n${body()}` }
 }
 
+/** ROUTE-004: a request goes to the approvers still to decide; an approval or rejection (with its reason) to the sender. */
+function approvalNotice(env: Env, envelope: Envelope, event: AuditEvent): Notice {
+  const d = event.detail, title = envelope.title, app = new URL('/app', env.AUTH_ORIGIN).href, request = envelope.internalApproval!
+  if (event.action === 'envelope.internal_approval_requested') {
+    const line = `${request.requestedBy.name} asks you to approve ${title} before it is sent.`
+    return { event: 'approval', signer: 0, actor: request.requestedBy.email, to: request.steps.filter(s => !s.decision).map(s => s.approver), recipient: `Approval needed, from ${request.requestedBy.name}`, line, subject: `Approval needed: ${title}`, body: name => `${name},\n\n${line}\nWhy: ${request.steps.filter(s => !s.decision).flatMap(s => s.why).join('; ')}\n\nOpen it in Inkwell to approve or reject it. Nothing is sent until every named approver approves.\n${app}` }
+  }
+  const rejected = event.action === 'envelope.internal_rejected', who = String(d.name ?? ''), approver = request.steps.find(s => s.approver === d.approver)
+  const line = rejected ? `${who} rejected ${title}: ${String(d.reason ?? '')}` : `${who} approved ${title}.`
+  return { event: 'approval', signer: 0, actor: approver?.email, recipient: rejected ? `Rejected by ${who}` : `Approved by ${who}`, line, subject: `${rejected ? 'Rejected' : 'Approved'}: ${title}`, body: name => `${name},\n\n${line}\n\n${rejected ? 'It is back in your drafts. Edit it and approve it again to send it.' : 'It is sent once every named approver has approved.'}\n${app}` }
+}
+
 /** The writes that record and send the notices for the events `after` adds to `before`, in the same batch as the change. */
 export async function noticeWrites(env: Env, before: Envelope, after: Envelope): Promise<D1PreparedStatement[]> {
   // The recipient who acted: the event's own, or for a completion the last to sign in this change. A member is never
   // emailed or posted about their own action (ROUTE-009: signing your own document sends nothing); the feed still has it.
   let last: number | undefined
-  const notices = after.events.slice(before.events.length).flatMap(event => { if (typeof event.detail.signer === 'number') last = event.detail.signer; const notice = describe(env, after, event); return notice ? [{ ...notice, actor: last === undefined ? undefined : after.signers[last]?.email.toLowerCase() }] : [] })
+  const notices = after.events.slice(before.events.length).flatMap(event => { if (typeof event.detail.signer === 'number') last = event.detail.signer; const notice = describe(env, after, event); return notice ? [{ ...notice, actor: notice.actor ?? (last === undefined ? undefined : after.signers[last]?.email.toLowerCase()) }] : [] })
   if (!notices.length) return []
-  const db = env.DB
-  const members = (await db.prepare("SELECT id, email, display_name AS name FROM oa_operators WHERE status='active' AND (id=? OR id IN (SELECT operator_id FROM iw_shares WHERE envelope_id=? AND access='edit'))").bind(after.createdBy, after.id).all<Member>()).results
+  const db = env.DB, named = [...new Set(notices.flatMap(n => n.to ?? []))]
+  const members = (await db.prepare(`SELECT id, email, display_name AS name, (id=?1 OR id IN (SELECT operator_id FROM iw_shares WHERE envelope_id=?2 AND access='edit')) AS standard FROM oa_operators WHERE status='active' AND (id=?1 OR id IN (SELECT operator_id FROM iw_shares WHERE envelope_id=?2 AND access='edit')${named.length ? ` OR id IN (${named.map((_, i) => `?${i + 3}`).join(',')})` : ''})`).bind(after.createdBy, after.id, ...named).all<Member & { standard: number }>()).results
   if (!members.length) return []
   const ids = members.map(m => m.id), marks = ids.map(() => '?').join(',')
   const prefs = (await db.prepare(`SELECT operator_id, event, channel, enabled FROM iw_notice_prefs WHERE operator_id IN (${marks})`).bind(...ids).all<{ operator_id: string; event: string; channel: string; enabled: number }>()).results
@@ -63,7 +77,7 @@ export async function noticeWrites(env: Env, before: Envelope, after: Envelope):
   const wants = (member: string, event: NoticeEvent, channel: Channel) => { const row = prefs.find(p => p.operator_id === member && p.event === event && p.channel === channel); return row ? row.enabled === 1 : byDefault(event, channel) }
   // With mail not set up no notice email is written (SEND-001); the feed and the channels still get it.
   const at = now(), email = !mailSuppressed(env), writes: D1PreparedStatement[] = []
-  for (const notice of notices) for (const member of members) {
+  for (const notice of notices) for (const member of members.filter(m => notice.to ? notice.to.includes(m.id) : m.standard)) {
     const noticeId = id()
     writes.push(db.prepare('INSERT INTO iw_notices(id,operator_id,envelope_id,event,at,title,recipient) VALUES(?,?,?,?,?,?,?)').bind(noticeId, member.id, after.id, notice.event, at, after.title, notice.recipient))
     const own = notice.actor === member.email.toLowerCase()

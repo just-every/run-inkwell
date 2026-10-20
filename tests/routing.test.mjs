@@ -103,3 +103,75 @@ test('ROUTE-003: copy recipients carry the same include rule, decided once at co
   for(const bad of [{field:'one',operator:'equals',value:'Mara'},{field:'tier',operator:'greater_than',value:'5'},{field:'missing',operator:'equals',value:'x'}]) await h.command('envelope.prepare',{...base,fields:fields('5000'),signers:[{name:'Mara',email:'mara@clients.example',order:1}],copies:[{name:'Bad',email:'bad@harbour.example',includeWhen:bad}]},h.owner,400)
  }finally{await h.close()}
 })
+
+test('ROUTE-004: a sender envelope above the rule threshold waits for the named approver; a rejection returns it with the reason; an approval sends it',async()=>{
+ const h=await harness()
+ try{
+  const pdf=await PDFDocument.create(),font=await pdf.embedFont(StandardFonts.Helvetica);pdf.addPage([612,792]).drawText('Harbour Studio - Supply agreement',{x:60,y:740,size:18,font})
+  const pdfBase64=Buffer.from(await pdf.save()).toString('base64')
+  const member=async(email,role)=>{const cookie=await h.invite(email,'member'),me=(await h.send('/api/inkwell',undefined,cookie)).value.actor;await h.command('member.role',{operatorId:me.id,role},h.owner);return{cookie,id:me.id}}
+  const admin=await h.invite('ada.admin@harbour.example','admin'),sam=await member('sam.sender@harbour.example','sender'),dana=await member('dana.finance@harbour.example','sender'),vic=await member('vic.viewer@harbour.example','viewer')
+  const read=async(id,cookie=h.owner)=>(await h.send('/api/inkwell/envelopes/'+id,undefined,cookie))
+  const fields=amount=>[{id:'sig',label:'Client signature',signer:0,type:'signature',page:0,x:.1,y:.2,width:.4,height:.05},{id:'value',label:'Contract value',signer:0,type:'number',page:0,x:.1,y:.3,width:.3,height:.04,...(amount===undefined?{}:{readOnly:true,prefill:{value:amount,source:'Sender input'}})}]
+  const prepare=async(suffix,amount,cookie=sam.cookie)=>(await h.command('envelope.prepare',{title:`Supply ${suffix}`,filename:'supply.pdf',pdfBase64,signers:[{name:'Mara Quinn',email:`mara.${suffix}@clients.example`}],fields:fields(amount)},cookie)).result.id
+  // Only an owner or admin sets the account rule, and only an owner, admin or sender can be its approver.
+  const rule={approverEmail:'dana.finance@harbour.example',threshold:{field:'contract value',above:'10000'}}
+  await h.command('account.internal_approval',{rule},sam.cookie,403)
+  await h.command('account.internal_approval',{rule:{...rule,approverEmail:'vic.viewer@harbour.example'}},admin,400)
+  await h.command('account.internal_approval',{rule},admin)
+  assert.deepEqual((await h.send('/api/inkwell',undefined,h.owner)).value.settings.internalApproval.threshold,{field:'contract value',above:'10000.00'})
+  // At or below the threshold the sender's own approval sends it at once.
+  const small=await prepare('small','10000.00');await h.command('envelope.approve',{id:small,eligible:true},sam.cookie)
+  assert.equal((await read(small)).value.envelope.status,'awaiting_signature');assert.ok(await h.mail('mara.small@clients.example','Please sign:'))
+  // Above it, the sender's eligibility approval waits for the named approver: no invitation, the draft locked.
+  const big=await prepare('big','25000.00'),waiting=await h.command('envelope.approve',{id:big,eligible:true},sam.cookie)
+  assert.deepEqual(waiting.result.waitingForApproval,['dana.finance'])
+  let envelope=(await read(big,sam.cookie)).value.envelope
+  assert.equal(envelope.status,'prepared');assert.equal(envelope.internalApproval.state,'pending');assert.deepEqual(envelope.internalApproval.steps.map(s=>[s.name,s.rules,s.why]),[['dana.finance',['account'],['Contract value 25000.00 USD is above 10000.00 USD']]])
+  assert.equal(await h.mail('mara.big@clients.example','Please sign:'),undefined,'no recipient is invited before the internal approval')
+  assert.ok((await h.mail('dana.finance@harbour.example','Approval needed:')).text.includes('Contract value 25000.00 USD is above 10000.00 USD'),'the approver is asked by email')
+  await h.command('envelope.approve',{id:big,eligible:true},sam.cookie,409)
+  await h.command('envelope.update',{id:big,title:'Changed',filename:'supply.pdf',pdfBase64,signers:[{name:'Mara Quinn',email:'mara.big@clients.example'}],fields:fields('1.00')},sam.cookie,409)
+  // The approver finds it waiting for them and may read it; nobody else may decide.
+  const mine=(await h.send('/api/inkwell/envelopes?status=waiting_for_me',undefined,dana.cookie)).value;assert.deepEqual(mine.envelopes.map(e=>e.id),[big]);assert.equal(mine.envelopes[0].approvalAvailable,true)
+  assert.equal((await read(big,dana.cookie)).value.envelope.access,'view')
+  for(const cookie of [sam.cookie,admin,vic.cookie]) await h.command('envelope.internal_decide',{id:big,decision:'approve'},cookie,403)
+  await h.command('envelope.internal_decide',{id:big,decision:'reject',reason:'no'},dana.cookie,400)
+  // A rejection returns it to the sender with the reason, as an editable draft.
+  await h.command('envelope.internal_decide',{id:big,decision:'reject',reason:'Volume discount missing from clause 4'},dana.cookie)
+  envelope=(await read(big,sam.cookie)).value.envelope
+  assert.equal(envelope.status,'prepared');assert.equal(envelope.internalApproval.state,'rejected');assert.equal(envelope.internalApproval.steps[0].reason,'Volume discount missing from clause 4')
+  assert.deepEqual(envelope.events.filter(e=>e.action.startsWith('envelope.internal_')).map(e=>[e.action,e.actor]),[['envelope.internal_approval_requested',sam.id],['envelope.internal_rejected',dana.id]])
+  assert.ok((await h.mail('sam.sender@harbour.example','Rejected:')).text.includes('Volume discount missing from clause 4'),'the sender is told the reason')
+  assert.equal((await h.send('/api/inkwell/envelopes?status=draft',undefined,sam.cookie)).value.envelopes.some(e=>e.id===big),true)
+  assert.equal((await h.send('/api/inkwell/envelopes?status=waiting_for_me',undefined,dana.cookie)).value.counts.waiting_for_me,0)
+  await h.command('envelope.update',{id:big,title:'Supply big',filename:'supply.pdf',pdfBase64,signers:[{name:'Mara Quinn',email:'mara.big@clients.example'}],fields:fields('24000.00')},sam.cookie)
+  // Sent again, it asks again; the approval sends it under the sender's authority.
+  await h.command('envelope.approve',{id:big,eligible:true},sam.cookie)
+  const approved=await h.command('envelope.internal_decide',{id:big,decision:'approve'},dana.cookie)
+  assert.equal(approved.result.status,'awaiting_signature');assert.ok(await h.mail('mara.big@clients.example','Please sign:'),'the approval sends the invitation')
+  envelope=(await read(big,sam.cookie)).value.envelope
+  const sent=envelope.events.find(e=>e.action==='envelope.approved');assert.equal(sent.actor,sam.id);assert.deepEqual(sent.detail.internalApprovals.map(a=>[a.approver,a.name]),[[dana.id,'dana.finance']])
+  assert.equal(envelope.events.filter(e=>e.action==='envelope.internal_approved').length,1)
+  assert.ok((await h.mail('sam.sender@harbour.example','Approved:')))
+  // A value the sender did not lock is not known before sending, so it needs the approval too; no such field, no rule.
+  const open=await prepare('open',undefined);assert.ok((await h.command('envelope.approve',{id:open,eligible:true},sam.cookie)).result.waitingForApproval)
+  const plain=(await h.command('envelope.prepare',{title:'NDA',filename:'nda.pdf',pdfBase64,signers:[{name:'Mara Quinn',email:'mara.nda@clients.example'}],fields:[fields()[0]]},sam.cookie)).result.id
+  assert.equal((await h.command('envelope.approve',{id:plain,eligible:true},sam.cookie)).result.status,'awaiting_signature')
+  // An approver keeps reading what they decided after the envelope is lowered below the threshold and sent without them.
+  const lowered=await prepare('lowered','30000.00');await h.command('envelope.approve',{id:lowered,eligible:true},sam.cookie);await h.command('envelope.internal_decide',{id:lowered,decision:'reject',reason:'Too high for this client'},dana.cookie)
+  await h.command('envelope.update',{id:lowered,title:'Supply lowered',filename:'supply.pdf',pdfBase64,signers:[{name:'Mara Quinn',email:'mara.lowered@clients.example'}],fields:fields('9000.00')},sam.cookie)
+  assert.equal((await h.command('envelope.approve',{id:lowered,eligible:true},sam.cookie)).result.status,'awaiting_signature');assert.equal((await read(lowered,dana.cookie)).status,200)
+  assert.ok((await h.send('/api/inkwell/envelopes',undefined,dana.cookie)).value.envelopes.some(e=>e.id===lowered))
+  // A template rule applies to every envelope sent from it, with the account rule; the approver's own send is their approval.
+  await h.command('account.internal_approval',{rule:null},h.owner)
+  const template=(await h.command('template.save',{title:'Supply template',filename:'supply.pdf',pdfBase64,roles:[{role:'Client',order:1}],fields:fields('500.00'),approval:{approverEmail:'ada.admin@harbour.example'}},sam.cookie)).result.id
+  const fromTemplate=(await h.command('template.use',{id:template,recipients:[{name:'Mara Quinn',email:'mara.tpl@clients.example'}]},sam.cookie)).result.id
+  assert.deepEqual((await h.command('envelope.approve',{id:fromTemplate,eligible:true},sam.cookie)).result.waitingForApproval,['ada.admin'])
+  assert.equal((await h.command('envelope.internal_decide',{id:fromTemplate,decision:'approve'},admin)).result.status,'awaiting_signature')
+  const byAdmin=(await h.command('template.use',{id:template,recipients:[{name:'Mara Quinn',email:'mara.tpl2@clients.example'}]},admin)).result.id
+  assert.equal((await h.command('envelope.approve',{id:byAdmin,eligible:true},admin)).result.status,'awaiting_signature')
+  assert.equal((await read(byAdmin)).value.envelope.events.find(e=>e.action==='envelope.approved').detail.internalApprovals[0].bySender,true)
+  const copied=(await h.command('envelope.copy',{id:fromTemplate},sam.cookie)).result.id;assert.ok((await h.command('envelope.approve',{id:copied,eligible:true},sam.cookie)).result.waitingForApproval,'a copy keeps the template rule')
+ }finally{await h.close()}
+})
