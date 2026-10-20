@@ -30,7 +30,7 @@ export function Templates({ onSent }: { onSent: (id: string) => Promise<void> })
   const load = async (q = query, f = folder) => { const params = new URLSearchParams({ ...(q.trim() ? { q: q.trim() } : {}), ...(f ? { folder: f } : {}) }), result = await request<{ templates: Template[]; folders: TemplateFolder[] }>(`/api/inkwell/templates?${params}`); setTemplates(result.templates); setFolders(result.folders) }
   useEffect(() => { void action.run(load) }, [])
   const shownFolder = folders.find(f => f.id === folder)
-  if (creating || editing) return <PrepareEnvelope asTemplate template={editing} folders={folders.filter(f => f.access !== 'use')} defaultFolder={shownFolder && shownFolder.access !== 'use' ? shownFolder.id : ''} onCancel={() => { setCreating(false); setEditing(undefined) }} onSaved={async () => { setCreating(false); setEditing(undefined); await action.run(load) }} />
+  if (creating || editing) return <PrepareEnvelope asTemplate template={editing} folders={folders.filter(f => f.access !== 'use')} defaultFolder={shownFolder && shownFolder.access !== 'use' ? shownFolder.id : ''} onCancel={() => { setCreating(false); setEditing(undefined) }} onSaved={async () => { await load(); setCreating(false); setEditing(undefined) }} />
   if (using) return <SendFromTemplate template={using} onCancel={() => setUsing(undefined)} onSent={onSent} />
   return <section className="iw-panel iw-stack">
     <div className="iw-section-head"><div><h2>Your templates</h2><p className="iw-muted">A template keeps the PDF, roles, fields, messages, reminders and expiry. Sending asks only who fills each role.</p></div><button className="iw-primary iw-fit" type="button" onClick={() => setCreating(true)}>New template</button></div>
