@@ -2879,7 +2879,7 @@
       "executable": false
     },
     "src/ui/field-prefill-editor.tsx": {
-      "sha256": "d3e2bf7e0ab2e86055ea6124c5379032683a54101ced3c6d842c2cd2ef321f64",
+      "sha256": "566058c1b56fe2c91a8adf25dabf882ce31bb5a51758408503ca33940964ffb5",
       "executable": false
     },
     "src/ui/field-rules-editor.tsx": {
@@ -2963,7 +2963,7 @@
       "executable": false
     },
     "src/ui/signing-field-input.tsx": {
-      "sha256": "2287ed5fc3c08282192c776c03535eb27fabe9082e44f07a1a7e548bc457c997",
+      "sha256": "da5e36c16ad182043c9c41eeb73fcacc431a9c49dfdbcf5feda24faac9696f6b",
       "executable": false
     },
     "src/ui/signing-groups.tsx": {
@@ -3087,7 +3087,7 @@
       "executable": false
     },
     "tests/journeys/field-types.mjs": {
-      "sha256": "7289754fcf8e47797030a40989cd272bacd2b0f0d355070c4f661291da0eaa0e",
+      "sha256": "4531645a63d99acdef3725015bafb4f9faed91025be07fbfa90b8d8fd1c0b8bc",
       "executable": false
     },
     "tests/journeys/healthcare.mjs": {
