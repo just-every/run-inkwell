@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "690b6bc6f501e625e6918a13a2babb3df05cb5fb06948b6e3a01b2aa349b511e",
+      "sha256": "6eb3a70f9f546e93c79efc259e4776b19b4079fb6acb1247bdfc02d9d70de1a7",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "47238aca5ebf7b7dc4ba0c3290a96cdfb64573d1e8af0185d5beb5508dfd4d0b",
+      "sha256": "c8e6c91c5550cdd8a539123a54e7a36e80b69b24ebda869f54c2a6c410a330ce",
       "executable": false
     },
     "DEMO.md": {
@@ -2883,7 +2883,7 @@
       "executable": false
     },
     "src/ui/field-validation-editor.tsx": {
-      "sha256": "43578464f37bf315b276ad113c664b40443f61df32ef8107b1d7dae1ae37f5aa",
+      "sha256": "a84c98c72a2b13e6f8b78004d03d2c19e2c6fd85f34f03a15987ba4cf8fc0f54",
       "executable": false
     },
     "src/ui/healthcare.tsx": {
@@ -2955,7 +2955,7 @@
       "executable": false
     },
     "src/ui/signer-app.tsx": {
-      "sha256": "bb38ab46cbdfaeffc24e898bf7f6a9d71650659cbce3c2b7faef837be32424e1",
+      "sha256": "585915512a60860f29d78c2d63a0b7b1128cb25b2aff0ef827b6e3a4baf049bf",
       "executable": false
     },
     "src/ui/signing-field-input.tsx": {
