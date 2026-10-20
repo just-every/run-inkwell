@@ -175,3 +175,62 @@ test('ROUTE-004: a sender envelope above the rule threshold waits for the named 
   const copied=(await h.command('envelope.copy',{id:fromTemplate},sam.cookie)).result.id;assert.ok((await h.command('envelope.approve',{id:copied,eligible:true},sam.cookie)).result.waitingForApproval,'a copy keeps the template rule')
  }finally{await h.close()}
 })
+
+test('ROUTE-005: the "Company Signers" group of three signs as one place; one member signs, the others see it done, and the record names the signer and the group',async()=>{
+ const h=await harness()
+ try{
+  const pdf=await PDFDocument.create();pdf.addPage([612,792]);const base={title:'Supply agreement',filename:'supply.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64')}
+  const fields=[{id:'client',label:'Client signature',type:'signature',signer:0,page:0,x:.1,y:.2,width:.6,height:.04},{id:'company',label:'Company signature',type:'signature',signer:1,page:0,x:.1,y:.4,width:.6,height:.04}]
+  const members=[{name:'Ada Park',email:'ada@harbour.example'},{name:'Ben Ortiz',email:'ben@harbour.example'},{name:'Cy Lane',email:'cy@harbour.example'}]
+  await h.command('account.signing_group',{name:'Solo',members:members.slice(0,1)},h.owner,400)
+  const group=(await h.command('account.signing_group',{name:'Company Signers',members})).result.groups[0]
+  await h.command('account.signing_group',{name:'company signers',members},h.owner,409)
+  assert.deepEqual((await h.send('/api/inkwell',undefined,h.owner)).value.signingGroups.map(g=>g.name),['Company Signers'])
+  const read=async id=>(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
+  const signers=[{name:'Mara Quinn',email:'mara@clients.example',order:1},{group:group.id,order:2}]
+  await h.command('envelope.prepare',{...base,fields,signers:[signers[0],{...signers[1],accessCode:'harbour-42'}]},h.owner,409)
+  await h.command('envelope.prepare',{...base,fields,signers:[signers[0],{...signers[1],inPerson:true}]},h.owner,409)
+  await h.command('envelope.prepare',{...base,fields,signers:[signers[0],{group:group.id,order:2},{name:'Ada again',email:'ada@harbour.example',order:3}]},h.owner,400)
+  const id=(await h.command('envelope.prepare',{...base,fields,signers})).result.id
+  // The draft snapshots the group: a later change to the group does not reach it.
+  await h.command('account.signing_group',{id:group.id,name:'Company Signers',members:members.slice(0,2)})
+  assert.deepEqual((await read(id)).signers[1].group.members.map(m=>m.email),members.map(m=>m.email))
+  await h.command('account.signing_group',{id:group.id,name:'Company Signers',members})
+  await h.command('envelope.approve',{id,eligible:true})
+  const link=async email=>new URL((await h.mail(email,'Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.replace('/sign/','/api/sign/')
+  const verify=async(email,path)=>{await h.post(path+'/code',{},'');const code=(await h.mail(email,'verification code')).text.match(/\b\d{6}\b/)[0];return (await h.post(path+'/verify',{code},'')).cookie}
+  const sign=async(email,values)=>{const path=await link(email),cookie=await verify(email,path);await h.agree(path,cookie);return h.post(path+'/sign',{values,consent:true,commandId:crypto.randomUUID()},cookie)}
+  for(const m of members)assert.equal(await h.mail(m.email,'Please sign:'),undefined,'the group waits for its routing order')
+  await sign('mara@clients.example',{client:'Mara Quinn'})
+  // At its turn every member gets their own link; reminders go to every member.
+  const paths=await Promise.all(members.map(m=>link(m.email)));assert.equal(new Set(paths).size,3)
+  assert.ok((await h.mail('ada@harbour.example','Please sign:')).text.includes('signing group Company Signers'))
+  await h.command('envelope.remind',{id});for(const m of members)assert.ok(await h.mail(m.email,'Reminder to sign'),`${m.name} is reminded`)
+  await h.scheduled(Date.parse((await read(id)).expiresAt)-2*86_400_000);for(const m of members)assert.ok(await h.mail(m.email,'Expires soon'),`${m.name} is warned before expiry`)
+  const ben=await verify('ben@harbour.example',paths[1]);await h.post(paths[1]+'/reassign',{name:'Dee',email:'dee@harbour.example',reason:'Away',commandId:crypto.randomUUID()},ben,409)
+  const ada=await verify('ada@harbour.example',paths[0]);await h.agree(paths[0],ada)
+  // Ben signs for the group; nobody else's agreement or verification counts for him.
+  await h.post(paths[1]+'/sign',{values:{company:'Ben Ortiz'},consent:true,commandId:crypto.randomUUID()},ben,403);await h.agree(paths[1],ben);await h.post(paths[1]+'/sign',{values:{company:'Ben Ortiz'},consent:true,commandId:crypto.randomUUID()},ben)
+  const done=await read(id);assert.equal(done.status,'completed');assert.equal(done.signers[1].group.signedBy,1)
+  for(const path of [paths[0],paths[2]]){const view=(await h.send(path,undefined,'')).value;assert.equal(view.group.name,'Company Signers');assert.equal(view.group.signedBy.name,'Ben Ortiz');assert.ok(view.group.signedBy.at);assert.equal(view.canSign,false)}
+  await h.post(paths[0]+'/sign',{values:{company:'Ada Park'},consent:true,commandId:crypto.randomUUID()},ada,409)
+  await h.send(paths[0]+'/artifacts/signed',undefined,ada).then(r=>assert.equal(r.status,409,'another member gets no completed copy'))
+  assert.ok(await h.mail('ben@harbour.example','Completed:'),'the member who signed gets the completed copy');for(const email of ['ada@harbour.example','cy@harbour.example'])assert.equal(await h.mail(email,'Completed:'),undefined)
+  const certificate=(await pdfText((await h.send(`/api/inkwell/envelopes/${id}/artifacts/certificate`,undefined,h.owner)).bytes)).replace(/\s+/g,' ')
+  assert.ok(certificate.includes('Signer 2: Signing group Company Signers'));assert.ok(certificate.includes('Signed for Company Signers by Ben Ortiz <ben@harbour.example>'))
+  assert.ok(certificate.includes('Group members invited: Ada Park <ada@harbour.example>; Ben Ortiz <ben@harbour.example>; Cy Lane <cy@harbour.example>'))
+  assert.equal((certificate.match(/emailed verification code, verified/g)??[]).length,2,'the certificate shows the signing member\'s authentication, not another member\'s')
+  assert.equal((await h.send(`/api/inkwell/envelopes/${id}/verify`,undefined,h.owner)).value.ok,true)
+  // A member's decline declines the envelope and names them; a copy keeps the group.
+  const copy=(await h.command('envelope.copy',{id})).result.id;assert.equal((await read(copy)).signers[1].group.name,'Company Signers')
+  const second=(await h.command('envelope.prepare',{...base,fields,signers:[{group:group.id,order:1},{...signers[0],order:2}]})).result.id
+  await h.command('envelope.approve',{id:second,eligible:true})
+  const cy=await link('cy@harbour.example'),cookie=await verify('cy@harbour.example',cy);await h.post(cy+'/decline',{reason:'Terms not agreed',commandId:crypto.randomUUID()},cookie)
+  const declined=await read(second);assert.equal(declined.status,'declined');assert.equal(declined.signers[0].group.declinedBy,2)
+  assert.equal((await h.send(await link('ada@harbour.example'),undefined,'')).value.declined.by,'Cy Lane')
+  // TMPL-001: a template role may be filled by the group.
+  const template=(await h.command('template.save',{...base,roles:[{role:'Client',order:1},{role:'Company',order:2}],fields})).result.id
+  const used=(await h.command('template.use',{id:template,recipients:[{name:'Mara Quinn',email:'mara@clients.example'},{group:group.id}]})).result.id
+  assert.deepEqual((await read(used)).signers[1].group.members.map(m=>m.name),members.map(m=>m.name))
+ }finally{await h.close()}
+})

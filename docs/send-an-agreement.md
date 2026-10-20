@@ -89,6 +89,20 @@ and send** sends it exactly as your approval would have; **Reject…** returns i
 drafts with the reason. Edit it and approve it again to ask again. If you are the named
 approver, your own approval counts.
 
+## Signing groups (ROUTE-005)
+
+An owner or admin keeps named groups of 2 to 10 people under **Settings > Signing groups**,
+for example "Company Signers". When preparing an envelope (or sending from a template),
+choose **Group: Company Signers** for a recipient instead of a person. The envelope keeps the
+members the group had when you saved the draft; editing the group later does not change it.
+
+At the group's turn every member gets their own invitation and verifies their own email.
+The first member to sign signs for the group: the others' links then show who signed and
+when, and the certificate names the group, the member who signed and every member invited.
+Any member may decline, which declines the envelope. Reminders and resends go to every
+member until one signs; the completed copy goes to the member who signed. Groups cannot use
+access codes, in-person signing or reassignment, and need mail set up.
+
 ## Paper signatures
 
 Tick **Allow recipients to sign on paper and upload a scan for you to review** while

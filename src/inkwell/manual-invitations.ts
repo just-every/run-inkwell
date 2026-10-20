@@ -25,6 +25,7 @@ export async function reissueInvitation(env: Env, context: CommandContext, input
   // ROUTE-002: any signer whose turn it is (several when they share a routing order); the first of them by default.
   const current = currentSigners(before).filter(i => !before.signers[i].inPerson), signer = input.signer === undefined ? current[0] : input.signer as number
   insist(current.includes(signer), 'Choose a recipient whose turn it is to sign.', 409)
+  insist(!before.signers[signer].group, 'Signing group members get their own links and codes by email; set up mail again to reach them.', 409)
   const row = await env.DB.prepare('SELECT code_generation FROM iw_signers WHERE envelope_id=? AND signer=?').bind(before.id, signer).first<{code_generation:number}>()
   insist(row, 'Recipient not found.', 404)
   const after = structuredClone(before)

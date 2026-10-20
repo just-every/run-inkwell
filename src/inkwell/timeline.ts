@@ -22,7 +22,7 @@ export async function envelopeTimeline(env: Env, envelope: Envelope) {
 function recipientTimeline(envelope: Envelope, messages: Message[], signer: number): RecipientTimeline {
   // DELIV-006: after a correction of their name or email, the recipient's evidence and invitations are the new person's.
   const recipient = envelope.signers[signer], theirs = identityEvents(envelope, signer), mine = (action: string) => theirs.filter(e => e.action === action && e.detail.signer === signer)
-  const invitations = messages.filter(m => m.kind === 'invitation' && m.signer === signer && m.recipient.toLowerCase() === recipient.email)
+  const invitations = messages.filter(m => m.kind === 'invitation' && m.signer === signer && (recipient.group ? recipient.group.members.some(g => g.email === m.recipient.toLowerCase()) : m.recipient.toLowerCase() === recipient.email))
   const steps: RecipientTimeline['steps'] = []
   const sent = invitations.find(m => m.sentAt), manual = mine('invitation.manual_issued')[0]
   if (sent) steps.push({ step: 'sent', at: sent.sentAt!, detail: sent.label })

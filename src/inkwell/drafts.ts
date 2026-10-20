@@ -1,7 +1,7 @@
 import { normalizeRoutingRule, validateCopyRouting, validateRouting } from './routing'
 import { fromBase64, blobWrites, readBlob } from './blobs'
 import { parsePdf, validateFields, validatePdfText } from './pdf'
-import { accessCodeHash, appendEvent, insist, now, object, sha256, text, type Envelope, type Env } from './model'
+import { accessCodeHash, appendEvent, insist, now, object, sha256, text, type Envelope, type Env, type Signer } from './model'
 import { commandWrite, commitEnvelope, getEnvelope } from './storage'
 import { chooseExpiry } from './expiry'
 import { chooseReminders } from './reminders'
@@ -9,6 +9,7 @@ import { chooseCopies } from './completed-copies'
 import { insistAccess } from './members'
 import type { CommandContext } from './envelopes'
 import { mailSuppressed } from './manual-invitations'
+import { groupPlace, snapshotGroup } from './signing-groups'
 
 /** PREP-009: what a prepared envelope holds, validated the same way when it is first saved and whenever its draft is
  * saved again: the PDF, title, recipients in routing order with any access code and private message, fields, expiry,
@@ -24,10 +25,16 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   const bytes = fromBase64(input.pdfBase64), { pageSizes } = await parsePdf(bytes)
   insist(Array.isArray(input.signers) && input.signers.length >= 1 && input.signers.length <= 5, 'Add 1–5 ordered signers.')
   const accessCodes: (string | 'keep' | undefined)[] = []
-  const signers = input.signers.map((value, i) => {
-    const s = object(value), email = text(s.email, 'the signer email', 254).toLowerCase(), order = s.order === undefined ? i + 1 : s.order
+  const groups = await Promise.all(input.signers.map(value => object(value).group === undefined ? undefined : snapshotGroup(env, object(value).group)))
+  const signers: Signer[] = input.signers.map((value, i) => {
+    const s = object(value), group = groups[i], order = s.order === undefined ? i + 1 : s.order
+    // ROUTE-005: a group recipient, snapshotted now; no access code, in-person signing or mail-less links in v1.
+    if (group) insist(s.name === undefined && s.email === undefined, 'Name either a person or a signing group for each recipient, not both.')
+    insist(!group || ((s.accessCode === undefined || s.accessCode === '') && s.keepAccessCode !== true && s.inPerson !== true), 'Signing groups cannot use access codes or in-person signing.', 409)
+    insist(!group || !mailSuppressed(env), 'Signing groups need mail: every member gets their own link and code by email. Set up mail first.', 409)
+    const email = group ? groupPlace(group).email : text(s.email, 'the signer email', 254).toLowerCase()
     insist(Number.isInteger(order) && (order as number) >= 1 && (order as number) <= 100, 'Give each signer a whole-number routing order from 1 to 100.')
-    insist(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), 'Provide a valid signer email.')
+    insist(group || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), 'Provide a valid signer email.')
     const code = s.accessCode === undefined || s.accessCode === '' ? undefined : text(s.accessCode, 'an access code', 32)
     insist(code === undefined || /^\S{4,32}$/.test(code), 'Use an access code of 4–32 characters with no spaces.')
     const keep = s.keepAccessCode === true && !code
@@ -39,10 +46,11 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
     insist(!s.linkOnly || !mailSuppressed(env), 'Link-only signing needs mail; while mail is not set up every recipient verifies a code.', 409)
     insist(s.inPerson === undefined || typeof s.inPerson === 'boolean', 'Choose whether each recipient signs in person.')
     const inPerson = s.inPerson ?? (previous?.signers[i]?.email === email && previous.signers[i].inPerson)
-    return { ...(s.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(s.includeWhen)}), name: text(s.name, 'the signer name', 100), email, order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
+    return { ...(s.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(s.includeWhen)}), ...(group ? groupPlace(group) : { name: text(s.name, 'the signer name', 100), email }), order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
   })
-  insist(new Set(signers.map(s => s.email)).size === signers.length, 'Each ordered signer must use a different email.')
-  const fields = validateFields(input.fields, signers.length, pageSizes.length), copies = chooseCopies(input.copies, signers)
+  const addresses = signers.flatMap(s => s.group ? s.group.members.map(m => m.email) : [s.email])
+  insist(new Set(addresses).size === addresses.length, 'Each ordered signer must use a different email, and nobody can sign both alone and in a group.')
+  const fields = validateFields(input.fields, signers.length, pageSizes.length), copies = chooseCopies(input.copies, signers.flatMap(s => s.group ? s.group.members : [s]))
   validateRouting(signers, fields)
   validateCopyRouting(copies, fields)
   await validatePdfText([...signers, ...copies].flatMap(person=>person.includeWhen?[person.includeWhen.value]:[]))
@@ -52,7 +60,7 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   insist(input.allowReassignment === undefined || typeof input.allowReassignment === 'boolean', 'Choose whether recipients may reassign their signing.')
   const allowPaper = input.allowPaperSigning === true, allowReassign = input.allowReassignment === true, reminders = chooseReminders(input.reminders)
   const subject = optional(input.subject, 'the email subject', 200, true), message = optional(input.message, 'the message', 2000)
-  await validatePdfText([title, ...[...signers, ...copies].flatMap(s => [s.name, s.email])])
+  await validatePdfText([title, ...[...signers, ...copies].flatMap(s => [s.name, s.email]), ...signers.flatMap(s => s.group ? s.group.members.flatMap(m => [m.name, m.email]) : [])])
   const draft: Draft = { title, filename, signers, fields, pageSizes, originalSha256: await sha256(bytes), expiresAt: chooseExpiry(input.expiresAt, base), ...(allowPaper ? { allowPaper } : {}), ...(allowReassign ? { allowReassign } : {}), ...(reminders ? { reminders } : {}), ...(copies.length ? { copies } : {}), ...(subject ? { subject } : {}), ...(message ? { message } : {}) }
   return { draft, bytes, accessCodes }
 }

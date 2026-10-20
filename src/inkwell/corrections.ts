@@ -12,7 +12,7 @@ import { guardRoutingCorrection, normalizeRoutingRule, resolveRouting, routeSett
 // - a recipient whose turn it is after the correction and who was corrected, added or newly reached gets a new
 //   invitation at once on a new link; a recipient left unchanged keeps their link;
 // - a changed subject or message applies to invitations sent from then on; the document's bytes never change.
-import { accessCodeHash, active, appendEvent, canonical, currentSigners, insist, now, object, routingOrder, secret, sha256, text, type Envelope, type Env, type Field, type Signer } from './model'
+import { placeRows, placeRowsSql, accessCodeHash, active, appendEvent, canonical, currentSigners, insist, now, object, routingOrder, secret, sha256, text, type Envelope, type Env, type Field, type Signer } from './model'
 import { commandWrite, commitEnvelope, getEnvelope } from './storage'
 import { dispatchMail, invitationWrite } from './mail'
 import { mailSuppressed } from './manual-invitations'
@@ -21,6 +21,7 @@ import { chooseExpiry } from './expiry'
 import { chooseCopies } from './completed-copies'
 import type { CommandContext } from './envelopes'
 import { sealLink } from './links'
+import { memberLinkWrites } from './signing-groups'
 
 const maxPlaces = 10, maxActive = 5
 /** A recipient who has acted (signed, declined, or uploaded a paper scan awaiting review) or was removed: fixed for good. */
@@ -70,6 +71,9 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
         return previous
       }
       if (entry.remove === true) { insist(previous, 'Only a recipient already on the envelope can be removed.'); return { ...previous, removedAt: at } }
+      // ROUTE-005: a signing group keeps the members snapshotted when its draft was saved; it stays as it is or is removed.
+      if (previous?.group) { insist(entry.group === previous.group.id && Object.keys(entry).every(k => k === 'group'), `${previous.group.name} is a signing group: keep it as it is ({"group": "${previous.group.id}"}) or remove it.`, 409); return previous }
+      insist(entry.group === undefined, 'A correction cannot add a signing group. Prepare a new envelope instead.', 409)
       const { signer, code } = readRecipient(value, i, previous)
       if (code) codes.set(i, code)
       return signer
@@ -124,6 +128,7 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
   for (const [i] of after.signers.entries()) {
     const added = !before.signers[i], invite = nowCurrent.includes(i) && (added || rotated.has(i) || !wasCurrent.includes(i))
     if (!added && !rotated.has(i) && !invite) continue
+    if (after.signers[i].group) { if (after.signers[i].removedAt) writes.push(env.DB.prepare(`UPDATE iw_signers SET link_sealed=NULL,code_hash=NULL,session_hash=NULL,progress=NULL WHERE envelope_id=? AND ${placeRowsSql}`).bind(after.id, ...placeRows(i))); if (invite) writes.push(...await memberLinkWrites(env, after, i, false, mail)); continue }
     const token = secret()
     const sealed = after.signers[i].removedAt || after.signers[i].inPerson ? null : await sealLink(env, after.id, i, token)
     writes.push(added ? env.DB.prepare('INSERT INTO iw_signers(envelope_id,signer,token_hash,link_sealed) VALUES(?,?,?,?)').bind(after.id, i, await sha256(token), sealed)

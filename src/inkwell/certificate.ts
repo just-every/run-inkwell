@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
-import { identityEvents, routingOrder, type AuditEvent, type Envelope, type RoutingResult, type RoutingRule } from './model'
+import { identityEvents, party, routingOrder, type SignerGroup, type AuditEvent, type Envelope, type RoutingResult, type RoutingRule } from './model'
 import { encodable } from './pdf'
 import { localStamp } from './zone'
 import { adoptionOf, describeAdoption } from './marks'
@@ -20,14 +20,14 @@ export async function certificatePdf(envelope: Envelope, mailed: number[] = []) 
     `Original SHA-256: ${envelope.originalSha256}`,
     ...disclosures.map(([version, hash]) => `Electronic record and signature disclosure: version ${version} (SHA-256 ${hash})`),
     ...(declined ? [
-      `${withdrawn ? 'Consent withdrawn' : 'Declined'}: ${stamp(declined.declinedAt!)} by ${declined.name} <${declined.email}>`,
+      `${withdrawn ? 'Consent withdrawn' : 'Declined'}: ${stamp(declined.declinedAt!)} by ${party(envelope, envelope.signers.indexOf(declined)).name} <${party(envelope, envelope.signers.indexOf(declined)).email}>${declined.group ? ` for the signing group ${declined.group.name}` : ''}`,
       `${withdrawn ? 'Withdrawal' : 'Decline'} reason: ${declined.declineReason}`,
       `No executed PDF exists: the envelope stopped at the ${withdrawn ? 'withdrawal' : 'decline'} and no later signer was invited.`,
     ] : [`Signed SHA-256: ${envelope.signedSha256}`, `Completed: ${stamp(envelope.signers.flatMap(s => s.signedAt ? [s.signedAt] : []).sort().at(-1)!)}`]),
     'Evidence: each signer\'s authentication below, routing order and explicit signing consent.',
     'This certificate records the application audit trail; it is not a digital seal.', '',
     ...envelope.signers.flatMap((s, i) => [
-      `Signer ${i + 1}: ${s.name} <${s.email}>`, `Routing order: ${routingOrder(envelope, i)}`,
+      ...(s.group ? groupLines(s.group).map((line, k) => k ? line : `Signer ${i + 1}: ${line}`) : [`Signer ${i + 1}: ${s.name} <${s.email}>`]), `Routing order: ${routingOrder(envelope, i)}`,
       ...envelope.events.filter(e => e.action === 'signer.reassigned' && e.detail.signer === i).map(e => { const from = e.detail.before as { name: string; email: string }, to = e.detail.after as { name: string; email: string }; return `Reassigned at ${stamp(e.at)}: by ${from.name} <${from.email}> to ${to.name} <${to.email}> · Reason: ${e.detail.reason}${client(e)}` }),
       ...inPersonLines(envelope, i), ...authLines(envelope, i), ...(s.accessCode ? [accessLine(envelope, i)] : []),
       ...(s.disclosure ? [`Disclosure ${s.disclosure.version} accepted at: ${stamp(s.disclosure.acceptedAt)}`] : []),
@@ -72,7 +72,10 @@ function copyRouteLine(rule: RoutingRule, result: RoutingResult, queued: boolean
   return `Copy rule unresolved at ${stamp(result.at)}: ${text}; source missing or hidden; ${queued ? 'rule unresolved, copy sent' : 'no completed-copy email was queued'}`
 }
 const stamp = (at: string) => `${at} UTC (${localStamp(at)})`
-const forSigner = (envelope: Envelope, signer: number, actions: string[]) => identityEvents(envelope, signer).filter(e => actions.includes(e.action) && e.detail.signer === signer)
+/** ROUTE-005: a group's evidence is the acting member's (who signed or declined); until one acts, every member's. */
+const forSigner = (envelope: Envelope, signer: number, actions: string[]) => { const g = envelope.signers[signer].group, m = g?.signedBy ?? g?.declinedBy; return identityEvents(envelope, signer).filter(e => actions.includes(e.action) && e.detail.signer === signer && (m === undefined || e.detail.member === m)) }
+/** ROUTE-005: the group, the member who signed or declined for it, and every member invited. */
+function groupLines(g: SignerGroup) { const acted = g.signedBy ?? g.declinedBy, by = acted === undefined ? undefined : g.members[acted]; return [`Signing group ${g.name}`, ...(by ? [`${g.signedBy !== undefined ? 'Signed' : 'Declined'} for ${g.name} by ${by.name} <${by.email}> (member ${acted! + 1} of ${g.members.length})`] : []), `Group members invited: ${g.members.map(m => `${m.name} <${m.email}>`).join('; ')}`] }
 const client = (event: AuditEvent | undefined) => ` · IP ${(event?.detail.ip as string) || 'not recorded'} · User agent: ${(event?.detail.userAgent as string) || 'not recorded'}`
 const network = (envelope: Envelope, signer: number, actions: string[]) => client(forSigner(envelope, signer, actions).at(-1))
 /** Each signing session's authentication: an emailed code, a sender-provided code, the link alone (IDV-001) or the
