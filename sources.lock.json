@@ -3087,7 +3087,7 @@
       "executable": false
     },
     "tests/journeys/field-types.mjs": {
-      "sha256": "4531645a63d99acdef3725015bafb4f9faed91025be07fbfa90b8d8fd1c0b8bc",
+      "sha256": "65bd6e677fdc072b0e52bf581f0b2d1d52b40a479547f035f6f4330c05630796",
       "executable": false
     },
     "tests/journeys/healthcare.mjs": {
