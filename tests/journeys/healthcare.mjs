@@ -26,7 +26,7 @@ try {
     const review = panel.getByRole('region', { name: 'Member access review', exact: true })
     await review.getByText('records@harbour.example', { exact: true }).waitFor()
     await review.locator('dd').filter({ hasText: 'No recorded access' }).waitFor()
-    await review.getByText('Harbour Owner', { exact: true }).waitFor()
+    await review.getByText('owner@harbour.example', { exact: true }).waitFor()
     assert.equal(await review.locator('time').count(), 1, 'COMPLY-002: the app page records owner access while the invited member has none')
     assert.ok(await review.locator('time').getAttribute('datetime'))
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: no sideways scroll`)

@@ -3067,7 +3067,7 @@
       "executable": false
     },
     "tests/journeys/healthcare.mjs": {
-      "sha256": "393fb4c2ffacacb9b9f6275c7f85ebb8782223f3ad3a466125d4e6b80a52c94a",
+      "sha256": "5393926e7e909fb495217fee2e4d755eb8a47c456e54919b9053fd23b7fb77e7",
       "executable": false
     },
     "tests/journeys/import-retention.mjs": {
