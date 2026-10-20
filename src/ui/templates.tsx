@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { command, request, type ApprovalRule, type Field } from './types'
+import { command, request, type ApprovalRule, type Field, type SigningGroup } from './types'
+import { GroupChoice, groupSummary, useSigningGroups } from './signing-groups'
 import type { RoutingRule } from '../inkwell/model'
 import { RoutingPreview } from './routing-rules'
 import { ErrorNotice, useAction } from './feedback'
@@ -43,18 +44,20 @@ export function Templates({ onSent }: { onSent: (id: string) => Promise<void> })
 function SendFromTemplate({ template, onCancel, onSent }: { template: Template; onCancel: () => void; onSent: (id: string) => Promise<void> }) {
   const [people, setPeople] = useState<Person[]>(template.roles.map(() => ({ name: '', email: '', accessCode: '' })))
   const action = useAction()
+  // ROUTE-005: a role may be filled by a signing group instead of a person.
+  const groups = useSigningGroups(), [chosen, setChosen] = useState<(SigningGroup | undefined)[]>(template.roles.map(() => undefined))
   const set = (index: number, key: keyof Person, value: string) => setPeople(current => current.map((person, i) => i === index ? { ...person, [key]: value } : person))
   async function submit(event: FormEvent) {
     event.preventDefault()
     await action.run(async () => {
-      const { id } = await command<{ id: string }>('template.use', { id: template.id, recipients: people.map(({ accessCode, ...person }, i) => ({ ...person, ...(template.roles[i].accessCode ? { accessCode } : {}) })) })
+      const { id } = await command<{ id: string }>('template.use', { id: template.id, recipients: people.map(({ accessCode, ...person }, i) => chosen[i] ? { group: chosen[i]!.id } : ({ ...person, ...(template.roles[i].accessCode ? { accessCode } : {}) })) })
       await onSent(id)
     })
   }
   return <section className="iw-panel iw-prepare"><div className="iw-section-head"><div><h1>Send {template.title}</h1><p>Name who fills each role. Fields, routing, messages, reminders and expiry come from the template.</p></div><button type="button" onClick={onCancel} disabled={action.busy}>Cancel</button></div>
     <form onSubmit={submit} className="iw-stack">
-      <fieldset disabled={action.busy}><legend>Roles <span>· in routing order</span></legend><div className="iw-stack">{template.roles.map((role, index) => <div key={index} className="iw-recipient"><span className="iw-order" aria-hidden="true">{role.order}</span><label><span className="iw-sr">{role.role} name</span><input aria-label={`${role.role} name`} placeholder={`${role.role}: full name`} required maxLength={100} value={people[index].name} onChange={event => set(index, 'name', event.target.value)} /></label><label><span className="iw-sr">{role.role} email</span><input aria-label={`${role.role} email`} placeholder="Email" type="email" required value={people[index].email} onChange={event => set(index, 'email', event.target.value)} /></label>{role.accessCode && <label><span className="iw-sr">{role.role} access code</span><input aria-label={`${role.role} access code`} placeholder="Access code" required autoComplete="off" pattern="\S{4,32}" title="4–32 characters, no spaces" maxLength={32} value={people[index].accessCode} onChange={event => set(index, 'accessCode', event.target.value)} /></label>}</div>)}</div></fieldset>
-      <RoutingPreview signers={template.roles.map((role, index) => ({ ...role, name: people[index].name || role.role }))} fields={template.fields} />
+      <fieldset disabled={action.busy}><legend>Roles <span>· in routing order</span></legend><div className="iw-stack">{template.roles.map((role, index) => <div key={index} className="iw-recipient"><span className="iw-order" aria-hidden="true">{role.order}</span>{!role.accessCode && <GroupChoice label={role.role} groups={groups} value={chosen[index]?.id} onChange={group => setChosen(current => current.map((g, k) => k === index ? group : g))} />}{chosen[index] ? <span className="iw-muted">{groupSummary(chosen[index]!)}</span> : <><label><span className="iw-sr">{role.role} name</span><input aria-label={`${role.role} name`} placeholder={`${role.role}: full name`} required maxLength={100} value={people[index].name} onChange={event => set(index, 'name', event.target.value)} /></label><label><span className="iw-sr">{role.role} email</span><input aria-label={`${role.role} email`} placeholder="Email" type="email" required value={people[index].email} onChange={event => set(index, 'email', event.target.value)} /></label></>}{role.accessCode && <label><span className="iw-sr">{role.role} access code</span><input aria-label={`${role.role} access code`} placeholder="Access code" required autoComplete="off" pattern="\S{4,32}" title="4–32 characters, no spaces" maxLength={32} value={people[index].accessCode} onChange={event => set(index, 'accessCode', event.target.value)} /></label>}</div>)}</div></fieldset>
+      <RoutingPreview signers={template.roles.map((role, index) => ({ ...role, name: chosen[index]?.name || people[index].name || role.role }))} fields={template.fields} />
       <ErrorNotice error={action.error} /><div className="iw-actions iw-submit"><button className="iw-primary" disabled={action.busy} type="submit">{action.busy ? 'Preparing…' : 'Prepare to send'}</button><p className="iw-muted">You approve it next, as with any envelope.</p></div>
     </form>
   </section>

@@ -7,7 +7,7 @@
 // that cannot be reopened (issued before links were sealed, or sealed under another installation key, links.ts) is
 // rotated and the result says so; a resend does not move the automatic reminder schedule (DELIV-003). SMS resend
 // arrives with IDV-002's numbers.
-import { active, appendEvent, currentSigners, insist, secret, sha256, text, type Env } from './model'
+import { active, appendEvent, currentSigners, insist, memberRow, secret, sha256, text, type Env } from './model'
 import { commandWrite, commitEnvelope, getEnvelope } from './storage'
 import { dispatchMail, invitationWrite } from './mail'
 import { mailSuppressed } from './manual-invitations'
@@ -26,18 +26,24 @@ export async function resendInvitation(env: Env, context: CommandContext, input:
   insist(before.signers[signer].paper?.status !== 'pending', 'This recipient’s paper signature is waiting for your review.', 409)
   insist(!bouncedRecipients(before, await envelopeMessages(env, before.id)).some(entry => entry.signer === signer), 'This recipient’s invitation bounced: correct their email address instead.', 409)
   insist(input.newLink === undefined || typeof input.newLink === 'boolean', 'Choose whether to send a new link.')
-  const row = await env.DB.prepare('SELECT token_hash,link_sealed FROM iw_signers WHERE envelope_id=? AND signer=?').bind(before.id, signer).first<{ token_hash: string; link_sealed: string | null }>()
-  insist(row, 'Recipient not found.', 404)
-  const kept = input.newLink === true ? undefined : await openLink(env, before.id, signer, row.link_sealed)
-  const same = kept && await sha256(kept) === row.token_hash ? kept : undefined, token = same ?? secret()
-  const rotated = !same, forced = rotated && input.newLink !== true
+  // ROUTE-005: a group place resends to every member, each on their own link.
+  const rows = before.signers[signer].group?.members.map((_, m) => ({ row: memberRow(signer, m), member: m as number | undefined })) ?? [{ row: signer, member: undefined }], links: { row: number; member?: number; token: string; rotated: boolean }[] = []
+  for (const { row: number, member } of rows) {
+    const row = await env.DB.prepare('SELECT token_hash,link_sealed FROM iw_signers WHERE envelope_id=? AND signer=?').bind(before.id, number).first<{ token_hash: string; link_sealed: string | null }>()
+    insist(row, 'Recipient not found.', 404)
+    const kept = input.newLink === true ? undefined : await openLink(env, before.id, number, row.link_sealed)
+    const same = kept && await sha256(kept) === row.token_hash ? kept : undefined
+    links.push({ row: number, member, token: same ?? secret(), rotated: !same })
+  }
+  const rotated = links.some(l => l.rotated), forced = rotated && input.newLink !== true
   const after = structuredClone(before)
   await appendEvent(after, 'signer.resent', context.actor.id, { signer, email: after.signers[signer].email, newLink: rotated, ...(forced ? { reason: 'The previous link could not be reopened, so a new link was sent.' } : {}) })
   const result = { id: after.id, signer, email: after.signers[signer].email, newLink: rotated, ...(forced ? { reason: 'This link was issued before Inkwell kept links for resending, so a new link was sent and the previous one no longer works.' } : {}) }
-  await commitEnvelope(env, before, after, context.actor, [
-    ...(rotated ? [env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=?,code_hash=NULL,code_expires=NULL,code_attempts=0,code_sent_at=NULL,session_hash=NULL,session_expires=NULL WHERE envelope_id=? AND signer=?').bind(await sha256(token), await sealLink(env, after.id, signer, token), after.id, signer),
-      env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND signer=? AND kind='invitation' AND state='pending'").bind(after.id, signer)] : []),
-    invitationWrite(env, after, signer, token), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
+  const writes: D1PreparedStatement[] = rotated ? [env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND signer=? AND kind='invitation' AND state='pending'").bind(after.id, signer)] : []
+  for (const link of links) writes.push(...(link.rotated ? [env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=?,code_hash=NULL,code_expires=NULL,code_attempts=0,code_sent_at=NULL,session_hash=NULL,session_expires=NULL WHERE envelope_id=? AND signer=?').bind(await sha256(link.token), await sealLink(env, after.id, link.row, link.token), after.id, link.row),
+] : []),
+    invitationWrite(env, after, signer, link.token, link.member))
+  await commitEnvelope(env, before, after, context.actor, [...writes, commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   await dispatchMail(env, after.id)
   return result
 }

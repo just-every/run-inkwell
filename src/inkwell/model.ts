@@ -12,11 +12,15 @@ export interface ApprovalRule { approver: string; name?: string; email?: string;
 export interface ApprovalStep { approver: string; name: string; email: string; rules: ('account' | 'template')[]; why: string[]; decision?: 'approved' | 'rejected'; decidedAt?: string; reason?: string; bySender?: boolean }
 export interface InternalApproval { state: 'pending' | 'rejected' | 'approved'; requestedAt: string; requestedBy: { id: string; name: string; email: string }; schedule?: { at: string; local: string; timeZone: string }; steps: ApprovalStep[] }
 export interface RoutingResult { state: 'included' | 'skipped' | 'unresolved'; at: string; value?: string }
-export interface Signer { includeWhen?: RoutingRule; routeResult?: RoutingResult; activatedAt?: string; name: string; email: string; order?: number; accessCode?: boolean; linkOnly?: boolean; inPerson?: boolean; hostedSender?: { name: string; email: string; version: string }; signedAt?: string; values?: Record<string, string>; declinedAt?: string; declineReason?: string; consentWithdrawn?: boolean; message?: string; disclosure?: { version: string; sha256: string; acceptedAt: string }; paper?: Paper; adoption?: Adoption; removedAt?: string }
+/** ROUTE-005: a signing group in one routing place: its members as snapshotted when the draft was saved (signing-groups.ts),
+ * each member's own disclosure agreement, and the member who signed, declined or uploaded a paper scan for the group. */
+export interface GroupMember { name: string; email: string; disclosure?: { version: string; sha256: string; acceptedAt: string } }
+export interface SignerGroup { id: string; name: string; members: GroupMember[]; signedBy?: number; declinedBy?: number }
+export interface Signer { group?: SignerGroup; includeWhen?: RoutingRule; routeResult?: RoutingResult; activatedAt?: string; name: string; email: string; order?: number; accessCode?: boolean; linkOnly?: boolean; inPerson?: boolean; hostedSender?: { name: string; email: string; version: string }; signedAt?: string; values?: Record<string, string>; declinedAt?: string; declineReason?: string; consentWithdrawn?: boolean; message?: string; disclosure?: { version: string; sha256: string; acceptedAt: string }; paper?: Paper; adoption?: Adoption; removedAt?: string }
 /** SIGNX-002: how the signer adopted the mark applied to their signature fields (marks.ts). */
 export interface Adoption { method: 'typed' | 'drawn' | 'uploaded'; style?: 'sans' | 'serif' | 'serif-bold'; mediaType?: 'image/png' | 'image/jpeg'; sha256?: string }
 /** SIGNX-008: a hand-signed scan the recipient uploaded instead of signing electronically, and the sender's review. */
-export interface Paper { sha256: string; pages: number; mediaType: string; uploadedAt: string; status: 'pending' | 'accepted' | 'rejected'; reviewedAt?: string; reviewedBy?: string; reason?: string }
+export interface Paper { member?: number; sha256: string; pages: number; mediaType: string; uploadedAt: string; status: 'pending' | 'accepted' | 'rejected'; reviewedAt?: string; reviewedBy?: string; reason?: string }
 export interface AuditEvent { action: string; at: string; actor: string; detail: Record<string, unknown>; previousHash: string; hash: string }
 export interface Envelope { id: string; version: number; title: string; filename: string; status: 'prepared' | 'awaiting_signature' | 'completed' | 'declined' | 'voided' | 'expired' | 'imported'; createdAt: string; createdBy: string; expiresAt: string; signers: Signer[]; fields: Field[]; pageSizes: { width: number; height: number }[]; originalSha256: string; signedSha256?: string; certificateSha256?: string; events: AuditEvent[]; importedAt?: string; imported?: boolean; source?: unknown; copiedFrom?: string; allowPaper?: boolean; reminders?: { afterDays: number; everyDays: number }; copies?: { name: string; email: string; includeWhen?: RoutingRule; routeResult?: RoutingResult }[]; allowReassign?: boolean; subject?: string; message?: string; scheduled?: { at: string; local: string; timeZone: string }; template?: { id: string; title: string; version?: number }; legalHold?: { reason: string; by: string; at: string }; approvalRule?: ApprovalRule; internalApproval?: InternalApproval }
 export type Env = Bindings
@@ -39,6 +43,18 @@ export function object(value: unknown): Record<string, unknown> { insist(value &
 export function text(value: unknown, label: string, max = 200): string { insist(typeof value === 'string' && value.trim().length > 0 && value.length <= max && !/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(value), `Provide ${label} (at most ${max} characters).`); return value.trim() }
 export const now = () => new Date().toISOString()
 export const id = () => crypto.randomUUID()
+/** ROUTE-005: each group member's own iw_signers row (link, code and session) sits at a row number derived from the
+ * group's place, so place rows stay 0-9 and envelope-wide link and session sweeps cover members too. */
+export const memberRow = (place: number, member: number) => 1000 + place * 16 + member
+export const rowPlace = (row: number) => row >= 1000 ? { place: Math.floor((row - 1000) / 16), member: (row - 1000) % 16 } : { place: row }
+/** The SQL condition for a place's own row and every member row of it, binding `placeRows(place)`. */
+export const placeRowsSql = '(signer=? OR (signer>=? AND signer<?))'
+export const placeRows = (place: number) => [place, memberRow(place, 0), memberRow(place, 16)]
+/** Who acts at `signer`: the person, or for a group the member who signed or declined (else the group as a whole). */
+export function party(envelope: Envelope, signer: number, member?: number): { name: string; email: string } {
+  const s = envelope.signers[signer], m = member ?? s.group?.signedBy ?? s.group?.declinedBy
+  return s.group && m !== undefined ? { name: s.group.members[m].name, email: s.group.members[m].email } : { name: s.name, email: s.email }
+}
 /** IDV-003: access codes are stored keyed with the installation secret, never in the envelope or its exports. */
 export function accessCodeHash(env: Env, envelopeId: string, signer: number, code: string) { return sha256(`${env.SESSION_SECRET}:access:${envelopeId}:${signer}:${code}`) }
 export function randomCode() { const limit=4_294_000_000;let n:number;do n=crypto.getRandomValues(new Uint32Array(1))[0];while(n>=limit);return String(Math.floor(n/4294)).padStart(6,'0') }

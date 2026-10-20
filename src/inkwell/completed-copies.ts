@@ -1,4 +1,4 @@
-import { appendEvent, clientEvidence, insist, now, object, randomCode, secret, sha256, text, type Client, type Envelope, type Env } from './model'
+import { party as actingParty, appendEvent, clientEvidence, insist, now, object, randomCode, secret, sha256, text, type Client, type Envelope, type Env } from './model'
 import { atomic, commandWrite, commitEnvelope, getEnvelope, roleGuard, type Guard } from './storage'
 import { mailSuppressed } from './manual-invitations'
 import { insistAccess } from './members'
@@ -16,7 +16,8 @@ export const copyLimit = 20, attachmentLimit = 10_000_000
 export type Delivery = 'link' | 'attachment'
 export interface Party { name: string; email: string; role: 'signer' | 'copy' }
 /** Signers first, in their list order, then copy recipients; a party's index is its place in this list. */
-export const parties = (envelope: Envelope): Party[] => [...envelope.signers.map(s => ({ name: s.name, email: s.email, role: 'signer' as const })), ...(envelope.copies ?? []).map(c => ({ ...c, role: 'copy' as const }))]
+/** ROUTE-005: a group's copy goes to the member who signed for it, never to the other members. */
+export const parties = (envelope: Envelope): Party[] => [...envelope.signers.map((_, i) => ({ ...actingParty(envelope, i), role: 'signer' as const })), ...(envelope.copies ?? []).map(c => ({ ...c, role: 'copy' as const }))]
 
 /** ROUTE-001's "receives a copy" role: 0–20 people with no action link, each email distinct from every signer's.
  * ROUTE-003: before completion each may carry an include rule (validated against the fields by validateCopyRouting). */

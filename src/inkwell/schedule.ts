@@ -1,5 +1,6 @@
 import { appendEvent, currentSigners, insist, object, secret, sha256, text, type Envelope, type Env } from './model'
 import { sealLink } from './links'
+import { memberLinkWrites } from './signing-groups'
 import { commitEnvelope } from './storage'
 import { dispatchMail, invitationWrite } from './mail'
 import { zoneInstant, zoneOffset } from './zone'
@@ -38,7 +39,7 @@ async function send(env: Env, before: Envelope, at: number) {
   const first = currentSigners(after).filter(i => !inApp.includes(i) && !after.signers[i].inPerson)
   await appendEvent(after, 'envelope.sent_scheduled', 'inkwell', { scheduledFor: schedule.at, local: schedule.local, timeZone: schedule.timeZone, passAt: new Date(at).toISOString(), invited: first })
   const writes: D1PreparedStatement[] = []
-  for (const i of first) { const token = secret(); writes.push(env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=? WHERE envelope_id=? AND signer=?').bind(await sha256(token), await sealLink(env, after.id, i, token), after.id, i), invitationWrite(env, after, i, token)) }
+  for (const i of first) { if (after.signers[i].group) { writes.push(...await memberLinkWrites(env, after, i, false, true)); continue }; const token = secret(); writes.push(env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=? WHERE envelope_id=? AND signer=?').bind(await sha256(token), await sealLink(env, after.id, i, token), after.id, i), invitationWrite(env, after, i, token)) }
   await commitEnvelope(env, before, after, null, writes)
   await dispatchMail(env, after.id)
 }

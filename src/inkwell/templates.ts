@@ -158,7 +158,8 @@ export async function useTemplate(env: Env, context: CommandContext, input: Reco
     const person = object((input.recipients as unknown[])[i]), code = person.accessCode === undefined || person.accessCode === '' ? undefined : person.accessCode
     insist(!role.accessCode || code !== undefined, `Enter the access code for the ${role.role} role.`)
     insist(role.accessCode || code === undefined, `The ${role.role} role does not use an access code.`)
-    return { ...(role.includeWhen?{includeWhen:role.includeWhen}:{}), name: person.name, email: person.email, order: role.order, ...(role.linkOnly ? { linkOnly: true } : {}), ...(code === undefined ? {} : { accessCode: code }), ...(role.message ? { message: role.message } : {}) }
+    // ROUTE-005: a role may be filled by a signing group instead of a person.
+    return { ...(role.includeWhen?{includeWhen:role.includeWhen}:{}), ...(person.group === undefined ? { name: person.name, email: person.email } : { group: person.group }), order: role.order, ...(role.linkOnly ? { linkOnly: true } : {}), ...(code === undefined ? {} : { accessCode: code }), ...(role.message ? { message: role.message } : {}) }
   })
   const createdAt = now()
   const { draft, accessCodes } = await readDraft(env, { title: template.title, filename: template.filename, pdfBase64: base64(bytes), signers, fields: applyPrefillPayload(template.fields, input.prefill), expiresAt: new Date(Date.parse(createdAt) + template.expiryDays * day).toISOString(), ...(template.reminders ? { reminders: template.reminders } : {}), ...(template.allowPaper ? { allowPaperSigning: true } : {}), ...(template.allowReassign ? { allowReassignment: true } : {}), ...(template.subject ? { subject: template.subject } : {}), ...(template.message ? { message: template.message } : {}) }, createdAt)

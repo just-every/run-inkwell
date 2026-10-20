@@ -1,7 +1,9 @@
 export type { Field } from '../inkwell/model'
 import type { RoutingRule, RoutingResult } from '../inkwell/model'
 import type { Field } from '../inkwell/model'
-export type Signer = { values?: Record<string,string>; includeWhen?: RoutingRule; routeResult?: RoutingResult; activatedAt?: string; message?: string; name: string; email: string; order?: number; accessCode?: boolean; linkOnly?: boolean; inPerson?: boolean; signedAt?: string; declinedAt?: string; declineReason?: string; consentWithdrawn?: boolean; removedAt?: string; paper?: { status: 'pending' | 'accepted' | 'rejected'; pages: number; mediaType: string; uploadedAt: string; reason?: string } }
+/** ROUTE-005: a group recipient's snapshot and the member who signed or declined for it. */
+export type SigningGroup = { id: string; name: string; members: { name: string; email: string }[] }
+export type Signer = { group?: SigningGroup & { signedBy?: number; declinedBy?: number }; values?: Record<string,string>; includeWhen?: RoutingRule; routeResult?: RoutingResult; activatedAt?: string; message?: string; name: string; email: string; order?: number; accessCode?: boolean; linkOnly?: boolean; inPerson?: boolean; signedAt?: string; declinedAt?: string; declineReason?: string; consentWithdrawn?: boolean; removedAt?: string; paper?: { status: 'pending' | 'accepted' | 'rejected'; pages: number; mediaType: string; uploadedAt: string; reason?: string } }
 /** ROUTE-004: an internal approval rule and a draft's request (src/inkwell/internal-approval.ts). */
 export type ApprovalRule = { approver: string; name?: string; email?: string; threshold?: { field: string; above: string }; updatedAt?: string; updatedBy?: string }
 export type InternalApproval = { state: 'pending' | 'rejected' | 'approved'; requestedAt: string; requestedBy: { id: string; name: string; email: string }; steps: { approver: string; name: string; email: string; rules: string[]; why: string[]; decision?: 'approved' | 'rejected'; decidedAt?: string; reason?: string; bySender?: boolean }[] }
@@ -18,7 +20,7 @@ export type Bucket = typeof buckets[number]
 export type Page = { envelopes: (Envelope & { bucket: Bucket })[]; counts: Record<Bucket, number>; total: number; next: string | null }
 // RECORD-005: the account's retention rule and the latest purges (envelope IDs and times only).
 export type Retention = { rule: { years: number; updatedAt: string; updatedBy: string } | null; warningDays: number; purged: { envelopeId: string; ended: string; years: number; endedAt: string; warnedAt: string; purgedAt: string }[] }
-export type Workspace = { actor: Actor; people?: Person[]; settings?: { completedCopies: 'link' | 'attachment'; retention: Retention; internalApproval: ApprovalRule | null }; agents?: { id: string; createdAt?: string; revokedAt?: string; label?: string }[] }
+export type Workspace = { actor: Actor; people?: Person[]; signingGroups?: SigningGroup[]; settings?: { completedCopies: 'link' | 'attachment'; retention: Retention; internalApproval: ApprovalRule | null }; agents?: { id: string; createdAt?: string; revokedAt?: string; label?: string }[] }
 export async function request<T>(url: string, body?: unknown): Promise<T> {
   const response = await fetch(url, body === undefined ? { credentials: 'same-origin' } : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   const parsed: unknown = await response.json().catch(() => null)
