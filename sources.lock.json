@@ -3115,7 +3115,7 @@
       "executable": false
     },
     "tests/template-maintenance.test.mjs": {
-      "sha256": "bb1f41ac3811839f5081e2f8719615ae40d02b494de19a0e1f0b34c5ad6bff57",
+      "sha256": "d5fb2aa9aee370474bda0a8b964080ec55bb0380b10735fa3cde98db29a948ec",
       "executable": false
     },
     "tsconfig.json": {
