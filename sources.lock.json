@@ -719,7 +719,7 @@
       "executable": false
     },
     "src/inkwell/business-fields.ts": {
-      "sha256": "4a8c710a68b96f2921a4f0279fccd92753477f7096e3cfc4390398dad0f29845",
+      "sha256": "b3bcf466f05ac4be9f140849bd5ade904873e0b92ec18d48c032a716b9d0492d",
       "executable": false
     },
     "src/inkwell/certificate.ts": {
@@ -3083,7 +3083,7 @@
       "executable": false
     },
     "tests/journeys/field-types.mjs": {
-      "sha256": "d169ef49ddbc02321f832e4c014821384f8d843385d7350ac893a536e3b826bf",
+      "sha256": "1a743558e88aded4dfb2897073d04efc5f9274272f7bad3ea0906dffdddd613c",
       "executable": false
     },
     "tests/journeys/healthcare.mjs": {

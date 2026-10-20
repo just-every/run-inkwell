@@ -2,9 +2,9 @@ import { insist, type Field } from './model'
 
 /** PREP-003: one catalog for preparation and signing. Validation checks syntax, never identity or tax registration. */
 export const fieldTypes = [
-  ['signature', 'Signature'], ['initials', 'Initials'], ['date_signed', 'Date signed'],
-  ['full_name', 'Full name'], ['email', 'Email'], ['company', 'Company'], ['title', 'Title'],
-  ['text', 'Text'], ['date', 'Date'], ['checkbox', 'Checkbox'], ['number', 'Number (USD)'],
+  ['signature', 'Signature'], ['text', 'Text'], ['date', 'Date'], ['checkbox', 'Checkbox'], ['number', 'Number (USD)'],
+  ['initials', 'Initials'], ['date_signed', 'Date signed'], ['full_name', 'Full name'],
+  ['email', 'Email'], ['company', 'Company'], ['title', 'Title'],
 ] as const
 export const markField = (field: Field) => field.type === 'signature' || field.type === 'initials'
 export const generatedField = (field: Field) => markField(field) || field.type === 'date_signed'
