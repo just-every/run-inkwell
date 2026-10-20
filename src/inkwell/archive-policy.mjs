@@ -1,3 +1,4 @@
+import { stampEvidence } from './stamp-evidence.mjs';
 import { canonicalJson, sha256 } from '@runeditrun/rer/modules/portability';
 
 // The same policy drives the browser and `rer export/import`. Authentication,
@@ -14,6 +15,18 @@ export default {
     for (const row of envelopes) {
       const e = JSON.parse(row.data);
       if (e.id !== row.id || e.version !== row.version) return false;
+      // PREP-003: recompute image type, bytes, fingerprint and provenance from signed values.
+      // Older records bind the same values with valuesSha256; they retain their original audit/certificate.
+      try {
+        for (const [index, signer] of e.signers.entries()) {
+          const fields = e.fields.filter(f => f.signer === index);
+          if (!signer.signedAt || !fields.some(f => f.type === 'stamp' && signer.values?.[f.id])) continue;
+          const signed = e.events.findLast(event => event.action === 'signer.signed' && event.detail.signer === index);
+          if (!signed || signed.detail.valuesSha256 !== await sha256(canonicalJson(signer.values))) return false;
+          const stamps = await stampEvidence(fields, signer.values);
+          if (signed.detail.stamps !== undefined && canonicalJson(signed.detail.stamps) !== canonicalJson(stamps)) return false;
+        }
+      } catch { return false; }
       let previousHash = '';
       for (let i = 0; i < e.events.length; i++) {
         const { hash, ...body } = e.events[i];

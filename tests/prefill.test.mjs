@@ -210,6 +210,20 @@ test('PREP-003 round B: radio, dropdown, checkbox group bounds, notes and image 
   assert.equal(completed.status,'completed')
   assert.equal(signed.radio,'Pickup');assert.equal(signed.dropdown,'Economy');assert.equal(signed.checkbox_group,'["Phone","Post"]','selected labels are stored in declared option order');assert.equal(signed.note,'Leave with the concierge');assert.equal(signed.stamp,jpegStamp,'an editable PNG prefill can be replaced by a signer-uploaded JPEG');assert.equal(signed.optional,'');assert.equal(signed.conditional,'Back door')
   for(const [type,,value] of definitions)assert.equal(signed[`${type}_locked`],type==='stamp'?jpegStamp:value)
+  // PREP-003 ct A4: signed stamp evidence binds the actual bytes and supplier, not only the values map.
+  const {createHash}=await import('node:crypto'),digest=value=>createHash('sha256').update(value).digest('hex')
+  const jpegBytes=Buffer.from(jpegStamp.split(',')[1],'base64'),pngBytes=Buffer.from(stamp.split(',')[1],'base64')
+  const stampEvent=completed.events.findLast(e=>e.action==='signer.signed')
+  assert.deepEqual(stampEvent.detail.stamps,[
+   {field:'stamp',label:'Approval stamp',mediaType:'image/jpeg',bytes:jpegBytes.length,sha256:digest(jpegBytes),supplier:{kind:'signer upload'}},
+   {field:'stamp_locked',label:'Locked Approval stamp',mediaType:'image/jpeg',bytes:jpegBytes.length,sha256:digest(jpegBytes),supplier:{kind:'sender/API prefill',source:'API fixture / stamp',readOnly:true}},
+  ])
+  const certificateBytes=(await h.send(`/api/inkwell/envelopes/${id}/artifacts/certificate`,undefined,h.owner)).bytes
+  const {getDocument:readCertificate}=await import('pdfjs-dist/legacy/build/pdf.mjs')
+  const certificate=await readCertificate({data:new Uint8Array(certificateBytes),standardFontDataUrl:new URL('../node_modules/pdfjs-dist/standard_fonts/',import.meta.url).pathname}).promise
+  let certificateText='';for(let i=1;i<=certificate.numPages;i++)certificateText+=(await(await certificate.getPage(i)).getTextContent()).items.map(item=>item.str).join(' ')+' '
+  const compact=certificateText.replace(/\s/g,'')
+  for(const line of [`Stamp (Approval stamp): JPEG SHA-256 ${digest(jpegBytes)}, signer upload; a supplied image, not a verified seal`,`Stamp (Locked Approval stamp): JPEG SHA-256 ${digest(jpegBytes)}, sender/API prefill (source: API fixture / stamp; read-only: yes); a supplied image, not a verified seal`])assert.ok(compact.includes(line.replace(/\s/g,'')),line)
   const bytes=(await h.send(`/api/inkwell/envelopes/${id}/artifacts/signed`,undefined,h.owner)).bytes
   const {getDocument,OPS}=await import('pdfjs-dist/legacy/build/pdf.mjs'),executed=await getDocument({data:new Uint8Array(bytes),standardFontDataUrl:new URL('../node_modules/pdfjs-dist/standard_fonts/',import.meta.url).pathname}).promise
   const texts=[];for(let i=1;i<=executed.numPages;i++){const page=await executed.getPage(i);texts.push((await page.getTextContent()).items.map(item=>item.str).join(' '));const operators=await page.getOperatorList(),imageIndex=operators.fnArray.indexOf(OPS.paintImageXObject);assert.equal(operators.fnArray.filter(op=>op===OPS.paintImageXObject).length,1,`stamp image is embedded on page ${i}`);let matrix=[1,0,0,1];const stack=[];for(let index=0;index<=imageIndex;index++){const op=operators.fnArray[index],args=operators.argsArray[index];if(op===OPS.save)stack.push(matrix);else if(op===OPS.restore)matrix=stack.pop();else if(op===OPS.transform){const [a,b,c,d]=matrix,[e,f,g,h]=args;matrix=[a*e+c*f,b*e+d*f,a*g+c*h,b*g+d*h]}}const pixels=operators.argsArray[imageIndex],ratio=Math.hypot(matrix[0],matrix[1])/Math.hypot(matrix[2],matrix[3]);assert.ok(Math.abs(ratio-pixels[1]/pixels[2])<.0001,'stamp image keeps its source proportions under the complete PDF graphics transform')}
@@ -220,7 +234,34 @@ test('PREP-003 round B: radio, dropdown, checkbox group bounds, notes and image 
   const saved=(await h.command('template.from_envelope',{id,title:'Retained choices'})).result.id,reused=(await h.command('template.use',{id:saved,recipients})).result.id;assert.deepEqual((await read(reused)).fields,completed.fields)
   const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value,fresh=await harness({mailProvider:null})
   try{await fresh.post('/api/inkwell/archive/restore',{archive},fresh.owner);const restored=(await fresh.send(`/api/inkwell/envelopes/${id}/artifacts/audit`,undefined,fresh.owner)).value.envelope;assert.deepEqual(restored.fields,completed.fields);assert.deepEqual(restored.signers[0].values,signed);assert.deepEqual((await fresh.send(`/api/inkwell/envelopes/${id}/artifacts/signed`,undefined,fresh.owner)).bytes,bytes)}finally{await fresh.close()}
-  const stampDefault=(await h.command('template.use',{id:t,recipients})).result.id;const stampInvite=(await h.command('envelope.approve',{id:stampDefault,eligible:true})).result.invitations[0],stampPath=new URL(stampInvite.url).pathname.replace('/sign/','/api/sign/'),stampCookie=(await h.post(stampPath+'/verify',{code:stampInvite.code},'')).cookie;await h.agree(stampPath,stampCookie);await h.post(stampPath+'/sign',{values:{signature:'Mara Quinn'},consent:true,commandId:crypto.randomUUID()},stampCookie);assert.equal((await read(stampDefault)).signers[0].values.stamp,stamp,'an omitted stamp uses its prepared image')
+  // Tampered source storage is exported with valid archive checksums. The public restore must still refuse it.
+  const {canonicalJson,makePart}=await import('@runeditrun/rer/modules/portability')
+  const {ContentVerifier,ArchiveVerifier}=await import('../node_modules/@runeditrun/rer/modules/portability/format.mjs')
+  for(const [name,change] of [
+   ['signed bytes',e=>{e.signers[0].values.stamp=stamp}],
+   ['fingerprint',e=>{e.events.findLast(e=>e.action==='signer.signed').detail.stamps[0].sha256='0'.repeat(64)}],
+   ['type',e=>{e.events.findLast(e=>e.action==='signer.signed').detail.stamps[0].mediaType='image/png'}],
+   ['byte count',e=>{e.events.findLast(e=>e.action==='signer.signed').detail.stamps[0].bytes++}],
+   ['supplier',e=>{e.events.findLast(e=>e.action==='signer.signed').detail.stamps[1].supplier.readOnly=false}],
+  ]) {
+   const damaged=structuredClone(completed);change(damaged)
+   let previousHash='';for(const event of damaged.events){event.previousHash=previousHash;const {hash,...body}=event;event.hash=digest(canonicalJson(body));previousHash=event.hash}
+   const records=archive.ndjson.trim().split('\n').map(line=>JSON.parse(line)),manifest=records[0],contentHash=new ContentVerifier(manifest),archiveHash=new ArchiveVerifier(manifest)
+   for(let i=1;i<records.length-1;i++) {
+    const part=records[i]
+    for(const item of part.items) {
+     if(item.kind!=='row')continue
+     if(item.table==='iw_envelopes'&&item.row.id===id)item.row.data=JSON.stringify(damaged)
+     if(item.table==='iw_events'&&item.row.envelope_id===id){const event=damaged.events[item.row.sequence];item.row.data=JSON.stringify(event);item.row.hash=event.hash}
+    }
+    records[i]=await makePart(part.index,part.items);archiveHash.add(records[i]);for(const item of part.items)contentHash.add(item)
+   }
+   records[records.length-1]={...records.at(-1),contentHash:contentHash.digest(),archiveHash:archiveHash.digest()}
+   const damagedArchive={...archive,ndjson:records.map(record=>canonicalJson(record)).join('\n')+'\n'}
+   const target=await harness({mailProvider:null})
+   try{const refusal=await target.send('/api/inkwell/archive/restore',{archive:damagedArchive},target.owner);assert.equal(refusal.status,400,`PREP-003 restore refuses tampered ${name}: ${JSON.stringify(refusal.value)}`);assert.match(refusal.value.error,/staged_validation/);assert.equal((await target.send(`/api/inkwell/envelopes/${id}`,undefined,target.owner)).status,404,'tampered custody is never published')}finally{await target.close()}
+  }
+  const stampDefault=(await h.command('template.use',{id:t,recipients})).result.id;const stampInvite=(await h.command('envelope.approve',{id:stampDefault,eligible:true})).result.invitations[0],stampPath=new URL(stampInvite.url).pathname.replace('/sign/','/api/sign/'),stampCookie=(await h.post(stampPath+'/verify',{code:stampInvite.code},'')).cookie;await h.agree(stampPath,stampCookie);await h.post(stampPath+'/sign',{values:{signature:'Mara Quinn'},consent:true,commandId:crypto.randomUUID()},stampCookie);const defaultRecord=await read(stampDefault);assert.equal(defaultRecord.signers[0].values.stamp,stamp,'an omitted stamp uses its prepared image');assert.deepEqual(defaultRecord.events.findLast(e=>e.action==='signer.signed').detail.stamps[0],{field:'stamp',label:'Approval stamp',mediaType:'image/png',bytes:pngBytes.length,sha256:digest(pngBytes),supplier:{kind:'sender/API prefill',source:'Sender fixture / stamp',readOnly:false}})
   // Each new business-data type can also be optional and explicitly left blank, including a group with a nonzero minimum.
   const optionalFields=completed.fields.map(field=>definitions.some(([type])=>type===field.type)?{...field,required:false,readOnly:undefined,prefill:undefined}:field)
   await h.command('envelope.update',{...base,id:copied,signers:recipients,fields:optionalFields})

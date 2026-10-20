@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "57706ddefbf22ce4582a134b9994f30b4e2de5fdf75e4c175fdd8abce80e3354",
+      "sha256": "f166a58c621bd1278cf4521d5b6e20f73d8d820f2bdf8080830c45dbdb790954",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f6287cb78e6f251642bf1132c043be50250a6e27538a07262428ef0b029960a9",
+      "sha256": "0214f4c19cf4f167dcd5452d4a0fa4156938a271bfbb1549eafecb8d39c0ca37",
       "executable": false
     },
     "DEMO.md": {
@@ -699,7 +699,7 @@
       "executable": false
     },
     "src/inkwell/archive-policy.mjs": {
-      "sha256": "07d404abf1b8553f756b582324f7dfa1645cf070bc1bb2bb09f13274443e21f6",
+      "sha256": "184aa36077498ec77696322730f459c26b1bb3525a7abdd8d3a3c2798d61614b",
       "executable": false
     },
     "src/inkwell/archive.ts": {
@@ -723,7 +723,7 @@
       "executable": false
     },
     "src/inkwell/certificate.ts": {
-      "sha256": "ff241571dc717b0becd06678e56d3d09258aa6912886d083f19872cc49dcfa8c",
+      "sha256": "91fbd04d2a347c0c0d9b51a44687dcb28df8418aec277351fd225287076121c1",
       "executable": false
     },
     "src/inkwell/completed-copies.ts": {
@@ -955,7 +955,15 @@
       "executable": false
     },
     "src/inkwell/signing.ts": {
-      "sha256": "4123dcf9d31e4208b90fc31a8456a5786308cb95af640d7c015e5c1f18406ee4",
+      "sha256": "923ee6adfe8bb66b6714f3af98eba71b01eb1cb7bf828195d2890427bdfc3f86",
+      "executable": false
+    },
+    "src/inkwell/stamp-evidence.d.mts": {
+      "sha256": "21e361fc344acd7db2cac0f76230b28943bb1856901e1b84028e335f4c5d4757",
+      "executable": false
+    },
+    "src/inkwell/stamp-evidence.mjs": {
+      "sha256": "65cdc7ff82f47a7af36ecb8432c65bc887a630f2f3b1df00d4616e208f5aec21",
       "executable": false
     },
     "src/inkwell/stamp-value.ts": {
@@ -3099,7 +3107,7 @@
       "executable": false
     },
     "tests/journeys/field-types.mjs": {
-      "sha256": "eba7d0fbc9b9609f360eaccfb6a789565ca8d0d3db06f9c7defe35fdbd7ce906",
+      "sha256": "0a6b92d2609f7a455cd184086843e0e99b954a260c3ebd0e3a760a85593113c8",
       "executable": false
     },
     "tests/journeys/healthcare.mjs": {
@@ -3163,7 +3171,7 @@
       "executable": false
     },
     "tests/prefill.test.mjs": {
-      "sha256": "0e6ccee500e258c0f2e631a989e04e157223c0024e409eb6e9a111fb0d987068",
+      "sha256": "d4f14dfd775522f88921b04ce7a92b5c8af9c15965dc8e7ecaa647e5141aa653",
       "executable": false
     },
     "tests/routing.test.mjs": {

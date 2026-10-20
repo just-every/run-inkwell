@@ -1,3 +1,4 @@
+import { stampEvidence, type StampEvidence } from './stamp-evidence.mjs'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { identityEvents, party, routingOrder, type SignerGroup, type AuditEvent, type Envelope, type RoutingResult, type RoutingRule } from './model'
 import { encodable } from './pdf'
@@ -14,6 +15,7 @@ import { adoptionOf, describeAdoption } from './marks'
 export async function certificatePdf(envelope: Envelope, mailed: number[] = []) {
   const declined = envelope.signers.find(s => s.declinedAt), withdrawn = declined?.consentWithdrawn
   const disclosures = [...new Map(envelope.signers.flatMap(s => s.disclosure ? [[s.disclosure.version, s.disclosure.sha256]] : [])).entries()]
+  const stamps = await Promise.all(envelope.signers.map((s, i) => s.signedAt ? stampEvidence(envelope.fields.filter(f => f.signer === i), s.values ?? {}) : []))
   const lines = [
     withdrawn ? 'Inkwell consent withdrawal certificate' : declined ? 'Inkwell decline certificate' : 'Inkwell completion certificate',
     envelope.title, `Envelope: ${envelope.id}`, ...(envelope.copiedFrom ? [`Copied from envelope: ${envelope.copiedFrom}`] : []),
@@ -31,7 +33,7 @@ export async function certificatePdf(envelope: Envelope, mailed: number[] = []) 
       ...envelope.events.filter(e => e.action === 'signer.reassigned' && e.detail.signer === i).map(e => { const from = e.detail.before as { name: string; email: string }, to = e.detail.after as { name: string; email: string }; return `Reassigned at ${stamp(e.at)}: by ${from.name} <${from.email}> to ${to.name} <${to.email}> · Reason: ${e.detail.reason}${client(e)}` }),
       ...inPersonLines(envelope, i), ...authLines(envelope, i), ...(s.accessCode ? [accessLine(envelope, i)] : []),
       ...(s.disclosure ? [`Disclosure ${s.disclosure.version} accepted at: ${stamp(s.disclosure.acceptedAt)}`] : []),
-      ...adoptionLines(envelope, i),
+      ...adoptionLines(envelope, i), ...stamps[i].map(stampLine),
       ...(s.paper?.status === 'accepted' ? [`Scan SHA-256: ${s.paper.sha256}`, `Scan: ${s.paper.pages} page(s) appended to the executed PDF; accepted at ${stamp(s.paper.reviewedAt!)}`] : []),
       s.routeResult?.state === 'skipped' ? `Skipped at ${stamp(s.routeResult.at)}: ${s.includeWhen?.field} ${s.includeWhen?.operator} ${s.includeWhen?.value}; result false (source ${s.routeResult.value})` : s.removedAt ? `Not signed: removed by a correction at ${stamp(s.removedAt)}`
         : s.signedAt ? `Signed at: ${stamp(s.signedAt)}${network(envelope, i, ['signer.signed', 'signer.paper_uploaded'])}`
@@ -110,4 +112,10 @@ function inPersonLines(envelope: Envelope, signer: number) {
     const host = e.detail.host as { id: string; name: string; email: string }, screen = e.detail.screen as { width: number; height: number }
     return [`Signed in person, hosted by ${host.name} <${host.email}> (${host.id}); identity attested by the host, not verified by Inkwell`, `Host sign-in: ${e.detail.signIn}; attestation: ${e.detail.method === 'government-photo-id' ? 'government photo ID' : 'personally known to me'} at ${stamp(e.at)}${client(e)}`, `Device (as reported by the browser): ${e.detail.userAgent || 'not recorded'}; screen ${screen.width} x ${screen.height}`]
   })
+}
+
+/** PREP-003: source is reported provenance, never a verified seal or provider assertion. */
+function stampLine(evidence: StampEvidence) {
+  const { supplier } = evidence
+  return `Stamp (${evidence.label}): ${evidence.mediaType === 'image/png' ? 'PNG' : 'JPEG'} SHA-256 ${evidence.sha256}, ${supplier.kind}${supplier.kind === 'sender/API prefill' ? ` (source: ${supplier.source}; read-only: ${supplier.readOnly ? 'yes' : 'no'})` : ''}; a supplied image, not a verified seal`
 }
