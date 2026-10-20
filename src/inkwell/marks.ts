@@ -13,7 +13,7 @@ export type TypedStyle = keyof typeof typedStyles
 export const MAX_MARK = 512 * 1024
 const typed: Adoption = { method: 'typed', style: 'sans' }
 export const adoptionOf = (envelope: Envelope, signer: number): Adoption => envelope.signers[signer].adoption ?? typed
-export const markKind = (signer: number) => `mark-${signer}`
+export const markKind = (signer: number, initials = false) => `${initials ? 'initials' : 'mark'}-${signer}`
 const pngMagic = [0x89, 0x50, 0x4e, 0x47], jpegMagic = [0xff, 0xd8, 0xff]
 
 /** The adoption a signing request carries (typed in the sans style when it names none), with the image bytes. */

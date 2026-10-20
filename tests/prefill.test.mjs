@@ -85,3 +85,66 @@ test('PREP-008: sender/API prefill, reported provenance, template merge and serv
   await h.command('template.use',{id:t,recipients:base.signers,prefill:{signature:{value:'Forged',source:'Sender'}}},h.owner,400)
  } finally {await h.close()}
 })
+
+test('PREP-003 round A: initials adoption, automatic US signing dates, business-type prefill/locks and field validation through public doors', async()=>{
+ const h=await harness({mailProvider:null})
+ try {
+  const pdf=await PDFDocument.create();pdf.addPage([612,792]);pdf.addPage([612,792])
+  const make=(id,type,signer,y,extra={})=>({id,label:id,type,signer,page:signer,x:.1,y,width:.7,height:.025,...extra})
+  const business={full_name:'Mara Quinn',email:'mara@clients.example',company:'Acme Workshop',title:'Director'}
+  const fields=[0,1].flatMap(s=>[
+   make(`sig${s}`,'signature',s,.1),make(`ini${s}`,'initials',s,.14),make(`iniAgain${s}`,'initials',s,.18),make(`signed${s}`,'date_signed',s,.22),
+   ...Object.entries(business).flatMap(([type,value],i)=>[make(`${type}${s}`,type,s,.26+i*.08,{prefill:{value,source:`API fixture / ${type}`},readOnly:true}),make(`${type}Edit${s}`,type,s,.30+i*.08,{prefill:{value,source:`Sender / ${type}`}})]),
+   make(`zip${s}`,'text',s,.62,{pattern:'zip'}),make(`phone${s}`,'text',s,.66,{pattern:'phone'}),make(`ein${s}`,'text',s,.70,{pattern:'ein'}),make(`ssn${s}`,'text',s,.74,{pattern:'ssn'}),make(`date${s}`,'text',s,.78,{pattern:'date'}),
+  ])
+  const base={title:'PREP-003 all round A types',filename:'round-a.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),fields,roles:[{role:'Client'},{role:'Counterparty'}]}
+  const t=(await h.command('template.save',base)).result.id
+  const recipients=[{name:'Mara Quinn',email:'mara@clients.example'},{name:'Harbour Owner',email:'owner@harbour.example'}]
+  const id=(await h.command('template.use',{id:t,recipients})).result.id
+  const invitations=(await h.command('envelope.approve',{id,eligible:true})).result.invitations
+  const audit=async()=> (await h.send(`/api/inkwell/envelopes/${id}/artifacts/audit`,undefined,h.owner)).value.envelope
+  // The owner signs their own second routing place through the native session; the first uses the emailed-code door.
+  const marks=['drawn','uploaded'],png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVQImWP4z8Dwn4GBgYGJAQoAHgQCAZK7TscAAAAASUVORK5CYII=','base64')
+  for(const s of [0,1]) {
+   let path,cookie
+   if(s===0){const link=invitations.find(i=>i.email===recipients[s].email)??invitations[0];path=new URL(link.url).pathname.replace('/sign/','/api/sign/');cookie=(await h.post(path+'/verify',{code:link.code},'')).cookie}
+   if(s===1){const response=await h.post('/api/inkwell/commands',{command:'envelope.open_signing',input:{id},commandId:crypto.randomUUID()},h.owner);path=new URL(response.value.result.signing.url).pathname.replace('/sign/','/api/sign/');cookie=response.cookie}
+   await h.agree(path,cookie)
+   const view=(await h.send(path,undefined,cookie)).value
+   for(const [type,value] of Object.entries(business)) {
+    const f=view.fields.find(f=>f.id===`${type}${s}`);assert.equal(f.prefill.value,value);assert.equal(f.prefill.source,`API fixture / ${type}`);assert.equal(f.readOnly,true)
+    const changed={[f.id]:type==='email'?'elsewhere@clients.example':'Changed term'}
+    await h.post(path+'/progress',{values:changed},cookie,400)
+    const refused=await h.post(path+'/sign',{values:changed,consent:true,commandId:crypto.randomUUID(),timeZone:'Pacific/Honolulu'},cookie,400);assert.match(refused.value.error,new RegExp(f.label))
+   }
+   const values={ [`sig${s}`]:recipients[s].name,[`ini${s}`]:s?'HO':'MQ',[`iniAgain${s}`]:s?'HO':'MQ',[`zip${s}`]:'02110-1234',[`phone${s}`]:'+1 (212) 555-0100',[`ein${s}`]:'12-3456789',[`ssn${s}`]:'123-45-6789',[`date${s}`]:'2026-10-21',...Object.fromEntries(Object.keys(business).map(type=>[`${type}Edit${s}`,type==='email'?'updated@clients.example':`Updated ${type}`])) }
+   const sign=extra=>({values,consent:true,initialsAdoption:{method:marks[s],...(s?{mediaType:'image/png'}:{}),imageBase64:png.toString('base64')},timeZone:'Pacific/Honolulu',commandId:crypto.randomUUID(),...extra})
+   for(const [key,invalid] of [[`zip${s}`,'12'],[`phone${s}`,'call me'],[`ein${s}`,'12-345'],[`ssn${s}`,'123'],[`emailEdit${s}`,'missing-at'],[`date${s}`,'2026-02-30']]) {
+    const failed=await h.post(path+'/sign',sign({values:{...values,[key]:invalid}}),cookie,400);assert.match(failed.value.error,new RegExp(key),'a field-level refusal names the invalid field')
+   }
+   await h.post(path+'/sign',sign({timeZone:'Europe/Paris'}),cookie,400)
+   await h.post(path+'/sign',sign({values:{...values,[`iniAgain${s}`]:'DIFFERENT'}}),cookie,400)
+   await h.post(path+'/sign',sign({values:{...values,[`signed${s}`]:'1900-01-01'}}),cookie)
+   const e=await audit(),signed=e.signers[s]
+   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Pacific/Honolulu',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(signed.signedAt)).map(p=>[p.type,p.value]))
+   assert.equal(signed.values[`signed${s}`],`${parts.year}-${parts.month}-${parts.day}`,'date signed comes from the server signing instant, never caller values')
+   assert.equal(signed.signingTimeZone,'Pacific/Honolulu');assert.equal(signed.initialsAdoption.method,marks[s]);assert.match(signed.initialsAdoption.sha256,/^[a-f0-9]{64}$/)
+   for(const [type,value] of Object.entries(business)){assert.equal(signed.values[`${type}${s}`],value);assert.equal(signed.values[`${type}Edit${s}`],values[`${type}Edit${s}`])}
+  }
+  const e=await audit();assert.equal(e.status,'completed')
+  const executed=(await h.send(`/api/inkwell/envelopes/${id}/artifacts/signed`,undefined,h.owner)).bytes
+  const {getDocument,OPS}=await import('pdfjs-dist/legacy/build/pdf.mjs'),document=await getDocument({data:new Uint8Array(executed),standardFontDataUrl:new URL('../node_modules/pdfjs-dist/standard_fonts/',import.meta.url).pathname}).promise
+  for(const pageNumber of [1,2]){const page=await document.getPage(pageNumber),text=(await page.getTextContent()).items.map(i=>i.str).join(' ');for(const value of ['123-45-6789','12-3456789','Acme Workshop','updated@clients.example'])assert.ok(text.includes(value),`executed page ${pageNumber} retains ${value}`);assert.equal((await page.getOperatorList()).fnArray.filter(op=>op===OPS.paintImageXObject).length,2,'adopted initials image appears in both initials fields')}
+  const cert=(await h.send(`/api/inkwell/envelopes/${id}/artifacts/certificate`,undefined,h.owner)).bytes
+  const certificate=await getDocument({data:new Uint8Array(cert),standardFontDataUrl:new URL('../node_modules/pdfjs-dist/standard_fonts/',import.meta.url).pathname}).promise
+  let text='';for(let p=1;p<=certificate.numPages;p++)text+=(await (await certificate.getPage(p)).getTextContent()).items.map(i=>i.str).join(' ')
+  assert.match(text,/drawn initials/);assert.match(text,/uploaded initials image/);assert.match(text,/Date signed time zone: Pacific\/Honolulu/)
+  // Saved member initials reuse the independent mark on the next own-signing request.
+  const next=(await h.command('envelope.prepare',{...base,fields:fields.filter(f=>f.signer===1).map(f=>({...f,signer:0,page:0})),signers:[recipients[1]]})).result.id
+  await h.command('envelope.approve',{id:next,eligible:true})
+  const opened=await h.post('/api/inkwell/commands',{command:'envelope.open_signing',input:{id:next},commandId:crypto.randomUUID()},h.owner),path=new URL(opened.value.result.signing.url).pathname.replace('/sign/','/api/sign/'),view=(await h.send(path,undefined,opened.cookie)).value
+  assert.equal(view.savedInitials.value,'HO');assert.equal(view.savedInitials.adoption.method,'uploaded');assert.equal(view.savedInitials.imageBase64,png.toString('base64'))
+  // Generated evidence is never accepted as caller prefill, and new patterns are schema checked before sending.
+  for(const change of [{id:'ini0',prefill:{value:'MQ',source:'Sender'}},{id:'signed0',prefill:{value:'1900-01-01',source:'Sender'}},{id:'zip0',pattern:'invented'},{id:'zip0',prefill:{value:'invalid',source:'Sender'}},{id:'ssn0',masked:'false'}])await h.command('template.save',{...base,fields:fields.map(f=>f.id===change.id?{...f,...change}:f)},h.owner,400)
+ }finally{await h.close()}
+})

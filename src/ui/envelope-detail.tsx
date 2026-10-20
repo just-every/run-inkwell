@@ -1,3 +1,4 @@
+import { displayFieldValue } from '../inkwell/business-fields'
 import { HostSigning } from './host-signing'
 import { RoutingPreview, routingRuleText } from './routing-rules'
 // One envelope in the right-hand panel: its pill, signing status in order, the approval decision when a person must
@@ -118,6 +119,7 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
     </div>}
 
     <div className="iw-detail-records"><h3>Document</h3>
+    {envelope.signers.some(s => s.values) && <section aria-label="Entered field values"><h3>Entered fields</h3><dl>{envelope.fields.flatMap(field => { const value = envelope.signers[field.signer]?.values?.[field.id]; return value ? [<div key={field.id}><dt>{field.label}</dt><dd>{displayFieldValue(field, value)}</dd></div>] : [] })}</dl></section>}
     <div className="iw-artifacts"><button onClick={() => setShowPdf(value => !value)}>{showPdf ? 'Hide document' : 'View document and fields'}</button><a className="iw-button" href={`${base}/artifacts/original`} download>Original PDF</a>{envelope.status === 'completed' && <><a className="iw-button" href={`${base}/artifacts/signed`} download>Executed PDF</a><a className="iw-button" href={`${base}/artifacts/certificate`} download>Certificate</a><a className="iw-button" href={`${base}/artifacts/handoff`} download>Handoff manifest</a></>}{envelope.status === 'declined' && envelope.certificateSha256 && <a className="iw-button" href={`${base}/artifacts/certificate`} download>Decline certificate</a>}<a className="iw-button" href={`${base}/artifacts/audit`} download>Audit JSON</a></div>
     {showPdf && <PdfViewer source={`${base}/artifacts/${envelope.status === 'completed' ? 'signed' : 'original'}`} fields={envelope.status === 'completed' ? [] : envelope.fields} />}
 

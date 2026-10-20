@@ -1,3 +1,4 @@
+import { generatedField } from './business-fields'
 import { insist, object, type Field } from './model'
 
 /** PREP-008: business values are part of the prepared field definition, never signatures.
@@ -5,7 +6,7 @@ import { insist, object, type Field } from './model'
 export function normalizePrefill(field: Field, raw: Field) {
   insist(raw.readOnly === undefined || typeof raw.readOnly === 'boolean', 'Read-only must be true or false.')
   if (raw.prefill !== undefined) {
-    insist(field.type !== 'signature' && !field.calculation, 'Signatures and calculated fields cannot be prefilled.')
+    insist(!generatedField(field) && !field.calculation, 'Signatures, initials, date signed and calculated fields cannot be prefilled.')
     const prefill = object(raw.prefill)
     insist(typeof prefill.value === 'string' && prefill.value.length <= 500 && prefill.value.trim().length > 0 && !/[\x00-\x1f\x7f]/.test(prefill.value), `Prefill ${field.label} with one line of at most 500 characters.`)
     insist(typeof prefill.source === 'string' && prefill.source.trim().length > 0 && prefill.source.length <= 200 && !/[\x00-\x1f\x7f]/.test(prefill.source), 'Name the reported source in one line of at most 200 characters.')

@@ -1,8 +1,9 @@
+import { markField } from '../inkwell/business-fields'
 import type { Field } from './types'
 
 /** PREP-004: conditions and formulas use named fields, with native keyboard controls. */
 export function FieldRulesEditor({ field, fields, change }: { field: Field; fields: Field[]; change: (field: Field) => void }) {
-  const sources = fields.filter(f => f.id !== field.id && f.signer === field.signer && f.type !== 'signature')
+  const sources = fields.filter(f => f.id !== field.id && f.signer === field.signer && !markField(f))
   return <div className="iw-stack">
     <label>Show this field when<select aria-label="Condition field" value={field.condition?.field ?? ''} onChange={event => change({ ...field, condition: event.target.value ? { field: event.target.value, equals: 'true' } : undefined })}><option value="">Always shown</option>{sources.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}</select></label>
     {field.condition && <label>Equals<input aria-label="Condition value" value={field.condition.equals} maxLength={500} onChange={event => change({ ...field, condition: { ...field.condition!, equals: event.target.value } })} /></label>}

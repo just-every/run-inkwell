@@ -1,3 +1,4 @@
+import { markField } from '../inkwell/business-fields'
 import { useId } from 'react'
 import type { RoutingRule } from '../inkwell/model'
 import { copyPreview, routingPreview } from '../inkwell/routing'
@@ -11,7 +12,7 @@ const operators: [RoutingRule['operator'], string][] = [
 /** The rule stays editable until its recipient's turn is activated. Source validity is checked by shared routing. */
 export function RoutingRuleEditor({ label, value, fields, disabled, copy, onChange }: { label: string; value?: RoutingRule; fields: Field[]; disabled?: boolean; copy?: boolean; onChange: (rule?: RoutingRule) => void }) {
   const hint = useId()
-  const sources = fields.filter(field => field.type !== 'signature')
+  const sources = fields.filter(field => !markField(field))
   return <fieldset disabled={disabled} className="iw-stack"><legend>Include {label}</legend>
     <label>Include when<select aria-label={`${label} include when`} aria-describedby={hint} value={value?.field ?? ''} onChange={event => onChange(event.target.value ? { field: event.target.value, operator: value?.operator ?? 'equals', value: value?.value ?? '' } : undefined)}>
       <option value="">{copy ? 'Always gets the copy' : 'Always included'}</option>

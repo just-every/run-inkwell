@@ -1,3 +1,4 @@
+import { fieldTypes } from '../inkwell/business-fields'
 import { useId, useState, type Dispatch, type PointerEvent, type SetStateAction } from 'react'
 import type { Field } from './types'
 import { PdfViewer } from './pdf-viewer'
@@ -61,7 +62,7 @@ export function FieldEditor({ pdf, fields, setFields, signer, setSigner, recipie
   return <div className="iw-editor"><aside className="iw-field-tools iw-stack"><h3>Place fields</h3>
     <label>{who}<select value={signer} onChange={event => setSigner(Number(event.target.value))}>{recipients.map((recipient, index) => recipient.locked ? null : <option key={index} value={index}>{index + 1}. {recipient.name || who}</option>)}</select></label>
     <ul className="iw-who-legend" aria-label={`${who} colors`}>{recipients.map((recipient, index) => recipient.locked ? null : <li key={index}><span className={`iw-who-swatch ${colorClass(index)}`} aria-hidden="true" />{index + 1}. {recipient.name || who}</li>)}</ul>
-    <label>Field type<select value={type} onChange={event => { const value = event.target.value as Field['type']; setType(value); setLabel(value === 'signature' ? 'Signature' : value === 'date' ? 'Date' : value === 'checkbox' ? 'Checkbox' : value === 'number' ? 'Amount' : 'Text') }}><option value="signature">Signature</option><option value="text">Text</option><option value="date">Date</option><option value="checkbox">Checkbox</option><option value="number">Number (USD)</option></select></label>
+    <label>Field type<select value={type} onChange={event => { const value = event.target.value as Field['type']; setType(value); setLabel(fieldTypes.find(([type]) => type === value)?.[1] ?? 'Text') }}>{fieldTypes.map(([type, name]) => <option key={type} value={type}>{name}</option>)}</select></label>
     <label>Field label<input value={label} maxLength={80} onChange={event => setLabel(event.target.value)} /></label>
     <div className="iw-two"><label>Width (%)<input type="number" min={10} max={80} value={Math.round(width * 100)} onChange={event => setWidth(Math.min(.8, Math.max(.1, Number(event.target.value) / 100)))} /></label><label>Height (%)<input type="number" min={3} max={20} value={Math.round(height * 100)} onChange={event => setHeight(Math.min(.2, Math.max(.03, Number(event.target.value) / 100)))} /></label></div>
     <p className="iw-muted" id={hint}>Click a page or its thumbnail to place the field, or drag the chip above the pages onto either. Keyboard: focus a page and press Enter to place at its center; on a field’s selection checkbox, arrow keys move it, Shift with arrow keys resizes it, Enter selects it (Shift+Enter adds it to the selection) and Delete removes it.</p>

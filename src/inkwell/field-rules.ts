@@ -1,5 +1,6 @@
 import { insist, Refusal, type Field } from './model'
 import { normalizePrefill } from './prefill'
+import { fieldTypes, generatedField, markField, patterns, validateBusinessValue } from './business-fields'
 
 const simpleId = (value: unknown): value is string => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(value) && !['__proto__', 'constructor', 'prototype'].includes(value)
 const maxCents = BigInt(Number.MAX_SAFE_INTEGER)
@@ -23,7 +24,7 @@ export function normalizeFieldSchema(value: unknown): Field[] {
     insist(f && typeof f === 'object' && !Array.isArray(f) && simpleId(f.id) && !seen.has(f.id), 'Each field needs a unique simple ID.')
     seen.add(f.id)
     insist(typeof f.label === 'string' && f.label.trim().length > 0 && f.label.length <= 100, 'Name each field.')
-    insist(['signature', 'text', 'date', 'checkbox', 'number'].includes(f.type), 'Choose signature, text, date, checkbox, or number for each field.')
+    insist(fieldTypes.some(([type]) => type === f.type), 'Choose a supported field type.')
     insist(Number.isInteger(f.signer) && f.signer >= 0 && Number.isInteger(f.page) && f.page >= 0, 'Each field must name an existing signer and PDF page.')
     insist([f.x, f.y, f.width, f.height].every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1) && f.width > 0 && f.height > 0 && f.x + f.width <= 1.000001 && f.y + f.height <= 1.000001, 'Keep each field inside its PDF page.')
     const field: Field = { id: f.id, label: f.label.trim(), type: f.type, signer: f.signer, page: f.page, x: f.x, y: f.y, width: f.width, height: f.height }
@@ -40,7 +41,13 @@ export function normalizeFieldSchema(value: unknown): Field[] {
       insist(Array.isArray(calculation.fields) && calculation.fields.length > 0 && calculation.fields.length <= 100 && calculation.fields.every(simpleId), `Choose number fields for ${field.label}'s calculation.`)
       field.calculation = { operation: calculation.operation, fields: [...calculation.fields] }
     }
+    if (f.pattern !== undefined) {
+      insist(typeof f.pattern === 'string' && Object.hasOwn(patterns, f.pattern) && !generatedField(field) && !['checkbox', 'number'].includes(field.type), `Choose a text validation pattern for ${field.label}.`)
+      field.pattern = f.pattern
+    }
+    if (f.masked !== undefined) { insist(typeof f.masked === 'boolean' && !generatedField(field) && field.type !== 'checkbox', 'Mask only business-data fields.'); field.masked = f.masked }
     normalizePrefill(field, f)
+    if (field.prefill) validateBusinessValue(field, field.prefill.value)
     return field
   })
   const byId = new Map(fields.map(field => [field.id, field]))
@@ -50,7 +57,7 @@ export function normalizeFieldSchema(value: unknown): Field[] {
       insist(target, `${field.label} refers to an unknown field: ${id}.`)
       insist(target.id !== field.id, `${field.label} cannot refer to itself.`)
       insist(target.signer === field.signer, `${field.label} can only refer to the same signer's fields.`)
-      insist(target.type !== 'signature', `${field.label} cannot refer to a signature field.`)
+      insist(!markField(target), `${field.label} cannot refer to a signature field.`)
       return target
     }
     for (const condition of [field.condition, field.requiredWhen]) if (condition) {
@@ -123,6 +130,7 @@ function evaluate(fields: Field[], raw: Record<string, unknown>, strict: boolean
         else {
           insist(typeof input === 'string', `Provide a text value for ${field.label}.`)
           values[field.id] = (input as string).trim()
+          validateBusinessValue(field, values[field.id])
         }
       }
     } catch (error) { if (strict || !(error instanceof Refusal)) throw error }

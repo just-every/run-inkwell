@@ -94,7 +94,7 @@ function adoptionLines(envelope: Envelope, signer: number) {
   const s = envelope.signers[signer]
   if (s.paper?.status === 'accepted') return ['Signed on paper (wet ink)', 'Adopted signature: handwritten on the paper scan']
   const signed = forSigner(envelope, signer, ['signer.signed']).at(-1), saved = signed?.detail.saved === true || signed?.detail.adoption === 'saved' ? signed!.detail.operator as string : undefined
-  return envelope.fields.filter(f => f.signer === signer && f.type === 'signature' && s.values?.[f.id]).map(f => `Adopted signature (${f.label}): "${s.values![f.id]}", ${describeAdoption(adoptionOf(envelope, signer), saved)}`)
+  return envelope.fields.filter(f => f.signer === signer && ['signature', 'initials'].includes(f.type) && s.values?.[f.id]).map(f => `Adopted ${f.type} (${f.label}): "${s.values![f.id]}", ${describeAdoption(f.type === 'initials' ? s.initialsAdoption ?? { method: 'typed', style: 'sans' } : adoptionOf(envelope, signer), f.type === 'signature' ? saved : undefined).replace(f.type === 'initials' ? /signature/g : /$^/g, 'initials')}`).concat(s.signingTimeZone ? [`Date signed time zone: ${s.signingTimeZone} (from signing instant ${s.signedAt})`] : [])
 }
 
 /** ROUTE-007: host attestation is evidence of what the host said, never a provider verification. */

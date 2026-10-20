@@ -19,8 +19,8 @@ export function fromSaved(saved: SavedMark): AdoptionInput {
 }
 const base64 = (bytes: Uint8Array) => { let out = ''; for (let i = 0; i < bytes.length; i += 0x8000) out += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(out) }
 
-type Props = { name: string; value: AdoptionInput; onChange: (value: AdoptionInput) => void; disabled: boolean }
-export function AdoptSignature({ name, value, onChange, disabled }: Props) {
+type Props = { kind?: 'signature' | 'initials'; name: string; value: AdoptionInput; onChange: (value: AdoptionInput) => void; disabled: boolean }
+export function AdoptSignature({ kind = 'signature', name, value, onChange, disabled }: Props) {
   const [method, setMethod] = useState<AdoptionInput['method']>(value.method)
   const [error, setError] = useState('')
   const shown = name.trim() || 'Your name'
@@ -34,23 +34,23 @@ export function AdoptSignature({ name, value, onChange, disabled }: Props) {
   }
   const image = value.method !== 'typed' && value.method === method ? `data:${value.method === 'uploaded' ? value.mediaType : 'image/png'};base64,${value.imageBase64}` : undefined
   return <fieldset className="iw-adopt iw-stack" disabled={disabled}>
-    <legend>Adopt your signature <span>applied to every signature field</span></legend>
-    <div className="iw-adopt-methods" role="radiogroup" aria-label="How to adopt your signature">
-      {(['typed', 'drawn', 'uploaded'] as const).map(id => <label key={id} className="iw-check"><input type="radio" name="iw-adopt-method" checked={method === id} onChange={() => choose(id)} />{id === 'typed' ? 'Type' : id === 'drawn' ? 'Draw' : 'Upload'}</label>)}
+    <legend>Adopt your {kind} <span>applied to every {kind} field</span></legend>
+    <div className="iw-adopt-methods" role="radiogroup" aria-label={`How to adopt your ${kind}`}>
+      {(['typed', 'drawn', 'uploaded'] as const).map(id => <label key={id} className="iw-check"><input type="radio" name={`iw-adopt-method-${kind}`} checked={method === id} onChange={() => choose(id)} />{id === 'typed' ? 'Type' : id === 'drawn' ? 'Draw' : 'Upload'}</label>)}
     </div>
-    {method === 'typed' && <div className="iw-adopt-styles" role="radiogroup" aria-label="Signature style">
-      {styles.map(style => <label key={style.id} className="iw-check"><input type="radio" name="iw-adopt-style" checked={value.method === 'typed' && value.style === style.id} onChange={() => onChange({ method: 'typed', style: style.id })} /><span><span className={`iw-mark-preview ${style.className}`}>{shown}</span><small>{style.label}</small></span></label>)}
+    {method === 'typed' && <div className="iw-adopt-styles" role="radiogroup" aria-label={`${kind === 'signature' ? 'Signature' : 'Initials'} style`}>
+      {styles.map(style => <label key={style.id} className="iw-check"><input type="radio" name={`iw-adopt-style-${kind}`} checked={value.method === 'typed' && value.style === style.id} onChange={() => onChange({ method: 'typed', style: style.id })} /><span><span className={`iw-mark-preview ${style.className}`}>{shown}</span><small>{style.label}</small></span></label>)}
     </div>}
-    {method === 'drawn' && <DrawPad onDrawn={imageBase64 => onChange(imageBase64 ? { method: 'drawn', imageBase64 } : defaultAdoption)} drawn={image} />}
-    {method === 'uploaded' && <label>Signature image (PNG or JPEG, up to 512 KB)<input type="file" accept="image/png,image/jpeg" onChange={event => void upload(event.target.files?.[0])} /></label>}
-    {method === 'uploaded' && image && <img className="iw-mark-image" src={image} alt="Your uploaded signature" />}
-    {method !== 'typed' && !image && <p className="iw-muted" role="status">{method === 'drawn' ? 'Draw your signature in the box.' : 'Choose an image of your signature.'} Until then your typed name is used.</p>}
+    {method === 'drawn' && <DrawPad kind={kind} onDrawn={imageBase64 => onChange(imageBase64 ? { method: 'drawn', imageBase64 } : defaultAdoption)} drawn={image} />}
+    {method === 'uploaded' && <label>{kind === 'signature' ? 'Signature' : 'Initials'} image (PNG or JPEG, up to 512 KB)<input type="file" accept="image/png,image/jpeg" onChange={event => void upload(event.target.files?.[0])} /></label>}
+    {method === 'uploaded' && image && <img className="iw-mark-image" src={image} alt={`Your uploaded ${kind}`} />}
+    {method !== 'typed' && !image && <p className="iw-muted" role="status">{method === 'drawn' ? `Draw your ${kind} in the box.` : `Choose an image of your ${kind}.`} Until then your typed {kind === 'signature' ? 'name' : 'initials'} is used.</p>}
     {error && <p className="iw-error" role="alert">{error}</p>}
   </fieldset>
 }
 
 /** A drawing area for a finger, pen or mouse. Each stroke ends by exporting the drawing, cropped to the ink, as a PNG. */
-function DrawPad({ onDrawn, drawn }: { onDrawn: (imageBase64?: string) => void; drawn?: string }) {
+function DrawPad({ kind, onDrawn, drawn }: { kind: 'signature' | 'initials'; onDrawn: (imageBase64?: string) => void; drawn?: string }) {
   const canvas = useRef<HTMLCanvasElement>(null), bounds = useRef<{ x0: number; y0: number; x1: number; y1: number } | undefined>(undefined), last = useRef<{ x: number; y: number } | undefined>(undefined)
   useEffect(() => {
     const element = canvas.current!, ratio = Math.min(3, window.devicePixelRatio || 1)
@@ -79,7 +79,7 @@ function DrawPad({ onDrawn, drawn }: { onDrawn: (imageBase64?: string) => void; 
   }
   function clear() { const element = canvas.current!; element.getContext('2d')!.clearRect(0, 0, element.width, element.height); bounds.current = undefined; onDrawn(undefined) }
   return <div className="iw-stack">
-    <canvas ref={canvas} className="iw-draw-pad" role="img" aria-label="Signature drawing area: draw with your finger, a pen or the mouse" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} />
+    <canvas ref={canvas} className="iw-draw-pad" role="img" aria-label={`${kind === 'signature' ? 'Signature' : 'Initials'} drawing area: draw with your finger, a pen or the mouse`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} />
     <button type="button" className="iw-fit" onClick={clear}>Clear drawing</button>
   </div>
 }
