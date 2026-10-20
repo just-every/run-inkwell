@@ -3063,7 +3063,7 @@
       "executable": false
     },
     "tests/journeys/signing-groups.mjs": {
-      "sha256": "a85d9d500a2510d182a55407055b886b17bffdcbd8d1805d80708491c9c3b333",
+      "sha256": "7d415393d06cd482f7766f68e0514e97856ab3d9efbb7cd056a1bd738f750447",
       "executable": false
     },
     "tests/journeys/signing-mobile.mjs": {
