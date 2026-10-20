@@ -1,12 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { command, request, type Field } from './types'
+import type { RoutingRule } from '../inkwell/model'
+import { RoutingPreview } from './routing-rules'
 import { ErrorNotice, useAction } from './feedback'
 import { PrepareEnvelope } from './prepare-envelope'
 import { SharePanel, type TemplateFolder, type TemplateShare } from './template-sharing'
 
 // TMPL-001: the templates this person may use, a new one from the prepare screen, and a send that asks only for each
 // role's person (and the access code a role needs); the new envelope opens for approval like any other draft.
-type Role = { role: string; order: number; accessCode?: boolean; linkOnly?: boolean; message?: string }
+type Role = { includeWhen?: RoutingRule; role: string; order: number; accessCode?: boolean; linkOnly?: boolean; message?: string }
 export type Template = { id: string; title: string; filename: string; roles: Role[]; fields: Field[]; expiryDays: number; reminders?: { afterDays: number; everyDays: number }; subject?: string; message?: string; allowPaper?: boolean; allowReassign?: boolean; version?: number; tags?: string[]; access?: 'use' | 'edit' | 'manage'; folder?: { id: string; name: string } | null; shares?: TemplateShare[] }
 type Person = { name: string; email: string; accessCode: string }
 
@@ -52,6 +54,7 @@ function SendFromTemplate({ template, onCancel, onSent }: { template: Template; 
   return <section className="iw-panel iw-prepare"><div className="iw-section-head"><div><h1>Send {template.title}</h1><p>Name who fills each role. Fields, routing, messages, reminders and expiry come from the template.</p></div><button type="button" onClick={onCancel} disabled={action.busy}>Cancel</button></div>
     <form onSubmit={submit} className="iw-stack">
       <fieldset disabled={action.busy}><legend>Roles <span>· in routing order</span></legend><div className="iw-stack">{template.roles.map((role, index) => <div key={index} className="iw-recipient"><span className="iw-order" aria-hidden="true">{role.order}</span><label><span className="iw-sr">{role.role} name</span><input aria-label={`${role.role} name`} placeholder={`${role.role}: full name`} required maxLength={100} value={people[index].name} onChange={event => set(index, 'name', event.target.value)} /></label><label><span className="iw-sr">{role.role} email</span><input aria-label={`${role.role} email`} placeholder="Email" type="email" required value={people[index].email} onChange={event => set(index, 'email', event.target.value)} /></label>{role.accessCode && <label><span className="iw-sr">{role.role} access code</span><input aria-label={`${role.role} access code`} placeholder="Access code" required autoComplete="off" pattern="\S{4,32}" title="4–32 characters, no spaces" maxLength={32} value={people[index].accessCode} onChange={event => set(index, 'accessCode', event.target.value)} /></label>}</div>)}</div></fieldset>
+      <RoutingPreview signers={template.roles.map((role, index) => ({ ...role, name: people[index].name || role.role }))} fields={template.fields} />
       <ErrorNotice error={action.error} /><div className="iw-actions iw-submit"><button className="iw-primary" disabled={action.busy} type="submit">{action.busy ? 'Preparing…' : 'Prepare to send'}</button><p className="iw-muted">You approve it next, as with any envelope.</p></div>
     </form>
   </section>

@@ -150,3 +150,6 @@ export function requiredField(field: Field, fields: Field[], raw: Record<string,
   if (field.requiredWhen) return shown.has(field.requiredWhen.field) && values[field.requiredWhen.field] === field.requiredWhen.equals
   return field.required ?? field.type !== 'checkbox'
 }
+
+/** Shared exact USD semantics for ROUTE-003 comparisons. */
+export { cents as usdCents, decimal as usdDecimal }

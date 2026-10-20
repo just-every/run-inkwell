@@ -1,3 +1,4 @@
+import { normalizeRoutingRule, validateCopyRouting, validateRouting } from './routing'
 import { fromBase64, blobWrites, readBlob } from './blobs'
 import { parsePdf, validateFields, validatePdfText } from './pdf'
 import { accessCodeHash, appendEvent, insist, now, object, sha256, text, type Envelope, type Env } from './model'
@@ -38,17 +39,20 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
     insist(!s.linkOnly || !mailSuppressed(env), 'Link-only signing needs mail; while mail is not set up every recipient verifies a code.', 409)
     insist(s.inPerson === undefined || typeof s.inPerson === 'boolean', 'Choose whether each recipient signs in person.')
     const inPerson = s.inPerson ?? (previous?.signers[i]?.email === email && previous.signers[i].inPerson)
-    return { name: text(s.name, 'the signer name', 100), email, order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
+    return { ...(s.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(s.includeWhen)}), name: text(s.name, 'the signer name', 100), email, order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
   })
   insist(new Set(signers.map(s => s.email)).size === signers.length, 'Each ordered signer must use a different email.')
   const fields = validateFields(input.fields, signers.length, pageSizes.length), copies = chooseCopies(input.copies, signers)
+  validateRouting(signers, fields)
+  validateCopyRouting(copies, fields)
+  await validatePdfText([...signers, ...copies].flatMap(person=>person.includeWhen?[person.includeWhen.value]:[]))
   await validatePdfText(fields.flatMap(field => field.prefill ? [field.prefill.value] : []))
   insist(input.allowPaperSigning === undefined || typeof input.allowPaperSigning === 'boolean', 'Choose whether recipients may sign on paper.')
   // ROUTE-006: whether a recipient may reassign their signing to someone else; off unless the sender turns it on.
   insist(input.allowReassignment === undefined || typeof input.allowReassignment === 'boolean', 'Choose whether recipients may reassign their signing.')
   const allowPaper = input.allowPaperSigning === true, allowReassign = input.allowReassignment === true, reminders = chooseReminders(input.reminders)
   const subject = optional(input.subject, 'the email subject', 200, true), message = optional(input.message, 'the message', 2000)
-  await validatePdfText([title, ...signers.flatMap(s => [s.name, s.email])])
+  await validatePdfText([title, ...[...signers, ...copies].flatMap(s => [s.name, s.email])])
   const draft: Draft = { title, filename, signers, fields, pageSizes, originalSha256: await sha256(bytes), expiresAt: chooseExpiry(input.expiresAt, base), ...(allowPaper ? { allowPaper } : {}), ...(allowReassign ? { allowReassign } : {}), ...(reminders ? { reminders } : {}), ...(copies.length ? { copies } : {}), ...(subject ? { subject } : {}), ...(message ? { message } : {}) }
   return { draft, bytes, accessCodes }
 }

@@ -6,10 +6,14 @@ export type Tone = 'rose' | 'amber' | 'blue' | 'mint' | 'grey'
 
 /** ROUTE-002: a recipient's routing order; recipients sharing the lowest open order sign at the same time. */
 export const routingOrder = (envelope: Envelope, index: number) => envelope.signers[index].order ?? index + 1
-export function currentSigners(envelope: Envelope) { const open = envelope.signers.flatMap((signer, index) => signer.signedAt || signer.removedAt ? [] : [index]); const lowest = Math.min(...open.map(index => routingOrder(envelope, index))); return open.filter(index => routingOrder(envelope, index) === lowest) }
+export function currentSigners(envelope: Envelope) {
+  const open = envelope.signers.flatMap((signer, index) => signer.signedAt || signer.removedAt || signer.routeResult?.state === 'skipped' ? [] : [index])
+  const lowest = Math.min(...open.map(index => routingOrder(envelope, index)))
+  return open.filter(index => routingOrder(envelope, index) === lowest && envelope.signers[index].routeResult?.state !== 'unresolved' && (!envelope.signers[index].includeWhen || envelope.signers[index].routeResult?.state === 'included'))
+}
 export const signedCount = (envelope: Envelope) => envelope.signers.filter(signer => signer.signedAt).length
 /** DELIV-006: the recipients still on the envelope (a correction may have removed some). */
-export const liveSigners = (envelope: Envelope) => envelope.signers.filter(signer => !signer.removedAt).length
+export const liveSigners = (envelope: Envelope) => envelope.signers.filter(signer => !signer.removedAt && signer.routeResult?.state !== 'skipped').length
 export const preparedByAgent = (envelope: Envelope) => envelope.events.some(event => event.action === 'envelope.prepared' && event.actor?.startsWith('agent:'))
 const myTurn = (envelope: Envelope, actor: Actor) => envelope.status === 'awaiting_signature' && currentSigners(envelope).some(index => envelope.signers[index].email.toLowerCase() === actor.email.toLowerCase())
 
@@ -29,7 +33,7 @@ export function pill(envelope: Envelope, actor: Actor): { label: string; tone: T
 export function nextAction(envelope: Envelope, actor: Actor): { label: string; urgent: boolean } {
   switch (envelope.status) {
     case 'prepared': return envelope.access === 'edit' ? { label: 'Approve and send', urgent: true } : { label: 'Waiting for approval', urgent: false }
-    case 'awaiting_signature': return envelope.scheduled ? { label: `Sends ${envelope.scheduled.local.replace('T', ' ')} ${envelope.scheduled.timeZone.split('/').at(-1)!.replaceAll('_', ' ')} time`, urgent: false } : myTurn(envelope, actor) ? { label: 'Your turn to sign', urgent: true } : { label: `Waiting on ${currentSigners(envelope).map(index => envelope.signers[index].name).join(' and ') || 'the next signer'}`, urgent: false }
+    case 'awaiting_signature': return envelope.scheduled ? { label: `Sends ${envelope.scheduled.local.replace('T', ' ')} ${envelope.scheduled.timeZone.split('/').at(-1)!.replaceAll('_', ' ')} time`, urgent: false } : myTurn(envelope, actor) ? { label: 'Your turn to sign', urgent: true } : { label: `Waiting on ${currentSigners(envelope).map(index => envelope.signers[index].name).join(' and ') || (envelope.signers.some(signer => !signer.signedAt && !signer.removedAt && signer.includeWhen && signer.routeResult?.state !== 'included' && signer.routeResult?.state !== 'skipped') ? 'routing condition resolution' : 'the next signer')}`, urgent: false }
     case 'completed': return { label: 'Executed PDF ready', urgent: false }
     case 'declined': { const by = envelope.signers.find(signer => signer.declinedAt); return { label: `${by?.consentWithdrawn ? 'Consent withdrawn by' : 'Declined by'} ${by?.name ?? 'a signer'}`, urgent: false } }
     case 'expired': return { label: 'Prepare a new one', urgent: true }

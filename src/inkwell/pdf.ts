@@ -21,7 +21,7 @@ export async function signedPdf(original: Uint8Array, envelope: Envelope, scans:
   const regular = await document.embedFont(StandardFonts.Helvetica), fonts = new Map<string, PDFFont>(), images = new Map<number, PDFImage>()
   const fontFor = async (name: StandardFonts) => fonts.get(name) ?? fonts.set(name, await document.embedFont(name)).get(name)!
   for (let signer = 0; signer < envelope.signers.length; signer++) {
-    if (envelope.signers[signer].paper?.status === 'accepted') continue
+    if (envelope.signers[signer].removedAt || envelope.signers[signer].routeResult?.state === 'skipped' || envelope.signers[signer].paper?.status === 'accepted') continue
     const assigned = envelope.fields.filter(field => field.signer === signer), values = resolveFieldValues(assigned, envelope.signers[signer].values ?? {})
     for (const field of visibleFields(assigned, values)) {
       const raw = values[field.id]

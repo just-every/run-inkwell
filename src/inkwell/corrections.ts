@@ -1,3 +1,5 @@
+import { advanceAfterSigning } from './signing'
+import { guardRoutingCorrection, normalizeRoutingRule, resolveRouting, routeSettled, validateCopyRouting, validateRouting } from './routing'
 // DELIV-006: correct an envelope in flight. Before a recipient acts, whoever may change the envelope (its sender, an edit
 // share or an admin: ADMIN-001) changes that recipient's name, email, routing order or private message, adds or removes
 // later recipients and copy recipients, and edits the subject, message, expiry and the fields of recipients who have not
@@ -22,8 +24,8 @@ import { sealLink } from './links'
 
 const maxPlaces = 10, maxActive = 5
 /** A recipient who has acted (signed, declined, or uploaded a paper scan awaiting review) or was removed: fixed for good. */
-const settled = (s: Signer) => Boolean(s.signedAt || s.declinedAt || s.paper?.status === 'pending' || s.removedAt)
-const identity = (s: Signer, place: number) => ({ name: s.name, email: s.email, order: s.order ?? place + 1, ...(s.inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(s.message ? { message: s.message } : {}) })
+const settled = (s: Signer) => Boolean(s.signedAt || s.declinedAt || s.paper?.status === 'pending' || s.removedAt || s.routeResult?.state === 'skipped')
+const identity = (s: Signer, place: number) => ({ ...(s.includeWhen?{includeWhen:s.includeWhen}:{}), name: s.name, email: s.email, order: s.order ?? place + 1, ...(s.inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(s.message ? { message: s.message } : {}) })
 /** An optional text: absent keeps the current value, an empty string clears it. */
 function edit(value: unknown, current: string | undefined, label: string, max: number, oneLine = false) {
   if (value === undefined) return current
@@ -43,21 +45,22 @@ function readRecipient(value: unknown, place: number, previous?: Signer): { sign
   insist(code === undefined || /^\S{4,32}$/.test(code), 'Use an access code of 4–32 characters with no spaces.')
   const name = text(s.name, 'the signer name', 100), message = edit(s.message, previous?.message, 'the private message', 1000)
   const same = previous && previous.name === name && previous.email === email
-  const { message: _, linkOnly: __, ...kept } = same ? previous : {} as Signer
+  const { message: _, linkOnly: __, includeWhen: _rule, ...kept } = same ? previous : {} as Signer
   insist(s.linkOnly === undefined || typeof s.linkOnly === 'boolean', 'Choose email code or link only for each recipient.')
   insist(s.inPerson === undefined || typeof s.inPerson === 'boolean', 'Choose whether each recipient signs in person.')
   // A correction keeps the approved signing method even when the recipient's name or email changes.
   // Moving between hosted and remote signing requires a newly prepared envelope and its approval.
   insist(!previous || s.inPerson === undefined || s.inPerson === Boolean(previous.inPerson), 'A sent recipient’s signing method cannot change. Prepare and approve a new envelope to change between in-person and remote signing.', 409)
+  const includeWhen = s.includeWhen === undefined ? previous?.includeWhen : normalizeRoutingRule(s.includeWhen)
   const inPerson = previous ? previous.inPerson : s.inPerson === true
-  return { signer: { ...kept, name, email, order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}), ...(code || previous?.accessCode ? { accessCode: true } : {}) }, code }
+  return { signer: { ...kept, ...(includeWhen?{includeWhen}:{}), name, email, order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}), ...(code || previous?.accessCode ? { accessCode: true } : {}) }, code }
 }
 
 export async function correctEnvelope(env: Env, context: CommandContext, input: Record<string, unknown>) {
   const before = await getEnvelope(env.DB, text(input.id, 'an envelope ID'))
   active(before)
   const after = structuredClone(before), at = now(), codes = new Map<number, string>()
-  const signedFixed = (i: number) => `${before.signers[i].name} has already ${before.signers[i].removedAt ? 'been removed' : before.signers[i].declinedAt ? 'declined' : before.signers[i].paper?.status === 'pending' ? 'signed on paper' : 'signed'}; their details and fields cannot change.`
+  const signedFixed = (i: number) => `${before.signers[i].name} has already ${before.signers[i].routeResult?.state === 'skipped' ? 'been skipped' : before.signers[i].removedAt ? 'been removed' : before.signers[i].declinedAt ? 'declined' : before.signers[i].paper?.status === 'pending' ? 'signed on paper' : 'signed'}; their details and fields cannot change.`
   if (input.signers !== undefined) {
     insist(Array.isArray(input.signers) && input.signers.length >= before.signers.length && input.signers.length <= maxPlaces, `Keep every recipient in their place (remove one with "remove") and add at most ${maxPlaces - before.signers.length} more.`)
     after.signers = input.signers.map((value, i) => {
@@ -72,7 +75,7 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
       return signer
     })
   }
-  const live = after.signers.flatMap((s, i) => s.removedAt ? [] : [i]), open = live.filter(i => !after.signers[i].signedAt)
+  const live = after.signers.flatMap((s, i) => s.removedAt ? [] : [i]), open = live.filter(i => !routeSettled(after.signers[i]))
   insist(live.length <= maxActive, `An envelope has at most ${maxActive} signers.`)
   insist(open.length, 'Keep at least one recipient who has not signed, or void the envelope instead.', 409)
   insist(new Set(live.map(i => after.signers[i].email)).size === live.length, 'Each ordered signer must use a different email.')
@@ -84,13 +87,17 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
   const fixedFields = (fields: Field[]) => canonical(fields.filter(f => settled(before.signers[f.signer] ?? {} as Signer) && !before.signers[f.signer].removedAt).sort((a, b) => a.id.localeCompare(b.id)))
   insist(fixedFields(after.fields) === fixedFields(before.fields), 'A field of a recipient who has already signed cannot be changed.', 409)
 
+  validateRouting(after.signers,after.fields)
+  guardRoutingCorrection(before,after)
+
   const copies = chooseCopies(input.copies === undefined ? before.copies : input.copies, live.map(i => after.signers[i]))
+  validateCopyRouting(copies, after.fields)
   if (copies.length) after.copies = copies; else delete after.copies
   const subject = edit(input.subject, before.subject, 'the email subject', 200, true), message = edit(input.message, before.message, 'the message', 2000)
   if (subject) after.subject = subject; else delete after.subject
   if (message) after.message = message; else delete after.message
   if (input.expiresAt !== undefined) after.expiresAt = chooseExpiry(input.expiresAt, at)
-  await validatePdfText([...after.signers.flatMap(s => [s.name, s.email]), ...after.fields.flatMap(field => field.prefill ? [field.prefill.value] : [])])
+  await validatePdfText([...after.signers.flatMap(s => [s.name, s.email, ...(s.includeWhen?[s.includeWhen.value]:[])]), ...(after.copies ?? []).flatMap(c => [c.name, c.email, ...(c.includeWhen ? [c.includeWhen.value] : [])]), ...after.fields.flatMap(field => field.prefill ? [field.prefill.value] : [])])
 
   // The audit trail: one event per recipient change and one for the envelope's own settings, each with before and after.
   const writes: D1PreparedStatement[] = [], rotated = new Set<number>()
@@ -109,6 +116,8 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
   if (Object.keys(changes).length) await appendEvent(after, 'envelope.corrected', context.actor.id, { changes })
   insist(after.events.length > before.events.length, 'Nothing to correct: change a recipient, a field, the messages or the expiry.', 409)
 
+  await resolveRouting(after,at)
+
   // Links: a corrected or removed recipient's link, code, session and saved entries stop working; whoever's turn it now
   // is and was corrected, added or newly reached gets a fresh link and invitation.
   const wasCurrent = currentSigners(before), nowCurrent = currentSigners(after), mail = !mailSuppressed(env)
@@ -125,6 +134,7 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
   }
   for (const [i, code] of codes) writes.push(env.DB.prepare('DELETE FROM iw_access_codes WHERE envelope_id=? AND signer=?').bind(after.id, i), env.DB.prepare('INSERT INTO iw_access_codes(envelope_id,signer,code_hash) VALUES(?,?,?)').bind(after.id, i, await accessCodeHash(env, after.id, i, code)))
   const invited = nowCurrent.filter(i => !after.signers[i].inPerson && (!wasCurrent.includes(i) || rotated.has(i) || !before.signers[i])).map(i => after.signers[i].email)
+  if (after.signers.every(routeSettled)) writes.push(...await advanceAfterSigning(env,after,after.signers.findLastIndex(s=>s.signedAt)))
   const result = { id: after.id, invited, emailSent: mail && invited.length > 0 }
   await commitEnvelope(env, before, after, context.actor, [...writes, commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   await dispatchMail(env, after.id)

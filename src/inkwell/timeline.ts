@@ -52,12 +52,15 @@ function recipientTimeline(envelope: Envelope, messages: Message[], signer: numb
   }
   steps.sort((a, b) => a.at.localeCompare(b.at))
   const order = routingOrder(envelope, signer), base = { signer, order, steps }
+  if (recipient.routeResult?.state === 'skipped') return { ...base, place: 'stopped', waitingOn: null }
+  if (recipient.routeResult?.state === 'unresolved') return { ...base, place: 'waiting', waitingOn: 'The sender to correct an unresolved routing condition' }
   if (recipient.removedAt) return { ...base, place: 'removed', waitingOn: null }
   if (recipient.signedAt) return { ...base, place: 'signed', waitingOn: null }
   if (recipient.declinedAt) return { ...base, place: 'declined', waitingOn: null }
   if (envelope.status === 'prepared') return { ...base, place: 'waiting', waitingOn: envelope.scheduled ? `The scheduled send at ${envelope.scheduled.local} (${envelope.scheduled.timeZone})` : 'The sender’s approval' }
   if (envelope.status !== 'awaiting_signature' || envelope.imported || Date.parse(envelope.expiresAt) <= Date.now()) return { ...base, place: 'stopped', waitingOn: null }
   const current = currentSigners(envelope)
+  if (!current.length) return { ...base, place: 'waiting', waitingOn: 'The sender to correct an unresolved routing condition' }
   if (!current.includes(signer)) return { ...base, place: 'waiting', waitingOn: `Routing order ${routingOrder(envelope, current[0])} to finish: ${current.map(i => envelope.signers[i].name).join(', ')}` }
   if (bouncedRecipients(envelope, messages).some(entry => entry.signer === signer)) return { ...base, place: 'current', bounced: true, waitingOn: 'The sender to correct the email address: the invitation bounced' }
   const waitingOn = recipient.paper?.status === 'pending' ? 'The sender to review the uploaded paper signature'

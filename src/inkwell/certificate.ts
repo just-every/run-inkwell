@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
-import { identityEvents, routingOrder, type AuditEvent, type Envelope } from './model'
+import { identityEvents, routingOrder, type AuditEvent, type Envelope, type RoutingResult, type RoutingRule } from './model'
 import { encodable } from './pdf'
 import { localStamp } from './zone'
 import { adoptionOf, describeAdoption } from './marks'
@@ -8,8 +8,10 @@ import { adoptionOf, describeAdoption } from './marks'
  * order, each authentication with its method, result, IP address and user agent, any access code, the disclosure they
  * accepted, the signature they adopted and how, and their signing or decline with its IP address and user agent; for
  * the envelope, every document's fingerprint and the full hash-chained audit trail. Every timestamp is shown in UTC
- * and in the account's US time zone. An IP address shows as "not recorded" when the request carried none. */
-export async function certificatePdf(envelope: Envelope) {
+ * and in the account's US time zone. An IP address shows as "not recorded" when the request carried none.
+ * ROUTE-003: each copy recipient with an include rule, its outcome at completion and whether a copy was queued; `mailed`
+ * lists the party indexes that got a completed-copy email. */
+export async function certificatePdf(envelope: Envelope, mailed: number[] = []) {
   const declined = envelope.signers.find(s => s.declinedAt), withdrawn = declined?.consentWithdrawn
   const disclosures = [...new Map(envelope.signers.flatMap(s => s.disclosure ? [[s.disclosure.version, s.disclosure.sha256]] : [])).entries()]
   const lines = [
@@ -31,13 +33,14 @@ export async function certificatePdf(envelope: Envelope) {
       ...(s.disclosure ? [`Disclosure ${s.disclosure.version} accepted at: ${stamp(s.disclosure.acceptedAt)}`] : []),
       ...adoptionLines(envelope, i),
       ...(s.paper?.status === 'accepted' ? [`Scan SHA-256: ${s.paper.sha256}`, `Scan: ${s.paper.pages} page(s) appended to the executed PDF; accepted at ${stamp(s.paper.reviewedAt!)}`] : []),
-      s.removedAt ? `Not signed: removed by a correction at ${stamp(s.removedAt)}`
+      s.routeResult?.state === 'skipped' ? `Skipped at ${stamp(s.routeResult.at)}: ${s.includeWhen?.field} ${s.includeWhen?.operator} ${s.includeWhen?.value}; result false (source ${s.routeResult.value})` : s.removedAt ? `Not signed: removed by a correction at ${stamp(s.removedAt)}`
         : s.signedAt ? `Signed at: ${stamp(s.signedAt)}${network(envelope, i, ['signer.signed', 'signer.paper_uploaded'])}`
         : s.declinedAt ? `${s.consentWithdrawn ? 'Consent withdrawn' : 'Declined'} at: ${stamp(s.declinedAt)} · Reason: ${s.declineReason}${network(envelope, i, ['signer.declined', 'signer.consent_withdrawn'])}`
         : routingOrder(envelope, i) === routingOrder(envelope, envelope.signers.indexOf(declined!)) ? `Not signed: invited, but the envelope stopped at the ${withdrawn ? 'withdrawal' : 'decline'}`
         : `Not signed: never invited after the ${withdrawn ? 'withdrawal' : 'decline'}`,
       '',
     ]),
+    ...(envelope.copies ?? []).flatMap((c, k) => c.includeWhen && c.routeResult ? [`Copy recipient ${k + 1}: ${c.name} <${c.email}>`, copyRouteLine(c.includeWhen, c.routeResult, mailed.includes(envelope.signers.length + k)), ''] : []),
     ...envelope.events.flatMap(e => [`${stamp(e.at)} ${e.action}`, `Actor: ${e.actor}`, `Event hash: ${e.hash}`]),
   ]
   const document = await PDFDocument.create(), font = await document.embedFont(StandardFonts.Helvetica)
@@ -61,6 +64,12 @@ function wrap(line: string, width = 90) {
   }
   out.push(current)
   return out
+}
+function copyRouteLine(rule: RoutingRule, result: RoutingResult, queued: boolean) {
+  const text = `${rule.field} ${rule.operator} ${rule.value}`
+  if (result.state === 'skipped') return `Copy skipped at ${stamp(result.at)}: ${text}; result false (source ${result.value}); no completed-copy mail or link`
+  if (result.state === 'included') return `Copy included at ${stamp(result.at)}: ${text}; result true (source ${result.value})${queued ? '' : '; no completed-copy email was queued'}`
+  return `Copy rule unresolved at ${stamp(result.at)}: ${text}; source missing or hidden; ${queued ? 'rule unresolved, copy sent' : 'no completed-copy email was queued'}`
 }
 const stamp = (at: string) => `${at} UTC (${localStamp(at)})`
 const forSigner = (envelope: Envelope, signer: number, actions: string[]) => identityEvents(envelope, signer).filter(e => actions.includes(e.action) && e.detail.signer === signer)

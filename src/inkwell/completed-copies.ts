@@ -3,6 +3,7 @@ import { atomic, commandWrite, commitEnvelope, getEnvelope, roleGuard, type Guar
 import { mailSuppressed } from './manual-invitations'
 import { insistAccess } from './members'
 import { readBlob } from './blobs'
+import { normalizeRoutingRule } from './routing'
 import { envelopeArtifact } from './envelopes'
 import { copyWrite, dispatchMail } from './mail'
 import type { CommandContext } from './envelopes'
@@ -17,11 +18,17 @@ export interface Party { name: string; email: string; role: 'signer' | 'copy' }
 /** Signers first, in their list order, then copy recipients; a party's index is its place in this list. */
 export const parties = (envelope: Envelope): Party[] => [...envelope.signers.map(s => ({ name: s.name, email: s.email, role: 'signer' as const })), ...(envelope.copies ?? []).map(c => ({ ...c, role: 'copy' as const }))]
 
-/** ROUTE-001's "receives a copy" role: 0–20 people with no action link, each email distinct from every signer's. */
-export function chooseCopies(value: unknown, signers: { email: string }[]) {
+/** ROUTE-001's "receives a copy" role: 0–20 people with no action link, each email distinct from every signer's.
+ * ROUTE-003: before completion each may carry an include rule (validated against the fields by validateCopyRouting). */
+export function chooseCopies(value: unknown, signers: { email: string }[], rules = true) {
   if (value === undefined) return []
   insist(Array.isArray(value) && value.length <= copyLimit, `Add at most ${copyLimit} copy recipients.`)
-  const copies = value.map(item => { const c = object(item), email = text(c.email, 'the copy recipient email', 254).toLowerCase(); insist(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), 'Provide a valid copy recipient email.'); return { name: text(c.name, 'the copy recipient name', 100), email } })
+  const copies = value.map(item => {
+    const c = object(item), email = text(c.email, 'the copy recipient email', 254).toLowerCase(), includeWhen = normalizeRoutingRule(c.includeWhen)
+    insist(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), 'Provide a valid copy recipient email.')
+    insist(rules || !includeWhen, 'A completed copy sent after completion has no routing rule.')
+    return { name: text(c.name, 'the copy recipient name', 100), email, ...(includeWhen ? { includeWhen } : {}) }
+  })
   const emails = [...signers.map(s => s.email), ...copies.map(c => c.email)]
   insist(new Set(emails).size === emails.length, 'Each signer and copy recipient must use a different email.')
   return copies
@@ -41,13 +48,18 @@ export async function setCompletedCopies(env: Env, context: CommandContext, inpu
   return result
 }
 
-/** At completion, after the certificate exists: one completed-copy message per party, and a link row for each when
- * links are used. `bytes` is the executed PDF and certificate together. The envelope's own sender is not emailed a
- * copy: their account already files it (ROUTE-009 self-signing sends no mail at all). */
-export async function completedCopyWrites(env: Env, after: Envelope, bytes: number) {
+/** At completion: the parties who get a completed-copy message. The envelope's own sender is not emailed a copy: their
+ * account already files it (ROUTE-009 self-signing sends no mail at all). Removed signers and anyone skipped by a
+ * ROUTE-003 rule (signer or copy recipient) get nothing. With mail not set up, nobody. */
+export async function completedCopyRecipients(env: Env, after: Envelope) {
   if (mailSuppressed(env)) return []
   const sender = (await env.DB.prepare('SELECT lower(email) AS email FROM oa_operators WHERE id=?').bind(after.createdBy).first<{ email: string }>())?.email
-  const list = parties(after).flatMap((party, index) => party.email === sender || after.signers[index]?.removedAt ? [] : [index])
+  const skipped = (index: number) => (index < after.signers.length ? after.signers[index] : after.copies![index - after.signers.length]).routeResult?.state === 'skipped'
+  return parties(after).flatMap((party, index) => party.email === sender || after.signers[index]?.removedAt || skipped(index) ? [] : [index])
+}
+/** After the certificate exists: one completed-copy message per listed party, and a link row for each when links are
+ * used. `bytes` is the executed PDF and certificate together. */
+export async function completedCopyWrites(env: Env, after: Envelope, bytes: number, list: number[]) {
   return list.length ? copyWrites(env, after, bytes, list, 'envelope.copies_queued', 'inkwell') : []
 }
 async function copyWrites(env: Env, after: Envelope, bytes: number, indexes: number[], action: string, actor: string) {
@@ -72,7 +84,7 @@ export async function sendCompletedCopy(env: Env, context: CommandContext, input
   insist(before.status === 'completed' && !before.imported, 'Only a completed envelope has a completed copy to send.', 409)
   insist(!mailSuppressed(env), 'Mail is not set up. Download the executed PDF and certificate instead.', 409)
   insist(Array.isArray(input.recipients) && input.recipients.length >= 1, 'Add at least one person to send the copy to.')
-  const added = chooseCopies(input.recipients, [...before.signers, ...(before.copies ?? [])])
+  const added = chooseCopies(input.recipients, [...before.signers, ...(before.copies ?? [])], false)
   insist(added.length + (before.copies?.length ?? 0) <= copyLimit, `An envelope has at most ${copyLimit} copy recipients.`)
   const after = structuredClone(before), start = parties(before).length
   after.copies = [...(before.copies ?? []), ...added]
