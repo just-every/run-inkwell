@@ -52,14 +52,15 @@ export async function searchEnvelopes(env: Env, actor: Actor, params: URLSearchP
   }
   // One materialized search supplies both totals and the page: one D1 round trip and one evaluation of the
   // recipient search, access predicates and routing buckets, with totals and results from the same snapshot.
+  type PageRow = { kind: 'envelope'; id: string; data: string; created: string; bucket: Bucket; share: string | null }
   const result = await env.DB.prepare(`WITH filtered AS MATERIALIZED (${filtered}),
-    totals AS (SELECT bucket, count(*) AS n FROM filtered GROUP BY bucket),
     page AS (SELECT id, data, created, bucket, share FROM filtered${page.length ? ' WHERE ' + page.join(' AND ') : ''} ORDER BY created DESC, id DESC LIMIT ${limit + 1})
-    SELECT (SELECT json_group_array(json_object('bucket',bucket,'n',n)) FROM totals) AS counts,
-    (SELECT json_group_array(json_object('id',id,'data',data,'created',created,'bucket',bucket,'share',share)) FROM page) AS rows`).bind(...pageValues).first<{ counts: string; rows: string }>()
-  insist(result, 'The envelope search could not be completed.', 503)
-  for (const row of JSON.parse(result.counts) as { bucket: Bucket; n: number }[]) counts[row.bucket] = row.n
-  const rows = JSON.parse(result.rows) as { id: string; data: string; created: string; bucket: Bucket; share: string | null }[]
+    SELECT 'count' AS kind, NULL AS id, NULL AS data, NULL AS created, bucket, NULL AS share, count(*) AS n FROM filtered GROUP BY bucket
+    UNION ALL SELECT 'envelope' AS kind, id, data, created, bucket, share, NULL AS n FROM page
+    ORDER BY kind, created DESC, id DESC`).bind(...pageValues).all<PageRow | { kind: 'count'; bucket: Bucket; n: number }>()
+  // Keep documents in separate rows instead of aggregating the whole page into one large SQLite string.
+  for (const row of result.results) if (row.kind === 'count') counts[row.bucket] = row.n
+  const rows = result.results.filter((row): row is PageRow => row.kind === 'envelope')
   const more = rows.length > limit, shown = rows.slice(0, limit)
   return {
     envelopes: shown.map(row => { const envelope: Envelope = JSON.parse(row.data); return { ...presentEnvelope(env, actor, envelope, accessFrom(actor, envelope, row.share)), bucket: row.bucket } }),
