@@ -21,11 +21,11 @@ export default {
       const source=table(name);if(!source)return;
       for(let offset=0;;offset+=2){const batch=(await db.prepare(`SELECT * FROM ${source}${where?' WHERE '+where:''} ORDER BY rowid LIMIT 2 OFFSET ?`).bind(...values,offset).all()).results;if(!batch.length)break;yield* batch;}
     }
-    async function fingerprint(name,where,values,expected,partColumn='part',dataColumn='data') {
+    async function fingerprint(name,where,values,expected,partColumn='part',dataColumn='data',base64Chunks=false) {
       const source=table(name);if(!source)return false;
       const digest=createHash('sha256');let part=0;
       for(;;){const batch=(await db.prepare(`SELECT ${partColumn} AS part,${dataColumn} AS data FROM ${source} WHERE ${where} AND ${partColumn}>=? ORDER BY ${partColumn} LIMIT 4`).bind(...values,part).all()).results;if(!batch.length)break;
-       for(const row of batch){if(row.part!==part++)return false;digest.update(new Uint8Array(row.data));}}
+       for(const row of batch){if(row.part!==part++)return false;digest.update(base64Chunks?Buffer.from(row.data,'base64'):new Uint8Array(row.data));}}
       return part>0&&digest.digest('hex')===expected;
     }
     for await(const row of rows('iw_envelopes')) {
@@ -58,7 +58,7 @@ export default {
     }
     for await(const row of rows('ik_originals')){
       if(row.bytes!==null&&row.bytes!==undefined){if(createHash('sha256').update(new Uint8Array(row.bytes)).digest('hex')!==row.sha256)return false;}
-      else if(table('ik_d1_original_chunks')){const available=await db.prepare(`SELECT 1 FROM ${table('ik_d1_original_chunks')} WHERE job_id=? AND kind=? AND original_key=? LIMIT 1`).bind(row.job_id,row.kind,row.original_key).first();if(available&&!await fingerprint('ik_d1_original_chunks','job_id=? AND kind=? AND original_key=?',[row.job_id,row.kind,row.original_key],row.sha256,'ordinal','bytes'))return false;}
+      else if(table('ik_d1_original_chunks')){const version=table('ik_original_sets')?await db.prepare(`SELECT version FROM ${table('ik_original_sets')} WHERE job_id=?`).bind(row.job_id).first():null;const available=await db.prepare(`SELECT 1 FROM ${table('ik_d1_original_chunks')} WHERE job_id=? AND kind=? AND original_key=? LIMIT 1`).bind(row.job_id,row.kind,row.original_key).first();if(available&&!await fingerprint('ik_d1_original_chunks','job_id=? AND kind=? AND original_key=?',[row.job_id,row.kind,row.original_key],row.sha256,'ordinal','bytes',version?.version===3))return false;}
     }
     return true;
   },

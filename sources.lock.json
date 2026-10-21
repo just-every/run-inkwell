@@ -111,7 +111,7 @@
       "executable": false
     },
     "docs/backup-and-restore.md": {
-      "sha256": "0b2079c0fc3f37eee04a07fb43d3bb418257cac3ae0c899b86da1c773b9af4c4",
+      "sha256": "8c983b40d857bc817f50a72d488b8c6fb87013057c95e225fb5e522073daa5ce",
       "executable": false
     },
     "docs/deploy.md": {
@@ -751,7 +751,7 @@
       "executable": false
     },
     "src/inkwell/archive-policy.mjs": {
-      "sha256": "d1a40f28a24e8530eb9849b447a8a8093c78992652a1c895f91f4534d403d276",
+      "sha256": "af9c126d86994d13bc2807a60727078144a91e0b57071d2931cbaf7839678617",
       "executable": false
     },
     "src/inkwell/archive-transfers.ts": {
