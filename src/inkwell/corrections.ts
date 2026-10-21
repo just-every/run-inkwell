@@ -94,7 +94,7 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
   const fixedFields = (fields: Field[]) => canonical(fields.filter(f => settled(before.signers[f.signer] ?? {} as Signer) && !before.signers[f.signer].removedAt).sort((a, b) => a.id.localeCompare(b.id)))
   insist(fixedFields(after.fields) === fixedFields(before.fields), 'A field of a recipient who has already signed cannot be changed.', 409)
 
-  documentFields(after.fields,after.documents,after.signers.length,Boolean(after.freeForm))
+  documentFields(after.fields,after.documents,after.signers.length,Boolean(after.freeForm),removedPlaces)
   validateRouting(after.signers,after.fields)
   guardRoutingCorrection(before,after)
 

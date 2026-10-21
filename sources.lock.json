@@ -811,7 +811,7 @@
       "executable": false
     },
     "src/inkwell/corrections.ts": {
-      "sha256": "569e4f3ab0dcb7c6f9db1da72015867b7616eb3d75b90eaa1550d70fadf398fe",
+      "sha256": "680364f3010092238707e58d5862ccfbd052799336384069992c7bc9780999f5",
       "executable": false
     },
     "src/inkwell/delivery.ts": {
@@ -835,7 +835,7 @@
       "executable": false
     },
     "src/inkwell/documents.ts": {
-      "sha256": "2baef8af34a101e865d48d2fcf6557ae2f8ca0b8ebd7313e8f17778c65ff4f16",
+      "sha256": "de91a4235d2e8f7294ca952c70beb393df4e32110222cf1adb1e692449724134",
       "executable": false
     },
     "src/inkwell/drafts.ts": {
@@ -3127,7 +3127,7 @@
       "executable": false
     },
     "src/ui/ordered-documents.tsx": {
-      "sha256": "9af4ecf51dbe2df49392328a6b07766e277910b7f5d8ed679dfa036da99b8ad2",
+      "sha256": "1c217f2ddc24affb3630acb6063d5d6973bf5bf87a61488aa2d255552b6c6746",
       "executable": false
     },
     "src/ui/page-thumbnails.tsx": {
