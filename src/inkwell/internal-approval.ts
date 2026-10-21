@@ -99,6 +99,7 @@ export const eligibilityStatement = 'I confirm this document is eligible for ele
 /** The confirmed send waits for the approvers: the draft is locked and nobody is invited. */
 export async function requestApproval(env: Env, context: CommandContext, before: Envelope, steps: ApprovalStep[], schedule?: Schedule) {
   const after = structuredClone(before), at = now(), waiting = steps.filter(s => !s.decision)
+  delete after.sendHold
   after.internalApproval = { state: 'pending', requestedAt: at, requestedBy: { id: context.actor.id, name: context.actor.name, email: context.actor.email.toLowerCase() }, ...(schedule ? { schedule } : {}), steps }
   await appendEvent(after, 'envelope.internal_approval_requested', context.actor.id, { sendingSha256: await sendingFingerprint(after), eligible: true, consent: true, statement: eligibilityStatement, originalSha256: after.originalSha256, steps: steps.map(({ approver, name, rules, why, bySender }) => ({ approver, name, rules, why, ...(bySender ? { approvedBySender: true } : {}) })), ...(schedule ? { sendAt: schedule.at, sendAtLocal: schedule.local, timeZone: schedule.timeZone } : {}) }, at)
   const result = { id: after.id, status: after.status, waitingForApproval: waiting.map(s => s.name) }
