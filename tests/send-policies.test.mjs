@@ -28,7 +28,6 @@ test('ADMIN-004: send policies are per-source immutable versions only an owner o
     await h.command('account.send_policy', { source: 'template', templates: ['no-such-template'], expectedVersion: 0 }, h.owner, 400)
     const first = (await set(h, 'template', { mode: 'off', reason: 'Pause template sends' })).result.policy
     assert.equal(first.version, 1)
-    assert.equal((await set(h, 'template', { mode: 'off' })).result.unchanged, true, 'saving the same settings makes no version')
     await h.command('account.send_policy', { source: 'template', mode: 'person', expectedVersion: 0 }, h.owner, 409)
     const [x, y] = await Promise.all([h.send('/api/inkwell/commands', { command: 'account.send_policy', input: { source: 'template', mode: 'person', expectedVersion: 1 }, commandId: crypto.randomUUID() }, h.owner), h.send('/api/inkwell/commands', { command: 'account.send_policy', input: { source: 'template', mode: 'person', deferredRelease: false, expectedVersion: 1 }, commandId: crypto.randomUUID() }, admin)])
     assert.deepEqual([x.status, y.status].sort(), [200, 409], 'exactly one concurrent save of a version wins')
@@ -47,6 +46,27 @@ test('ADMIN-004: send policies are per-source immutable versions only an owner o
     await set(h, 'bulk', { templates: [t] })
     await set(h, 'bulk', { templates: null }, h.owner, 403)
     assert.equal((await set(h, 'bulk', { templates: null }, admin)).result.policy.templates, null, 'widening the templates is allowed after a fresh sign-in')
+    // Every explicit save is kept, including unchanged settings and a reason. A retry is not another save.
+    const savedBefore = await current(h, 'bulk'), commandId = crypto.randomUUID()
+    const same = { source: 'bulk', expectedVersion: savedBefore.version, reason: 'Reviewed and retained the current policy' }
+    const saved = (await h.command('account.send_policy', same, admin, 200, commandId)).result.policy
+    assert.equal(saved.version, savedBefore.version + 1)
+    assert.equal(saved.reason, same.reason)
+    const unchangedSettings = ({ mode, templates, requireInternalApproval, deferredRelease }) => ({ mode, templates, requireInternalApproval, deferredRelease })
+    assert.deepEqual(unchangedSettings(saved), unchangedSettings(savedBefore))
+    const entry = (await policies(h)).history.find(p => p.source === 'bulk' && p.version === saved.version)
+    assert.deepEqual(entry.before, { ...unchangedSettings(savedBefore), version: savedBefore.version })
+    assert.equal(entry.actor, (await h.send('/api/inkwell', undefined, admin)).value.actor.id)
+    assert.ok(Number.isFinite(Date.parse(entry.at)))
+    const later = (await set(h, 'bulk', { mode: 'off' }, admin)).result.policy
+    assert.deepEqual((await h.command('account.send_policy', same, admin, 200, commandId)).result.policy, saved, 'retry returns its original version even after an intervening save')
+    assert.deepEqual(await current(h, 'bulk'), later, 'retry never reapplies the old settings')
+    assert.equal((await policies(h)).history.filter(p => p.source === 'bulk' && p.version >= saved.version).length, 2, 'the retry creates no additional history')
+    await h.command('account.send_policy', { ...same, mode: 'person' }, admin, 409, commandId)
+    const retained = (await h.command('account.send_policy', { source: 'bulk', expectedVersion: later.version }, admin)).result.policy
+    assert.equal(retained.version, later.version + 1, 'even an unchanged save without a reason is a new explicit version')
+    assert.equal(retained.reason, null)
+    assert.equal(retained.mode, 'off')
   } finally { await h.close() }
 })
 
@@ -196,5 +216,62 @@ test('SEND-001 and ADMIN-004: a scheduled send is held when its policy turns off
     const count = h.attempted().filter(m => m.subject === 'Sending held: Sender hold letter').length
     await h.scheduled(Date.now() + 4 * 86400000)
     assert.equal(h.attempted().filter(m => m.subject === 'Sending held: Sender hold letter').length, count, 'hourly passes do not duplicate a held notification')
+  } finally { await h.close() }
+})
+
+
+test('ADMIN-004: reminder and expiry defaults are administered, inherited by new drafts and templates, overridden explicitly and never change saved records', async () => {
+  const h = await harness()
+  try {
+    const admin = await h.invite('defaults.admin@harbour.example', 'admin'), sender = await h.invite('defaults.sender@harbour.example', 'member'), viewer = await h.invite('defaults.viewer@harbour.example', 'member')
+    await h.command('member.role', { operatorId: (await h.send('/api/inkwell', undefined, sender)).value.actor.id, role: 'sender' })
+    const settings = async cookie => (await h.send('/api/inkwell/envelope-defaults', undefined, cookie ?? h.owner)).value.defaults
+    const save = async (input, cookie = h.owner, status = 200) => h.command('account.envelope_defaults', { expectedVersion: (await settings()).version, ...input }, cookie, status)
+    const prepare = async (title, options = {}) => (await h.command('envelope.prepare', { ...await draft(title, title.toLowerCase().replaceAll(' ', '.') + '@clients.example'), ...options }, sender)).result.id
+    const days = e => Math.round((Date.parse(e.expiresAt) - Date.parse(e.createdAt)) / 86400000)
+    assert.deepEqual([ (await settings()).expiryDays, (await settings()).reminders ], [120, null])
+    assert.equal((await h.send('/api/inkwell/envelope-defaults')).status, 401)
+    assert.equal((await h.send('/api/inkwell/envelope-defaults', undefined, viewer)).status, 403)
+    const old = await prepare('Before defaults'), oldTemplate = await template(h)
+    for (const cookie of [sender, viewer]) await save({ expiryDays: 21, reminders: null }, cookie, 403)
+    for (const expiryDays of [0, 366, 1.5]) await save({ expiryDays, reminders: null }, admin, 400)
+    await save({ expiryDays: 21, reminders: { afterDays: 0, everyDays: 2 } }, admin, 400)
+    await save({ expiryDays: 21, reminders: { afterDays: 1, everyDays: 31 } }, admin, 400)
+    await save({ expiryDays: 21 }, admin, 400)
+    assert.equal((await settings()).version, 0, 'refusals leave defaults untouched')
+    const defaults = (await save({ expiryDays: 21, reminders: { afterDays: 2, everyDays: 3 } })).result.defaults
+    assert.equal(defaults.actor, (await h.send('/api/inkwell', undefined, h.owner)).value.actor.id)
+    assert.ok(Number.isFinite(Date.parse(defaults.at)))
+    await h.command('account.envelope_defaults', { expectedVersion: 0, expiryDays: 10, reminders: null }, admin, 409)
+    const inherited = await prepare('Inherited reminders'), inheritedEnvelope = await read(h, inherited)
+    assert.equal(days(inheritedEnvelope), 21); assert.deepEqual(inheritedEnvelope.reminders, defaults.reminders)
+    assert.equal(days(await read(h, old)), 120); assert.equal((await read(h, old)).reminders, undefined)
+    const explicitAt = new Date(Date.now() + 9 * 86400000).toISOString()
+    const explicit = await prepare('Explicit override', { expiresAt: explicitAt, reminders: { afterDays: 1, everyDays: 1 } })
+    assert.equal((await read(h, explicit)).expiresAt, explicitAt); assert.deepEqual((await read(h, explicit)).reminders, { afterDays: 1, everyDays: 1 })
+    const off = await prepare('Reminders off', { reminders: null })
+    assert.equal((await read(h, off)).reminders, undefined, 'null explicitly overrides account reminders')
+    const t = (await h.command('template.save', { title: 'Inherited defaults template', filename: 'letter.pdf', pdfBase64: await pdfBase64(), roles: [{ role: 'Client', order: 1 }], fields: [field] })).result.id
+    const templated = await fromTemplate(h, t, 'template.defaults@clients.example'), oldTemplated = await fromTemplate(h, oldTemplate, 'old.template@clients.example')
+    assert.equal(days(await read(h, templated)), 21); assert.deepEqual((await read(h, templated)).reminders, defaults.reminders)
+    assert.equal(days(await read(h, oldTemplated)), 30); assert.equal((await read(h, oldTemplated)).reminders, undefined, 'an existing template with reminders off overrides the account')
+    const changed = (await save({ expiryDays: 12, reminders: null }, admin)).result.defaults
+    assert.equal(changed.actor, (await h.send('/api/inkwell', undefined, admin)).value.actor.id)
+    assert.equal(days(await read(h, inherited)), 21); assert.deepEqual((await read(h, inherited)).reminders, defaults.reminders)
+    const stillTemplate = await fromTemplate(h, t, 'still.template@clients.example')
+    assert.equal(days(await read(h, stillTemplate)), 21); assert.deepEqual((await read(h, stillTemplate)).reminders, defaults.reminders, 'saved templates keep their snapshot')
+    const fresh = await prepare('New defaults')
+    assert.equal(days(await read(h, fresh)), 12); assert.equal((await read(h, fresh)).reminders, undefined)
+    // An inherited reminder actually reaches the current recipient through the normal scheduler and paid mail edge.
+    await h.command('envelope.approve', { id: inherited, eligible: true }, sender)
+    await h.command('envelope.approve', { id: off, eligible: true }, sender)
+    let at = new Date(Date.now() + 7 * 86400000); at.setUTCHours(16, 0, 0, 0)
+    while ([0, 6].includes(at.getUTCDay())) at = new Date(at.getTime() + 86400000)
+    await h.scheduled(at.getTime())
+    assert.ok(await h.mail('inherited.reminders@clients.example', 'Reminder to sign:'))
+    assert.equal(await h.mail('reminders.off@clients.example', 'Reminder to sign:'), undefined)
+    const copy = (await h.command('envelope.copy', { id: inherited }, sender)).result.id
+    assert.equal(days(await read(h, copy)), 12, 'a copied envelope starts with the current account expiry')
+    assert.deepEqual((await read(h, copy)).reminders, defaults.reminders, 'a copy keeps the source envelope reminder choice')
   } finally { await h.close() }
 })

@@ -70,7 +70,7 @@ export async function setSendPolicy(env: Env, context: CommandContext, input: Re
   const widens = before.templates !== null && (templates === null || templates.some(t => !before.templates!.includes(t)))
   const needsFresh = (mode === 'autonomous' && before.mode !== 'autonomous') || widens
   const next = { mode, templates, requireInternalApproval, deferredRelease }
-  if (JSON.stringify(next) === JSON.stringify({ mode: before.mode, templates: before.templates, requireInternalApproval: before.requireInternalApproval, deferredRelease: before.deferredRelease })) return { policy: before, unchanged: true }
+  // Each explicit save is a version, even when settings match: preserve its reason and command receipt atomically.
   const policy: SendPolicy = { scope: 'account', source, ...next, version: before.version + 1, actor: actor.id, at: now(), reason }
   const fresh: Guard[] = needsFresh ? [{ sql: 'EXISTS(SELECT 1 FROM oa_sessions WHERE id=? AND created_at>=?)', values: [actor.sessionId, Date.now() - freshSeconds * 1000] }] : []
   if (needsFresh) insist((await env.DB.prepare('SELECT created_at AS at FROM oa_sessions WHERE id=?').bind(actor.sessionId).first<{ at: number }>())!.at >= Date.now() - freshSeconds * 1000, 'Sign in again: making a source autonomous or widening its templates needs a sign-in from the last 15 minutes.', 403)

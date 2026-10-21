@@ -29,3 +29,20 @@ export function RetentionRule({ retention, refresh }: { retention: Retention; re
     {retention.purged.length > 0 && <details><summary>Purged ({retention.purged.length})</summary><ul>{retention.purged.map(p => <li key={p.envelopeId}>{p.envelopeId} · {p.ended} {dateTime(p.endedAt)} · warned {dateTime(p.warnedAt)} · purged {dateTime(p.purgedAt)} under {p.years} years</li>)}</ul></details>}
   </section>
 }
+
+/** ADMIN-004: initial values for new envelopes and templates; existing records keep their own choices. */
+export function EnvelopeDefaultsSettings({ defaults, refresh }: { defaults: import('./types').EnvelopeDefaults; refresh: () => Promise<void> }) {
+  const [expiryDays, setExpiryDays] = useState(defaults.expiryDays), [remind, setRemind] = useState(Boolean(defaults.reminders))
+  const [afterDays, setAfterDays] = useState(defaults.reminders?.afterDays ?? 2), [everyDays, setEveryDays] = useState(defaults.reminders?.everyDays ?? 2)
+  const action = useAction()
+  return <section className="iw-panel iw-stack" aria-label="Envelope defaults"><h2>Envelope defaults</h2>
+    <p>New envelopes and templates start with these choices. A template or an envelope can override them; existing envelopes and saved templates keep their settings.</p>
+    <form className="iw-stack" onSubmit={event => { event.preventDefault(); void action.run(async () => { await command('account.envelope_defaults', { expiryDays, reminders: remind ? { afterDays, everyDays } : null, expectedVersion: defaults.version }); await refresh() }) }}>
+      <label>Default expiry (days)<input type="number" required min={1} max={365} step={1} value={expiryDays} disabled={action.busy} onChange={event => setExpiryDays(Number(event.target.value))} /></label>
+      <label className="iw-check"><input type="checkbox" checked={remind} disabled={action.busy} onChange={event => setRemind(event.target.checked)} />Enable automatic reminders by default</label>
+      {remind && <div className="iw-two"><label>Default first reminder (business days)<input type="number" required min={1} max={30} step={1} value={afterDays} disabled={action.busy} onChange={event => setAfterDays(Number(event.target.value))} /></label><label>Default repeat reminder (business days)<input type="number" required min={1} max={30} step={1} value={everyDays} disabled={action.busy} onChange={event => setEveryDays(Number(event.target.value))} /></label></div>}
+      <p className="iw-muted">Business days are Monday to Friday, Eastern time; reminders go out from 9 am and stop once the recipient signs.</p>
+      <ErrorNotice error={action.error} /><button className="iw-fit" disabled={action.busy}>{action.busy ? 'Saving…' : 'Save envelope defaults'}</button>
+    </form>
+  </section>
+}

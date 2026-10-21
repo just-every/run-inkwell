@@ -10,8 +10,8 @@ import type { CommandContext } from './envelopes'
 const day = 86_400_000
 export const defaultExpiryDays = 120, warningDays = 3, maxExpiryDays = 365
 
-export function chooseExpiry(value: unknown, createdAt: string) {
-  if (value === undefined) return new Date(Date.parse(createdAt) + defaultExpiryDays * day).toISOString()
+export function chooseExpiry(value: unknown, createdAt: string, expiryDays = defaultExpiryDays) {
+  if (value === undefined) return new Date(Date.parse(createdAt) + expiryDays * day).toISOString()
   const at = Date.parse(text(value, 'an expiry date', 40))
   insist(!Number.isNaN(at), 'Provide the expiry as a date and time.')
   insist(at > Date.now(), 'Choose an expiry in the future.')

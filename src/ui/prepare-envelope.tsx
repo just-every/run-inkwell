@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { command, fileBase64, request, type Envelope, type Field, type Signer } from './types'
+import { command, fileBase64, request, type Envelope, type EnvelopeDefaults, type Field, type Signer } from './types'
 import type { Template } from './templates'
 import type { TemplateFolder } from './template-sharing'
 import type { RoutingRule } from '../inkwell/model'
@@ -62,7 +62,7 @@ export function PrepareEnvelope({ draft, correcting, asTemplate, template, folde
   const action = useAction()
   const groups = useSigningGroups()
   const source = draft ?? correcting
-  useEffect(() => { void action.run(async () => { const result = await request<{ policy: { enabled: boolean } }>('/api/inkwell/freeform-policy'); setFreeFormAllowed(result.policy.enabled) }) }, [])
+  useEffect(() => { void action.run(async () => { const [result, settings] = await Promise.all([request<{ policy: { enabled: boolean } }>('/api/inkwell/freeform-policy'), request<{ defaults: EnvelopeDefaults }>('/api/inkwell/envelope-defaults')]); setFreeFormAllowed(result.policy.enabled); if (!source && !template) { setExpiryDays(settings.defaults.expiryDays); setRemind(Boolean(settings.defaults.reminders)); setAfterDays(settings.defaults.reminders?.afterDays ?? 2); setEveryDays(settings.defaults.reminders?.everyDays ?? 2) } }) }, [])
   useEffect(() => {
     if (!template) return
     void action.run(async () => {
@@ -72,7 +72,7 @@ export function PrepareEnvelope({ draft, correcting, asTemplate, template, folde
       setFile(new File([bytes], template.filename, { type: 'application/pdf' })); setPdf(bytes); setTitle(template.title)
       setSigners(template.roles.map(role => ({ name: role.role, email: '', accessCode: '', order: role.order, needsCode: Boolean(role.accessCode), linkOnly: Boolean(role.linkOnly), includeWhen: role.includeWhen, message: role.message ?? '' })))
       setFields(template.fields); setAllowPaper(Boolean(template.allowPaper)); setAllowReassign(Boolean(template.allowReassign)); setSubject(template.subject ?? ''); setMessage(template.message ?? ''); setExpiryDays(template.expiryDays)
-      if (template.reminders) { setRemind(true); setAfterDays(template.reminders.afterDays); setEveryDays(template.reminders.everyDays) }
+      setRemind(Boolean(template.reminders)); if (template.reminders) { setRemind(true); setAfterDays(template.reminders.afterDays); setEveryDays(template.reminders.everyDays) }
     })
   }, [template?.id])
   useEffect(() => {
@@ -101,10 +101,10 @@ export function PrepareEnvelope({ draft, correcting, asTemplate, template, folde
         return onSaved(correcting.id)
       }
       if (asTemplate) {
-        const saved = await command<{ id: string }>(template ? 'template.update' : 'template.save', { ...(template ? { id: template.id } : {}), title, filename: file.name, pdfBase64: await fileBase64(file), roles: signers.map(({ name, order, needsCode, linkOnly, includeWhen, message: note }) => ({ role: name, order, ...(includeWhen ? { includeWhen } : {}), ...(needsCode ? { accessCode: true } : {}), ...(linkOnly ? { linkOnly: true } : {}), ...(note?.trim() ? { message: note } : {}) })), fields, ...(subject.trim() ? { subject } : {}), ...(message.trim() ? { message } : {}), expiryDays, ...(allowPaper ? { allowPaperSigning: true } : {}), ...(allowReassign ? { allowReassignment: true } : {}), ...(remind ? { reminders: { afterDays, everyDays } } : {}), tags: tags.split(',').map(tag => tag.trim()).filter(Boolean), folderId: folderId || null, approval: ruleInput(approval) })
+        const saved = await command<{ id: string }>(template ? 'template.update' : 'template.save', { ...(template ? { id: template.id } : {}), title, filename: file.name, pdfBase64: await fileBase64(file), roles: signers.map(({ name, order, needsCode, linkOnly, includeWhen, message: note }) => ({ role: name, order, ...(includeWhen ? { includeWhen } : {}), ...(needsCode ? { accessCode: true } : {}), ...(linkOnly ? { linkOnly: true } : {}), ...(note?.trim() ? { message: note } : {}) })), fields, ...(subject.trim() ? { subject } : {}), ...(message.trim() ? { message } : {}), expiryDays, ...(allowPaper ? { allowPaperSigning: true } : {}), ...(allowReassign ? { allowReassignment: true } : {}), reminders: remind ? { afterDays, everyDays } : null, tags: tags.split(',').map(tag => tag.trim()).filter(Boolean), folderId: folderId || null, approval: ruleInput(approval) })
         return onSaved(saved.id)
       }
-      const input = { ...(freeForm ? { freeForm: true } : {}), title, filename: file.name, pdfBase64: await fileBase64(file), signers: signers.map(({ accessCode, keep, message: note, role: _role, needsCode: _needsCode, routingLocked: _routingLocked, values: _values, routeResult: _routeResult, signedAt: _signedAt, activatedAt: _activatedAt, removedAt: _removedAt, linkOnly, group, groupLabel: _label, ...recipient }) => ({ ...(group ? { group, order: recipient.order, ...(recipient.includeWhen ? { includeWhen: recipient.includeWhen } : {}) } : recipient), ...(linkOnly ? { linkOnly: true } : {}), ...(accessCode ? { accessCode } : keep ? { keepAccessCode: true } : {}), ...(note?.trim() ? { message: note } : {}) })), fields, ...(subject.trim() ? { subject } : {}), ...(message.trim() ? { message } : {}), expiresAt: new Date(Date.now() + expiryDays * 86_400_000).toISOString(), ...(copies.length ? { copies } : {}), ...(allowPaper ? { allowPaperSigning: true } : {}), ...(allowReassign ? { allowReassignment: true } : {}), ...(remind ? { reminders: { afterDays, everyDays } } : {}) }
+      const input = { ...(freeForm ? { freeForm: true } : {}), title, filename: file.name, pdfBase64: await fileBase64(file), signers: signers.map(({ accessCode, keep, message: note, role: _role, needsCode: _needsCode, routingLocked: _routingLocked, values: _values, routeResult: _routeResult, signedAt: _signedAt, activatedAt: _activatedAt, removedAt: _removedAt, linkOnly, group, groupLabel: _label, ...recipient }) => ({ ...(group ? { group, order: recipient.order, ...(recipient.includeWhen ? { includeWhen: recipient.includeWhen } : {}) } : recipient), ...(linkOnly ? { linkOnly: true } : {}), ...(accessCode ? { accessCode } : keep ? { keepAccessCode: true } : {}), ...(note?.trim() ? { message: note } : {}) })), fields, ...(subject.trim() ? { subject } : {}), ...(message.trim() ? { message } : {}), expiresAt: new Date(Date.now() + expiryDays * 86_400_000).toISOString(), ...(copies.length ? { copies } : {}), ...(allowPaper ? { allowPaperSigning: true } : {}), ...(allowReassign ? { allowReassignment: true } : {}), reminders: remind ? { afterDays, everyDays } : null }
       const result = draft ? await command<{ id: string }>('envelope.update', { id: draft.id, ...input }) : await command<{ id: string }>('envelope.prepare', input)
       await onSaved(result.id)
     })

@@ -1,3 +1,4 @@
+import { envelopeDefaults } from './envelope-defaults'
 import { normalizeRoutingRule, validateCopyRouting, validateRouting } from './routing'
 import { fromBase64, blobWrites, readBlob } from './blobs'
 import { parsePdf, validateFields, validatePdfText, validatePrefilledFields } from './pdf'
@@ -21,6 +22,7 @@ const optional = (value: unknown, label: string, max: number, oneLine = false) =
 /** `previous` is the draft being saved again: a recipient at the same place with the same email may keep their access
  * code (`keepAccessCode`), which is bound to that place. */
 export async function readDraft(env: Env, input: Record<string, unknown>, base: string, previous?: Envelope) {
+  const defaults = previous ? undefined : await envelopeDefaults(env)
   const title = text(input.title, 'a title'), filename = text(input.filename, 'a filename', 240)
   insist(!/[\x00-\x1f/\\]/.test(filename) && filename.toLowerCase().endsWith('.pdf'), 'Choose a PDF filename.')
   insist(!/[\r\n\t]/.test(title), 'Use a single line for the envelope title.')
@@ -69,10 +71,10 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   insist(input.allowPaperSigning === undefined || typeof input.allowPaperSigning === 'boolean', 'Choose whether recipients may sign on paper.')
   // ROUTE-006: whether a recipient may reassign their signing to someone else; off unless the sender turns it on.
   insist(input.allowReassignment === undefined || typeof input.allowReassignment === 'boolean', 'Choose whether recipients may reassign their signing.')
-  const allowPaper = input.allowPaperSigning === true, allowReassign = input.allowReassignment === true, reminders = chooseReminders(input.reminders)
+  const allowPaper = input.allowPaperSigning === true, allowReassign = input.allowReassignment === true, reminders = chooseReminders(input.reminders === undefined ? defaults?.reminders : input.reminders)
   const subject = optional(input.subject, 'the email subject', 200, true), message = optional(input.message, 'the message', 2000)
   await validatePdfText([title, ...[...signers, ...copies].flatMap(s => [s.name, s.email]), ...signers.flatMap(s => s.group ? s.group.members.flatMap(m => [m.name, m.email]) : [])])
-  const draft: Draft = { ...(freeForm ? { freeForm: true } : {}), title, filename, signers, fields, pageSizes, originalSha256: await sha256(bytes), expiresAt: chooseExpiry(input.expiresAt, base), ...(allowPaper ? { allowPaper } : {}), ...(allowReassign ? { allowReassign } : {}), ...(reminders ? { reminders } : {}), ...(copies.length ? { copies } : {}), ...(subject ? { subject } : {}), ...(message ? { message } : {}) }
+  const draft: Draft = { ...(freeForm ? { freeForm: true } : {}), title, filename, signers, fields, pageSizes, originalSha256: await sha256(bytes), expiresAt: chooseExpiry(input.expiresAt, base, defaults?.expiryDays), ...(allowPaper ? { allowPaper } : {}), ...(allowReassign ? { allowReassign } : {}), ...(reminders ? { reminders } : {}), ...(copies.length ? { copies } : {}), ...(subject ? { subject } : {}), ...(message ? { message } : {}) }
   return { draft, bytes, accessCodes }
 }
 /** The event detail a saved draft records (prepared or updated). */
