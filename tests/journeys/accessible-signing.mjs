@@ -11,6 +11,7 @@
 // PREP-005's field editing (place on a page or thumbnail, drag, resize, duplicate, align, reassign) joins the scan and
 // the keyboard-only pass with the same checks (./a11y.mjs) in tests/journeys/field-placement.mjs.
 import assert from 'node:assert/strict'
+import { expect } from '@playwright/test'
 import { PDFDocument, StandardFonts } from 'pdf-lib'
 import { screenshots, startInkwell } from './worker.mjs'
 import { axe, tabTo } from './a11y.mjs'
@@ -54,9 +55,13 @@ try {
   // 2. Keyboard only, from an empty preparation form to a completed envelope.
   const owner = await browser.newContext({ viewport: { width: 1440, height: 900 } }); await owner.addCookies([ownerCookie()])
   const app = await owner.newPage(); await app.goto(`${origin}/app`)
-  await tabTo(app, app.getByRole('button', { name: 'New envelope' })); await app.keyboard.press('Enter')
+  await tabTo(app, app.getByRole('button', { name: 'New envelope' }))
+  // Preparation loads its settings asynchronously and disables the file input meanwhile.
+  const policyLoaded = app.waitForResponse(response => response.url().endsWith('/api/inkwell/freeform-policy'))
+  await app.keyboard.press('Enter'); await (await policyLoaded).finished()
   await tabTo(app, app.getByLabel('Envelope title')); await app.keyboard.type('Keyboard access agreement')
-  await tabTo(app, app.getByLabel('Fixed PDF document'))
+  const fileInput = app.getByLabel('Fixed PDF document')
+  await expect(fileInput).toBeEnabled(); await tabTo(app, fileInput); await expect(fileInput).toBeFocused()
   const [chooser] = await Promise.all([app.waitForEvent('filechooser'), app.keyboard.press('Space')])
   await chooser.setFiles({ name: 'access.pdf', mimeType: 'application/pdf', buffer: await pdfBytes() })
   await tabTo(app, app.getByLabel('Recipient 1 name')); await app.keyboard.type('Kai Morgan')

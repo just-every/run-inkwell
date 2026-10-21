@@ -3175,7 +3175,7 @@
       "executable": false
     },
     "tests/journeys/accessible-signing.mjs": {
-      "sha256": "03f1ffec57e9fe73e80037a6135548171bd5e08d65adef8990c507f961801af3",
+      "sha256": "271fa5507c9e0e316a2b067c5f21fbd2fda90dd8805cbc81a9684d26389b8afe",
       "executable": false
     },
     "tests/journeys/conditional-fields.mjs": {
