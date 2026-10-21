@@ -57,7 +57,7 @@ try {
   await app.command('account.freeform', { enabled: true, expectedVersion: policy.version })
   for (const width of [1440, 390]) {
     const title = `Workshop production approval ${width}`, firstEmail = `mara-${width}@supplier.example`, secondEmail = `theo-${width}@harbour.example`
-    const id = (await app.command('envelope.prepare', { title, filename: 'approval.pdf', pdfBase64, freeForm: true, allowReassign: true, fields: [], signers: [{ name: 'Mara Quinn', email: firstEmail, order: 1 }, { name: 'Theo Park', email: secondEmail, order: 2 }] })).id
+    const id = (await app.command('envelope.prepare', { title, filename: 'approval.pdf', pdfBase64, freeForm: true, allowReassignment: true, fields: [], signers: [{ name: 'Mara Quinn', email: firstEmail, order: 1 }, { name: 'Theo Park', email: secondEmail, order: 2 }] })).id
     await app.command('envelope.approve', { id, eligible: true })
     const context = await app.browser.newContext({ viewport: { width, height: width === 390 ? 844 : 1000 } })
     const first = await openSigner(context, firstEmail)
