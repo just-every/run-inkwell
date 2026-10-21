@@ -44,7 +44,7 @@ try {
     await signer.emulateMedia({ colorScheme: 'light' }); await documents.scrollIntoViewIfNeeded(); await capture(signer, 'signer-handbook')
     await activate(signer, acknowledgment); await documents.getByRole('status').filter({ hasText: 'Acknowledged' }).waitFor()
     assert.ok((await documents.ariaSnapshot()).includes('Acknowledged'), 'the accessibility tree exposes the saved acknowledgment state')
-    const signature = signer.getByLabel('Page 1: Supplier signature (signature)', { exact: true }); await tab(signer, signature); await signer.keyboard.type('Mara Quinn')
+    const signature = signer.getByRole('textbox', { name: 'Supplier signature Page 1 · signature', exact: true }); await tab(signer, signature); await signer.keyboard.type('Mara Quinn')
     const consent = signer.getByRole('checkbox', { name: /I have reviewed this document and consent/ }); await tab(signer, consent); await signer.keyboard.press('Space')
     const finish = signer.getByRole('button', { name: 'Sign document', exact: true }); assert.ok(!(await finish.isDisabled())); await activate(signer, finish)
     await signer.getByRole('heading', { name: 'All signatures are complete.', exact: true }).waitFor()

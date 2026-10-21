@@ -3195,7 +3195,7 @@
       "executable": false
     },
     "tests/journeys/supplements.mjs": {
-      "sha256": "6498bfebffa218c33e85296d457690182de54b4eb2147780c0797bf4517cd01b",
+      "sha256": "6ade094404c0be520af27b9c43377efd7c756ddd46fe8ef3efed9658c79fcb0c",
       "executable": false
     },
     "tests/journeys/template-maintenance.mjs": {
