@@ -139,3 +139,6 @@
   .iw-app .iw-thumb { width: 56px; }
   .iw-drag-chip { width: 84px; padding: 8px; font-size: 13px; }
 }
+
+.iw-freeform-editor .iw-field-tools { position: static; max-height: none; }
+.iw-freeform-editor .iw-thumbs { position: static; }

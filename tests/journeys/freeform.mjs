@@ -21,7 +21,7 @@ const tab = async (page, control) => {
   await tabTo(page, control, { backwards })
 }
 const activate = async (page, control) => { await tab(page, control); await page.keyboard.press('Enter') }
-const enter = async (page, control, value) => { await tab(page, control); await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.type(String(value)) }
+const enter = async (page, control, value) => { await tab(page, control); await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.type(String(value)); assert.equal(await control.inputValue(), String(value), 'keyboard entry preserves the chosen value') }
 const choose = async (page, control, index) => { await tab(page, control); const label = await control.evaluate((el, i) => el.options[i].label, index); await page.keyboard.type(label); await page.keyboard.press('Tab'); assert.equal(await control.evaluate(el => el.selectedIndex), index, 'keyboard typeahead selects the requested option') }
 const capture = async (page, width, state) => {
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width} ${state}: no sideways scrolling`)
@@ -147,7 +147,7 @@ try {
     const executed = await second.request.get(path(second) + '/artifacts/signed'); assert.equal(executed.status(), 200)
     const bytes = await executed.body(); await writeFile(`${proof}/${width}-executed.pdf`, bytes)
     const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs')
-    const document = await getDocument({ data: new Uint8Array(bytes), standardFontDataUrl: new URL('../../node_modules/pdfjs-dist/standard_fonts/', import.meta.url).pathname }).promise
+    const loading = getDocument({ data: new Uint8Array(bytes), standardFontDataUrl: new URL('../../node_modules/pdfjs-dist/standard_fonts/', import.meta.url).pathname }); const document = await loading.promise
     const items = (await (await document.getPage(1)).getTextContent()).items
     const record = (await app.call(`/api/inkwell/envelopes/${id}`, { cookie: app.owner })).value.envelope
     assert.equal(record.status, 'completed'); assert.equal(record.fields.length, 4)
@@ -156,7 +156,7 @@ try {
       const item = items.find(item => item.str === value && Math.abs(item.transform[4] - field.x * 612) < 1 && item.transform[5] >= (1 - field.y - field.height) * 792 && item.transform[5] <= (1 - field.y) * 792)
       assert.ok(item, `${field.label}: final PDF contains the signed value within the chosen field`)
     }
-    await document.destroy(); await context.close()
+    await loading.destroy(); await context.close()
   }
   console.log('PREP-011 passed: two-signers, keyboard placement/inspector/remove, Next/count and blank Finish later resume, reassignment reset, signature-required, immutable signed fields and UI/API overlap refusal, final signature/date positions; light/dark axe and ARIA snapshots at 1440/390')
 } catch (error) { await screenshots(app.browser, 'freeform-failure'); throw error } finally { await app.close() }

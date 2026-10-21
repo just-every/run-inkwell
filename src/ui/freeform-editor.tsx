@@ -46,7 +46,7 @@ export function FreeformEditor({ source, fields, signedFields, signer, name, pag
     reassign: (to: number) => { if (to !== signer) throw new Error('You can place fields only for yourself.'); replace(selection.map(field => ({ ...field, signer }))) }, change: (field: Field) => replace([field]),
     remove: () => { update(fields.filter(field => !selected.includes(field.id))); setChosen([]) }, clear: () => setChosen([]),
   }
-  return <div className="iw-stack">
+  return <div className="iw-freeform-editor iw-stack">
     <aside className="iw-field-tools iw-stack" aria-label="Place your fields">
       <h3>Place your fields</h3>
       <p>Place at least one signature, then complete your fields. Earlier signed fields are locked. You can place up to 100 fields.</p>
@@ -54,8 +54,8 @@ export function FreeformEditor({ source, fields, signedFields, signer, name, pag
         <label>Field type<select aria-label="Field type" value={type} onChange={event => { const next = event.target.value as Field['type']; setType(next); setLabel(types.find(([value]) => value === next)![1]) }}>{types.map(([value, title]) => <option key={value} value={value}>{title}</option>)}</select></label>
         <label>Field label<input maxLength={80} value={label} onChange={event => setLabel(event.target.value)} /></label>
         <label>Page<select aria-label="New field page" value={page} onChange={event => setPage(Number(event.target.value))}>{Array.from({ length: pages }, (_, index) => <option key={index} value={index}>{index + 1}</option>)}</select></label>
-        <div className="iw-two"><label>Left (%)<input aria-label="New field left (%)" type="number" min={0} max={100} step={.5} value={x * 100} onChange={event => setX(Number(event.target.value) / 100)} /></label><label>Top (%)<input aria-label="New field top (%)" type="number" min={0} max={100} step={.5} value={y * 100} onChange={event => setY(Number(event.target.value) / 100)} /></label></div>
-        <div className="iw-two"><label>Width (%)<input aria-label="New field width (%)" type="number" min={3} max={100} step={.5} value={width * 100} onChange={event => setWidth(Number(event.target.value) / 100)} /></label><label>Height (%)<input aria-label="New field height (%)" type="number" min={2} max={100} step={.5} value={Math.round(height * 1000) / 10} onChange={event => setHeight(Number(event.target.value) / 100)} /></label></div>
+        <div className="iw-two"><label>Left (%)<input aria-label="New field left (%)" type="number" min={0} max={100} step={.5} value={Math.round(x * 1000) / 10} onChange={event => setX(Number(event.target.value) / 100)} /></label><label>Top (%)<input aria-label="New field top (%)" type="number" min={0} max={100} step={.5} value={Math.round(y * 1000) / 10} onChange={event => setY(Number(event.target.value) / 100)} /></label></div>
+        <div className="iw-two"><label>Width (%)<input aria-label="New field width (%)" type="number" min={3} max={100} step={.5} value={Math.round(width * 1000) / 10} onChange={event => setWidth(Number(event.target.value) / 100)} /></label><label>Height (%)<input aria-label="New field height (%)" type="number" min={2} max={100} step={.5} value={Math.round(height * 1000) / 10} onChange={event => setHeight(Number(event.target.value) / 100)} /></label></div>
         <button type="button" disabled={!pages || fields.length >= 100} onClick={() => place(page, x, y)}>Add field</button>
       </fieldset>
       <p id={hint} className="iw-muted">Add with the controls above, or focus a page and press Enter to place at its center. Select a field below to edit its page, position and size. Arrow keys move it; Shift with arrow keys resizes it; Delete removes it.</p>
