@@ -367,7 +367,7 @@ How the owner-approved scope for Inkwell (16 October 2026) maps to clauses.
 
 ## Status
 
-Judged from the code and cited tests in this source tree (21 October 2026).
+Judged from the code and tests at commit `9b23ac4bb4e42c8fdde135c4465094d6028f25da` (21 October 2026).
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
