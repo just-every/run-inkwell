@@ -3359,7 +3359,7 @@
       "executable": false
     },
     "tests/journeys/supplements.mjs": {
-      "sha256": "6c1a0cc3fd310b0f375680af9b936db09b214a463138872e328af7dabc78985d",
+      "sha256": "e24211500904a4f7dd8d02c1691a7b3c33ed9d8ba58f31be9e31fb86d69bfcef",
       "executable": false
     },
     "tests/journeys/template-maintenance.mjs": {
