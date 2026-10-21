@@ -75,6 +75,8 @@ try {
     await preparation.getByLabel('Recipient 1 email', { exact: true }).fill(`mara-settings-${width}@supplier.example`)
     await preparation.getByRole('checkbox', { name: 'Let each signer place their own fields (free-form)', exact: true }).check()
     assert.equal(await preparation.getByRole('heading', { name: 'Place fields', exact: true }).count(), 0)
+    await preparation.locator('.iw-pdf-page[data-rendered]').first().waitFor()
+    assert.equal(await preparation.getByRole('alert').count(), 0, 'PREP-011: PDF stays readable when switching preparation modes')
     await capture(page, width, 'prepare-fieldless')
     await preparation.getByRole('button', { name: 'Save prepared envelope', exact: true }).click()
     const detail = page.getByRole('region', { name: `Workshop consent ${width}`, exact: true })

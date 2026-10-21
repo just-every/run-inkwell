@@ -51,7 +51,7 @@ export function FreeformEditor({ source, fields, signedFields, signer, name, pag
       <h3>Place your fields</h3>
       <p>Place at least one signature, then complete your fields. Earlier signed fields are locked. You can place up to 100 fields.</p>
       <fieldset className="iw-stack" disabled={busy}><legend>New field</legend>
-        <label>Field type<select value={type} onChange={event => { const next = event.target.value as Field['type']; setType(next); setLabel(types.find(([value]) => value === next)![1]) }}>{types.map(([value, title]) => <option key={value} value={value}>{title}</option>)}</select></label>
+        <label>Field type<select aria-label="Field type" value={type} onChange={event => { const next = event.target.value as Field['type']; setType(next); setLabel(types.find(([value]) => value === next)![1]) }}>{types.map(([value, title]) => <option key={value} value={value}>{title}</option>)}</select></label>
         <label>Field label<input maxLength={80} value={label} onChange={event => setLabel(event.target.value)} /></label>
         <label>Page<select aria-label="New field page" value={page} onChange={event => setPage(Number(event.target.value))}>{Array.from({ length: pages }, (_, index) => <option key={index} value={index}>{index + 1}</option>)}</select></label>
         <div className="iw-two"><label>Left (%)<input aria-label="New field left (%)" type="number" min={0} max={100} step={.5} value={x * 100} onChange={event => setX(Number(event.target.value) / 100)} /></label><label>Top (%)<input aria-label="New field top (%)" type="number" min={0} max={100} step={.5} value={y * 100} onChange={event => setY(Number(event.target.value) / 100)} /></label></div>

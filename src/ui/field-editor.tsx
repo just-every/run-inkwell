@@ -14,7 +14,7 @@ export type EditorRecipient = { name: string; locked: boolean }
  * resized by dragging or arrow keys, duplicated (once, or to every page), aligned, reassigned to another recipient and
  * given their label, type, page, place and size in the inspector. A locked recipient's fields (DELIV-006) stay as they
  * are. */
-export function FieldEditor({ pdf, fields, setFields, signer, setSigner, recipients, asTemplate, busy }: { pdf: Uint8Array; fields: Field[]; setFields: Dispatch<SetStateAction<Field[]>>; signer: number; setSigner: (index: number) => void; recipients: EditorRecipient[]; asTemplate?: boolean; busy: boolean }) {
+export function FieldEditor({ pdf, fields, setFields, signer, setSigner, recipients, asTemplate, busy, readOnly = false }: { pdf: Uint8Array; fields: Field[]; setFields: Dispatch<SetStateAction<Field[]>>; signer: number; setSigner: (index: number) => void; recipients: EditorRecipient[]; asTemplate?: boolean; busy: boolean; readOnly?: boolean }) {
   const [type, setType] = useState<Field['type']>('signature')
   const [label, setLabel] = useState('Signature')
   const [width, setWidth] = useState(.26)
@@ -59,7 +59,7 @@ export function FieldEditor({ pdf, fields, setFields, signer, setSigner, recipie
     const target = pageAt(event.clientX, event.clientY)
     if (target) place(target.page, target.x - width / 2, target.y - height / 2)
   }
-  return <div className="iw-editor"><aside className="iw-field-tools iw-stack"><h3>Place fields</h3>
+  return <div className="iw-editor" style={readOnly ? { display: 'block' } : undefined}>{!readOnly && <aside className="iw-field-tools iw-stack"><h3>Place fields</h3>
     <label>{who}<select value={signer} onChange={event => setSigner(Number(event.target.value))}>{recipients.map((recipient, index) => recipient.locked ? null : <option key={index} value={index}>{index + 1}. {recipient.name || who}</option>)}</select></label>
     <ul className="iw-who-legend" aria-label={`${who} colors`}>{recipients.map((recipient, index) => recipient.locked ? null : <li key={index}><span className={`iw-who-swatch ${colorClass(index)}`} aria-hidden="true" />{index + 1}. {recipient.name || who}</li>)}</ul>
     <label>Field type<select value={type} onChange={event => { const value = event.target.value as Field['type']; setType(value); setLabel(fieldTypes.find(([type]) => type === value)?.[1] ?? 'Text') }}>{fieldTypes.map(([type, name]) => <option key={type} value={type}>{name}</option>)}</select></label>
@@ -74,7 +74,7 @@ export function FieldEditor({ pdf, fields, setFields, signer, setSigner, recipie
       if (next) { event.preventDefault(); replace([next]) }
       if (event.key === 'Delete') { event.preventDefault(); setFields(current => current.filter(item => item.id !== field.id)) }
     }} onChange={() => editing.select(field.id, true)} aria-label={`Select field ${index + 1}: ${field.label}, ${recipientName(field.signer)}, page ${field.page + 1}`} /><span className={`iw-who-swatch ${colorClass(field.signer)}`} aria-hidden="true" /><span>{field.signer + 1}. {field.label} · p{field.page + 1}</span></label><button type="button" aria-label={`Remove field ${index + 1}`} disabled={locked(field.signer)} onClick={() => setFields(current => current.filter(item => item.id !== field.id))}>×</button></div>)}</div>
-  </aside><PdfViewer source={pdf} fields={fields} onPlace={place} editing={editing} onPages={setPages} toolbar={<div className={`iw-drag-chip ${colorClass(signer)}`} aria-hidden="true" onPointerDown={dragChip} onPointerMove={event => { if (ghost) setGhost({ x: event.clientX, y: event.clientY }) }} onPointerUp={dropChip} onPointerCancel={() => setGhost(undefined)}>Drag a {label.trim() || type} field onto a page</div>} />
+  </aside>}<PdfViewer source={pdf} fields={fields} onPlace={readOnly ? undefined : place} editing={readOnly ? undefined : editing} onPages={setPages} toolbar={readOnly ? undefined : <div className={`iw-drag-chip ${colorClass(signer)}`} aria-hidden="true" onPointerDown={dragChip} onPointerMove={event => { if (ghost) setGhost({ x: event.clientX, y: event.clientY }) }} onPointerUp={dropChip} onPointerCancel={() => setGhost(undefined)}>Drag a {label.trim() || type} field onto a page</div>} />
     {ghost && <div className={`iw-drag-ghost ${colorClass(signer)}`} aria-hidden="true" style={{ left: ghost.x, top: ghost.y }}>{label.trim() || type}</div>}
   </div>
 }
