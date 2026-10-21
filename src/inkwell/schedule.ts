@@ -4,7 +4,8 @@ import { sealLink } from './links'
 import { memberLinkWrites } from './signing-groups'
 import { commitEnvelope } from './storage'
 import { dispatchMail, invitationWrite } from './mail'
-import { hasSendAuthority, holdSend, confirmedSendGuard } from './send-authority'
+import { allOf, hasSendAuthority, holdSend, confirmedSendGuard } from './send-authority'
+import { evaluateSendPolicy } from './send-policies'
 import { zoneInstant, zoneOffset } from './zone'
 
 /** PREP-009: sending at a chosen wall-clock time in a US time zone. The person's eligibility approval with that time is
@@ -38,15 +39,17 @@ async function send(env: Env, before: Envelope, at: number) {
   const authority = before.events.findLast(e => e.action === 'envelope.approved')?.actor ?? ''
   const confirmation = await confirmedSendGuard(before, authority, 'envelope.approved')
   const policy = before.freeForm ? await freeFormPolicy(env) : undefined
-  const policyGuard = policy ? freeFormSendGuard(policy) : undefined
-  const guard = policyGuard ? { sql: `(${confirmation.sql}) AND (${policyGuard.sql})`, values: [...confirmation.values, ...policyGuard.values] } : confirmation
-  if (!await hasSendAuthority(env, guard)) return holdSend(env, before, authority, guard)
+  // ADMIN-004 / SEND-001: the source's current send policy is read again at release; off, a narrowed template list, no
+  // deferral or a new internal-approval requirement holds the send, and an allowed change releases under the current version.
+  const decision = await evaluateSendPolicy(env, before, authority, { deferred: true, approved: Boolean(before.internalApproval), stage: 'release' })
+  const guard = allOf([confirmation, ...(policy ? [freeFormSendGuard(policy)] : []), decision.fence])
+  if (!await hasSendAuthority(env, guard)) return holdSend(env, before, authority, guard, [], [], undefined, decision.allowed ? {} : { reason: decision.reason, code: decision.code, sendPolicy: decision.record })
   const after = structuredClone(before), schedule = after.scheduled!
   if (policy) snapshotFreeFormPolicy(after, policy)
   delete after.scheduled
   const inApp = (after.events.findLast(e => e.action === 'envelope.approved')?.detail.signsInApp as number[] | undefined) ?? []
   const first = currentSigners(after).filter(i => !inApp.includes(i) && !after.signers[i].inPerson)
-  await appendEvent(after, 'envelope.sent_scheduled', 'inkwell', { ...(after.freeForm ? { freeForm: true, freeFormSetting: after.freeFormSetting } : {}), scheduledFor: schedule.at, local: schedule.local, timeZone: schedule.timeZone, passAt: new Date(at).toISOString(), invited: first })
+  await appendEvent(after, 'envelope.sent_scheduled', 'inkwell', { ...(after.freeForm ? { freeForm: true, freeFormSetting: after.freeFormSetting } : {}), sendPolicy: decision.record, scheduledFor: schedule.at, local: schedule.local, timeZone: schedule.timeZone, passAt: new Date(at).toISOString(), invited: first })
   const writes: D1PreparedStatement[] = []
   for (const i of first) { if (after.signers[i].group) { writes.push(...await memberLinkWrites(env, after, i, false, true)); continue }; const token = secret(); writes.push(env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=? WHERE envelope_id=? AND signer=?').bind(await sha256(token), await sealLink(env, after.id, i, token), after.id, i), invitationWrite(env, after, i, token)) }
   await commitEnvelope(env, before, after, null, writes, [guard])

@@ -56,11 +56,23 @@ try {
     panel = owner.getByRole('region', { name: 'Free-form signing', exact: true })
     await panel.getByText(/Setting history/).click()
     await panel.scrollIntoViewIfNeeded(); await capture(owner, width, 'setting-enabled-history')
+    // ADMIN-004: the owner changes a source's send policy on the screen; each save is a new version, and members have no panel.
+    const sends = owner.getByRole('region', { name: 'Send policies', exact: true }), templateSends = sends.getByRole('form', { name: 'Template sends', exact: true })
+    for (const mode of ['Off', 'A person confirms each send']) {
+      await templateSends.getByLabel('Mode').selectOption({ label: mode })
+      await templateSends.getByRole('button', { name: 'Save Template sends policy', exact: true }).click()
+      await templateSends.getByRole('status').filter({ hasText: new RegExp(`^${mode} · version`) }).waitFor()
+    }
+    await sends.getByText(/Policy history/).click()
+    assert.ok((await sends.getByRole('listitem').allTextContents()).some(text => /Template sends · version \d+ · A person confirms each send → Off/.test(text)))
+    await sends.scrollIntoViewIfNeeded(); await capture(owner, width, 'send-policies')
     // Both member roles have no setting control and the command refuses direct transport writes.
     for (const person of [sender, viewer]) {
       const context = await app.browser.newContext({ viewport }), page = await open(context, person.session)
       await settings(page)
       assert.equal(await page.getByRole('checkbox', { name: 'Allow free-form signing', exact: true }).count(), 0)
+      assert.equal(await page.getByRole('region', { name: 'Send policies', exact: true }).count(), 0)
+      await app.call('/api/inkwell/commands', { cookie: person.session, body: { command: 'account.send_policy', commandId: crypto.randomUUID(), input: { source: 'api', mode: 'off', expectedVersion: 0 } }, status: 403 })
       await app.call('/api/inkwell/commands', { cookie: person.session, body: { command: 'account.freeform', commandId: crypto.randomUUID(), input: { enabled: false, expectedVersion: (await policy()).version } }, status: 403 })
       await capture(page, width, person === sender ? 'sender-settings' : 'viewer-settings')
       await context.close()

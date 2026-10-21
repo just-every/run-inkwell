@@ -1,5 +1,5 @@
 import type { Bindings } from '../auth.server'
-export class Refusal extends Error { constructor(message: string, public status = 400) { super(message) } }
+export class Refusal extends Error { constructor(message: string, public status = 400, public code?: string) { super(message) } }
 export function insist(condition: unknown, message: string, status = 400): asserts condition { if (!condition) throw new Refusal(message, status) }
 /** ACCESS-001: Base's owner and admin, and Inkwell's sender and viewer for a Base member (members.ts). */
 export type Role = 'owner' | 'admin' | 'sender' | 'viewer'

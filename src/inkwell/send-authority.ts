@@ -25,10 +25,12 @@ export function sendAuthorityGuard(envelope: Envelope, operator: string): Guard 
     values: [operator, envelope.createdBy, envelope.id],
   }
 }
+/** Every guard must hold: the confirmation, the free-form setting and the send policy are fenced in one batch. */
+export const allOf = (guards: Guard[]): Guard => ({ sql: guards.map(g => `(${g.sql})`).join(' AND '), values: guards.flatMap(g => g.values) })
 export async function hasSendAuthority(env: Env, guard: Guard) {
   return Boolean((await env.DB.prepare(`SELECT (${guard.sql}) AS allowed`).bind(...guard.values).first<{ allowed: number }>())?.allowed)
 }
-export async function holdSend(env: Env, before: Envelope, operator: string, guard: Guard, writes: D1PreparedStatement[] = [], guards: Guard[] = [], decidingActor?: string) {
+export async function holdSend(env: Env, before: Envelope, operator: string, guard: Guard, writes: D1PreparedStatement[] = [], guards: Guard[] = [], decidingActor?: string, detail: Record<string, unknown> = {}) {
   const after = structuredClone(before), at = now()
   after.status = 'prepared'
   delete after.freeFormSetting
@@ -37,7 +39,7 @@ export async function holdSend(env: Env, before: Envelope, operator: string, gua
   after.sendHold = { at }
   // No recipient has acted while waiting for dispatch. Discard the old approval's derived routing decisions and links.
   for (const signer of after.signers) { delete signer.routeResult; delete signer.activatedAt }
-  await appendEvent(after, 'envelope.send_held', decidingActor ?? 'inkwell', { authority: operator, ...(decidingActor ? { attemptedDecision: 'approve', sendReleased: false } : {}), reason: 'The sending confirmation is no longer valid. A current editor must review and confirm again.' }, at)
+  await appendEvent(after, 'envelope.send_held', decidingActor ?? 'inkwell', { authority: operator, ...(decidingActor ? { attemptedDecision: 'approve', sendReleased: false } : {}), reason: 'The sending confirmation is no longer valid. A current editor must review and confirm again.', ...detail }, at)
   await commitEnvelope(env, before, after, null, [
     env.DB.prepare('DELETE FROM iw_signers WHERE envelope_id=?').bind(after.id),
     env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND state='pending'").bind(after.id),

@@ -2,7 +2,8 @@ import { freeFormPolicy, freeFormSendGuard } from './freeform-policy'
 import { appendEvent, insist, now, object, text, type Actor, type ApprovalRule, type ApprovalStep, type Envelope, type Env, type Field } from './model'
 import { atomic, commandWrite, commitEnvelope, getEnvelope, memberRoleSql, roleGuard } from './storage'
 import { usdCents, usdDecimal } from './field-rules'
-import { hasSendAuthority, holdSend, confirmedSendGuard, sendingFingerprint } from './send-authority'
+import { allOf, hasSendAuthority, holdSend, confirmedSendGuard, sendingFingerprint } from './send-authority'
+import { evaluateSendPolicy, type SendDecision } from './send-policies'
 import type { Schedule } from './schedule'
 import type { CommandContext } from './envelopes'
 
@@ -74,10 +75,12 @@ export async function setAccountApproval(env: Env, context: CommandContext, inpu
 }
 
 /** The approvals sending `envelope` needs now, one per distinct approver; the confirming person's own is already given. */
-export async function approvalSteps(env: Env, envelope: Envelope, actor: Actor): Promise<ApprovalStep[]> {
+export async function approvalSteps(env: Env, envelope: Envelope, actor: Actor, policyRequires = false): Promise<ApprovalStep[]> {
   const steps: ApprovalStep[] = [], at = now()
+  // ADMIN-004: a send policy that requires an internal approval makes the account rule's approver decide, whatever its threshold.
+  insist(!policyRequires || (await accountApprovalRule(env)), 'The send policy for this source requires an internal approval, but the account names no approver. Ask an owner or admin to set one.', 409)
   for (const [source, rule] of [['account', (await accountApprovalRule(env))?.rule], ['template', envelope.approvalRule]] as const) {
-    const why = rule && ruleCovers(rule, envelope.fields)
+    const why = rule && (policyRequires && source === 'account' ? 'the send policy requires an internal approval' : ruleCovers(rule, envelope.fields))
     if (!rule || !why) continue
     let step = steps.find(s => s.approver === rule.approver)
     if (!step) {
@@ -98,14 +101,14 @@ export const namedApprover = (envelope: Envelope, operator: string) => envelope.
 
 export const eligibilityStatement = 'I confirm this document is eligible for electronic signature and consent to sending these fixed bytes to the listed signers in order.'
 /** The confirmed send waits for the approvers: the draft is locked and nobody is invited. */
-export async function requestApproval(env: Env, context: CommandContext, before: Envelope, steps: ApprovalStep[], schedule?: Schedule) {
+export async function requestApproval(env: Env, context: CommandContext, before: Envelope, steps: ApprovalStep[], schedule: Schedule | undefined, decision: SendDecision) {
   const after = structuredClone(before), at = now(), waiting = steps.filter(s => !s.decision)
   const policy = before.freeForm ? await freeFormPolicy(env) : undefined
   delete after.sendHold
   after.internalApproval = { state: 'pending', requestedAt: at, requestedBy: { id: context.actor.id, name: context.actor.name, email: context.actor.email.toLowerCase() }, ...(schedule ? { schedule } : {}), steps }
-  await appendEvent(after, 'envelope.internal_approval_requested', context.actor.id, { ...(policy ? { freeForm: true, freeFormPolicyVersion: policy.version } : {}), sendingSha256: await sendingFingerprint(after), eligible: true, consent: true, statement: eligibilityStatement, originalSha256: after.originalSha256, steps: steps.map(({ approver, name, rules, why, bySender }) => ({ approver, name, rules, why, ...(bySender ? { approvedBySender: true } : {}) })), ...(schedule ? { sendAt: schedule.at, sendAtLocal: schedule.local, timeZone: schedule.timeZone } : {}) }, at)
+  await appendEvent(after, 'envelope.internal_approval_requested', context.actor.id, { ...(policy ? { freeForm: true, freeFormPolicyVersion: policy.version } : {}), sendPolicy: decision.record, sendingSha256: await sendingFingerprint(after), eligible: true, consent: true, statement: eligibilityStatement, originalSha256: after.originalSha256, steps: steps.map(({ approver, name, rules, why, bySender }) => ({ approver, name, rules, why, ...(bySender ? { approvedBySender: true } : {}) })), ...(schedule ? { sendAt: schedule.at, sendAtLocal: schedule.local, timeZone: schedule.timeZone } : {}) }, at)
   const result = { id: after.id, status: after.status, waitingForApproval: waiting.map(s => s.name) }
-  await commitEnvelope(env, before, after, context.actor, [commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)], policy ? [freeFormSendGuard(policy)] : [])
+  await commitEnvelope(env, before, after, context.actor, [commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)], [...(policy ? [freeFormSendGuard(policy)] : []), decision.fence])
   return result
 }
 
@@ -137,11 +140,11 @@ export async function decideApproval(env: Env, context: CommandContext, input: R
     return result
   }
   const confirmation = await confirmedSendGuard(before, request.requestedBy.id, 'envelope.internal_approval_requested')
-  const policyGuard = before.freeForm ? freeFormSendGuard(await freeFormPolicy(env)) : undefined
-  const authority = policyGuard ? { sql: `(${confirmation.sql}) AND (${policyGuard.sql})`, values: [...confirmation.values, ...policyGuard.values] } : confirmation
+  const deferred = Boolean(request.schedule && Date.parse(request.schedule.at) > Date.now()), decision = await evaluateSendPolicy(env, before, request.requestedBy.id, { deferred, approved: true, stage: 'release' })
+  const authority = allOf([confirmation, ...(before.freeForm ? [freeFormSendGuard(await freeFormPolicy(env))] : []), decision.fence])
   if (!await hasSendAuthority(env, authority)) {
     const result = { id: before.id, status: 'prepared', held: true }
-    await holdSend(env, before, request.requestedBy.id, authority, [commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)], [roleGuard(context.actor)], context.actor.id)
+    await holdSend(env, before, request.requestedBy.id, authority, [commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)], [roleGuard(context.actor)], context.actor.id, decision.allowed ? {} : { reason: decision.reason, code: decision.code, sendPolicy: decision.record })
     return result
   }
   after.internalApproval!.state = 'approved'
