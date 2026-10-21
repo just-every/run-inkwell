@@ -75,7 +75,7 @@ export async function setAccountApproval(env: Env, context: CommandContext, inpu
 }
 
 /** The approvals sending `envelope` needs now, one per distinct approver; the confirming person's own is already given. */
-export async function approvalSteps(env: Env, envelope: Envelope, actor: Actor, policyRequires = false): Promise<ApprovalStep[]> {
+export async function approvalSteps(env: Env, envelope: Envelope, actor: Pick<Actor, 'id'>, policyRequires = false): Promise<ApprovalStep[]> {
   const steps: ApprovalStep[] = [], at = now()
   // ADMIN-004: a send policy that requires an internal approval makes the account rule's approver decide, whatever its threshold.
   insist(!policyRequires || (await accountApprovalRule(env)), 'The send policy for this source requires an internal approval, but the account names no approver. Ask an owner or admin to set one.', 409)

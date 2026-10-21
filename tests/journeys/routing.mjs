@@ -1,5 +1,6 @@
 // ROUTE-003: configure a conditional recipient and a conditional copy recipient, inspect the preview, then sign both locked-value routes and correct an unresolved answer.
 import assert from 'node:assert/strict'
+import {expect} from '@playwright/test'
 import {mkdir} from 'node:fs/promises'
 import {PDFDocument,StandardFonts} from 'pdf-lib'
 import {startInkwell,screenshots} from './worker.mjs'
@@ -22,11 +23,16 @@ try{
   for(const amount of ['5000','25000']){
    const id=(await app.command('template.use',{id:template,recipients:[{name:'Mara Quinn',email:`mara-${width}-${amount}@clients.example`},{name:'Finance Director',email:`finance-${width}-${amount}@harbour.example`}],prefill:{amount:{value:amount,source:'Sender selected amount',readOnly:true}}})).id
    await page.goto(app.origin+'/app');await page.getByRole('row',{name:new RegExp(title)}).first().click();let detail=page.getByRole('region',{name:title,exact:true});await detail.getByRole('button',{name:'Edit draft',exact:true}).click()
+   // The draft PDF load populates recipients and copies; wait before adding a copy that load would replace.
+   await expect(page.getByRole('button',{name:'Save draft',exact:true})).toBeEnabled();await expect(page.getByLabel('Recipient 1 name',{exact:true})).toHaveValue('Mara Quinn')
    await page.getByRole('button',{name:'Add copy recipient',exact:true}).click();await page.getByLabel('Copy recipient 1 name',{exact:true}).fill('Audit Desk');await page.getByLabel('Copy recipient 1 email',{exact:true}).fill(`audit-${width}-${amount}@harbour.example`)
    await page.getByLabel('Copy recipient 1: Audit Desk include when',{exact:true}).selectOption('amount');await page.getByLabel('Copy recipient 1: Audit Desk routing comparison',{exact:true}).selectOption('greater_than');await page.getByLabel('Copy recipient 1: Audit Desk routing value',{exact:true}).fill('10000')
    const draftPreview=page.getByRole('region',{name:'Routing preview',exact:true});await draftPreview.waitFor();assert.match(await draftPreview.innerText(),new RegExp(amount==='5000'?'Skipped':'Included'))
    assert.match(await draftPreview.getByRole('list',{name:'Copy recipients with a rule'}).innerText(),new RegExp(`Audit Desk[\\s\\S]*Copy ${amount==='5000'?'skipped':'included'} · Amount USD greater than 10000.00; decided at completion`))
-   await draftPreview.scrollIntoViewIfNeeded();await capture(`draft-${amount}`);await page.getByRole('button',{name:'Save draft',exact:true}).click();detail=page.getByRole('region',{name:title,exact:true});const decision=detail.getByRole('region',{name:'Routing preview',exact:true});await decision.waitFor();assert.match(await decision.innerText(),new RegExp(amount==='5000'?'Skipped':'Included'))
+   await draftPreview.scrollIntoViewIfNeeded();await capture(`draft-${amount}`);await page.getByRole('button',{name:'Save draft',exact:true}).click()
+   // Saving replaces the editor with a freshly loaded detail; wait for that end state before inspecting its preview.
+   await page.getByRole('button',{name:/^(Save draft|Saving…)$/}).waitFor({state:'hidden'});detail=page.getByRole('region',{name:title,exact:true});await detail.getByRole('button',{name:'Edit draft',exact:true}).waitFor()
+   const decision=detail.getByRole('region',{name:'Routing preview',exact:true});await decision.getByRole('list',{name:'Copy recipients with a rule'}).getByText('Audit Desk',{exact:true}).waitFor();assert.match(await decision.innerText(),new RegExp(amount==='5000'?'Skipped':'Included'))
    await decision.scrollIntoViewIfNeeded();await axe(page,`ROUTE-003 approval preview ${width} ${amount}`);await capture(`approval-${amount}`)
    const approved=page.waitForResponse(response=>response.url().endsWith('/api/inkwell/commands')&&response.request().method()==='POST'&&response.request().postDataJSON().command==='envelope.approve')
    await detail.getByLabel(/confirm it is eligible for electronic signature/).check();await detail.getByRole('button',{name:'Approve and invite first recipient',exact:true}).click();const invitation=(await(await approved).json()).result.invitations[0]

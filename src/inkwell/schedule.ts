@@ -5,6 +5,7 @@ import { memberLinkWrites } from './signing-groups'
 import { commitEnvelope } from './storage'
 import { dispatchMail, invitationWrite } from './mail'
 import { allOf, hasSendAuthority, holdSend, confirmedSendGuard } from './send-authority'
+import { requestScheduledApproval } from './scheduled-approval'
 import { evaluateSendPolicy } from './send-policies'
 import { zoneInstant, zoneOffset } from './zone'
 
@@ -40,9 +41,14 @@ async function send(env: Env, before: Envelope, at: number) {
   const confirmation = await confirmedSendGuard(before, authority, 'envelope.approved')
   const policy = before.freeForm ? await freeFormPolicy(env) : undefined
   // ADMIN-004 / SEND-001: the source's current send policy is read again at release; off, a narrowed template list, no
-  // deferral or a new internal-approval requirement holds the send, and an allowed change releases under the current version.
+  // deferral holds the send. A new approval requirement enters ROUTE-004; allowed changes use the current version.
   const decision = await evaluateSendPolicy(env, before, authority, { deferred: true, approved: Boolean(before.internalApproval), stage: 'release' })
-  const guard = allOf([confirmation, ...(policy ? [freeFormSendGuard(policy)] : []), decision.fence])
+  const base = allOf([confirmation, ...(policy ? [freeFormSendGuard(policy)] : [])])
+  const guard = allOf([base, decision.fence])
+  if (decision.code === 'send_policy_approval' && await hasSendAuthority(env, base)) {
+    const request = await evaluateSendPolicy(env, before, authority, { deferred: true, approved: false, stage: 'request' })
+    if (request.allowed) return requestScheduledApproval(env, before, authority, allOf([base, request.fence]), guard, request)
+  }
   if (!await hasSendAuthority(env, guard)) return holdSend(env, before, authority, guard, [], [], undefined, decision.allowed ? {} : { reason: decision.reason, code: decision.code, sendPolicy: decision.record })
   const after = structuredClone(before), schedule = after.scheduled!
   if (policy) snapshotFreeFormPolicy(after, policy)

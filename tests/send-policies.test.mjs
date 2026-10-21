@@ -112,6 +112,11 @@ test('SEND-001 and ADMIN-004: a scheduled send is held when its policy turns off
     assert.equal(held.status, 'prepared'); assert.ok(held.sendHold?.at); assert.equal(held.scheduled, undefined)
     assert.deepEqual([event.detail.code, event.detail.sendPolicy.policies], ['send_policy_off', [{ scope: 'account', version: 1 }]])
     assert.equal(await h.mail('mara.held@clients.example', 'Please sign:'), undefined)
+    for (const [cookie, email] of [[h.owner, 'owner@harbour.example'], [approver, 'ari.release@harbour.example']]) {
+      const notices = (await h.send('/api/inkwell/notices', undefined, cookie)).value.notices.filter(n => n.envelopeId === a && n.event === 'send_held')
+      assert.equal(notices.length, 1, 'principal/owner overlap is notified once, as is every admin')
+      assert.ok(await h.mail(email, 'Sending held: Held letter'))
+    }
     await set(h, 'ad_hoc', { mode: 'person' })
     await h.scheduled(at + 3_600_000)
     assert.equal((await read(h, a)).status, 'prepared', 'turning the policy back on does not release a held draft'); assert.equal(await h.mail('mara.held@clients.example', 'Please sign:'), undefined)
@@ -127,11 +132,37 @@ test('SEND-001 and ADMIN-004: a scheduled send is held when its policy turns off
     const releaseRecord = sentB.events.findLast(e => e.action === 'envelope.sent_scheduled').detail.sendPolicy
     assert.deepEqual([releaseRecord.mode, releaseRecord.policies], ['autonomous', [{ scope: 'account', version: 1 }]])
     assert.deepEqual(sentB.events.findLast(e => e.action === 'envelope.approved').detail.sendPolicy.policies, [{ scope: 'account', version: 0 }], 'the confirmation keeps the version it was made under')
-    // A requirement that did not exist at confirmation (internal approval) holds the send; so does a template list that dropped it.
+    // A requirement added after confirmation enters ROUTE-004, without inviting anyone or inventing a new eligibility confirmation.
     const c = await scheduledEnvelope('Approval letter', 'mara.req@clients.example')
+    await h.command('account.internal_approval', { rule: { approverEmail: 'ari.release@harbour.example', threshold: { field: 'Absent amount', above: '10000' } } })
     await set(h, 'ad_hoc', { requireInternalApproval: true })
     await pass(c)
-    assert.equal(heldBy(await read(h, c)).detail.code, 'send_policy_approval')
+    const waitingC = await read(h, c)
+    assert.equal(waitingC.status, 'prepared'); assert.equal(waitingC.scheduled, undefined); assert.equal(waitingC.sendHold, undefined)
+    assert.equal(waitingC.internalApproval.state, 'pending')
+    assert.deepEqual(waitingC.internalApproval.steps.map(s => [s.name, s.decision]), [['ari.release', undefined]], 'the policy requires approval even outside the account threshold')
+    assert.equal(waitingC.internalApproval.requestedBy.id, waitingC.createdBy)
+    assert.equal(waitingC.events.findLast(e => e.action === 'envelope.internal_approval_requested').detail.policyAddedApproval, true)
+    assert.equal(await h.mail('mara.req@clients.example', 'Please sign:'), undefined)
+    assert.ok(await h.mail('ari.release@harbour.example', 'Approval needed:'))
+    await h.scheduled(Date.now() + 4 * 86400000)
+    assert.equal((await read(h, c)).internalApproval.state, 'pending', 'another hourly pass cannot bypass the new approval')
+    await h.command('envelope.internal_decide', { id: c, decision: 'approve' }, approver)
+    assert.equal((await read(h, c)).status, 'awaiting_signature')
+    assert.equal((await read(h, c)).scheduled, undefined, 'the elapsed schedule sends on final approval')
+    assert.ok(await h.mail('mara.req@clients.example', 'Please sign:'))
+    assert.deepEqual((await read(h, c)).events.findLast(e => e.action === 'envelope.approved').detail.sendPolicy.policies, [{ scope: 'account', version: 3 }])
+    // A policy-required approval with no valid account approver holds honestly rather than failing the cron.
+    await set(h, 'ad_hoc', { requireInternalApproval: false })
+    await h.command('account.internal_approval', { rule: null })
+    const noApprover = await scheduledEnvelope('No approver letter', 'mara.noapprover@clients.example')
+    await set(h, 'ad_hoc', { requireInternalApproval: true })
+    await pass(noApprover)
+    assert.equal(heldBy(await read(h, noApprover)).detail.code, 'send_policy_approval')
+    assert.equal((await read(h, noApprover)).internalApproval, undefined)
+    assert.equal(await h.mail('mara.noapprover@clients.example', 'Please sign:'), undefined)
+    // A template list that no longer includes this template holds the send.
+
     const d = await scheduledEnvelope('Listed letter', 'mara.list@clients.example', await fromTemplate(h, t, 'mara.list@clients.example'))
     const other = await template(h)
     await set(h, 'template', { templates: [other] }, h.owner)
@@ -147,5 +178,23 @@ test('SEND-001 and ADMIN-004: a scheduled send is held when its policy turns off
     assert.equal((await h.command('envelope.internal_decide', { id: e, decision: 'approve' }, approver)).result.held, true)
     const waiting = await read(h, e)
     assert.equal(waiting.status, 'prepared'); assert.equal(heldBy(waiting).detail.code, 'send_policy_off'); assert.equal(await h.mail('mara.wait@clients.example', 'Please sign:'), undefined)
+    assert.ok(await h.mail('ari.release@harbour.example', 'Sending held: Waiting letter'), 'the deciding admin also receives a hold notification')
+    // The principal can be a sender, separate from all account administrators; viewers receive no hold information.
+    const sender = await h.invite('sender.policy@harbour.example', 'member'), viewer = await h.invite('viewer.policy@harbour.example', 'member')
+    const senderId = (await h.send('/api/inkwell', undefined, sender)).value.actor.id
+    await h.command('member.role', { operatorId: senderId, role: 'sender' })
+    await h.command('account.internal_approval', { rule: null })
+    await set(h, 'ad_hoc', { mode: 'person', requireInternalApproval: false })
+    const own = (await h.command('envelope.prepare', await draft('Sender hold letter', 'mara.sender@clients.example'), sender)).result.id
+    await h.command('envelope.approve', { id: own, eligible: true, sendAt: schedule() }, sender)
+    await set(h, 'ad_hoc', { mode: 'off' }); await pass(own)
+    for (const [cookie, email] of [[sender, 'sender.policy@harbour.example'], [h.owner, 'owner@harbour.example'], [approver, 'ari.release@harbour.example']]) {
+      assert.equal((await h.send('/api/inkwell/notices', undefined, cookie)).value.notices.filter(n => n.envelopeId === own && n.event === 'send_held').length, 1)
+      assert.ok(await h.mail(email, 'Sending held: Sender hold letter'))
+    }
+    assert.equal((await h.send('/api/inkwell/notices', undefined, viewer)).value.notices.some(n => n.envelopeId === own), false)
+    const count = h.attempted().filter(m => m.subject === 'Sending held: Sender hold letter').length
+    await h.scheduled(Date.now() + 4 * 86400000)
+    assert.equal(h.attempted().filter(m => m.subject === 'Sending held: Sender hold letter').length, count, 'hourly passes do not duplicate a held notification')
   } finally { await h.close() }
 })

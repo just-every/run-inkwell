@@ -1,4 +1,6 @@
 import { appendEvent, canonical, now, sha256, type Envelope, type Env } from './model'
+import { dispatchMail } from './mail'
+import { heldNoticeWrites } from './send-hold-notices'
 import { commitEnvelope, memberRoleSql, type Guard } from './storage'
 
 /** Fingerprint only the prepared sending definition, excluding decisions derived from it and approval history. */
@@ -44,5 +46,7 @@ export async function holdSend(env: Env, before: Envelope, operator: string, gua
     env.DB.prepare('DELETE FROM iw_signers WHERE envelope_id=?').bind(after.id),
     env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND state='pending'").bind(after.id),
     ...writes,
+    ...await heldNoticeWrites(env, after, operator),
   ], [{ sql: `NOT (${guard.sql})`, values: guard.values }, ...guards])
+  await dispatchMail(env, after.id)
 }
