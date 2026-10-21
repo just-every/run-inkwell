@@ -827,7 +827,7 @@
       "executable": false
     },
     "src/inkwell/followup-engine.ts": {
-      "sha256": "3f019f477244a32cc160706bca7072bd20a0ff1573b35e596a9b5ead16abf2c3",
+      "sha256": "3ffeee3acb455fb2f9bdea3a71dafab447c9514d3ba7704bde81c916eae37601",
       "executable": false
     },
     "src/inkwell/followup-inbound-types.ts": {
@@ -2959,7 +2959,7 @@
       "executable": false
     },
     "src/ui/activity.tsx": {
-      "sha256": "898f81fc12407b081d349440b4f171a07911be3360bd60720eb367a1ade7b592",
+      "sha256": "c5164bf82a47fe744a41bbbbcf11580714bcc03ea816da3e1de2af1e49d2def9",
       "executable": false
     },
     "src/ui/adopt-signature.tsx": {
@@ -3191,7 +3191,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "9b33a09b051644a892ebc012714539fb93df3aaaa9594e9c13f51a5c599df7d0",
+      "sha256": "63d745b517c91751f0ddb587ce77930b3d73f0e5087d2910904bc04057e0d2f7",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
@@ -3275,7 +3275,7 @@
       "executable": false
     },
     "tests/journeys/envelope-detail.mjs": {
-      "sha256": "bc3bade4509fd63dab75452dd4e7502292d84c07c104fa27f8d79d6b87e3ba31",
+      "sha256": "79899ea5933271c248602e09ebe0d51fee3e26aadb4c939b53da8b34be763460",
       "executable": false
     },
     "tests/journeys/field-placement.mjs": {

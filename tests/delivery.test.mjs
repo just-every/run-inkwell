@@ -391,6 +391,7 @@ test('Follow-up: stalled signers, authenticated reply custody and contact limits
   assert.equal(state.replies.length,3);assert.equal(state.replies.at(-1).verified,false)
   assert.equal((await view(viewer)).value.replies,undefined,'viewer sees state without reply text')
   assert.equal((await view(escalator)).value.replies.length,3,'escalation owner reads replies')
+  for(const cookie of [h.owner,escalator]){const feed=(await h.send('/api/inkwell/notices',undefined,cookie)).value.notices;assert.ok(feed.some(n=>n.event==='followup'&&n.recipient==='a signer replied'&&n.envelopeId===id),'sender and escalation owner receive an in-app item');assert.ok(!JSON.stringify(feed).includes('Clause 4 needs legal review'),'feed carries no reply text')}
   assert.ok(!JSON.stringify(h.logs()).includes('Clause 4'),'reply text absent from operational logs')
   const before=h.attempted().length
   await h.scheduled(lastFriday)
