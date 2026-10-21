@@ -1,4 +1,4 @@
-import { followupGrant } from './followup-store'
+import { followupGrant, grantGuard } from './followup-store'
 import { mayRemindUnderGrant } from './followup-engine'
 import { party, active, appendEvent, currentSigners, insist, now, object, routingOrder, text, type Envelope, type Env } from './model'
 import { commandWrite, commitEnvelope, getEnvelope } from './storage'
@@ -77,7 +77,10 @@ async function remind(env: Env, before: Envelope, at: number) {
   return due.length
 }
 /** ROUTE-005: a group place reminds every member, each at their own address. */
-const reminderWrites = (env: Env, envelope: Envelope, i: number) => (envelope.signers[i].group?.members.map((_, m) => party(envelope, i, m)) ?? [envelope.signers[i]]).map(person => noticeWrite(env.DB, envelope, i, person.email, `Reminder to sign: ${envelope.title}`, `${person.name},\n\nThis is a reminder that ${envelope.title} is waiting for your signature${envelope.signers[i].group ? ` for the signing group ${envelope.signers[i].group!.name}` : ''}.\nUse the link in your invitation email to review and sign. The invitation expires ${envelope.expiresAt}.`))
+const reminderWrites = (env: Env, envelope: Envelope, i: number, grant?: import('./followup-types').FollowupGrant | null) => (envelope.signers[i].group?.members.map((_, m) => party(envelope, i, m)) ?? [envelope.signers[i]]).map(person => {
+ const subject=`Reminder to sign: ${envelope.title}`,body=`${person.name},\n\nThis is a reminder that ${envelope.title} is waiting for your signature${envelope.signers[i].group ? ` for the signing group ${envelope.signers[i].group!.name}` : ''}.\nUse the link in your invitation email to review and sign. The invitation expires ${envelope.expiresAt}.`
+ return grant?env.DB.prepare("INSERT INTO iw_mail(id,envelope_id,signer,kind,recipient,subject,body,created_at,followup_version,followup_envelope_version) VALUES(?,?,?,'notice',?,?,?,?,?,?)").bind(crypto.randomUUID(),envelope.id,i,person.email,subject,body,now(),grant.version,envelope.version+1):noticeWrite(env.DB,envelope,i,person.email,subject,body)
+})
 
 /** MANAGE-005: the detail page's remind action. One reminder now to each recipient whose turn it is, never to one still
  * waiting for an earlier order, one whose paper scan awaits review or one whose invitation bounced (DELIV-002); recorded like a scheduled reminder, so the next
@@ -90,10 +93,11 @@ export async function remindNow(env: Env, context: CommandContext, input: Record
   const due = currentSigners(before).filter(i => !before.signers[i].inPerson && before.signers[i].paper?.status !== 'pending' && !bounced.includes(i))
   for(let n=due.length-1;n>=0;n--)if(!await mayRemindUnderGrant(env,before,due[n],Date.now()))due.splice(n,1)
   insist(due.length, bounced.length ? 'The current recipient’s invitation bounced: correct their email address instead.' : 'No current recipient can receive a reminder: in-person signers and paper signatures awaiting review are not reminded.', 409)
+  const grant=await followupGrant(env,before.id)
   const after = structuredClone(before), at = now()
   for (const i of due) await appendEvent(after, 'signer.reminded', context.actor.id, { signer: i, email: after.signers[i].email, passAt: at, count: after.events.filter(e => e.action === 'signer.reminded' && e.detail.signer === i).length + 1, emailSent: true, manual: true })
   const result = { id: after.id, reminded: due.map(i => after.signers[i].email) }
-  await commitEnvelope(env, before, after, context.actor, [commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result), ...due.flatMap(i => reminderWrites(env, after, i))])
+  await commitEnvelope(env, before, after, context.actor, [commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result), ...due.flatMap(i => reminderWrites(env, after, i, grant))],grant?[grantGuard(before,grant)]:[])
   await dispatchMail(env, after.id)
   return result
 }

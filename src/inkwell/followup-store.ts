@@ -1,3 +1,4 @@
+import { followupRecipient, followupRecipients, currentFollowupRecipients, followupPlace } from './followup-recipients'
 import { active, appendEvent, currentSigners, id, identityEvents, insist, now, secret, sha256, text, type Actor, type Envelope, type Env } from './model'
 import { commandWrite, commitEnvelope, getEnvelope, memberRoleSql, roleGuard, type Guard } from './storage'
 import { envelopeAccess, insistAccess, listPeople } from './members'
@@ -19,7 +20,7 @@ export async function liveGrant(env:Env,e:Envelope,g:FollowupGrant) {
  const guard=grantGuard(e,g)
  return Boolean(await env.DB.prepare(`SELECT 1 AS ok WHERE ${guard.sql}`).bind(...guard.values).first())
 }
-export const identity=(e:Envelope,i:number)=>e.signers[i].email+':'+(e.events.findLast(event=>['signer.corrected','signer.reassigned'].includes(event.action)&&event.detail.signer===i)?.hash??'original')
+export const identity=(e:Envelope,i:number)=>followupRecipient(e,i).email+':'+(e.events.findLast(event=>['signer.corrected','signer.reassigned'].includes(event.action)&&event.detail.signer===followupPlace(i))?.hash??'original')
 export async function followupState(env:Env,e:Envelope,i:number):Promise<FollowupState> {
  const key=identity(e,i),row=await env.DB.prepare('SELECT identity,data FROM iw_followup_states WHERE envelope_id=? AND signer=?').bind(e.id,i).first<{identity:string;data:string}>()
  return row?.identity===key?JSON.parse(row.data):{signer:i,identity:key,paused:false,contacts:0}
@@ -52,18 +53,20 @@ export async function setFollowup(env:Env,c:CommandContext,input:Record<string,u
 export async function resumeFollowup(env:Env,c:CommandContext,input:Record<string,unknown>) {
  const before=await getEnvelope(env.DB,text(input.id,'an envelope ID'));active(before);await insistAccess(env,c.actor,before,'edit')
  const g=await followupGrant(env,before.id);insist(g?.state==='active'&&await liveGrant(env,before,g),'Follow-up is not active.',409)
- const i=Number(input.signer);insist(currentSigners(before).includes(i),'Choose a current recipient.',409)
+ const i=Number(input.signer);insist(currentFollowupRecipients(before).some(p=>p.row===i),'Choose a current recipient.',409)
  const state=await followupState(env,before,i);state.paused=false;delete state.waitUntil;delete state.cause
  const after=structuredClone(before);await appendEvent(after,'followup.resumed',c.actor.id,{signer:i,version:g.version})
  const result={id:before.id};await commitEnvelope(env,before,after,c.actor,[stateWrite(env,before,state),commandWrite(env.DB,c.actor.id,c.commandId,c.fingerprint,result)],[grantGuard(before,g)]);return result
 }
 export async function followupView(env:Env,actor:Actor,e:Envelope) {
- insist(!actor.agentId&&!actor.apiKeyId,'Use a member session.',403);const access=await insistAccess(env,actor,e,'view'),g=await followupGrant(env,e.id)
+ insist(!actor.agentId&&!actor.apiKeyId,'Use a member session.',403);const access=await insistAccess(env,actor,e,'view');let g=await followupGrant(env,e.id)
+ if(g?.state==='active'&&(e.status!=='awaiting_signature'||Date.parse(e.expiresAt)<=Date.now()||!await liveGrant(env,e,g))){const state=e.status!=='awaiting_signature'||Date.parse(e.expiresAt)<=Date.now()?'ended':'suspended';await env.DB.prepare("UPDATE iw_followup_grants SET state=? WHERE envelope_id=? AND version=? AND state='active'").bind(state,e.id,g.version).run();g={...g,state}}
  await recordGrantState(env,e,g)
  const canRead=access==='edit'||actor.id===e.createdBy||actor.id===g?.escalationOwner
- const states=await Promise.all(e.signers.map((_,i)=>followupState(env,e,i)))
+ const {contactsSinceGrant}=await import('./followup-engine')
+ const states=await Promise.all(followupRecipients(e).map(async p=>({...await followupState(env,e,p.row),...(g?{contacts:contactsSinceGrant(e,g,p.row).length}:{}),recipientName:p.name})))
  const replies=canRead?(await env.DB.prepare('SELECT signer,data FROM iw_followup_replies WHERE envelope_id=? ORDER BY rowid').bind(e.id).all<{signer:number;data:string}>()).results.map(r=>{const p:FollowupReply=JSON.parse(r.data);return{id:p.id,signer:r.signer,from:p.headers.from,subject:p.headers.subject,text:p.body,at:p.receivedAt,verified:p.verified,tooLarge:p.bodyStatus!=='kept',attachments:p.attachments}}):undefined
- return {grant:g,states,replies,people:access==='edit'?await listPeople(env):[],defaultEscalationOwner:e.createdBy,readiness:{inbound:Boolean(env.MAIL_INBOUND_DOMAIN&&env.MAIL_INBOUND_SECRET&&env.MAIL_INBOUND_API_KEY)}}
+ return {grant:g,states:canRead?states:states.map(({signer,cause,paused,waitUntil,contacts,recipientName})=>({signer,cause,paused,waitUntil,contacts,recipientName})),replies,people:access==='edit'?await listPeople(env):[],defaultEscalationOwner:e.createdBy,readiness:{inbound:Boolean(env.MAIL_INBOUND_DOMAIN&&env.MAIL_INBOUND_SECRET&&env.MAIL_INBOUND_API_KEY)}}
 }
 export async function replyTo(env:Env,e:Envelope,i:number) {
  const g=await followupGrant(env,e.id);if(!g||g.state!=='active'||!env.MAIL_INBOUND_DOMAIN||!await liveGrant(env,e,g))return undefined
@@ -81,19 +84,19 @@ export async function resolveReplyCapability(env:Env,token:string) {
  const e=await getEnvelope(env.DB,cap.envelope_id),g=await followupGrant(env,e.id)
  if(e.status!=='awaiting_signature'||Date.parse(e.expiresAt)<=Date.now()||!g||g.state!=='active'||g.version!==cap.grant_version||!await liveGrant(env,e,g))return null
  const signer=await env.DB.prepare('SELECT token_hash FROM iw_signers WHERE envelope_id=? AND signer=?').bind(e.id,cap.signer).first<{token_hash:string}>()
- if(signer?.token_hash!==cap.token_hash||!currentSigners(e).includes(cap.signer))return null
+ if(signer?.token_hash!==cap.token_hash||!currentFollowupRecipients(e).some(p=>p.row===cap.signer))return null
  return {envelope:e,signer:cap.signer,state:await followupState(env,e,cap.signer)}
 }
 export async function storeReply(env:Env,before:Envelope,i:number,reply:FollowupReply,eventId:string) {
  const g=await followupGrant(env,before.id);insist(g&&await liveGrant(env,before,g),'Follow-up is no longer active.',409)
  const after=structuredClone(before),s=await followupState(env,before,i)
  if(reply.verified){
-  const addresses=[...new Set(reply.body?.match(/[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,}/gi)??[])].filter(email=>email.toLowerCase()!==before.signers[i].email.toLowerCase())
+  const addresses=[...new Set(reply.body?.match(/[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,}/gi)??[])].filter(email=>email.toLowerCase()!==followupRecipient(before,i).email.toLowerCase())
   if(addresses.length===1)s.proposal={email:addresses[0].toLowerCase(),source:'Recipient’s authenticated reply '+reply.id}
 
   const auto=reply.automatic===true||reply.headers.autoSubmitted?.toLowerCase()==='auto-replied'
-  if(auto){s.cause='unavailable';const date=reply.body?.match(/\b(20\d{2}-\d{2}-\d{2})\b/g);const unambiguous=date&&new Set(date).size===1&&Number.isFinite(Date.parse(date[0]+'T12:00:00Z'))&&new Date(date[0]+'T12:00:00Z').toISOString().slice(0,10)===date[0];s.waitUntil=unambiguous?date![0]:addBusinessDays(localDate(Date.parse(reply.receivedAt)),before.reminders?.everyDays??3);s.paused=false}
-  else{s.cause='substantive reply';s.paused=true}
+  if(auto&&!s.paused){s.cause='unavailable';const date=reply.body?.match(/\b(20\d{2}-\d{2}-\d{2})\b/g);const unambiguous=date&&new Set(date).size===1&&Number.isFinite(Date.parse(date[0]+'T12:00:00Z'))&&new Date(date[0]+'T12:00:00Z').toISOString().slice(0,10)===date[0];s.waitUntil=unambiguous?date![0]:addBusinessDays(localDate(Date.parse(reply.receivedAt)),before.reminders?.everyDays??3);s.paused=false}
+  else if(!auto){s.cause='substantive reply';s.paused=true}
  }
  await appendEvent(after,'followup.reply_received','inkwell-followup',{signer:i,version:g.version,cause:reply.verified?s.cause:'unverified sender',reply:reply.id,member:g.memberId})
  const { followupAttentionWrites }=await import('./followup-engine')

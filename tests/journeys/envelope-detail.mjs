@@ -93,7 +93,7 @@ try {
     const capture=async(name)=>{const panel=page.getByRole('region',{name:'Signer follow-up',exact:true});await panel.scrollIntoViewIfNeeded();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${width} no sideways scroll`);await page.screenshot({path:`${images}/${width}-${name}.png`})}
     await open()
     let followup=page.getByRole('region',{name:'Signer follow-up',exact:true})
-    await followup.getByText('Turn on follow-up',{exact:true}).click()
+    await followup.locator('summary').filter({hasText:'Turn on follow-up'}).click()
     await followup.getByLabel('Maximum contacts per recipient').fill('2')
     await followup.getByLabel('I authorize follow-up for this envelope under these settings.').check()
     await capture('grant-settings');await axe(page,`follow-up settings ${width}`)

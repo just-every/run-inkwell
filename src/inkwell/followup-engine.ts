@@ -1,20 +1,22 @@
+import { followupPlace, followupRecipient, currentFollowupRecipients } from './followup-recipients'
 import { appendEvent, currentSigners, identityEvents, now, id, type Envelope, type Env } from './model'
 import { commitEnvelope } from './storage'
 import { followupGrant, followupState, grantGuard, liveGrant, stateWrite, recordGrantState } from './followup-store'
 import type { FollowupGrant, FollowupState } from './followup-types'
 import { dayOfWeek, localDate, localHour, addBusinessDays } from './followup-time'
 import { envelopeMessages } from './delivery'
-import { bouncedRecipients } from './bounces'
-import { noticeWrite, dispatchMail } from './mail'
+import { dispatchMail } from './mail'
 import { openLink } from './links'
 import { mailSuppressed } from './manual-invitations'
 export async function followupAttentionWrites(env:Env,e:Envelope,g:FollowupGrant,i:number,label:string) {
  const people=(await env.DB.prepare("SELECT id,email FROM oa_operators WHERE status='active' AND id IN (?,?)").bind(e.createdBy,g.escalationOwner).all<{id:string;email:string}>()).results
  return people.map(p=>env.DB.prepare("INSERT INTO iw_mail(id,envelope_id,signer,kind,recipient,subject,body,created_at,followup_version,followup_envelope_version) VALUES(?,?,?,'notice',?,?,?,?,?,?)").bind(id(),e.id,i,p.email,`Follow-up: ${label}`,`A signing request needs attention.\n${new URL('/app',env.AUTH_ORIGIN).href}\n\nOpen the envelope in Inkwell to review it.`,now(),g.version,e.version+1))
 }
-export const contactsSinceGrant=(e:Envelope,g:FollowupGrant,i:number)=>identityEvents(e,i).filter(event=>['followup.sent','signer.reminded'].includes(event.action)&&event.detail.signer===i&&String(event.detail.passAt??event.at)>=(g.startedAt??g.at))
+export const contactsSinceGrant=(e:Envelope,g:FollowupGrant,i:number)=>identityEvents(e,followupPlace(i)).filter(event=>(event.action==='followup.sent'&&event.detail.signer===i||event.action==='signer.reminded'&&event.detail.signer===followupPlace(i))&&String(event.detail.passAt??event.at)>=(g.startedAt??g.at))
 export function insideWindow(g:FollowupGrant,at:number){return g.days.includes(dayOfWeek(localDate(at)))&&localHour(at)>=g.startHour&&localHour(at)<g.endHour}
 export async function mayRemindUnderGrant(env:Env,e:Envelope,i:number,at:number) {
+ const group=e.signers[i]?.group
+ if(group){for(const person of currentFollowupRecipients(e).filter(p=>p.place===i))if(!await mayRemindUnderGrant(env,e,person.row,at))return false;return true}
  const g=await followupGrant(env,e.id);if(!g)return true
  if(g.state!=='active'||!await liveGrant(env,e,g)||!insideWindow(g,at))return false
  const s=await followupState(env,e,i),contacts=contactsSinceGrant(e,g,i)
@@ -22,15 +24,18 @@ export async function mayRemindUnderGrant(env:Env,e:Envelope,i:number,at:number)
 }
 /** One claim per cause/session and business day. The mail dispatcher fences the actual claim again. */
 export async function chaseStalled(env:Env,at:number) {
+ await env.DB.prepare("UPDATE iw_followup_grants SET state='ended' WHERE state='active' AND EXISTS(SELECT 1 FROM iw_envelopes e WHERE e.id=iw_followup_grants.envelope_id AND (json_extract(e.data,'$.status')!='awaiting_signature' OR json_extract(e.data,'$.expiresAt')<=?))").bind(new Date(at).toISOString()).run()
+ await env.DB.prepare("DELETE FROM iw_followup_capabilities WHERE NOT EXISTS(SELECT 1 FROM iw_followup_grants g WHERE g.envelope_id=iw_followup_capabilities.envelope_id AND g.version=iw_followup_capabilities.grant_version AND g.state='active')").run()
  const rows=(await env.DB.prepare("SELECT e.data FROM iw_envelopes e WHERE json_extract(e.data,'$.status')='awaiting_signature' AND json_extract(e.data,'$.scheduled') IS NULL AND json_extract(e.data,'$.expiresAt')>? AND EXISTS(SELECT 1 FROM iw_followup_grants g WHERE g.envelope_id=e.id AND g.state IN ('active','suspended'))").bind(new Date(at).toISOString()).all<{data:string}>()).results
- for(const row of rows){const e:Envelope=JSON.parse(row.data),g=await followupGrant(env,e.id);if(!g)continue;if(g.state!=='active'){await recordGrantState(env,e,g);continue}if(!await liveGrant(env,e,g))continue;await chaseEnvelope(env,e,g,at)}
+ for(const row of rows){const e:Envelope=JSON.parse(row.data),g=await followupGrant(env,e.id);if(!g)continue;if(g.state!=='active'){await recordGrantState(env,e,g);continue}if(!await liveGrant(env,e,g)){await env.DB.prepare("UPDATE iw_followup_grants SET state='suspended' WHERE envelope_id=? AND version=? AND state='active'").bind(e.id,g.version).run();await recordGrantState(env,e,{...g,state:'suspended'});continue}await chaseEnvelope(env,e,g,at)}
 }
 async function chaseEnvelope(env:Env,before:Envelope,g:FollowupGrant,at:number) {
  const after=structuredClone(before),states:FollowupState[]=[],writes:D1PreparedStatement[]=[],passAt=new Date(at).toISOString(),today=localDate(at)
- const bounced=bouncedRecipients(before,await envelopeMessages(env,before.id)).map(b=>b.signer)
- for(const i of currentSigners(before)){
-  const person=before.signers[i];if(person.inPerson||person.group||person.paper?.status==='pending')continue
-  const s=await followupState(env,before,i),old=JSON.stringify(s),events=identityEvents(before,i),contacts=contactsSinceGrant(before,g,i);s.contacts=contacts.length;s.notified??=[]
+ const messages=await envelopeMessages(env,before.id)
+ const bounced=currentFollowupRecipients(before).filter(person=>{const latest=messages.filter(m=>m.kind==='invitation'&&m.signer===person.place&&m.recipient.toLowerCase()===person.email.toLowerCase()).at(-1);return latest&&['bounced','failed'].includes(latest.status)}).map(p=>p.row)
+ for(const person of currentFollowupRecipients(before)){
+  const i=person.row,place=person.place;if(before.signers[place].inPerson||before.signers[place].paper?.status==='pending')continue
+  const s=await followupState(env,before,i),old=JSON.stringify(s),events=identityEvents(before,place),contacts=contactsSinceGrant(before,g,i);s.contacts=contacts.length;s.notified??=[]
   const tell=async(label:string)=>{if(s.notified!.includes(label))return;s.notified!.push(label);writes.push(...await followupAttentionWrites(env,before,g,i,label));await appendEvent(after,'followup.attention','inkwell-followup',{signer:i,cause:label,version:g.version,member:g.memberId},passAt)}
   if(bounced.includes(i)){
    s.cause='bad address';s.paused=true
@@ -41,8 +46,8 @@ async function chaseEnvelope(env:Env,before:Envelope,g:FollowupGrant,at:number) 
   else if(s.paused){}
   else if(s.waitUntil&&s.waitUntil>localDate(Date.parse(before.expiresAt))){await tell('return date is after expiry')}
   else if(!s.waitUntil||s.waitUntil<=today){
-   const views=events.filter(e=>e.action==='signer.viewed'&&e.detail.signer===i),verified=events.filter(e=>['signer.email_verified','signer.session_verified','signer.link_opened'].includes(e.action)&&e.detail.signer===i)
-   const lastView=views.at(-1),invited=events.findLast(e=>['signer.invited','signer.resent','envelope.approved','envelope.sent_scheduled'].includes(e.action)&&(e.detail.signer===undefined||e.detail.signer===i))?.at??before.createdAt
+   const views=events.filter(e=>e.action==='signer.viewed'&&e.detail.signer===place&&e.detail.member===person.member),verified=events.filter(e=>['signer.email_verified','signer.session_verified','signer.link_opened'].includes(e.action)&&e.detail.signer===place&&e.detail.member===person.member)
+   const lastView=views.at(-1),invited=events.findLast(e=>['signer.invited','signer.resent','envelope.approved','envelope.sent_scheduled'].includes(e.action)&&(e.detail.signer===undefined||e.detail.signer===place))?.at??before.createdAt
    let cause=s.cause==='unavailable'?'unavailable':verified.length>=3?'repeated views':lastView?'opened and left':!verified.length?'not opened':undefined
    const due=cause==='unavailable'?true:cause==='repeated views'?true:cause==='opened and left'?today>=addBusinessDays(localDate(Date.parse(lastView!.at)),1):today>=addBusinessDays(localDate(Date.parse(invited)),before.reminders?.afterDays??2)
    if(cause){s.cause=cause;if(cause==='repeated views')await tell('repeated views')}

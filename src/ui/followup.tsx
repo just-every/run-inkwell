@@ -3,7 +3,7 @@ import { command, dateTime, request, type Envelope } from './types'
 import { ErrorNotice, useAction } from './feedback'
 
 type Grant = { version: number; state: 'active' | 'revoked' | 'suspended' | 'ended'; memberId: string; maxContacts: number; days: number[]; startHour: number; endHour: number; escalationOwner: string; channels: ['email']; at: string }
-type RecipientState = { signer: number; cause: string; paused: boolean; waitUntil?: string; contacts: number; proposal?: { email: string; source: string } }
+type RecipientState = { recipientName?: string; signer: number; cause: string; paused: boolean; waitUntil?: string; contacts: number; proposal?: { email: string; source: string } }
 type Reply = { id: string; signer: number; from: string; subject: string; text: string; at: string; verified: boolean; tooLarge?: boolean; attachments: { name: string; type: string; size: number; sha256: string }[] }
 type Followup = { defaultEscalationOwner?: string; grant: Grant | null; states: RecipientState[]; replies?: Reply[]; people: { id: string; name: string; email: string }[]; readiness: { inbound: boolean } }
 const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
@@ -39,7 +39,7 @@ export function EnvelopeFollowup({ envelope, editable, refresh }: { envelope: En
   const grant = data?.grant
   const open = envelope.status === 'awaiting_signature' && Date.parse(envelope.expiresAt) > Date.now()
   const active = grant?.state === 'active'
-  const signerName = (index: number) => envelope.signers[index]?.name ?? `Recipient ${index + 1}`
+  const signerName = (index: number) => data?.states.find(state=>state.signer===index)?.recipientName ?? envelope.signers[index]?.name ?? `Recipient ${index + 1}`
   async function act(name: string, input: object) {
     await command(name, { id: envelope.id, ...input })
     await refresh()

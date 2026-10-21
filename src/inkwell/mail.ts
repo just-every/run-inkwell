@@ -1,3 +1,4 @@
+import { followupRecipients } from './followup-recipients'
 import { mailSuppressed } from './manual-invitations'
 import { operatorMail } from '../mail.server.mjs'
 import { id, now, insist, party, type Env, type Envelope } from './model'
@@ -44,8 +45,8 @@ export async function dispatchMail(env: Env, envelopeId: string) {
    const attachments=claimed.attach?await completedFiles(env,envelopeId):undefined
    const {getEnvelope}=await import('./storage'),{replyTo}=await import('./followup-store')
    const envelope=await getEnvelope(env.DB,envelopeId)
-   const sameRecipient=envelope.signers[claimed.signer]?.email.toLowerCase()===claimed.recipient.toLowerCase()
-   const reply=sameRecipient&&(claimed.kind==='invitation'||claimed.followup_version!==null||claimed.subject.startsWith('Reminder to sign:'))?await replyTo(env,envelope,claimed.signer):undefined
+   const recipient=followupRecipients(envelope).find(p=>(p.place===claimed.signer||p.row===claimed.signer)&&p.email.toLowerCase()===claimed.recipient.toLowerCase())
+   const reply=recipient&&(claimed.kind==='invitation'||claimed.followup_version!==null||claimed.subject.startsWith('Reminder to sign:'))?await replyTo(env,envelope,recipient.row):undefined
    const result=await sender.send({deliveryId:claimed.id,from:env.MAIL_FROM,to:[claimed.recipient],subject:claimed.subject,text:claimed.body,html:htmlBody(claimed.body,claimed.kind==='copy'?'Open your completed copy':'Review and sign'),headers:{},...(reply?{replyTo:reply}:{}),...(attachments?{attachments}:{})})
    state=['accepted','development'].includes(result.status)?'sent':result.status;messageId=result.providerMessageId
   }catch{state='uncertain'}

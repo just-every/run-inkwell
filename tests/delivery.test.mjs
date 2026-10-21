@@ -407,9 +407,34 @@ test('Follow-up grants chase three stalled signers through signed replies, human
   assert.equal(await h.mail('alex.correct@clients.example'),undefined,'proposed correction sends nothing')
   await h.command('envelope.correct_bounced',{id,signer:0,email:'alex.correct@clients.example'})
   assert.equal((await h.send(oldLink)).status,404,'human correction invalidates the old link')
-  await h.command('envelope.followup_resume',{id,signer:2});assert.equal((await view()).value.states[2].paused,false)
   await h.command('envelope.resend',{id,signer:1,newLink:true})
   await receive(emails[1],awayAddress,'old capability',{},crypto.randomUUID(),403)
+  await receive(emails[2],objectAddress,'A later automatic reply must not resume an objection.',{'Auto-Submitted':'auto-replied'})
+  assert.equal((await view()).value.states[2].paused,true,'automatic replies do not override an unresolved objection')
+  await receive(emails[2],objectAddress,'é'.repeat(250001))
+  const large=(await view()).value.replies.at(-1)
+  assert.equal(large.tooLarge,true);assert.equal(large.text,null,'large replies are not truncated into misleading text')
+  const attachmentId='synthetic-inkwell-6',attachmentBytes=Buffer.from('Private attachment bytes')
+  h.attachment(attachmentId,{bytes:attachmentBytes,metadata:{id:attachmentId,filename:'private-note.txt',content_type:'text/plain',size:attachmentBytes.length,download_url:'https://attachments.harbour.example/'+attachmentId}})
+  const messageId=crypto.randomUUID();h.inbound({id:messageId,from:emails[2],to:[objectAddress],subject:'Private attachment',text:'Please review my attachment.',headers:{},attachments:[{id:attachmentId,filename:'private-note.txt',content_type:'text/plain'}],message_id:'<attachment@clients.example>'})
+  await signedEvent('/api/inkwell/mail/replies',inboundSecret,{type:'email.received',data:{email_id:messageId}})
+  const attachment=(await view()).value.replies.at(-1).attachments[0]
+  assert.equal(attachment.sha256,(await import('node:crypto')).createHash('sha256').update(attachmentBytes).digest('hex'))
+  assert.equal(attachment.size,attachmentBytes.length);assert.equal(attachment.name,'private-note.txt')
+  await h.command('envelope.followup_resume',{id,signer:2});assert.equal((await view()).value.states[2].paused,false)
+  const clientPath='/api/sign/'+new URL((await h.mail(emails[2],'Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)
+  await h.post(clientPath+'/code',{},'')
+  const clientCookie=(await h.post(clientPath+'/verify',{code:(await h.mail(emails[2],'verification code')).text.match(/\b\d{6}\b/)[0]},'')).cookie
+  await h.agree(clientPath,clientCookie)
+  // A terminal certificate remains an independent record: reply bodies never go into it.
+  const replyArchive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
+  const restored=await harness()
+  try{
+   await restored.post('/api/inkwell/archive/restore',{archive:replyArchive},restored.owner)
+   const restoredReply=(await restored.send(`/api/inkwell/envelopes/${id}/followup`,undefined,restored.owner)).value.replies
+   assert.ok(restoredReply.some(r=>r.text?.includes('Clause 4 needs legal review')),'restore preserves private reply custody')
+   assert.equal((await restored.db.prepare('SELECT count(*) AS n FROM iw_followup_capabilities').first()).n,0)
+  }finally{await restored.close()}
   const archive=await h.send('/api/inkwell/archive',undefined,h.owner)
   assert.equal(archive.status,200);assert.ok(JSON.stringify(archive.value).includes('Clause 4 needs legal review'))
   assert.ok(!JSON.stringify(archive.value).includes(objectAddress.match(/reply\+([^@]+)/)[1]),'capabilities never archive')
@@ -417,10 +442,16 @@ test('Follow-up grants chase three stalled signers through signed replies, human
   assert.ok(!JSON.stringify(audit).includes('Clause 4 needs legal review'),'audit carries opaque reply ids only')
   await h.command('envelope.followup',{id,enabled:false})
   const stopped=h.attempted().length;await h.scheduled(next(3));assert.equal(h.attempted().length,stopped,'revocation cancels subsequent passes including DELIV-003')
-  await h.command('envelope.void',{id,reason:'Signing abandoned'})
+  await h.post(clientPath+'/decline',{reason:'Sender review requested',commandId:crypto.randomUUID()},clientCookie)
+  const certificate=(await h.send(`/api/inkwell/envelopes/${id}/artifacts/certificate`,undefined,h.owner)).bytes
+  const {getDocument}=await import('pdfjs-dist/legacy/build/pdf.mjs'),parsed=await getDocument({data:certificate,standardFontDataUrl:new URL('../node_modules/pdfjs-dist/standard_fonts/',import.meta.url).pathname}).promise
+  let certificateText='';for(let page=1;page<=parsed.numPages;page++)certificateText+=(await(await parsed.getPage(page)).getTextContent()).items.map(item=>item.str).join(' ')
+  assert.ok(!certificateText.includes('Clause 4 needs legal review')&&!certificateText.includes('Private attachment'),'certificate has no reply text or headers')
   await h.post('/api/inkwell/erase',{id,confirmation:'ERASE'},h.owner)
   assert.equal((await h.db.prepare('SELECT count(*) AS n FROM iw_followup_replies WHERE envelope_id=?').bind(id).first()).n,0)
   assert.equal((await view()).status,404)
+  const laterJournal=(await h.send('/api/inkwell/archive',undefined,h.owner)).value,fresh=await harness()
+  try{await fresh.post('/api/inkwell/archive/restore',{archive:replyArchive,laterJournal},fresh.owner,400)}finally{await fresh.close()}
  } finally {await h.close()}
 })
 
@@ -463,5 +494,39 @@ test('Follow-up authority is explicit, scoped to editors and permanently suspend
    assert.equal(h.attempted().filter(m=>m.subject==='Reminder to sign: Follow-up authority').length,reminderCount,'an ordinary reminder exhausts the shared maximum')
   }
   await h.command('envelope.followup',{id,enabled:false},sender)
+ }finally{await h.close()}
+})
+
+test('Follow-up causes use real signing sessions and keep group-member reply authority separate',async()=>{
+ const inboundSecret=Buffer.from('synthetic-inkwell-7').toString('base64'),h=await harness({bindings:{MAIL_INBOUND_DOMAIN:'replies.harbour.example',MAIL_INBOUND_SECRET:inboundSecret,MAIL_INBOUND_API_KEY:'synthetic-inkwell-8'}})
+ try{
+  const members=[{name:'Dana Buyer',email:'dana@clients.example'},{name:'Eli Buyer',email:'eli@clients.example'}]
+  const group=(await h.command('account.signing_group',{name:'Purchasing',members})).result.groups[0]
+  const people=['New Client','Opened Client','Repeated Client'].map((name,i)=>({name,email:`cause${i}@clients.example`,linkOnly:true,order:1}))
+  const id=(await h.command('envelope.prepare',{title:'Signing causes',filename:'causes.pdf',pdfBase64:await pdf(),signers:[...people,{group:group.id,order:1}],fields:[0,1,2,3].map(signer=>({id:'sig'+signer,label:'Signature',type:'signature',signer,page:0,x:.1,y:.15+signer*.15,width:.4,height:.05}))})).result.id
+  await h.command('envelope.approve',{id,eligible:true})
+  const envelope=(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
+  await h.command('envelope.followup',{id,enabled:true,maxContacts:2,escalationOwner:envelope.createdBy})
+  const path=async email=>'/api/sign/'+new URL((await h.mail(email,'Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)
+  const openedPath=await path(people[1].email),cookie=(await h.post(openedPath+'/open',{},'')).cookie;await h.agree(openedPath,cookie);await h.send(openedPath+'/document',undefined,cookie)
+  const repeatedPath=await path(people[2].email)
+  for(let n=0;n<3;n++)await h.post(repeatedPath+'/open',{},'')
+  await h.command('envelope.resend',{id,signer:3})
+  const invitation=await h.mail(members[0].email,'Please sign:'),emailId=crypto.randomUUID(),eventId=crypto.randomUUID(),timestamp=String(Math.floor(Date.now()/1000))
+  assert.match(invitation.reply_to,/^reply\+/)
+  h.inbound({id:emailId,from:members[0].email,to:[invitation.reply_to],subject:'Objection',text:'Our lawyer needs to review this clause.',headers:{},attachments:[],message_id:'<group@clients.example>'})
+  const event={type:'email.received',data:{email_id:emailId}},raw=JSON.stringify(event)
+  await h.post('/api/inkwell/mail/replies',event,'',200,{'svix-id':eventId,'svix-timestamp':timestamp,'svix-signature':'v1,'+createHmac('sha256',Buffer.from(inboundSecret,'base64')).update(`${eventId}.${timestamp}.${raw}`).digest('base64')})
+  let at=new Date(Date.now()+7*86400000);at.setUTCHours(14,0,0,0);while([0,6].includes(at.getUTCDay()))at.setUTCDate(at.getUTCDate()+1)
+  const reminders=()=>h.attempted().filter(m=>m.subject==='Reminder to sign: Signing causes')
+  const late=new Date(at);late.setUTCHours(23);await h.scheduled(late);assert.equal(reminders().length,0,'quiet hours refuse the whole pass')
+  await h.scheduled(at);await h.scheduled(at)
+  assert.deepEqual(reminders().flatMap(m=>m.to).sort(),[...people.map(p=>p.email),members[1].email].sort(),'only the objecting group member pauses; other members retain their own authority')
+  const states=(await h.send(`/api/inkwell/envelopes/${id}/followup`,undefined,h.owner)).value.states
+  assert.deepEqual(states.slice(0,3).map(s=>s.cause),['not opened','opened and left','repeated views'])
+  assert.equal(states.find(s=>s.recipientName===members[0].name).paused,true)
+  assert.ok(h.attempted().some(m=>m.subject==='Follow-up: repeated views'))
+  await h.command('envelope.followup_resume',{id,signer:states.find(s=>s.recipientName===members[0].name).signer})
+  await h.command('envelope.followup',{id,enabled:false})
  }finally{await h.close()}
 })

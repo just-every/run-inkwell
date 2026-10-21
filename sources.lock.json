@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "b1870c9905b3243634910062efb75ba8dbc89436d62d2a45cad8bb83797b2041",
+      "sha256": "bdb77873bfaecc7470ced7c814a127f7e7ee5339604d2f2ef4ae05dbf38c8d6d",
       "executable": false
     },
     "DEMO.md": {
@@ -827,7 +827,7 @@
       "executable": false
     },
     "src/inkwell/followup-engine.ts": {
-      "sha256": "88e20eaf2e51aff1d490c44532fd132a7b35231c50af7e4ff973c6fb2bf034d3",
+      "sha256": "596a32bf38acf136a1f6ff69f8d00879aa6c435863bcbd53d530382dfe3106ba",
       "executable": false
     },
     "src/inkwell/followup-inbound-types.ts": {
@@ -835,11 +835,15 @@
       "executable": false
     },
     "src/inkwell/followup-inbound.ts": {
-      "sha256": "ab93eeae30c4b505ef9ec78cb5c513f862d7b844a38ecd46a56d989356eba812",
+      "sha256": "4c159fded6022328efbe302a74a84cf18de8d892b435eb75518f77420f72273a",
+      "executable": false
+    },
+    "src/inkwell/followup-recipients.ts": {
+      "sha256": "bb1296229a323c3b1c71c89a1a9371e6188a4fcc43023cd59cb3e10346b05003",
       "executable": false
     },
     "src/inkwell/followup-store.ts": {
-      "sha256": "402bfb6f849723dfbd977d668bb40d5f3e798b2f85ff7febdb784497f803b54b",
+      "sha256": "61d19a6d810747784deb334e2dc55c473c37ec57db8fcd1420930cb2c3a169cc",
       "executable": false
     },
     "src/inkwell/followup-time.ts": {
@@ -927,7 +931,7 @@
       "executable": false
     },
     "src/inkwell/mail.ts": {
-      "sha256": "4bf82c858b8820ca9a125513522f245dc3d00760ebe879aa5c9c350986ffa4fe",
+      "sha256": "68334180ba0725ef1afe0d00ddde2d77f5dd4a2b459d3553893b15f172e02f76",
       "executable": false
     },
     "src/inkwell/manual-invitations.ts": {
@@ -983,7 +987,7 @@
       "executable": false
     },
     "src/inkwell/reminders.ts": {
-      "sha256": "580255abccb6c4ea47b7e695393ecbceb34fa46bdc2a14cd85b0714645725857",
+      "sha256": "f61e352329a80632c5c1a06858ae492d1295295987e22f1b8f527ca3b2d39878",
       "executable": false
     },
     "src/inkwell/reports.ts": {
@@ -3023,7 +3027,7 @@
       "executable": false
     },
     "src/ui/followup.tsx": {
-      "sha256": "25fbbfdf1c1d1edf4abe393afd16febd8637c3ca23019b9c6494b2880dcae9b0",
+      "sha256": "fe4cdfbe85607f189af809ac1edacce353e8f9a302454609072d083d6a316adc",
       "executable": false
     },
     "src/ui/freeform-editor.tsx": {
@@ -3175,7 +3179,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "08834809c9f011bf44a38c36d8b4b2a0add18bf804759c3b553d485f6f6f643c",
+      "sha256": "1df7285887be83f26c6c52af8b2844f24e18b9b6d4b69a786c28ce0511894f09",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
@@ -3223,7 +3227,7 @@
       "executable": false
     },
     "tests/harness.mjs": {
-      "sha256": "0008ca1be1247d68e5963ad9b705f1073817822cf6eb8163c2eb8c01be24de40",
+      "sha256": "59fa83413470ac483ab3ad8c36b726b6940a4ad1bd40278f2913ac362578dcb4",
       "executable": false
     },
     "tests/import-retention.test.mjs": {
@@ -3259,7 +3263,7 @@
       "executable": false
     },
     "tests/journeys/envelope-detail.mjs": {
-      "sha256": "4a8e1044786cbe6e2eb0f5f8c43efdd97686e62043e77c097660a9d2ae5fc263",
+      "sha256": "8f49182fbd597f5d836ed72e853d05e24cd7e3c216834f590291f552f6fbf18a",
       "executable": false
     },
     "tests/journeys/field-placement.mjs": {

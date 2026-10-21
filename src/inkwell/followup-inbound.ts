@@ -1,3 +1,4 @@
+import { followupRecipient } from './followup-recipients'
 // AGENT-003 R11–17: this door authenticates provider facts; reply text is data, never instructions.
 import { readBytes } from './body'
 import { Refusal, insist, type Env } from './model'
@@ -171,7 +172,7 @@ export async function receiveFollowupReply(env: Env, request: Request): Promise<
     insist(capability, 'This reply address is unknown or no longer current.', 403)
     const sourceHeaders = record(message.headers), headers = new Map(Object.entries(sourceHeaders).map(([name, value]) => [name.toLowerCase(), field(value, 64 * 1024)]))
     const from = field(message.from), normalizedFrom = mailbox(from)
-    const verified = Boolean(normalizedFrom && normalizedFrom === mailbox(capability.envelope.signers[capability.signer].email) &&
+    const verified = Boolean(normalizedFrom && normalizedFrom === mailbox(followupRecipient(capability.envelope,capability.signer).email) &&
       (!headers.has('from') || normalizedFrom === mailbox(headers.get('from')!)) && !authFailed(message, headers))
     const body = typeof message.text === 'string' ? message.text : htmlText(string(message.html))
     const bodyBytes = encoder.encode(body).byteLength
