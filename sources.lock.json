@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f44a3a41c00a69cb1bd1d50f1ae8a2cee4e12b8dd244a75c8b4fa602f45457c6",
+      "sha256": "f91265b67494e65b9d8a9b836146759136b6306164fb2addea224a250b18df20",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "34c5f63df4c46d7ab26df15a3ff87dafd653aefaab8ed992b81aee10815bc82d",
+      "sha256": "b65b2c522f668d6f27fe811ff31d4e8ed34980c9735f1bd5885c4a609feac802",
       "executable": false
     },
     "DEMO.md": {
@@ -3459,7 +3459,7 @@
       "executable": false
     },
     "tests/supplements.test.mjs": {
-      "sha256": "d9655199885e62076f6a32896d21824c8acbc594a61ec9cb98922a96cd505f95",
+      "sha256": "23c7b9e5ff99b1a1b88ee829c6b333381e445b3018af6d75bc3fd38eb04d4fa7",
       "executable": false
     },
     "tests/template-maintenance.test.mjs": {

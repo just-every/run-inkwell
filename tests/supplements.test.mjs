@@ -290,6 +290,18 @@ test('Private page threads: chosen audiences, inherited replies, identity epochs
   const returned=await recipient(people[0].email);await h.agree(returned.path,returned.cookie)
   assert.deepEqual((await view(returned.path,returned.cookie)).threads,[],'reusing the email after reassignment never restores old access')
   assert.ok((await h.send(returned.path,undefined,returned.cookie)).value.supplements.every(s=>!s.viewedAt&&!s.acknowledgedAt))
+  // Existing signing-group doors select member identities, never everyone in the place implicitly.
+  const members=[{name:'Ada Park',email:'ada@comment-group.example'},{name:'Ben Ortiz',email:'ben@comment-group.example'}]
+  const group=(await h.command('account.signing_group',{name:'Comment reviewers',members})).result.groups[0]
+  const groupEnvelope=await prepare(h,bytes,[{group:group.id}]);await h.command('envelope.approve',{id:groupEnvelope,eligible:true})
+  const a=await recipient(members[0].email),b=await recipient(members[1].email);await h.agree(a.path,a.cookie);await h.agree(b.path,b.cookie)
+  const groupThread=(await post(a.path,{action:'create',page:1,text:'Only Ada is selected.',audience:['recipient:0:0']},a.cookie)).value.result.thread
+  assert.equal((await view(a.path,a.cookie)).threads.length,1);assert.deepEqual((await view(b.path,b.cookie)).threads,[])
+  await post(b.path,{action:'reply',thread:groupThread,text:'Not selected'},b.cookie,404)
+  await post(a.path,{action:'audience',thread:groupThread,audience:['recipient:0:0','recipient:0:1']},a.cookie)
+  await post(b.path,{action:'reply',thread:groupThread,text:'Now explicitly selected.'},b.cookie)
+  assert.deepEqual((await view(a.path,a.cookie)).threads[0].audience.map(p=>p.member),[0,1])
+  assert.equal((await view(b.path,b.cookie)).threads[0].messages.length,2)
  }finally{await h.close()}
 })
 
