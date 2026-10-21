@@ -22,7 +22,7 @@ const tab = async (page, control) => {
 }
 const activate = async (page, control) => { await tab(page, control); await page.keyboard.press('Enter') }
 const enter = async (page, control, value) => { await tab(page, control); await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.type(String(value)) }
-const choose = async (page, control, index) => { await tab(page, control); await page.keyboard.press('Home'); for (let n = 0; n < index; n++) await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter') }
+const choose = async (page, control, index) => { await tab(page, control); await page.keyboard.press('Space'); await page.keyboard.press('Home'); for (let n = 0; n < index; n++) await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter'); assert.equal(await control.evaluate(el => el.selectedIndex), index, 'keyboard selects the requested option') }
 const capture = async (page, width, state) => {
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width} ${state}: no sideways scrolling`)
   await page.screenshot({ path: `${proof}/${width}-${state}.png` })
