@@ -55,7 +55,7 @@ function tagFields(pages: PageText[], sizes: { width: number; height: number }[]
   return spans(pages, text => [...text.matchAll(tagPattern)].map(match => ({ index: match.index!, length: match[0].length, match }))).flatMap(({ match, box }, i) => {
     const [tag, type, recipient, label] = match!
     insist(taggableTypes.includes(type as Taggable), `The text tag ${tag} names an unknown field type; use ${taggableTypes.join(', ')}.`)
-    insist(Number(recipient) >= 1, `The text tag ${tag} must name a recipient from 1.`)
+    insist(Number(recipient) >= 1 && Number(recipient) <= 100, `The text tag ${tag} must name a recipient's place from 1 to 100.`)
     const at = place(box, sizes)
     return at ? [{ id: `tag-${i + 1}`, label: label ? oneLine(label, 100) : typeLabel(type as Taggable), type: type as Taggable, signer: Number(recipient) - 1, ...at, name: oneLine(label ?? tag, 200), origin: 'text_tag' as const }] : []
   })
