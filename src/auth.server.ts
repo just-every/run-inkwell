@@ -42,6 +42,9 @@ export interface Bindings {
  MAIL_API_KEY?: string
  MAIL_ACCOUNT_ID?: string
  /** DELIV-001: the provider's webhook signing key (Resend whsec_…, SendGrid's public key); optional. */
+ MAIL_INBOUND_DOMAIN?: string
+ MAIL_INBOUND_SECRET?: string
+ MAIL_INBOUND_API_KEY?: string
  MAIL_WEBHOOK_KEY?: string
 }
 

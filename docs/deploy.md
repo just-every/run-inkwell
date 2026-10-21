@@ -38,3 +38,14 @@ signing key as the Worker secret `MAIL_WEBHOOK_KEY`: Resend's `whsec_…` signin
 SendGrid's signed event webhook public key. Without it, messages show as sent with delivery
 events not set up. Cloudflare Email reports no delivery events, so its messages always show as
 sent with no delivery confirmation from the provider.
+
+For signer follow-up replies, configure a Resend receiving domain and its MX records,
+set Worker variable `MAIL_INBOUND_DOMAIN` to that domain, and store separate Worker
+secrets `MAIL_INBOUND_SECRET` (the receiving webhook's Svix signing secret) and
+`MAIL_INBOUND_API_KEY` (a Resend key with receiving-email access). Point the
+`email.received` webhook at `/api/inkwell/mail/replies`. These secrets are separate
+from outbound delivery events. The envelope's Follow-up panel reports whether the
+three bindings are present; this is configuration readiness, not DNS verification
+or a claim of mailbox delivery. Replies to invitations sent before follow-up was
+enabled cannot be read. Sender-approved follow-up uses fixed messages and the
+installation's ordinary outbound mail adapter; no model processes reply text.

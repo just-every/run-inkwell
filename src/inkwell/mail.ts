@@ -22,7 +22,37 @@ function htmlBody(body: string, label: string) { return body.split('\n').map(lin
 /** Durable jobs are claimed once. Uncertain provider responses never trigger blind retries. DELIV-001: each message keeps
  * the provider that took it and the id it returned, so that provider's signed delivery events find it (delivery.ts). */
 /** ROUTE-004's approval notices are about a draft, so notices also go while an envelope is prepared. */
-export async function dispatchMail(env: Env, envelopeId: string) { await dispatchNotices(env); if(mailSuppressed(env)){await env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND state='pending'").bind(envelopeId).run();return}  await env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND state='pending' AND kind IN ('invitation','code') AND EXISTS(SELECT 1 FROM iw_envelopes WHERE id=iw_mail.envelope_id AND json_extract(data,'$.signers[' || iw_mail.signer || '].inPerson')=1)").bind(envelopeId).run(); const jobs = (await env.DB.prepare("SELECT id FROM iw_mail WHERE envelope_id=? AND state='pending'").bind(envelopeId).all<{id:string}>()).results; if(!jobs.length)return; const sender=operatorMail(env); insist(sender && env.MAIL_FROM, 'Email delivery is not configured. Ask the owner to configure mail.',503); for (const job of jobs) { const claimed = await env.DB.prepare("UPDATE iw_mail SET state='sending' WHERE id=? AND state='pending' AND EXISTS(SELECT 1 FROM iw_envelopes WHERE id=iw_mail.envelope_id AND (iw_mail.kind NOT IN ('invitation','code') OR COALESCE(json_extract(data,'$.signers[' || iw_mail.signer || '].inPerson'),0)<>1) AND ((json_extract(data,'$.status')='awaiting_signature' AND json_extract(data,'$.expiresAt')>?) OR (iw_mail.kind='code' AND json_extract(data,'$.status')='completed') OR (iw_mail.kind='notice' AND json_extract(data,'$.status') IN ('prepared','declined','completed')) OR (iw_mail.kind IN ('copy','copy_code') AND json_extract(data,'$.status')='completed'))) RETURNING id,kind,recipient,subject,body,attach").bind(job.id,now()).first<{id:string;kind:string;recipient:string;subject:string;body:string;attach:number}>(); if(!claimed)continue; let state='uncertain', messageId: string|null=null; try { const attachments=claimed.attach?await completedFiles(env,envelopeId):undefined; const result = await sender.send({deliveryId:claimed.id,from:env.MAIL_FROM,to:[claimed.recipient],subject:claimed.subject,text:claimed.body,html:htmlBody(claimed.body,claimed.kind==='copy'?'Open your completed copy':'Review and sign'),headers:{},...(attachments?{attachments}:{})}); state=['accepted','development'].includes(result.status)?'sent':result.status; messageId=result.providerMessageId } catch { state='uncertain' }; await env.DB.prepare('UPDATE iw_mail SET state=?,provider=?,provider_message_id=?,sent_at=CASE WHEN ?=\'sent\' THEN ? END,body=CASE WHEN ?=\'sent\' THEN \'\' ELSE body END WHERE id=?').bind(state,env.MAIL_PROVIDER??null,messageId,state,now(),state,claimed.id).run(); insist(state==='sent', 'The signing change was saved, but email delivery could not be confirmed. Check the mail provider before sending another invitation.',503) } }
+export async function dispatchMail(env: Env, envelopeId: string) {
+ await dispatchNotices(env)
+ if(mailSuppressed(env)){await env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND state='pending'").bind(envelopeId).run();return}
+ await env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND state='pending' AND kind IN ('invitation','code') AND EXISTS(SELECT 1 FROM iw_envelopes WHERE id=iw_mail.envelope_id AND json_extract(data,'$.signers[' || iw_mail.signer || '].inPerson')=1)").bind(envelopeId).run()
+ const jobs=(await env.DB.prepare("SELECT id FROM iw_mail WHERE envelope_id=? AND state='pending'").bind(envelopeId).all<{id:string}>()).results
+ if(!jobs.length)return
+ const sender=operatorMail(env);insist(sender&&env.MAIL_FROM,'Email delivery is not configured. Ask the owner to configure mail.',503)
+ for(const job of jobs){
+  const claimed=await env.DB.prepare(`UPDATE iw_mail SET state='sending' WHERE id=? AND state='pending'
+   AND (followup_version IS NULL OR EXISTS(SELECT 1 FROM iw_followup_grants g JOIN oa_operators o ON o.id=g.member_id
+    JOIN iw_envelopes e ON e.id=g.envelope_id WHERE g.envelope_id=iw_mail.envelope_id AND g.version=iw_mail.followup_version AND g.state='active'
+    AND o.status='active' AND o.version=g.member_version AND (o.role IN ('owner','admin') OR (o.role='member' AND COALESCE((SELECT role FROM iw_member_roles WHERE operator_id=o.id),'viewer')='sender' AND (json_extract(e.data,'$.createdBy')=o.id OR EXISTS(SELECT 1 FROM iw_shares WHERE envelope_id=e.id AND operator_id=o.id AND access='edit'))))
+    AND e.version=iw_mail.followup_envelope_version))
+   AND EXISTS(SELECT 1 FROM iw_envelopes WHERE id=iw_mail.envelope_id AND (iw_mail.kind NOT IN ('invitation','code') OR COALESCE(json_extract(data,'$.signers[' || iw_mail.signer || '].inPerson'),0)<>1)
+    AND ((json_extract(data,'$.status')='awaiting_signature' AND json_extract(data,'$.expiresAt')>?) OR (iw_mail.kind='code' AND json_extract(data,'$.status')='completed') OR (iw_mail.kind='notice' AND json_extract(data,'$.status') IN ('prepared','declined','completed')) OR (iw_mail.kind IN ('copy','copy_code') AND json_extract(data,'$.status')='completed')))
+   RETURNING id,signer,kind,recipient,subject,body,attach,followup_version`).bind(job.id,now()).first<{id:string;signer:number;kind:string;recipient:string;subject:string;body:string;attach:number;followup_version:number|null}>()
+  if(!claimed)continue
+  let state='uncertain',messageId:string|null=null
+  try{
+   const attachments=claimed.attach?await completedFiles(env,envelopeId):undefined
+   const {getEnvelope}=await import('./storage'),{replyTo}=await import('./followup-store')
+   const envelope=await getEnvelope(env.DB,envelopeId)
+   const sameRecipient=envelope.signers[claimed.signer]?.email.toLowerCase()===claimed.recipient.toLowerCase()
+   const reply=sameRecipient&&(claimed.kind==='invitation'||claimed.followup_version!==null||claimed.subject.startsWith('Reminder to sign:'))?await replyTo(env,envelope,claimed.signer):undefined
+   const result=await sender.send({deliveryId:claimed.id,from:env.MAIL_FROM,to:[claimed.recipient],subject:claimed.subject,text:claimed.body,html:htmlBody(claimed.body,claimed.kind==='copy'?'Open your completed copy':'Review and sign'),headers:{},...(reply?{replyTo:reply}:{}),...(attachments?{attachments}:{})})
+   state=['accepted','development'].includes(result.status)?'sent':result.status;messageId=result.providerMessageId
+  }catch{state='uncertain'}
+  await env.DB.prepare("UPDATE iw_mail SET state=?,provider=?,provider_message_id=?,sent_at=CASE WHEN ?='sent' THEN ? END,body=CASE WHEN ?='sent' THEN '' ELSE body END WHERE id=?").bind(state,env.MAIL_PROVIDER??null,messageId,state,now(),state,claimed.id).run()
+  insist(state==='sent','The signing change was saved, but email delivery could not be confirmed. Check the mail provider before sending another invitation.',503)
+ }
+}
 
 /** DELIV-007: the executed PDF and certificate as mail attachments. */
 async function completedFiles(env: Env, envelopeId: string) {

@@ -4,11 +4,13 @@
 // (DELIV-001) and the audit trail, says what each recipient is waiting on, and its Remind action sends exactly one
 // reminder, to the current signer only; its Resend actions send the same link again or a new one (DELIV-005).
 import assert from 'node:assert/strict'
+import { mkdir } from 'node:fs/promises'
+import { axe } from './a11y.mjs'
 import { PDFDocument } from 'pdf-lib'
 import { screenshots } from './worker.mjs'
 import { startInkwellWithMail } from './mail-worker.mjs'
 
-const inkwell = await startInkwellWithMail()
+const inkwell = await startInkwellWithMail({ inbound: true })
 // Browsers and Node may space "10:02 AM" with different space characters; compare with plain spaces.
 const plain = text => text.replace(/\s+/g, ' ')
 const zoned = at => plain(`${new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(new Date(at))} · ${new Date(at).toISOString().slice(11, 16)} UTC`)
@@ -77,6 +79,50 @@ try {
   }
   const audited = (await inkwell.call(`/api/inkwell/envelopes/${id}`, { cookie: inkwell.owner })).value.envelope.events.filter(e => e.action === 'signer.reminded')
   assert.deepEqual(audited.map(e => [e.detail.signer, e.detail.manual]), Array(reminders).fill([1, true]), 'each reminder is in the audit trail for the current signer')
+  // AGENT-003: authorize, inspect the three causes, correct a proposal, resume and revoke through the built page.
+  const images=process.env.INKWELL_FOLLOWUP_IMAGES??'/tmp/inkwell-followup-screens'
+  await mkdir(images,{recursive:true})
+  for(const width of [1440,390]){
+    const title=`Harbour supplier follow-up ${width}`, emails=[`alex${width}@clients.example`,`blair${width}@clients.example`,`casey${width}@clients.example`]
+    const {id}=await inkwell.command('envelope.prepare',{title,filename:'supply.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),signers:emails.map((email,i)=>({name:['Alex Client','Blair Away','Casey Client'][i],email,order:1})),fields:emails.map((_,signer)=>({id:'sig'+signer,label:'Signature',type:'signature',signer,page:0,x:.1,y:.2+signer*.15,width:.4,height:.05}))})
+    await inkwell.command('envelope.approve',{id,eligible:true})
+    await inkwell.call('/api/inkwell/contacts',{cookie:inkwell.owner,body:{name:'Alex Client',email:`correct${width}@clients.example`}})
+    const context=await inkwell.browser.newContext({viewport:{width,height:width===390?844:1000}});await context.addCookies([inkwell.ownerCookie()])
+    const page=await context.newPage();page.setDefaultTimeout(20000)
+    const open=async()=>{await page.goto(inkwell.origin+'/app');await page.getByRole('row',{name:new RegExp(title)}).click();await page.getByRole('region',{name:'Signer follow-up',exact:true}).getByRole('status').first().waitFor()}
+    const capture=async(name)=>{const panel=page.getByRole('region',{name:'Signer follow-up',exact:true});await panel.scrollIntoViewIfNeeded();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${width} no sideways scroll`);await page.screenshot({path:`${images}/${width}-${name}.png`})}
+    await open()
+    let followup=page.getByRole('region',{name:'Signer follow-up',exact:true})
+    await followup.getByText('Turn on follow-up',{exact:true}).click()
+    await followup.getByLabel('Maximum contacts per recipient').fill('2')
+    await followup.getByLabel('I authorize follow-up for this envelope under these settings.').check()
+    await capture('grant-settings');await axe(page,`follow-up settings ${width}`)
+    const enable=followup.getByRole('button',{name:'Turn on follow-up',exact:true});await enable.focus();await page.keyboard.press('Enter')
+    await followup.getByText(/Grant version 1 · active/).waitFor();await capture('grant-active')
+    for(const signer of [1,2])await inkwell.command('envelope.resend',{id,signer})
+    let monday=new Date();monday.setUTCHours(14,0,0,0);do{monday.setUTCDate(monday.getUTCDate()+1)}while(monday.getUTCDay()!==1)
+    await inkwell.reply(inkwell.mail(emails[1],'Please sign:'),emails[1],`Out of office; returning ${monday.toISOString().slice(0,10)}`,'auto-replied')
+    await inkwell.reply(inkwell.mail(emails[2],'Please sign:'),emails[2],'Clause 4 needs review by our legal team.')
+    await inkwell.deliver(inkwell.mail(emails[0],'Please sign:'),'email.bounced',Date.now())
+    await inkwell.scheduled(monday.getTime()-3*86400000)
+    await open();followup=page.getByRole('region',{name:'Signer follow-up',exact:true})
+    await followup.getByText(/Unavailable/).waitFor();await followup.getByText(/Substantive reply/).waitFor()
+    await followup.getByText(/Proposed corrected address:/).waitFor()
+    await followup.getByText(/Casey Client · Authenticated reply/).click()
+    await followup.getByText('Clause 4 needs review by our legal team.',{exact:true}).waitFor()
+    await capture('causes-and-reply');await axe(page,`follow-up causes and private reply ${width}`)
+    const detail=page.getByRole('region',{name:title,exact:true})
+    await detail.getByLabel('Corrected email for Alex Client').fill(`correct${width}@clients.example`)
+    await detail.getByRole('button',{name:'Correct and resend',exact:true}).click()
+    await detail.getByLabel('Corrected email for Alex Client').waitFor({state:'detached'})
+    await followup.getByRole('button',{name:'Resume follow-up for Casey Client'}).click()
+    await followup.getByRole('button',{name:'Resume follow-up for Casey Client'}).waitFor({state:'detached'})
+    await capture('human-correction-and-resume')
+    await followup.getByRole('button',{name:'Revoke follow-up',exact:true}).click()
+    await followup.getByText(/Grant version 1 · revoked/).waitFor();await capture('grant-revoked');await axe(page,`follow-up revoked ${width}`)
+    await context.close()
+  }
+  console.log('AGENT-003 built controls passed at 1440/390: explicit grant, three causes, private reply, human correction, resume and revoke')
   console.log('MANAGE-005 passed at 1440 and 390 pixels: sent, delivered, viewed and signed times match the provider events and audit trail; Remind reached only the current signer')
 } catch (error) {
   await screenshots(inkwell.browser, 'manage-005-failure')

@@ -1,3 +1,5 @@
+import { followupGrant } from './followup-store'
+import { mayRemindUnderGrant } from './followup-engine'
 import { party, active, appendEvent, currentSigners, insist, now, object, routingOrder, text, type Envelope, type Env } from './model'
 import { commandWrite, commitEnvelope, getEnvelope } from './storage'
 import type { CommandContext } from './envelopes'
@@ -57,6 +59,7 @@ export async function sendReminders(env: Env, at: number) {
 }
 
 async function remind(env: Env, before: Envelope, at: number) {
+  if(await followupGrant(env,before.id))return 0
   const settings = before.reminders!, today = localDate(at)
   const due = currentSigners(before).filter(i => {
     if (before.signers[i].inPerson || before.signers[i].paper?.status === 'pending') return false
@@ -85,6 +88,7 @@ export async function remindNow(env: Env, context: CommandContext, input: Record
   insist(!mailSuppressed(env), 'Mail is not set up, so no reminder can be emailed. Create a new signing link instead.', 409)
   const bounced = bouncedRecipients(before, await envelopeMessages(env, before.id)).map(entry => entry.signer)
   const due = currentSigners(before).filter(i => !before.signers[i].inPerson && before.signers[i].paper?.status !== 'pending' && !bounced.includes(i))
+  for(let n=due.length-1;n>=0;n--)if(!await mayRemindUnderGrant(env,before,due[n],Date.now()))due.splice(n,1)
   insist(due.length, bounced.length ? 'The current recipient’s invitation bounced: correct their email address instead.' : 'No current recipient can receive a reminder: in-person signers and paper signatures awaiting review are not reminded.', 409)
   const after = structuredClone(before), at = now()
   for (const i of due) await appendEvent(after, 'signer.reminded', context.actor.id, { signer: i, email: after.signers[i].email, passAt: at, count: after.events.filter(e => e.action === 'signer.reminded' && e.detail.signer === i).length + 1, emailSent: true, manual: true })
