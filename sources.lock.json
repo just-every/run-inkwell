@@ -3007,7 +3007,7 @@
       "executable": false
     },
     "src/ui/operator-app.tsx": {
-      "sha256": "784a0a4b22539dc5ae32346058c6c17bfe1103df3e2484a2e21cc407ebbb39dd",
+      "sha256": "f6bd6dc8f0bc7c78d2d0bd10caa5c3f80a6b929ba509293a53bf03191e215063",
       "executable": false
     },
     "src/ui/page-thumbnails.tsx": {
