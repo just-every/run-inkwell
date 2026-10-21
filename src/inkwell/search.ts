@@ -43,7 +43,6 @@ export async function searchEnvelopes(env: Env, actor: Actor, params: URLSearchP
   if (to) { where.push(`json_extract(e.data,'$.createdAt')<?${values.length + 1}`); values.push(new Date(to).toISOString()) }
   const filtered = `SELECT e.id, e.data, json_extract(e.data,'$.createdAt') AS created, ${bucket} AS bucket, (SELECT access FROM iw_shares x WHERE x.envelope_id=e.id AND x.operator_id=?3) AS share FROM iw_envelopes e${where.length ? ' WHERE ' + where.join(' AND ') : ''}`
   const counts = Object.fromEntries(buckets.map(b => [b, 0])) as Record<Bucket, number>
-  for (const row of (await env.DB.prepare(`SELECT bucket, count(*) AS n FROM (${filtered}) GROUP BY bucket`).bind(...values).all<{ bucket: Bucket; n: number }>()).results) counts[row.bucket] = row.n
   const page: string[] = [], pageValues = [...values]
   if (status !== 'all') { page.push(`bucket=?${pageValues.length + 1}`); pageValues.push(status) }
   if (cursor) {
@@ -51,7 +50,16 @@ export async function searchEnvelopes(env: Env, actor: Actor, params: URLSearchP
     insist(typeof created === 'string' && typeof id === 'string', 'This page link is not valid. Start the search again.')
     page.push(`(created<?${pageValues.length + 1} OR (created=?${pageValues.length + 1} AND id<?${pageValues.length + 2}))`); pageValues.push(created, id)
   }
-  const rows = (await env.DB.prepare(`SELECT id, data, created, bucket, share FROM (${filtered})${page.length ? ' WHERE ' + page.join(' AND ') : ''} ORDER BY created DESC, id DESC LIMIT ${limit + 1}`).bind(...pageValues).all<{ id: string; data: string; created: string; bucket: Bucket; share: string | null }>()).results
+  // One materialized search supplies both totals and the page: one D1 round trip and one evaluation of the
+  // recipient search, access predicates and routing buckets, with totals and results from the same snapshot.
+  const result = await env.DB.prepare(`WITH filtered AS MATERIALIZED (${filtered}),
+    totals AS (SELECT bucket, count(*) AS n FROM filtered GROUP BY bucket),
+    page AS (SELECT id, data, created, bucket, share FROM filtered${page.length ? ' WHERE ' + page.join(' AND ') : ''} ORDER BY created DESC, id DESC LIMIT ${limit + 1})
+    SELECT (SELECT json_group_array(json_object('bucket',bucket,'n',n)) FROM totals) AS counts,
+    (SELECT json_group_array(json_object('id',id,'data',data,'created',created,'bucket',bucket,'share',share)) FROM page) AS rows`).bind(...pageValues).first<{ counts: string; rows: string }>()
+  insist(result, 'The envelope search could not be completed.', 503)
+  for (const row of JSON.parse(result.counts) as { bucket: Bucket; n: number }[]) counts[row.bucket] = row.n
+  const rows = JSON.parse(result.rows) as { id: string; data: string; created: string; bucket: Bucket; share: string | null }[]
   const more = rows.length > limit, shown = rows.slice(0, limit)
   return {
     envelopes: shown.map(row => { const envelope: Envelope = JSON.parse(row.data); return { ...presentEnvelope(env, actor, envelope, accessFrom(actor, envelope, row.share)), bucket: row.bucket } }),

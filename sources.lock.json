@@ -955,7 +955,7 @@
       "executable": false
     },
     "src/inkwell/search.ts": {
-      "sha256": "4b3d484abbeb27065bd0b0380cfaf96dba9e3db0497e3c99717825eb9dabf2e0",
+      "sha256": "076b8264c691b547bad4e9a7d7bf1e622aea679a57ea407fb1f5c141486ff969",
       "executable": false
     },
     "src/inkwell/shares.ts": {
