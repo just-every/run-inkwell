@@ -1,3 +1,4 @@
+import { normalizeInbound, createResendAttachmentFetcher, verifyWebhook } from '../mail-inbound.server.mjs'
 import { followupRecipient } from './followup-recipients'
 // AGENT-003 R11–17: this door authenticates provider facts; reply text is data, never instructions.
 import { readBytes } from './body'
@@ -47,32 +48,12 @@ function mailbox(value: string): string | null {
   return `${local}@${match[2]}`.toLowerCase()
 }
 
-function unbase64(value: string) {
-  return Uint8Array.from(atob(value), character => character.charCodeAt(0))
-}
 async function signedEvent(request: Request, secret: string): Promise<{ eventId: string; event: Json }> {
-  const eventId = request.headers.get('svix-id') ?? ''
-  const timestamp = request.headers.get('svix-timestamp') ?? ''
-  const signatures = request.headers.get('svix-signature') ?? ''
-  const invalid = () => new Refusal('The inbound signature did not verify.', 401)
-  if (!/^[a-zA-Z0-9_-]{1,200}$/.test(eventId) || !/^\d{1,12}$/.test(timestamp) || Math.abs(Date.now() / 1000 - Number(timestamp)) > 300 || !signatures || signatures.length > 4096 || !secret) throw invalid()
-  let raw: Uint8Array
-  try { raw = await readBytes(request, 1024 * 1024) } catch { throw invalid() }
-  try {
-    // Svix signs id.timestamp.rawBody with the base64-decoded whsec_ key.
-    const prefix = encoder.encode(`${eventId}.${timestamp}.`)
-    const content = new Uint8Array(prefix.length + raw.length)
-    content.set(prefix); content.set(raw, prefix.length)
-    const key = await crypto.subtle.importKey('raw', unbase64(secret.replace(/^whsec_/, '')), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify'])
-    let verified = false
-    for (const signature of signatures.split(/\s+/)) {
-      if (!signature.startsWith('v1,')) continue
-      try { if (await crypto.subtle.verify('HMAC', key, unbase64(signature.slice(3)), content)) verified = true } catch { /* A rotated signature may use a different format. */ }
-    }
-    if (!verified) throw invalid()
-  } catch { throw invalid() }
-  try { return { eventId, event: record(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw))) } }
-  catch { throw new Refusal('The signed inbound event is invalid JSON.', 400) }
+  const raw = await readBytes(request, 1024 * 1024)
+  insist(await verifyWebhook({provider:'resend',rawBody:raw,headers:request.headers,key:secret,now:Date.now(),toleranceSeconds:300}),'The inbound signature did not verify.',401)
+  const eventId=request.headers.get('svix-id')!
+  try{return{eventId,event:record(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(raw)))}}
+  catch{throw new Refusal('The signed inbound event is invalid JSON.',400)}
 }
 
 /** Never buffer an unbounded provider response; refuse the whole operation rather than truncate it. */
@@ -129,30 +110,6 @@ function authFailed(message: Json, headers: Map<string, string>) {
     /\b(?:dkim|dmarc)\s*=\s*(?:fail|softfail|temperror|permerror)\b/i.test(headers.get('authentication-results') ?? '')
 }
 
-async function attachments(env: Env, emailId: string, input: unknown): Promise<FollowupReply['attachments']> {
-  insist(Array.isArray(input) && input.length <= 100, 'The inbound attachment list exceeds the processing limit.', 413)
-  const result: FollowupReply['attachments'] = []
-  let total = 0
-  // Bound memory and API concurrency: each real attachment is digested and immediately discarded.
-  for (const value of input) {
-    const metadata = record(value), attachmentId = providerId(metadata.id)
-    const attachment = await providerJson(env, `/emails/receiving/${emailId}/attachments/${attachmentId}`)
-    insist(Number.isSafeInteger(attachment.size) && Number(attachment.size) >= 0 && Number(attachment.size) <= attachmentLimit - total, 'Inbound attachments exceed the processing limit; no reply was kept.', 413)
-    let url: URL
-    try { url = new URL(string(attachment.download_url)) } catch { throw new Refusal(providerFailure, 503) }
-    insist(url.protocol === 'https:' && !url.username && !url.password, providerFailure, 503)
-    // This URL comes only from the authenticated provider API; never attach its API credential to downloads.
-    const response = await fetch(url.href, { redirect: 'manual', signal: AbortSignal.timeout(30_000) })
-    const bytes = await boundedBytes(response, attachmentLimit - total)
-    insist(bytes.byteLength === attachment.size, providerFailure, 503)
-    total += bytes.byteLength
-    const digest = await crypto.subtle.digest('SHA-256', bytes)
-    result.push({ name: field(attachment.filename ?? metadata.filename), type: field(attachment.content_type ?? metadata.content_type, 1024), size: bytes.byteLength,
-      sha256: Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join(''), status: 'not kept by Inkwell' })
-  }
-  return result
-}
-
 /** Dedicated HTTP door. Only storeReply's atomic write may persist, classify, pause, and claim the event id. */
 export async function receiveFollowupReply(env: Env, request: Request): Promise<Response> {
   try {
@@ -170,11 +127,12 @@ export async function receiveFollowupReply(env: Env, request: Request): Promise<
     insist(tokens.length === 1, 'This message has no unique current reply address.', 403)
     const token = tokens[0], capability = await resolveReplyCapability(env, token)
     insist(capability, 'This reply address is unknown or no longer current.', 403)
+    const normalized=await normalizeInbound({provider:'resend',signedEmailId:emailId,email:message,fetchAttachment:createResendAttachmentFetcher({apiKey:env.MAIL_INBOUND_API_KEY,maxAttachmentBytes:attachmentLimit})},{maxRawBytes:messageLimit,maxBodyBytes:messageLimit,maxAttachments:100,maxAttachmentBytes:attachmentLimit,maxTotalAttachmentBytes:attachmentLimit})
     const sourceHeaders = record(message.headers), headers = new Map(Object.entries(sourceHeaders).map(([name, value]) => [name.toLowerCase(), field(value, 64 * 1024)]))
     const from = field(message.from), normalizedFrom = mailbox(from)
     const verified = Boolean(normalizedFrom && normalizedFrom === mailbox(followupRecipient(capability.envelope,capability.signer).email) &&
       (!headers.has('from') || normalizedFrom === mailbox(headers.get('from')!)) && !authFailed(message, headers))
-    const body = typeof message.text === 'string' ? message.text : htmlText(string(message.html))
+    const body = normalized.text ?? htmlText(normalized.html??'')
     const bodyBytes = encoder.encode(body).byteLength
     // To necessarily contains the secret reply capability. Remove it from every custody field before storage/export.
     const scrub = (value: string) => value.replace(/reply\+[A-Za-z0-9_-]{43}@[^\s<>"']+/gi, 'reply+[capability omitted]').replace(new RegExp(token, 'gi'), '[capability omitted]')
@@ -185,7 +143,7 @@ export async function receiveFollowupReply(env: Env, request: Request): Promise<
       headers: { from: scrub(headers.get('from') ?? from), to: to.map(scrub), date: scrub(headers.get('date') ?? ''), subject: scrub(field(message.subject, 64 * 1024)),
         messageId: scrub(field(message.message_id)), inReplyTo: scrub(headers.get('in-reply-to') ?? ''), autoSubmitted: scrub(headers.get('auto-submitted') ?? '') },
       body: bodyBytes <= bodyLimit ? scrub(body) : null, bodyBytes, bodyStatus: bodyBytes <= bodyLimit ? 'kept' : 'reply too large to keep',
-      attachments: (await attachments(env, emailId, message.attachments)).map(attachment => ({ ...attachment, name: scrub(attachment.name), type: scrub(attachment.type) })),
+      attachments: await Promise.all(normalized.attachments.map(async attachment=>({name:scrub(attachment.filename),type:scrub(attachment.contentType),size:attachment.content.byteLength,sha256:Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',attachment.content as BufferSource)),byte=>byte.toString(16).padStart(2,'0')).join(''),status:'not kept by Inkwell' as const}))),
     }
     await storeReply(env, capability.envelope, capability.signer, reply, eventId)
     return Response.json({ ok: true, received: true }, { headers: { 'cache-control': 'no-store' } })

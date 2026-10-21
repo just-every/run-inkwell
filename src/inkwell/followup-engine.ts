@@ -47,9 +47,9 @@ async function chaseEnvelope(env:Env,before:Envelope,g:FollowupGrant,at:number) 
   else if(s.waitUntil&&s.waitUntil>localDate(Date.parse(before.expiresAt))){await tell('return date is after expiry')}
   else if(!s.waitUntil||s.waitUntil<=today){
    const views=events.filter(e=>e.action==='signer.viewed'&&e.detail.signer===place&&e.detail.member===person.member),verified=events.filter(e=>['signer.email_verified','signer.session_verified','signer.link_opened'].includes(e.action)&&e.detail.signer===place&&e.detail.member===person.member)
-   const lastView=views.at(-1),invited=events.findLast(e=>['signer.invited','signer.resent','envelope.approved','envelope.sent_scheduled'].includes(e.action)&&(e.detail.signer===undefined||e.detail.signer===place))?.at??before.createdAt
-   let cause=s.cause==='unavailable'?'unavailable':verified.length>=3?'repeated views':lastView?'opened and left':!verified.length?'not opened':undefined
-   const due=cause==='unavailable'?true:cause==='repeated views'?true:cause==='opened and left'?today>=addBusinessDays(localDate(Date.parse(lastView!.at)),1):today>=addBusinessDays(localDate(Date.parse(invited)),before.reminders?.afterDays??2)
+   const lastViewedAt=s.lastViewedAt??views.at(-1)?.at,invited=events.findLast(e=>['signer.invited','signer.resent','envelope.approved','envelope.sent_scheduled'].includes(e.action)&&(e.detail.signer===undefined||e.detail.signer===place))?.at??before.createdAt
+   let cause=s.cause==='unavailable'?'unavailable':verified.length>=3?'repeated views':lastViewedAt?'opened and left':!verified.length?'not opened':undefined
+   const due=cause==='unavailable'?true:cause==='repeated views'?true:cause==='opened and left'?today>=addBusinessDays(localDate(Date.parse(lastViewedAt!)),1):today>=addBusinessDays(localDate(Date.parse(invited)),before.reminders?.afterDays??2)
    if(cause){s.cause=cause;if(cause==='repeated views')await tell('repeated views')}
    const last=contacts.at(-1),lastDay=last?localDate(Date.parse(String(last.detail.passAt??last.at))):null
    const cadence=lastDay?today>=addBusinessDays(lastDay,before.reminders?.everyDays??3):true

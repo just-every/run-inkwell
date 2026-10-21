@@ -827,7 +827,7 @@
       "executable": false
     },
     "src/inkwell/followup-engine.ts": {
-      "sha256": "44a9fbdab428811609362f27e0fc2a4b40771ab0e933be5ec12ef6bfb7a97a39",
+      "sha256": "3f019f477244a32cc160706bca7072bd20a0ff1573b35e596a9b5ead16abf2c3",
       "executable": false
     },
     "src/inkwell/followup-inbound-types.ts": {
@@ -835,7 +835,7 @@
       "executable": false
     },
     "src/inkwell/followup-inbound.ts": {
-      "sha256": "4c159fded6022328efbe302a74a84cf18de8d892b435eb75518f77420f72273a",
+      "sha256": "9b81e24921455b4d4b398242b324c81e77fadfe89779a30035f9f9dbcf528cac",
       "executable": false
     },
     "src/inkwell/followup-recipients.ts": {
@@ -851,7 +851,11 @@
       "executable": false
     },
     "src/inkwell/followup-types.ts": {
-      "sha256": "1838ddb15a92e461685e742ef3652dd62f70f5fb29318cf041a63a3f5b3c6a22",
+      "sha256": "1a0c4ab7ac5f20ac15b991db4674c9252ebd0b844f2053345527a64f17f1eacc",
+      "executable": false
+    },
+    "src/inkwell/followup-views.ts": {
+      "sha256": "1072041d6c94462d569c5ed5e1fa13518dbad8c172e9aeb6e26dddfa21f9804c",
       "executable": false
     },
     "src/inkwell/freeform-fields.ts": {
@@ -1055,7 +1059,7 @@
       "executable": false
     },
     "src/inkwell/signing.ts": {
-      "sha256": "ad07a5afc473e760244d78e5d328c57124ae44a767c712f3b4f89897cada0bc1",
+      "sha256": "5a511f0c8dc3b296794698d9a23a6d735f2f2fe601acb761fbd02e191c8f9af0",
       "executable": false
     },
     "src/inkwell/stamp-evidence.d.mts": {
@@ -1132,6 +1136,14 @@
     },
     "src/mail-events.server.mjs": {
       "sha256": "913cdfdb5733387314fa953103449218ff1acff4e9d6398bc40f539fd8a39e3f",
+      "executable": false
+    },
+    "src/mail-inbound.server.d.mts": {
+      "sha256": "aa41a267a7e40dcb1b2395ed2f849be06a12cf5229aac2be84f20aa5df31636e",
+      "executable": false
+    },
+    "src/mail-inbound.server.mjs": {
+      "sha256": "57d2ced9bfdffef30926a86eb05f052f88c04e59f2cfb8e821ce03fd41bdc44d",
       "executable": false
     },
     "src/mail.server.d.mts": {
@@ -3179,7 +3191,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "fe928684746a07a0a41ae15793f6735eae5538315c64008892acbc8a32f596f2",
+      "sha256": "ce94e7d1c922ec9b20d6dd7c6abe0ef0bf9c81a2f9410e2e0aaf1da75da92b12",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
@@ -3227,7 +3239,7 @@
       "executable": false
     },
     "tests/harness.mjs": {
-      "sha256": "59fa83413470ac483ab3ad8c36b726b6940a4ad1bd40278f2913ac362578dcb4",
+      "sha256": "64d9cc04b056011c0bebddd28a41cb4f2d41a677e413a602a07be9a3b89f1cb9",
       "executable": false
     },
     "tests/import-retention.test.mjs": {
@@ -3299,7 +3311,7 @@
       "executable": false
     },
     "tests/journeys/mail-worker.mjs": {
-      "sha256": "f80eea66a8e2fbece976a0b3302769dcc49ec0c82217d38e15142da93e3cb678",
+      "sha256": "d18ec916bc22f166e551ff8f81ce116b910764c6b031d6d22c7b0cb83aab04d5",
       "executable": false
     },
     "tests/journeys/mobile-sending.mjs": {

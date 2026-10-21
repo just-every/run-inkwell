@@ -343,7 +343,7 @@ test('DELIV-008: subscribed to declines and completions in Slack, Teams, Nook an
 
 test('Follow-up grants chase three stalled signers through signed replies, human correction and durable contact limits', async () => {
  const inboundSecret = Buffer.from('synthetic-inkwell-1').toString('base64'), outboundSecret = Buffer.from('synthetic-inkwell-2').toString('base64')
- const h = await harness({bindings:{MAIL_INBOUND_DOMAIN:'replies.harbour.example',MAIL_INBOUND_SECRET:inboundSecret,MAIL_INBOUND_API_KEY:'synthetic-inkwell-3',MAIL_WEBHOOK_KEY:'whsec_'+outboundSecret}})
+ const h = await harness({bindings:{MAIL_INBOUND_DOMAIN:'replies.harbour.example',MAIL_INBOUND_SECRET:'whsec_'+inboundSecret,MAIL_INBOUND_API_KEY:'synthetic-inkwell-3',MAIL_WEBHOOK_KEY:'whsec_'+outboundSecret}})
  try {
   const emails=['bounce@clients.example','away@clients.example','object@clients.example'],names=['Alex Client','Blair Away','Casey Client']
   const id=(await h.command('envelope.prepare',{title:'Harbour supply agreement',filename:'agreement.pdf',pdfBase64:await pdf(),signers:emails.map((email,i)=>({name:names[i],email,order:1})),fields:emails.map((_,i)=>({id:'sig'+i,label:'Signature',type:'signature',signer:i,page:0,x:.1,y:.2+i*.15,width:.4,height:.05})),reminders:{afterDays:1,everyDays:1}})).result.id
@@ -418,9 +418,9 @@ test('Follow-up grants chase three stalled signers through signed replies, human
   await receive(emails[2],objectAddress,'é'.repeat(250001))
   const large=(await view()).value.replies.at(-1)
   assert.equal(large.tooLarge,true);assert.equal(large.text,null,'large replies are not truncated into misleading text')
-  const attachmentId='synthetic-inkwell-6',attachmentBytes=Buffer.from('Private attachment bytes')
-  h.attachment(attachmentId,{bytes:attachmentBytes,metadata:{id:attachmentId,filename:'private-note.txt',content_type:'text/plain',size:attachmentBytes.length,download_url:'https://attachments.harbour.example/'+attachmentId}})
-  const messageId=crypto.randomUUID();h.inbound({id:messageId,from:emails[2],to:[objectAddress],subject:'Private attachment',text:'Please review my attachment.',headers:{},attachments:[{id:attachmentId,filename:'private-note.txt',content_type:'text/plain'}],message_id:'<attachment@clients.example>'})
+  const attachmentId='synthetic-inkwell-6',attachmentBytes=Buffer.from('Private attachment bytes'),attachmentMessageId=crypto.randomUUID()
+  h.attachment(attachmentId,{bytes:attachmentBytes,metadata:{id:attachmentId,filename:'private-note.txt',content_type:'text/plain',size:attachmentBytes.length,expires_at:new Date(Date.now()+60000).toISOString(),download_url:`https://inbound-cdn.resend.com/${attachmentMessageId}/attachments/${attachmentId}`}})
+  const messageId=attachmentMessageId;h.inbound({id:messageId,from:emails[2],to:[objectAddress],subject:'Private attachment',text:'Please review my attachment.',headers:{},attachments:[{id:attachmentId,filename:'private-note.txt',content_type:'text/plain',size:attachmentBytes.length}],message_id:'<attachment@clients.example>'})
   await signedEvent('/api/inkwell/mail/replies',inboundSecret,{type:'email.received',data:{email_id:messageId}})
   const attachment=(await view()).value.replies.at(-1).attachments[0]
   assert.equal(attachment.sha256,(await import('node:crypto')).createHash('sha256').update(attachmentBytes).digest('hex'))
@@ -502,7 +502,7 @@ test('Follow-up authority is explicit, scoped to editors and permanently suspend
 })
 
 test('Follow-up causes use real signing sessions and keep group-member reply authority separate',async()=>{
- const inboundSecret=Buffer.from('synthetic-inkwell-7').toString('base64'),h=await harness({bindings:{MAIL_INBOUND_DOMAIN:'replies.harbour.example',MAIL_INBOUND_SECRET:inboundSecret,MAIL_INBOUND_API_KEY:'synthetic-inkwell-8'}})
+ const inboundSecret=Buffer.from('synthetic-inkwell-7').toString('base64'),h=await harness({bindings:{MAIL_INBOUND_DOMAIN:'replies.harbour.example',MAIL_INBOUND_SECRET:'whsec_'+inboundSecret,MAIL_INBOUND_API_KEY:'synthetic-inkwell-8'}})
  try{
   const members=[{name:'Dana Buyer',email:'dana@clients.example'},{name:'Eli Buyer',email:'eli@clients.example'}]
   const group=(await h.command('account.signing_group',{name:'Purchasing',members})).result.groups[0]
@@ -513,6 +513,12 @@ test('Follow-up causes use real signing sessions and keep group-member reply aut
   await h.command('envelope.followup',{id,enabled:true,maxContacts:2,escalationOwner:envelope.createdBy})
   const path=async email=>'/api/sign/'+new URL((await h.mail(email,'Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)
   const openedPath=await path(people[1].email),cookie=(await h.post(openedPath+'/open',{},'')).cookie;await h.agree(openedPath,cookie);await h.send(openedPath+'/document',undefined,cookie)
+  const firstView=(await h.send(`/api/inkwell/envelopes/${id}/followup`,undefined,h.owner)).value.states[1].lastViewedAt
+  const newCookie=(await h.post(openedPath+'/open',{},'')).cookie
+  await h.agree(openedPath,newCookie);await h.send(openedPath+'/document',undefined,newCookie)
+  const viewState=(await h.send(`/api/inkwell/envelopes/${id}/followup`,undefined,h.owner)).value.states[1]
+  assert.ok(viewState.lastViewedAt>=firstView,'a later authenticated session updates the last view used for chasing')
+  assert.equal((await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope.events.filter(e=>e.action==='followup.viewed'&&e.detail.signer===1).length,2)
   const repeatedPath=await path(people[2].email)
   for(let n=0;n<3;n++)await h.post(repeatedPath+'/open',{},'')
   await h.command('envelope.resend',{id,signer:3})
