@@ -92,10 +92,22 @@ try {
   await page.getByRole('button', { name: 'Templates' }).click()
   await page.getByRole('button', { name: `Edit ${title}` }).first().waitFor()
   assert.equal(await page.getByRole('button', { name: `Edit ${title}` }).count(), 2, 'the saved envelope is a second template')
+  // A component response can outlive the parallel account-default request. Editing must
+  // remain disabled until every source field and setting has loaded, even when roles appear first.
+  let releaseDocument
+  const documentHeld = new Promise(resolve => { releaseDocument = resolve })
+  await page.route('**/api/inkwell/templates/*/documents/*', async route => { await documentHeld; await route.continue() })
+  const defaultsLoaded = page.waitForResponse(response => response.url().endsWith('/api/inkwell/envelope-defaults'))
   await page.getByRole('button', { name: `Edit ${title}` }).first().click()
   await page.getByRole('heading', { name: 'Edit template' }).waitFor()
   await page.waitForFunction(() => document.querySelector('[aria-label="Role 3 name"]')?.value === 'Company Signer')
+  await defaultsLoaded
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+  assert.ok(await page.getByLabel('Expires after (days)').isDisabled(), 'partial roles cannot make an unfinished template editable')
+  assert.ok(await page.getByRole('button', { name: /^(Saving…|Save new version)$/ }).isDisabled(), 'an unfinished template cannot be saved')
+  releaseDocument()
   await page.getByLabel('Expires after (days)').fill('45')
+  await page.unroute('**/api/inkwell/templates/*/documents/*')
   await page.getByRole('button', { name: 'Save new version' }).click()
   await page.getByText(/Version 2 · 1\. Client/).waitFor()
   await context.close()
