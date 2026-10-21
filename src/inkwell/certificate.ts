@@ -1,3 +1,4 @@
+import { displayFieldValue } from './business-fields'
 import { supplementStatus } from './supplements'
 import { stampEvidence, type StampEvidence } from './stamp-evidence.mjs'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
@@ -21,6 +22,7 @@ export async function certificatePdf(envelope: Envelope, mailed: number[] = []) 
     withdrawn ? 'Inkwell consent withdrawal certificate' : declined ? 'Inkwell decline certificate' : 'Inkwell completion certificate',
     envelope.title, `Envelope: ${envelope.id}`, ...(envelope.copiedFrom ? [`Copied from envelope: ${envelope.copiedFrom}`] : []),
     `Original SHA-256: ${envelope.originalSha256}`,
+    ...(envelope.freeForm ? [`Free-form signing; setting version ${envelope.freeFormSetting?.version}; set by ${envelope.freeFormSetting?.actor} at ${stamp(envelope.freeFormSetting!.at)}`] : []),
     ...(envelope.supplements ?? []).map(s => `Supplemental document: ${s.label}; ${s.pages} page(s); SHA-256 ${s.sha256}; ${s.requirement === 'acknowledge' ? 'acknowledgment required' : 'view required'}; not signed`),
     ...disclosures.map(([version, hash]) => `Electronic record and signature disclosure: version ${version} (SHA-256 ${hash})`),
     ...(declined ? [
@@ -36,7 +38,7 @@ export async function certificatePdf(envelope: Envelope, mailed: number[] = []) 
       ...inPersonLines(envelope, i), ...authLines(envelope, i), ...(s.accessCode ? [accessLine(envelope, i)] : []),
       ...(s.disclosure ? [`Disclosure ${s.disclosure.version} accepted at: ${stamp(s.disclosure.acceptedAt)}`] : []),
       ...supplementStatus(envelope, i, s.group?.signedBy ?? s.group?.declinedBy).flatMap(doc => [ ...(doc.viewedAt ? [`Supplement opened: ${doc.label} at ${stamp(doc.viewedAt)}`] : []), ...(doc.acknowledgedAt ? [`Supplement acknowledged: ${doc.label} at ${stamp(doc.acknowledgedAt)}; SHA-256 ${doc.sha256}`] : []) ]),
-      ...adoptionLines(envelope, i), ...stamps[i].map(stampLine),
+      ...adoptionLines(envelope, i), ...placedLines(envelope, i), ...stamps[i].map(stampLine),
       ...(s.paper?.status === 'accepted' ? [`Scan SHA-256: ${s.paper.sha256}`, `Scan: ${s.paper.pages} page(s) appended to the executed PDF; accepted at ${stamp(s.paper.reviewedAt!)}`] : []),
       s.routeResult?.state === 'skipped' ? `Skipped at ${stamp(s.routeResult.at)}: ${s.includeWhen?.field} ${s.includeWhen?.operator} ${s.includeWhen?.value}; result false (source ${s.routeResult.value})` : s.removedAt ? `Not signed: removed by a correction at ${stamp(s.removedAt)}`
         : s.signedAt ? `Signed at: ${stamp(s.signedAt)}${network(envelope, i, ['signer.signed', 'signer.paper_uploaded'])}`
@@ -121,4 +123,14 @@ function inPersonLines(envelope: Envelope, signer: number) {
 function stampLine(evidence: StampEvidence) {
   const { supplier } = evidence
   return `Stamp (${evidence.label}): ${evidence.mediaType === 'image/png' ? 'PNG' : 'JPEG'} SHA-256 ${evidence.sha256}, ${supplier.kind}${supplier.kind === 'sender/API prefill' ? ` (source: ${supplier.source}; read-only: ${supplier.readOnly ? 'yes' : 'no'})` : ''}; a supplied image, not a verified seal`
+}
+
+/** PREP-011: every placement is bound to the signing event and reported in page fractions. */
+function placedLines(envelope: Envelope, signer: number) {
+  const s = envelope.signers[signer]
+  if (!envelope.freeForm || !s.signedAt) return []
+  return envelope.fields.filter(field => field.signer === signer).map(field => {
+    const method = field.type === 'signature' ? adoptionOf(envelope, signer).method : field.type === 'initials' ? s.initialsAdoption?.method ?? 'typed' : field.type === 'date_signed' ? 'server-generated' : 'entered'
+    return `Placed ${field.type} (${field.label}): page ${field.page + 1}; position ${field.x.toFixed(4)}, ${field.y.toFixed(4)}; size ${field.width.toFixed(4)} x ${field.height.toFixed(4)}; value "${displayFieldValue(field, s.values?.[field.id] ?? '')}"; adoption ${method}; at ${stamp(s.signedAt!)}`
+  })
 }

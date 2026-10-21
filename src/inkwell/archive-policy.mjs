@@ -7,7 +7,7 @@ import { canonicalJson, sha256 } from '@runeditrun/rer/modules/portability';
 // document custody travels. A restored member is a viewer until an owner or admin chooses.
 export default {
   product: 'signatures/inkwell',
-  excludeTables: ['iw_member_access', 'iw_import_retention_mail', 'iw_guards', 'iw_commands', 'iw_agents', 'iw_mail', 'iw_access_codes', 'iw_member_roles', 'iw_copy_links', 'iw_settings', 'iw_member_marks', 'iw_shares', 'iw_template_shares', 'iw_contacts', 'iw_notices', 'iw_notice_posts', 'iw_notice_prefs', 'iw_notice_channels', 'iw_retention_purges', 'ik_d1_assertions', 'rer_mail_event_receipts', 'rer_mail_event_states'],
+  excludeTables: ['iw_member_access', 'iw_import_retention_mail', 'iw_guards', 'iw_commands', 'iw_agents', 'iw_mail', 'iw_access_codes', 'iw_member_roles', 'iw_copy_links', 'iw_settings', 'iw_freeform_history', 'iw_freeform_policy', 'iw_member_marks', 'iw_shares', 'iw_template_shares', 'iw_contacts', 'iw_notices', 'iw_notice_posts', 'iw_notice_prefs', 'iw_notice_channels', 'iw_retention_purges', 'ik_d1_assertions', 'rer_mail_event_receipts', 'rer_mail_event_states'],
   // SIGNX-001: a signer's saved, unsigned entries stay behind like their codes and sessions; DELIV-005: so does the sealed link.
   secretColumns: { iw_signers: ['code_hash', 'session_hash', 'progress', 'link_sealed'] },
   requiredConfiguration: ['OWNER_EMAIL', 'SESSION_SECRET', 'AUTH_ORIGIN', 'MAIL_PROVIDER', 'MAIL_FROM'],
@@ -15,7 +15,7 @@ export default {
     const envelopes = await read('iw_envelopes'), blobs = await read('iw_blobs'), events = await read('iw_events');
     for (const row of envelopes) {
       const e = JSON.parse(row.data);
-      if (e.id !== row.id || e.version !== row.version || !validSupplementRecord(e, canonicalJson)) return false;
+      if (e.id !== row.id || e.version !== row.version || !validSupplementRecord(e, canonicalJson) || !await verifyFreeFormRecord(e)) return false;
       // PREP-003: recompute image type, bytes, fingerprint and provenance from signed values.
       // Older records bind the same values with valuesSha256; they retain their original audit/certificate.
       try {
@@ -56,3 +56,34 @@ export default {
     return true;
   },
 };
+
+/** PREP-011: custody validation shared with live verification. The signed values digest binds the
+ * complete placement, including ownership and geometry, and the setting snapshot authorizing it. */
+export async function verifyFreeFormRecord(e) {
+  try {
+    const signedEvents = e.events.filter(event => event.action === 'signer.signed');
+    if (!e.freeForm) return !signedEvents.some(event => event.detail.freeForm === true);
+    const setting = e.freeFormSetting;
+    if (!setting) return e.fields.length === 0 && signedEvents.length === 0 && !e.signers.some(signer => signer.signedAt) && !e.events.some(event => event.action === 'envelope.sent_scheduled' || event.action === 'envelope.approved' && !event.detail.approvedForLater);
+    if (!setting || !Number.isInteger(setting.version) || setting.version < 1 || typeof setting.actor !== 'string' || !setting.actor || !Number.isFinite(Date.parse(setting.at))) return false;
+    const ids = new Set();
+    for (const f of e.fields) {
+      if (!f || !e.signers[f.signer]?.signedAt || !Number.isInteger(f.signer) || ids.has(f.id) || typeof f.id !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(f.id)) return false;
+      ids.add(f.id);
+      if (!['signature', 'initials', 'date_signed', 'full_name', 'text'].includes(f.type) || typeof f.label !== 'string' || !f.label.trim() || f.label.length > 100 || /[\x00-\x1f\x7f]/.test(f.label)) return false;
+      if (!Number.isInteger(f.page) || f.page < 0 || f.page >= e.pageSizes.length || ![f.x, f.y, f.width, f.height].every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1) || f.width <= 0 || f.height <= 0 || f.x + f.width > 1.000001 || f.y + f.height > 1.000001) return false;
+    }
+    for (const [index, signer] of e.signers.entries()) {
+      const fields = e.fields.filter(field => field.signer === index);
+      if (!signer.signedAt) { if (fields.length) return false; continue; }
+      if (signer.paper?.status === 'accepted') { if (fields.length) return false; continue; }
+      if (fields.length > 100 || !fields.some(field => field.type === 'signature' && signer.values?.[field.id])) return false;
+      const signed = signedEvents.findLast(event => event.detail.signer === index);
+      if (!signed || signed.detail.freeForm !== true || canonicalJson(signed.detail.freeFormSetting) !== canonicalJson(setting)) return false;
+      if (signed.detail.valuesSha256 !== await sha256(canonicalJson({ fields, values: signer.values, freeFormSetting: setting }))) return false;
+      if (Object.keys(signer.values ?? {}).some(id => !fields.some(field => field.id === id))) return false;
+      if (fields.some(a => e.fields.some(b => b.signer !== index && a.page === b.page && a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y))) return false;
+    }
+    return true;
+  } catch { return false; }
+}

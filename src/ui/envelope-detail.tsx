@@ -5,7 +5,7 @@ import { RoutingPreview, routingRuleText } from './routing-rules'
 // One envelope in the right-hand panel: its pill, signing status in order, the approval decision when a person must
 // make one, the files, the integrity check, the audit trail, and voiding or erasure. The panel's body scrolls; the
 // decision the panel asks for (approve, or review and sign) sits in its foot, always in view.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { command, request, dateTime, zonedAndUtc, canEdit, type Actor, type Envelope } from './types'
 import { EnvelopeShares } from './envelope-shares'
 import { ErrorNotice, useAction } from './feedback'
@@ -28,6 +28,8 @@ type OwnSigningResult = { signing: { url: string } }
 
 export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEdit, onCorrect }: { envelope: Envelope; actor: Actor; refresh: () => Promise<void>; onClose: () => void; onOpen: (id: string) => void; onEdit: (envelope: Envelope) => void; onCorrect: (envelope: Envelope) => void }) {
   const action = useAction()
+  const [freeFormAllowed, setFreeFormAllowed] = useState(false)
+  useEffect(() => { if (envelope.freeForm && envelope.status === 'prepared') void action.run(async () => { const result = await request<{ policy: { enabled: boolean } }>('/api/inkwell/freeform-policy'); setFreeFormAllowed(result.policy.enabled) }) }, [envelope.id, envelope.events.length])
   // TMPL-003: the template this envelope was just saved as.
   const [savedAs, setSavedAs] = useState('')
   const [eligible, setEligible] = useState(false)
@@ -85,7 +87,7 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
   return <section className="iw-detail" aria-label={envelope.title}><div className="iw-detail-body">
     <div className="iw-detail-top"><Pill {...state} /><button className="iw-icon-button" aria-label="Close" onClick={onClose}><Icon name="close" /></button></div>
     {envelope.sendHold && <div className="iw-alert" role="status"><span className="iw-alert-mark" aria-hidden="true">!</span><div><strong>Sending held.</strong><p>The sending confirmation is no longer valid. A current editor must review and confirm again.</p></div></div>}
-    <h2>{name}</h2><p className="iw-detail-sub">{detail && <span>{detail}</span>}<span className="iw-detail-date">Prepared {dateTime(envelope.createdAt)}</span>{['prepared', 'awaiting_signature', 'expired'].includes(envelope.status) && envelope.expiresAt && <span className="iw-detail-date">{envelope.status === 'expired' ? 'Expired' : 'Expires'} {dateTime(envelope.expiresAt)}</span>}{envelope.reminders && ['prepared', 'awaiting_signature'].includes(envelope.status) && <span>Reminders after {envelope.reminders.afterDays}, then every {envelope.reminders.everyDays} business days</span>}{envelope.copiedFrom && <span>Copied from envelope {envelope.copiedFrom.slice(0, 8)}</span>}</p>
+    <h2>{name}</h2>{envelope.freeForm && <p className="iw-muted">Free-form signing{envelope.freeFormSetting ? ` · setting version ${envelope.freeFormSetting.version}` : ' · signers place their own fields'}</p>}<p className="iw-detail-sub">{detail && <span>{detail}</span>}<span className="iw-detail-date">Prepared {dateTime(envelope.createdAt)}</span>{['prepared', 'awaiting_signature', 'expired'].includes(envelope.status) && envelope.expiresAt && <span className="iw-detail-date">{envelope.status === 'expired' ? 'Expired' : 'Expires'} {dateTime(envelope.expiresAt)}</span>}{envelope.reminders && ['prepared', 'awaiting_signature'].includes(envelope.status) && <span>Reminders after {envelope.reminders.afterDays}, then every {envelope.reminders.everyDays} business days</span>}{envelope.copiedFrom && <span>Copied from envelope {envelope.copiedFrom.slice(0, 8)}</span>}</p>
 
     <EnvelopeSupplements envelope={envelope} editable={deciding} refresh={refresh} />
     <h3>Signing status</h3>{mayEdit && !envelope.scheduled && turn.filter(index => envelope.signers[index].inPerson && !me(envelope.signers[index].email)).map(index => <HostSigning key={index} id={envelope.id} signer={index} name={envelope.signers[index].name} />)}
@@ -143,7 +145,8 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
       <label className="iw-check"><input type="checkbox" checked={eligible} onChange={event => setEligible(event.target.checked)} />I reviewed this envelope, confirm it is eligible for electronic signature, and authorize the first invitation.</label>
       <label className="iw-check"><input type="checkbox" checked={later} onChange={event => setLater(event.target.checked)} />Send later</label>
       {later && <div className="iw-two"><label>Send at<input type="datetime-local" required value={sendAt} onChange={event => setSendAt(event.target.value)} /></label><label>Time zone<select value={zone} onChange={event => setZone(event.target.value)}>{[['America/New_York', 'Eastern'], ['America/Chicago', 'Central'], ['America/Denver', 'Mountain'], ['America/Phoenix', 'Arizona'], ['America/Los_Angeles', 'Pacific'], ['America/Anchorage', 'Alaska'], ['Pacific/Honolulu', 'Hawaii']].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>}
-      <div className="iw-decision-actions"><button className="iw-primary" disabled={!eligible || (later && !sendAt) || action.busy} onClick={() => void action.run(approve)}>{action.busy ? 'Sending…' : later ? 'Approve and schedule' : signsFirst ? 'Approve and sign now' : 'Approve and invite first recipient'}</button><button onClick={() => onEdit(envelope)}>Edit draft</button><button onClick={onClose}>Keep as is</button></div>
+      {envelope.freeForm && !freeFormAllowed && <p role="status">Free-form signing is off. An owner or admin must allow it before this draft can be sent.</p>}
+      <div className="iw-decision-actions"><button className="iw-primary" disabled={Boolean(envelope.freeForm && !freeFormAllowed) || !eligible || (later && !sendAt) || action.busy} onClick={() => void action.run(approve)}>{action.busy ? 'Sending…' : later ? 'Approve and schedule' : signsFirst ? 'Approve and sign now' : 'Approve and invite first recipient'}</button><button onClick={() => onEdit(envelope)}>Edit draft</button><button onClick={onClose}>Keep as is</button></div>
     </div>}
     {signingHere && <div className="iw-detail-foot"><div className="iw-decision-actions"><button className="iw-primary" disabled={action.busy} onClick={() => void action.run(async () => { const { signing } = await command<OwnSigningResult>('envelope.open_signing', { id: envelope.id }); window.location.assign(signing.url) })}>{action.busy ? 'Opening…' : 'Review and sign'}</button></div></div>}
   </section>

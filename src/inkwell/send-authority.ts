@@ -3,6 +3,7 @@ import { commitEnvelope, memberRoleSql, type Guard } from './storage'
 
 /** Fingerprint only the prepared sending definition, excluding decisions derived from it and approval history. */
 export const sendingFingerprint = (e: Envelope) => sha256(canonical({
+  ...(e.freeForm ? { freeForm: true } : {}),
   title: e.title, filename: e.filename, originalSha256: e.originalSha256, expiresAt: e.expiresAt,
   signers: e.signers.map(({ routeResult, activatedAt, ...signer }) => signer), fields: e.fields,
   copies: e.copies?.map(({ routeResult, ...copy }) => copy) ?? [], supplements: e.supplements ?? [],
@@ -13,7 +14,8 @@ export async function confirmedSendGuard(envelope: Envelope, operator: string, a
   const guard = sendAuthorityGuard(envelope, operator)
   const confirmation = envelope.events.findLast(e => e.action === action)
   const unchanged = confirmation?.detail.sendingSha256 === await sendingFingerprint(envelope)
-  return { sql: `${guard.sql} AND ?=1`, values: [...guard.values, unchanged ? 1 : 0] }
+  const policy = envelope.freeForm ? { sql: ' AND EXISTS(SELECT 1 FROM iw_freeform_policy WHERE id=1 AND enabled=1 AND version=?)', values: [confirmation?.detail.freeFormPolicyVersion ?? -1] } : { sql: '', values: [] }
+  return { sql: `${guard.sql} AND ?=1${policy.sql}`, values: [...guard.values, unchanged ? 1 : 0, ...policy.values] }
 }
 /** SEND-001: deferred sends use current edit authority, independently of the old browser session. This predicate
  * and the envelope version are fenced in the batch that releases invitations or returns a held draft. */
@@ -29,6 +31,7 @@ export async function hasSendAuthority(env: Env, guard: Guard) {
 export async function holdSend(env: Env, before: Envelope, operator: string, guard: Guard, writes: D1PreparedStatement[] = [], guards: Guard[] = [], decidingActor?: string) {
   const after = structuredClone(before), at = now()
   after.status = 'prepared'
+  delete after.freeFormSetting
   delete after.scheduled
   delete after.internalApproval
   after.sendHold = { at }

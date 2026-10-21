@@ -1,9 +1,11 @@
+import { placedFields } from './freeform-fields'
+import { atomic } from './storage'
 import { validateBusinessValue } from './business-fields'
 import { MAX_STAMP_VALUE } from './stamp-value'
 import { visibleFields } from './field-rules'
 import { assertLockedValues } from './prefill'
 import { active, currentSigners, insist, object, type Env } from './model'
-import { accessGate, disclosureGate, recipientOf, type SigningContext } from './signing'
+import { accessGate, disclosureGate, recipientOf, liveGuard, sessionGuard, type SigningContext } from './signing'
 
 /** SIGNX-001: the verified signer whose turn it is saves what they have entered so far and finishes later from the same
  * link. Saved values are unsigned entries for their own fields: they sign nothing, are not evidence and stay out of the
@@ -13,7 +15,8 @@ export async function saveProgress(env: Env, context: SigningContext, input: Rec
   insist(context.verified, 'Verify your email before saving your progress.', 401)
   active(context.envelope); insist(currentSigners(context.envelope).includes(context.recipient.signer), 'This invitation is waiting for an earlier signer, or you have already signed.', 409)
   accessGate(context); disclosureGate(recipientOf(context), 'saving your progress')
-  const fields = context.envelope.fields.filter(field => field.signer === context.recipient.signer), values: Record<string, string> = {}
+  const fields = context.envelope.freeForm ? placedFields(context.envelope, context.recipient.signer, input.fields) : context.envelope.fields.filter(field => field.signer === context.recipient.signer), values: Record<string, string> = {}
+  insist(context.envelope.freeForm || input.fields === undefined, 'Fields cannot be placed in this envelope.')
   assertLockedValues(visibleFields(fields, object(input.values)), object(input.values))
   for (const [id, value] of Object.entries(object(input.values))) {
     const field = fields.find(candidate => candidate.id === id)
@@ -22,7 +25,7 @@ export async function saveProgress(env: Env, context: SigningContext, input: Rec
     if (field.type === 'stamp') validateBusinessValue(field, value)
     if (value.trim() || field.prefill) values[id] = value
   }
-  const saved = await env.DB.prepare('UPDATE iw_signers SET progress=? WHERE envelope_id=? AND signer=? AND session_hash=? AND session_expires>?').bind(Object.keys(values).length ? JSON.stringify(values) : null, context.envelope.id, context.recipient.row, context.recipient.session_hash, Date.now()).run()
-  insist(saved.meta.changes === 1, 'Your signing session ended. Verify your email again to save.', 401)
+  const progress = context.envelope.freeForm ? JSON.stringify({ fields, values }) : Object.keys(values).length ? JSON.stringify(values) : null
+  await atomic(env.DB, [liveGuard(context), sessionGuard(context)], [env.DB.prepare('UPDATE iw_signers SET progress=? WHERE envelope_id=? AND signer=?').bind(progress, context.envelope.id, context.recipient.row)])
   return { saved: Object.keys(values).length }
 }

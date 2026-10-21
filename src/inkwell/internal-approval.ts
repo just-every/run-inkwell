@@ -1,3 +1,4 @@
+import { freeFormPolicy, freeFormSendGuard } from './freeform-policy'
 import { appendEvent, insist, now, object, text, type Actor, type ApprovalRule, type ApprovalStep, type Envelope, type Env, type Field } from './model'
 import { atomic, commandWrite, commitEnvelope, getEnvelope, memberRoleSql, roleGuard } from './storage'
 import { usdCents, usdDecimal } from './field-rules'
@@ -99,11 +100,12 @@ export const eligibilityStatement = 'I confirm this document is eligible for ele
 /** The confirmed send waits for the approvers: the draft is locked and nobody is invited. */
 export async function requestApproval(env: Env, context: CommandContext, before: Envelope, steps: ApprovalStep[], schedule?: Schedule) {
   const after = structuredClone(before), at = now(), waiting = steps.filter(s => !s.decision)
+  const policy = before.freeForm ? await freeFormPolicy(env) : undefined
   delete after.sendHold
   after.internalApproval = { state: 'pending', requestedAt: at, requestedBy: { id: context.actor.id, name: context.actor.name, email: context.actor.email.toLowerCase() }, ...(schedule ? { schedule } : {}), steps }
-  await appendEvent(after, 'envelope.internal_approval_requested', context.actor.id, { sendingSha256: await sendingFingerprint(after), eligible: true, consent: true, statement: eligibilityStatement, originalSha256: after.originalSha256, steps: steps.map(({ approver, name, rules, why, bySender }) => ({ approver, name, rules, why, ...(bySender ? { approvedBySender: true } : {}) })), ...(schedule ? { sendAt: schedule.at, sendAtLocal: schedule.local, timeZone: schedule.timeZone } : {}) }, at)
+  await appendEvent(after, 'envelope.internal_approval_requested', context.actor.id, { ...(policy ? { freeForm: true, freeFormPolicyVersion: policy.version } : {}), sendingSha256: await sendingFingerprint(after), eligible: true, consent: true, statement: eligibilityStatement, originalSha256: after.originalSha256, steps: steps.map(({ approver, name, rules, why, bySender }) => ({ approver, name, rules, why, ...(bySender ? { approvedBySender: true } : {}) })), ...(schedule ? { sendAt: schedule.at, sendAtLocal: schedule.local, timeZone: schedule.timeZone } : {}) }, at)
   const result = { id: after.id, status: after.status, waitingForApproval: waiting.map(s => s.name) }
-  await commitEnvelope(env, before, after, context.actor, [commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
+  await commitEnvelope(env, before, after, context.actor, [commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)], policy ? [freeFormSendGuard(policy)] : [])
   return result
 }
 
@@ -134,7 +136,9 @@ export async function decideApproval(env: Env, context: CommandContext, input: R
     await commitEnvelope(env, before, after, null, [commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)], [roleGuard(context.actor)])
     return result
   }
-  const authority = await confirmedSendGuard(before, request.requestedBy.id, 'envelope.internal_approval_requested')
+  const confirmation = await confirmedSendGuard(before, request.requestedBy.id, 'envelope.internal_approval_requested')
+  const policyGuard = before.freeForm ? freeFormSendGuard(await freeFormPolicy(env)) : undefined
+  const authority = policyGuard ? { sql: `(${confirmation.sql}) AND (${policyGuard.sql})`, values: [...confirmation.values, ...policyGuard.values] } : confirmation
   if (!await hasSendAuthority(env, authority)) {
     const result = { id: before.id, status: 'prepared', held: true }
     await holdSend(env, before, request.requestedBy.id, authority, [commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)], [roleGuard(context.actor)], context.actor.id)

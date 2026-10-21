@@ -1,3 +1,4 @@
+import { freeFormPolicy, freeFormSendGuard, snapshotFreeFormPolicy } from './freeform-policy'
 import { appendEvent, currentSigners, insist, object, secret, sha256, text, type Envelope, type Env } from './model'
 import { sealLink } from './links'
 import { memberLinkWrites } from './signing-groups'
@@ -35,13 +36,17 @@ export async function sendScheduled(env: Env, at: number) {
 }
 async function send(env: Env, before: Envelope, at: number) {
   const authority = before.events.findLast(e => e.action === 'envelope.approved')?.actor ?? ''
-  const guard = await confirmedSendGuard(before, authority, 'envelope.approved')
+  const confirmation = await confirmedSendGuard(before, authority, 'envelope.approved')
+  const policy = before.freeForm ? await freeFormPolicy(env) : undefined
+  const policyGuard = policy ? freeFormSendGuard(policy) : undefined
+  const guard = policyGuard ? { sql: `(${confirmation.sql}) AND (${policyGuard.sql})`, values: [...confirmation.values, ...policyGuard.values] } : confirmation
   if (!await hasSendAuthority(env, guard)) return holdSend(env, before, authority, guard)
   const after = structuredClone(before), schedule = after.scheduled!
+  if (policy) snapshotFreeFormPolicy(after, policy)
   delete after.scheduled
   const inApp = (after.events.findLast(e => e.action === 'envelope.approved')?.detail.signsInApp as number[] | undefined) ?? []
   const first = currentSigners(after).filter(i => !inApp.includes(i) && !after.signers[i].inPerson)
-  await appendEvent(after, 'envelope.sent_scheduled', 'inkwell', { scheduledFor: schedule.at, local: schedule.local, timeZone: schedule.timeZone, passAt: new Date(at).toISOString(), invited: first })
+  await appendEvent(after, 'envelope.sent_scheduled', 'inkwell', { ...(after.freeForm ? { freeForm: true, freeFormSetting: after.freeFormSetting } : {}), scheduledFor: schedule.at, local: schedule.local, timeZone: schedule.timeZone, passAt: new Date(at).toISOString(), invited: first })
   const writes: D1PreparedStatement[] = []
   for (const i of first) { if (after.signers[i].group) { writes.push(...await memberLinkWrites(env, after, i, false, true)); continue }; const token = secret(); writes.push(env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=? WHERE envelope_id=? AND signer=?').bind(await sha256(token), await sealLink(env, after.id, i, token), after.id, i), invitationWrite(env, after, i, token)) }
   await commitEnvelope(env, before, after, null, writes, [guard])

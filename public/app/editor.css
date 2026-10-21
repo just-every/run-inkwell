@@ -41,6 +41,7 @@
 .iw-page-heading p:not(.iw-eyebrow) { color: var(--ink); font-size: 18px; overflow-wrap: anywhere; }
 .iw-lead { color: var(--body); font-size: 16px; }
 .iw-app.iw-signer .iw-main > .iw-panel { padding: 0; border: 0; background: none; box-shadow: none; }
+.iw-signer .iw-field-tools > fieldset, .iw-signer .iw-field-tools > section { grid-column: 1 / -1; min-width: 0; }
 .iw-signer .iw-editor { grid-template-columns: minmax(0, 1fr) 400px; gap: 20px; }
 .iw-signer .iw-pdf-viewer { max-width: none; }
 .iw-sign-fields { position: sticky; top: 16px; padding: 22px 22px 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--app-shadow); }

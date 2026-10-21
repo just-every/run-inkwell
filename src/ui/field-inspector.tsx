@@ -15,7 +15,7 @@ const percent = (value: number) => Math.round(value * 1000) / 10
 /** PREP-005: the selected fields' properties and actions, each a plain control so the keyboard reaches every one: move
  * them to another recipient, duplicate them, copy them to every page, align two or more, remove them; one selected field
  * also takes its label, type, page, place and size. */
-export function FieldInspector({ selection, recipients, who, pages, fields, actions }: { selection: Field[]; recipients: EditorRecipient[]; who: string; pages: number; fields: Field[]; actions: Actions }) {
+export function FieldInspector({ selection, recipients, who, pages, fields, actions, freeForm = false }: { freeForm?: boolean; selection: Field[]; recipients: EditorRecipient[]; who: string; pages: number; fields: Field[]; actions: Actions }) {
   const [only] = selection.length === 1 ? selection : []
   const signers = new Set(selection.map(field => field.signer))
   const change = (field: Field) => {
@@ -31,15 +31,15 @@ export function FieldInspector({ selection, recipients, who, pages, fields, acti
   const number = (key: 'x' | 'y' | 'width' | 'height', name: string) => only && <label>{name} (%)<input aria-label={`${name} (%) of the selected field`} type="number" min={0} max={100} step={.5} value={percent(only[key])} onChange={event => { const value = Number(event.target.value); if (Number.isFinite(value)) actions.change(fit(only, { [key]: value / 100 })) }} /></label>
   return <section className="iw-inspector iw-stack" aria-label="Selected fields">
     <h4 role="status">{selection.length === 1 ? '1 field selected' : `${selection.length} fields selected`}</h4>
-    <label>Move selected fields to {who.toLowerCase()}<select value={signers.size === 1 ? String([...signers][0]) : ''} onChange={event => { if (event.target.value !== '') actions.reassign(Number(event.target.value)) }}>{signers.size > 1 && <option value="">Several</option>}{recipients.map((recipient, index) => recipient.locked ? null : <option key={index} value={index}>{index + 1}. {recipient.name || who}</option>)}</select></label>
+    {!freeForm && <label>Move selected fields to {who.toLowerCase()}<select value={signers.size === 1 ? String([...signers][0]) : ''} onChange={event => { if (event.target.value !== '') actions.reassign(Number(event.target.value)) }}>{signers.size > 1 && <option value="">Several</option>}{recipients.map((recipient, index) => recipient.locked ? null : <option key={index} value={index}>{index + 1}. {recipient.name || who}</option>)}</select></label>}
     {only && <>
       <label>Label<input aria-label="Label of the selected field" maxLength={80} value={only.label} onChange={event => actions.change({ ...only, label: event.target.value })} /></label>
-      <div className="iw-two"><label>Type<select aria-label="Type of the selected field" value={only.type} onChange={event => change({ ...only, type: event.target.value as Field['type'] })}>{fieldTypes.map(([type, name]) => <option key={type} value={type}>{name}</option>)}</select></label>
+      <div className="iw-two"><label>Type<select aria-label="Type of the selected field" value={only.type} onChange={event => change({ ...only, type: event.target.value as Field['type'] })}>{fieldTypes.filter(([type]) => !freeForm || ['signature', 'initials', 'date_signed', 'full_name', 'text'].includes(type)).map(([type, name]) => <option key={type} value={type}>{name}</option>)}</select></label>
         <label>Page<select aria-label="Page of the selected field" value={only.page} onChange={event => actions.change({ ...only, page: Number(event.target.value) })}>{Array.from({ length: Math.max(pages, only.page + 1) }, (_, page) => <option key={page} value={page}>{page + 1}</option>)}</select></label></div>
-      <FieldChoicesEditor field={only} change={change} />
+      {!freeForm && <><FieldChoicesEditor field={only} change={change} />
       <FieldPrefillEditor field={only} change={change} />
       <FieldValidationEditor field={only} change={change} />
-      <FieldRulesEditor field={only} fields={fields} change={change} />
+      <FieldRulesEditor field={only} fields={fields} change={change} /></>}
       <div className="iw-two">{number('x', 'Left')}{number('y', 'Top')}</div>
       <div className="iw-two">{number('width', 'Width')}{number('height', 'Height')}</div>
     </>}
