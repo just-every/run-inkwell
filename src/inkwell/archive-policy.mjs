@@ -17,6 +17,11 @@ export default {
   requiredConfiguration: ['OWNER_EMAIL', 'SESSION_SECRET', 'AUTH_ORIGIN', 'MAIL_PROVIDER', 'MAIL_FROM'],
   async validateStaged({ db, tables }) {
     const table=name=>tables[name] ? '"'+tables[name].replaceAll('"','""')+'"' : null;
+    // Staged copies intentionally have no product indexes. Bounded fingerprint reads need
+    // their key order before walking multi-gigabyte custody, rather than sorting BLOB bytes.
+    const indexes={iw_blobs:'envelope_id,kind,part',iw_template_blobs:'template_id,part',iw_template_document_blobs:'template_id,document,part',iw_template_supplement_blobs:'template_id,supplement_id,part',iw_events:'envelope_id,sequence',iw_comment_threads:'envelope_id,id',ik_d1_original_chunks:'job_id,kind,original_key,ordinal'};
+    const statements=Object.entries(indexes).flatMap(([name,columns])=>table(name)?[db.prepare(`CREATE INDEX IF NOT EXISTS "${tables[name].replaceAll('"','""')}_inkwell_custody" ON ${table(name)}(${columns})`)]:[]);
+    if(statements.length)await db.batch(statements);
     async function* rows(name,where='',values=[]) {
       const source=table(name);if(!source)return;
       for(let offset=0;;offset+=2){const batch=(await db.prepare(`SELECT * FROM ${source}${where?' WHERE '+where:''} ORDER BY rowid LIMIT 2 OFFSET ?`).bind(...values,offset).all()).results;if(!batch.length)break;yield* batch;}

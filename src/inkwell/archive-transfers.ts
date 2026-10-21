@@ -46,5 +46,14 @@ export async function archiveTransfers(request:Request,env:Bindings,actor:Actor,
   const iterator=chunks()[Symbol.asyncIterator](),stream=new ReadableStream<Uint8Array>({async pull(c){try{const r=await iterator.next();if(r.done)c.close();else c.enqueue(r.value)}catch(error){c.error(error)}},async cancel(){await iterator.return?.()}})
   return new Response(stream,{status:range?206:200,headers:{'content-type':'application/x-ndjson','content-disposition':`attachment; filename="inkwell-${job}.ndjson"`,'content-length':String(end-start+1),'accept-ranges':'bytes','etag':`"${metadata.archiveHash}"`,'cache-control':'no-store',...(range?{'content-range':`bytes ${start}-${end}/${total}`}:{})}})
  }
- return (await createPortabilityHandler({db,policy,appOrigin:env.AUTH_ORIGIN,basePath,authorize:async()=>actor.id}))(request)
+ const response=await(await createPortabilityHandler({db,policy,appOrigin:env.AUTH_ORIGIN,basePath,authorize:async()=>actor.id}))(request)
+ if(response?.ok&&request.method==='POST'&&route[0]==='exports'&&route[2]==='advance') {
+  const row=await db.prepare('SELECT metadata FROM rer_portability_jobs WHERE id=? AND actor=?').bind(route[1],actor.id).first<{metadata:string}>()
+  if(row){const metadata=JSON.parse(row.metadata),table=metadata.manifest.tables[metadata.cursor?.table]?.name,copy=metadata.copies[table]
+   // Base normalizes its private snapshot with CREATE TABLE AS, which drops its ordering index.
+   // Restore that access path before another part reads BLOB rows; do not sort their bytes in memory.
+   if(table&&metadata.normalized?.includes(table)&&/^rer_portability_snap_[a-f0-9]+_[0-9]+$/.test(copy))await db.batch([db.prepare(`CREATE INDEX IF NOT EXISTS "${copy}_meta_order" ON "${copy}_meta"(rer_portability_row_order)`)])
+  }
+ }
+ return response
 }
