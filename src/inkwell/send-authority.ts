@@ -1,11 +1,13 @@
 import { appendEvent, canonical, now, sha256, type Envelope, type Env } from './model'
 import { dispatchMail } from './mail'
+import { confirmedTemplateGuard } from './template-confirmation'
 import { heldNoticeWrites } from './send-hold-notices'
 import { commitEnvelope, memberRoleSql, type Guard } from './storage'
 
 /** Fingerprint only the prepared sending definition, excluding decisions derived from it and approval history. */
 export const sendingFingerprint = (e: Envelope) => sha256(canonical({
   ...(e.freeForm ? { freeForm: true } : {}),
+  template: e.template ?? null,
   title: e.title, filename: e.filename, originalSha256: e.originalSha256, expiresAt: e.expiresAt,
   signers: e.signers.map(({ routeResult, activatedAt, ...signer }) => signer), fields: e.fields,
   copies: e.copies?.map(({ routeResult, ...copy }) => copy) ?? [], supplements: e.supplements ?? [],
@@ -17,7 +19,8 @@ export async function confirmedSendGuard(envelope: Envelope, operator: string, a
   const confirmation = envelope.events.findLast(e => e.action === action)
   const unchanged = confirmation?.detail.sendingSha256 === await sendingFingerprint(envelope)
   const policy = envelope.freeForm ? { sql: ' AND EXISTS(SELECT 1 FROM iw_freeform_policy WHERE id=1 AND enabled=1 AND version=?)', values: [confirmation?.detail.freeFormPolicyVersion ?? -1] } : { sql: '', values: [] }
-  return { sql: `${guard.sql} AND ?=1${policy.sql}`, values: [...guard.values, unchanged ? 1 : 0, ...policy.values] }
+  const template = confirmedTemplateGuard(envelope, confirmation?.detail.templateConfirmation)
+  return allOf([{ sql: `${guard.sql} AND ?=1${policy.sql}`, values: [...guard.values, unchanged ? 1 : 0, ...policy.values] }, template])
 }
 /** SEND-001: deferred sends use current edit authority, independently of the old browser session. This predicate
  * and the envelope version are fenced in the batch that releases invitations or returns a held draft. */

@@ -144,14 +144,14 @@ test('SEND-001 and ADMIN-004: a scheduled send is held when its policy turns off
     assert.equal((await read(h, a)).status, 'awaiting_signature')
     assert.ok(await h.mail('mara.held@clients.example', 'Please sign:'), 'a current editor’s fresh confirmation releases it')
     // A change that still allows the send releases it and records the current version.
-    const b = await scheduledEnvelope('Template letter', 'mara.tmpl@clients.example', await fromTemplate(h, t, 'mara.tmpl@clients.example'))
-    await set(h, 'template', { mode: 'autonomous' })
+    const b = await scheduledEnvelope('Ad hoc unchanged permission', 'mara.tmpl@clients.example')
+    await set(h, 'ad_hoc', { reason: 'Reviewed and retained allowed sends' })
     await pass(b)
     const sentB = await read(h, b)
     assert.equal(sentB.status, 'awaiting_signature'); assert.ok(await h.mail('mara.tmpl@clients.example', 'Please sign:'))
     const releaseRecord = sentB.events.findLast(e => e.action === 'envelope.sent_scheduled').detail.sendPolicy
-    assert.deepEqual([releaseRecord.mode, releaseRecord.policies], ['autonomous', [{ scope: 'account', version: 1 }]])
-    assert.deepEqual(sentB.events.findLast(e => e.action === 'envelope.approved').detail.sendPolicy.policies, [{ scope: 'account', version: 0 }], 'the confirmation keeps the version it was made under')
+    assert.deepEqual([releaseRecord.mode, releaseRecord.policies], ['person', [{ scope: 'account', version: 3 }]])
+    assert.deepEqual(sentB.events.findLast(e => e.action === 'envelope.approved').detail.sendPolicy.policies, [{ scope: 'account', version: 2 }], 'the confirmation keeps the version it was made under')
     // A requirement added after confirmation enters ROUTE-004, without inviting anyone or inventing a new eligibility confirmation.
     const c = await scheduledEnvelope('Approval letter', 'mara.req@clients.example')
     await h.command('account.internal_approval', { rule: { approverEmail: 'ari.release@harbour.example', threshold: { field: 'Absent amount', above: '10000' } } })
@@ -171,7 +171,7 @@ test('SEND-001 and ADMIN-004: a scheduled send is held when its policy turns off
     assert.equal((await read(h, c)).status, 'awaiting_signature')
     assert.equal((await read(h, c)).scheduled, undefined, 'the elapsed schedule sends on final approval')
     assert.ok(await h.mail('mara.req@clients.example', 'Please sign:'))
-    assert.deepEqual((await read(h, c)).events.findLast(e => e.action === 'envelope.approved').detail.sendPolicy.policies, [{ scope: 'account', version: 3 }])
+    assert.deepEqual((await read(h, c)).events.findLast(e => e.action === 'envelope.approved').detail.sendPolicy.policies, [{ scope: 'account', version: 4 }])
     // A policy-required approval with no valid account approver holds honestly rather than failing the cron.
     await set(h, 'ad_hoc', { requireInternalApproval: false })
     await h.command('account.internal_approval', { rule: null })
@@ -273,5 +273,59 @@ test('ADMIN-004: reminder and expiry defaults are administered, inherited by new
     const copy = (await h.command('envelope.copy', { id: inherited }, sender)).result.id
     assert.equal(days(await read(h, copy)), 12, 'a copied envelope starts with the current account expiry')
     assert.deepEqual((await read(h, copy)).reminders, defaults.reminders, 'a copy keeps the source envelope reminder choice')
+  } finally { await h.close() }
+})
+
+test('SEND-001: template edits, deletion and policy revisions hold deferred sends; fresh confirmation keeps frozen bytes and rules', async () => {
+  const h = await harness()
+  try {
+    const approver = await h.invite('template.approver@harbour.example', 'admin')
+    const original = { title: 'Harbour retained agreement', filename: 'retained.pdf', pdfBase64: await pdfBase64(), roles: [{ role: 'Client', order: 1 }], fields: [field], approval: { approverEmail: 'template.approver@harbour.example' } }
+    const t = (await h.command('template.save', original)).result.id
+    const id = await fromTemplate(h, t, 'retained@clients.example')
+    const frozenTemplate = (await read(h, id)).template
+    const bytes = (await h.send(`/api/inkwell/envelopes/${id}/artifacts/original`, undefined, h.owner)).bytes
+    await h.command('envelope.approve', { id, eligible: true })
+    await h.command('template.update', { ...original, id: t, pdfBase64: await pdfBase64(), message: 'New content must not leak into prepared envelopes', approval: null })
+    assert.equal((await h.command('envelope.internal_decide', { id, decision: 'approve' }, approver)).result.held, true)
+    assert.equal(await h.mail('retained@clients.example', 'Please sign:'), undefined)
+    await h.command('envelope.open_signing', { id }, h.owner, 409)
+    // Restoring the definition is another revision, never an automatic release.
+    await h.command('template.update', { ...original, id: t })
+    await h.scheduled(Date.now() + 4 * 86400000)
+    assert.ok((await read(h, id)).sendHold)
+    const fresh = await h.invite('fresh.editor@harbour.example', 'admin')
+    assert.ok((await h.command('envelope.approve', { id, eligible: true }, fresh)).result.waitingForApproval.length, 'the frozen approval rule still applies')
+    await h.command('envelope.internal_decide', { id, decision: 'approve' }, approver)
+    assert.ok(await h.mail('retained@clients.example', 'Please sign:'))
+    const released = await read(h, id)
+    assert.deepEqual((await h.send(`/api/inkwell/envelopes/${id}/artifacts/original`, undefined, h.owner)).bytes, bytes)
+    assert.equal(released.message, undefined)
+    assert.deepEqual(released.template, frozenTemplate)
+    const requested = released.events.findLast(e => e.action === 'envelope.internal_approval_requested')
+    assert.equal(requested.actor, (await h.send('/api/inkwell', undefined, fresh)).value.actor.id)
+    assert.equal(requested.detail.templateConfirmation.pinnedVersion, 1)
+    // A deleted template also holds, but a fresh confirmation can still send its frozen bytes and approval rule.
+    const removed = await fromTemplate(h, t, 'deleted@clients.example')
+    await h.command('envelope.approve', { id: removed, eligible: true })
+    await h.command('template.remove', { id: t })
+    assert.equal((await h.command('envelope.internal_decide', { id: removed, decision: 'approve' }, approver)).result.held, true)
+    assert.ok((await h.command('envelope.approve', { id: removed, eligible: true })).result.waitingForApproval.length)
+    await h.command('envelope.internal_decide', { id: removed, decision: 'approve' }, approver)
+    assert.ok(await h.mail('deleted@clients.example', 'Please sign:'))
+    assert.deepEqual((await h.send(`/api/inkwell/envelopes/${id}/artifacts/original`, undefined, h.owner)).bytes, bytes, 'template deletion never changes a sent envelope')
+    // Scheduled rows already have unused credentials; none may survive the hold.
+    const scheduledTemplate = await template(h)
+    const later = await fromTemplate(h, scheduledTemplate, 'scheduled.template@clients.example')
+    await h.command('envelope.approve', { id: later, eligible: true, sendAt: schedule() })
+    const confirmed = await read(h, later), at = Date.parse(confirmed.scheduled.at) + 60000
+    await set(h, 'template', { reason: 'Reviewed without changing allowed templates' })
+    await h.scheduled(at)
+    assert.ok((await read(h, later)).sendHold, 'even an otherwise allowed template policy revision requires fresh confirmation')
+    assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM iw_signers WHERE envelope_id=?').bind(later).first()).n, 0, 'all unused signer credentials are revoked')
+    await h.scheduled(at + 3600000)
+    assert.equal(await h.mail('scheduled.template@clients.example', 'Please sign:'), undefined)
+    await h.command('envelope.approve', { id: later, eligible: true })
+    assert.ok(await h.mail('scheduled.template@clients.example', 'Please sign:'))
   } finally { await h.close() }
 })
