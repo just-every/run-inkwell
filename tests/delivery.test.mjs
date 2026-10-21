@@ -341,7 +341,7 @@ test('DELIV-008: subscribed to declines and completions in Slack, Teams, Nook an
  } finally { await h.close() }
 })
 
-test('Follow-up grants chase three stalled signers through signed replies, human correction and durable contact limits', async () => {
+test('Follow-up: stalled signers, authenticated reply custody and contact limits', async () => {
  const inboundSecret = Buffer.from('synthetic-inkwell-1').toString('base64'), outboundSecret = Buffer.from('synthetic-inkwell-2').toString('base64')
  const h = await harness({bindings:{MAIL_INBOUND_DOMAIN:'replies.harbour.example',MAIL_INBOUND_SECRET:'whsec_'+inboundSecret,MAIL_INBOUND_API_KEY:'synthetic-inkwell-3',MAIL_WEBHOOK_KEY:'whsec_'+outboundSecret}})
  try {
@@ -359,8 +359,8 @@ test('Follow-up grants chase three stalled signers through signed replies, human
   await h.post('/api/inkwell/commands',{command:'envelope.followup',input:grant,commandId:crypto.randomUUID()},h.owner,403,{authorization:'Bearer '+token})
   await h.command('envelope.followup',grant)
   assert.equal((await view()).value.grant.state,'active')
-  const signedEvent=async(path,secret,event,eventId=crypto.randomUUID(),status=200)=>{
-   const raw=JSON.stringify(event),timestamp=String(Math.floor(Date.now()/1000)),signature=createHmac('sha256',Buffer.from(secret,'base64')).update(`${eventId}.${timestamp}.${raw}`).digest('base64')
+  const signedEvent=async(path,secret,event,eventId=crypto.randomUUID(),status=200,timestampOverride)=>{
+   const raw=JSON.stringify(event),timestamp=timestampOverride??String(Math.floor(Date.now()/1000)),signature=createHmac('sha256',Buffer.from(secret,'base64')).update(`${eventId}.${timestamp}.${raw}`).digest('base64')
    return h.post(path,event,'',status,{'svix-id':eventId,'svix-timestamp':timestamp,'svix-signature':'v1,'+signature})
   }
   await h.post('/api/inkwell/contacts',{name:'Alex Client',email:'alex.correct@clients.example'},h.owner)
@@ -379,6 +379,7 @@ test('Follow-up grants chase three stalled signers through signed replies, human
    return signedEvent('/api/inkwell/mail/replies',inboundSecret,{type:'email.received',data:{email_id:messageId}},eventId,status)
   }
   await h.post('/api/inkwell/mail/replies',{type:'email.received'},'',401)
+  await signedEvent('/api/inkwell/mail/replies',inboundSecret,{type:'email.received',data:{email_id:'synthetic-inkwell-9'}},crypto.randomUUID(),401,String(Math.floor(Date.now()/1000)-3600))
   const replay=crypto.randomUUID()
   await receive(emails[1],awayAddress,'I return on '+next(0).slice(0,10),{'Auto-Submitted':'auto-replied'},replay)
   await receive(emails[1],awayAddress,'replayed',{},replay,409)
@@ -459,7 +460,7 @@ test('Follow-up grants chase three stalled signers through signed replies, human
  } finally {await h.close()}
 })
 
-test('Follow-up authority is explicit, scoped to editors and permanently suspended by narrowing; ordinary reminders share the cap', async () => {
+test('Follow-up: human grants, authority narrowing and shared reminder limits', async () => {
  const h=await harness()
  try{
   const sender=await h.invite('sender@harbour.example','member'),shared=await h.invite('reader@harbour.example','member')
@@ -501,7 +502,7 @@ test('Follow-up authority is explicit, scoped to editors and permanently suspend
  }finally{await h.close()}
 })
 
-test('Follow-up causes use real signing sessions and keep group-member reply authority separate',async()=>{
+test('Follow-up: session causes and separate group-member replies',async()=>{
  const inboundSecret=Buffer.from('synthetic-inkwell-7').toString('base64'),h=await harness({bindings:{MAIL_INBOUND_DOMAIN:'replies.harbour.example',MAIL_INBOUND_SECRET:'whsec_'+inboundSecret,MAIL_INBOUND_API_KEY:'synthetic-inkwell-8'}})
  try{
   const members=[{name:'Dana Buyer',email:'dana@clients.example'},{name:'Eli Buyer',email:'eli@clients.example'}]

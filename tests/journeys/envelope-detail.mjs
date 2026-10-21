@@ -96,7 +96,7 @@ try {
     await followup.locator('summary').filter({hasText:'Turn on follow-up'}).click()
     await followup.getByLabel('Maximum contacts per recipient').fill('2')
     await followup.getByLabel('I authorize follow-up for this envelope under these settings.').check()
-    await capture('grant-settings');await axe(page,`follow-up settings ${width}`)
+    await capture('grant-settings-top',followup.getByLabel('Maximum contacts per recipient'));await capture('grant-settings');await axe(page,`follow-up settings ${width}`)
     const enable=followup.getByRole('button',{name:'Turn on follow-up',exact:true});await enable.focus();await page.keyboard.press('Enter')
     await followup.getByText(/Grant version 1 · active/).waitFor();await capture('grant-active')
     for(const signer of [1,2])await inkwell.command('envelope.resend',{id,signer})
