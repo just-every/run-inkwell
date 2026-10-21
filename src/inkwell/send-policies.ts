@@ -14,7 +14,7 @@ export interface SendPolicy { scope: 'account'; source: SendSource; mode: SendMo
 export interface SendPolicyVersion extends SendPolicy { before: Pick<SendPolicy, 'mode' | 'templates' | 'requireInternalApproval' | 'deferredRelease' | 'version'> }
 /** What an envelope records about the policy that allowed it: the source, who the send is for, and each contributing policy version. */
 export interface SendPolicyRecord { source: SendSource; mode: SendMode; principal: string; credential: null; policies: { scope: 'account'; version: number }[]; templates: string[] | null; requireInternalApproval: boolean; deferredRelease: boolean; fingerprint: string }
-export interface SendDecision { allowed: boolean; code?: string; reason?: string; requiresApproval: boolean; record: SendPolicyRecord; fence: Guard }
+export interface SendDecision { allowed: boolean; code?: string; reason?: string; requiresApproval: boolean; record: SendPolicyRecord; fence: Guard; versionFence: Guard }
 export const sourceLabel: Record<SendSource, string> = { ad_hoc: 'ad hoc', template: 'template', bulk: 'bulk', web_form: 'web form', api: 'API' }
 /** Opt-in defaults: the person-based sources start with the person's confirmation, every other source starts off. */
 const defaultMode: Record<SendSource, SendMode> = { ad_hoc: 'person', template: 'person', bulk: 'person', web_form: 'off', api: 'off' }
@@ -95,7 +95,7 @@ export async function evaluateSendPolicy(env: Env, envelope: Envelope, principal
   const effective = { source, mode: policy.mode, principal, credential: null, policies: [{ scope: 'account' as const, version: policy.version }], templates: policy.templates, requireInternalApproval: policy.requireInternalApproval, deferredRelease: policy.deferredRelease }
   const record: SendPolicyRecord = { ...effective, fingerprint: await sha256(canonical(effective)) }
   const fence = versionGuard(source, policy.version)
-  return { allowed: !code, ...(code ? { code, reason } : {}), requiresApproval: policy.requireInternalApproval, record, fence: { sql: `${fence.sql} AND ?=1`, values: [...fence.values, code ? 0 : 1] } }
+  return { allowed: !code, ...(code ? { code, reason } : {}), requiresApproval: policy.requireInternalApproval, record, versionFence: fence, fence: { sql: `${fence.sql} AND ?=1`, values: [...fence.values, code ? 0 : 1] } }
 }
 /** The refusal for a decision that does not allow the send; person-based and credential sources alike answer 403 with a code. */
 export function insistAllowed(decision: SendDecision) { if (!decision.allowed) throw new Refusal(decision.reason!, 403, decision.code) }

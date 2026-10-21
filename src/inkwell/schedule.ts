@@ -45,10 +45,8 @@ async function send(env: Env, before: Envelope, at: number) {
   const decision = await evaluateSendPolicy(env, before, authority, { deferred: true, approved: Boolean(before.internalApproval), stage: 'release' })
   const base = allOf([confirmation, ...(policy ? [freeFormSendGuard(policy)] : [])])
   const guard = allOf([base, decision.fence])
-  if (decision.code === 'send_policy_approval' && await hasSendAuthority(env, base)) {
-    const request = await evaluateSendPolicy(env, before, authority, { deferred: true, approved: false, stage: 'request' })
-    if (request.allowed) return requestScheduledApproval(env, before, authority, allOf([base, request.fence]), guard, request)
-  }
+  if (decision.code === 'send_policy_approval' && await hasSendAuthority(env, base))
+    return requestScheduledApproval(env, before, authority, allOf([base, decision.versionFence]), guard, decision)
   if (!await hasSendAuthority(env, guard)) return holdSend(env, before, authority, guard, [], [], undefined, decision.allowed ? {} : { reason: decision.reason, code: decision.code, sendPolicy: decision.record })
   const after = structuredClone(before), schedule = after.scheduled!
   if (policy) snapshotFreeFormPolicy(after, policy)
