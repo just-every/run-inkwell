@@ -84,11 +84,22 @@ test('API-001: scopes and live record access constrain HTTP clients; draft prepa
     const preparePath = operation('prepareEnvelope'), listPath = operation('listEnvelopes')
     const template = (await h.command('template.save', { ...(await draft('Private template')), roles: [{ role: 'Customer', order: 1 }] }, other.cookie)).result.id
     const hidden = (await h.command('envelope.prepare', await draft('Other sender only'), other.cookie)).result.id
+    await h.command('account.healthcare', { enabled: true })
+    const requestedAt = Date.now()
     const body = { ...(await draft()), commandId: crypto.randomUUID() }, prepared = await client(h, key.token, preparePath, body)
     assert.equal(prepared.status, 200)
     const id = prepared.value.result.id
     const record = await client(h, key.token, operation('readEnvelope').replace('{id}', id))
     assert.equal(record.status, 200); assert.equal(record.value.envelope.status, 'prepared'); assert.equal(record.value.envelope.createdBy, sam.id)
+    const review = async () => (await h.send('/api/inkwell/compliance/access-review', undefined, h.owner)).value.members.find(m => m.id === sam.id).lastAccessAt
+    assert.ok(Date.parse(await review()) >= requestedAt, 'successful key requests appear in the bound member’s access review')
+    const accessedAt = await review()
+    assert.equal((await client(h, key.token, `/api/v1/envelopes/${id}/artifacts/original`)).status, 403)
+    assert.equal(await review(), accessedAt, 'a refused key request does not advance member access')
+    // An expired-envelope fixture represents the same stored record after its expiry instant.
+    const expired = { ...record.value.envelope, expiresAt: new Date(Date.now() - 1000).toISOString() }
+    await h.db.prepare('UPDATE iw_envelopes SET data=? WHERE id=?').bind(JSON.stringify(expired), id).run()
+    assert.equal((await client(h, key.token, operation('readEnvelope').replace('{id}', id))).value.envelope.status, 'expired', 'single-record polling agrees with the dashboard’s live expiry')
     assert.equal(h.sent(), 2, 'only member invitations were mailed; preparing sent no signer invitation')
     assert.equal((await client(h, key.token, '/api/v1/envelopes', body)).value.result.id, id)
     assert.equal((await client(h, key.token, '/api/v1/envelopes', { ...body, title: 'Different document' })).status, 409)
@@ -125,6 +136,8 @@ test('API-001: scopes and live record access constrain HTTP clients; draft prepa
     assert.equal((await client(h, key.token)).status, 401, 'removing record authority permanently suspends the bound key')
     await h.command('envelope.share', { id: hidden, email: sam.email, access: 'view' }, other.cookie)
     assert.equal((await client(h, key.token)).status, 401, 'restoring a share never revives the old credential')
+    const logs = h.logs().join('\n')
+    assert.ok(!logs.includes(body.title) && !logs.includes(key.token), 'healthcare request logs contain neither document content nor the bearer credential')
   } finally { await h.close() }
 })
 

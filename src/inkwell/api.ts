@@ -1,5 +1,5 @@
 import { apiOpenApi } from './api-openapi'
-import { apiCommandActor, apiKeyContext, authenticateApiKey, changeApiKey, listApiKeys } from './api-keys'
+import { apiCommandActor, apiKeyContext, authenticateApiKey, changeApiKey, listApiKeys, type ApiScope } from './api-keys'
 import { envelopeDefaults, setEnvelopeDefaults } from './envelope-defaults'
 import { freeFormPolicy, freeFormHistory, setFreeFormPolicy } from './freeform-policy'
 import { sendPolicies, sendPolicyHistory, setSendPolicy } from './send-policies'
@@ -7,7 +7,7 @@ import { addSupplement, removeSupplement, supplementDocument, acknowledgeSupplem
 import { healthcareProfile, accessReview, setHealthcareProfile } from './compliance/profile'
 import { templateProposals, applyTemplateProposal } from './template-maintenance'
 import { hostSigning, hostedCookie } from './in-person'
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { deploymentHealth } from '../base/deployment-health'
 import { operatorAuth, runtimeBindings, type Bindings } from '../auth.server'
 import { Refusal, clientEvidence, insist, object, text, sha256, canonical, type Actor, type Env, type Role } from './model'
@@ -54,8 +54,21 @@ export async function requireActor(request: Request, original: Bindings, roles: 
 export function sameOrigin(request: Request, original: Bindings) { const env=runtimeBindings(original),origin=request.headers.get('origin');insist(origin===new URL(env.AUTH_ORIGIN).origin&&new URL(request.url).origin===new URL(env.AUTH_ORIGIN).origin,'Use this application’s own page to make changes.',403);insist(request.headers.get('sec-fetch-site')!=='cross-site','Cross-site changes are not allowed.',403) }
 /** Bound JSON reads before decoding a base64 upload. */
 export async function readJson(request: Request, max=3_000_000) { insist(request.headers.get('content-type')?.split(';')[0]==='application/json','Send JSON with Content-Type application/json.',415);const bytes=await readBytes(request,max);try{return object(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)))}catch(error){if(error instanceof Refusal)throw error;throw new Refusal('Provide valid JSON.')} }
-export const api=new Hono<{Bindings:Bindings}>()
+type ApiContext = { Bindings: Bindings; Variables: { apiPrincipal: string } }
+export const api=new Hono<ApiContext>()
 api.use('*',async(c,next)=>{c.env=runtimeBindings(c.env);await next();c.header('cache-control','no-store');c.header('referrer-policy','no-referrer');c.header('x-content-type-options','nosniff')})
+// COMPLY-002: a successful API-key request counts for its bound member; failed requests do not.
+// The outer compliance dispatcher retains fixed-schema logs without credentials, URLs or document content.
+api.use('/api/v1/*', async (c, next) => {
+  await next()
+  const principal = c.get('apiPrincipal')
+  if (principal && c.res.status < 400) await c.env.DB.prepare(`INSERT INTO iw_member_access(operator_id,last_access_at) VALUES(?,?)
+    ON CONFLICT(operator_id) DO UPDATE SET last_access_at=MAX(iw_member_access.last_access_at,excluded.last_access_at)`).bind(principal, new Date().toISOString()).run()
+})
+async function apiClient(c: Context<ApiContext>, scope: ApiScope) {
+  const actor = await authenticateApiKey(c.req.raw, c.env, scope)
+  c.set('apiPrincipal', actor.id); return actor
+}
 api.onError((error,c)=>c.json({error:error instanceof Refusal?error.message:'The request could not be completed. Please try again.',...(error instanceof Refusal&&error.code?{code:error.code}:{})},(error instanceof Refusal?error.status:500) as 400))
 api.get('/health',c=>c.json({status:'ok',product:'Inkwell',...deploymentHealth(c.env)}))
 // MANAGE-001: the workspace is who is signed in, their agent tokens and people; envelopes are read a page or one at a time.
@@ -145,18 +158,19 @@ for (const action of ['rotate', 'scopes', 'revoke'] as const) api.post(`/api/ink
   return c.json(await changeApiKey(c.env, await apiKeyContext(c.req.raw, actor, body), action, { ...body, id: c.req.param('id') }))
 })
 // Public API credentials use only Authorization: Bearer, with no cookie fallback or ambient browser authority.
-api.get('/api/v1/envelopes', async c => c.json(await searchEnvelopes(c.env, await authenticateApiKey(c.req.raw, c.env, 'envelopes:read'), new URL(c.req.url).searchParams)))
+api.get('/api/v1/envelopes', async c => c.json(await searchEnvelopes(c.env, await apiClient(c, 'envelopes:read'), new URL(c.req.url).searchParams)))
 api.get('/api/v1/envelopes/:id', async c => {
-  const actor = await authenticateApiKey(c.req.raw, c.env, 'envelopes:read'), envelope = await getEnvelope(c.env.DB, c.req.param('id'))
-  await insistAccess(c.env, actor, envelope, 'view'); return c.json({ envelope })
+  const actor = await apiClient(c, 'envelopes:read'), envelope = await getEnvelope(c.env.DB, c.req.param('id'))
+  const access = await insistAccess(c.env, actor, envelope, 'view')
+  return c.json({ envelope: { ...envelope, status: presentEnvelope(c.env, actor, envelope, access).status } })
 })
 api.get('/api/v1/envelopes/:id/artifacts/:kind', async c => {
-  const actor = await authenticateApiKey(c.req.raw, c.env, 'artifacts:read'), envelope = await getEnvelope(c.env.DB, c.req.param('id'))
+  const actor = await apiClient(c, 'artifacts:read'), envelope = await getEnvelope(c.env.DB, c.req.param('id'))
   await insistAccess(c.env, actor, envelope, 'view'); return envelopeArtifact(c.env, envelope, c.req.param('kind'))
 })
-api.get('/api/v1/templates', async c => c.json(await listTemplates(c.env, await authenticateApiKey(c.req.raw, c.env, 'templates:read'), new URL(c.req.url).searchParams)))
+api.get('/api/v1/templates', async c => c.json(await listTemplates(c.env, await apiClient(c, 'templates:read'), new URL(c.req.url).searchParams)))
 api.post('/api/v1/envelopes', async c => {
-  const actor = await authenticateApiKey(c.req.raw, c.env, 'envelopes:prepare'), body = await readJson(c.req.raw)
+  const actor = await apiClient(c, 'envelopes:prepare'), body = await readJson(c.req.raw)
   insist(body.status === undefined || body.status === 'draft', 'API sending is not shipped; a preparation scope can create drafts only.', 403)
   const context = await apiKeyContext(c.req.raw, actor, body), previous = await previousCommand(c.env.DB, apiCommandActor(actor), context.commandId, context.fingerprint)
   return c.json({ result: previous ?? await prepareEnvelope(c.env, context, body) })
