@@ -25,6 +25,46 @@ field. Signatures, text and dates are supported. No URL is fetched for a PDF.
 Use a distinct `commandId` for each intended operation; replaying it must not
 create a second envelope. The result is `{ok:true,result:{id}}`.
 
+### Fields the document carries (PREP-007)
+
+Leave out `fields` and the envelope takes the fields the PDF carries itself:
+
+- text tags in the document, `{{type:recipient}}` or `{{type:recipient:label}}`, where
+  the type is signature, initials, date_signed, full_name, email, company, title, text,
+  date, checkbox or number, and the recipient is the signer's place counted from 1;
+- the fillable PDF's own form fields (text, checkbox, signature, dropdown, list, radio),
+  for recipient 1, each named by its full form name;
+- `anchors`, Docusign-style: up to 20 exact, case-sensitive strings, each with a field
+  `type`, a `recipient`, an optional `label`, and an `x`/`y` offset right and down from
+  the string's top-left corner and a `width`/`height`, all in points. Every place the
+  document shows the string gets the field; a string it never shows is refused.
+
+`prefill` fills fields by field ID or by their document name (the tag's label, the
+anchor string or the form field's full name), with PREP-008's value, source and
+optional `readOnly`:
+
+```json
+{
+  "commandId": "new-unique-request-id",
+  "title": "Vendor W-9",
+  "filename": "fw9.pdf",
+  "pdfBase64": "base64 of the fillable IRS W-9",
+  "signers": [{"name": "Vendor contact", "email": "vendor@example.com"}],
+  "anchors": [
+    {"text": "Signature of", "type": "signature", "recipient": 1, "x": 62, "y": -14, "width": 240, "height": 30},
+    {"text": "Signature of", "type": "date_signed", "recipient": 1, "x": 329, "y": -14, "width": 150, "height": 30}
+  ],
+  "prefill": {
+    "topmostSubform[0].Page1[0].f1_01[0]": {"value": "Acme Workshops LLC", "source": "Vendor portal record 77"}
+  }
+}
+```
+
+An unknown prefill name, a tag or anchor for a recipient the envelope lacks, and both
+`fields` and `anchors` together are refused. On the prepare screen, a signed-in
+sender's upload places the same fields through `POST /api/inkwell/documents/fields`
+(`{pdfBase64, anchors?}`), which stores nothing.
+
 The person opens the prepared envelope and approves document eligibility. The
 native UI calls `POST /api/inkwell/commands` with `envelope.approve` and
 `{id,eligible:true}`. Approval and the approver are recorded in the audit trail.

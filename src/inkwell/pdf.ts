@@ -1,7 +1,8 @@
 // Uploaded-original preservation and separate evidence PDF follow
 // locket/src/locket/execution.ts and locket/src/locket/pdf.ts. Unlike Locket's
 // manual handoff, Inkwell parses actual page trees and overlays each signer's adopted mark (SIGNX-002).
-import { PDFDocument, StandardFonts, rgb, pushGraphicsState, popGraphicsState, concatTransformationMatrix, type PDFFont, type PDFImage } from 'pdf-lib'
+import { PDFDict, PDFDocument, PDFName, StandardFonts, rgb, pushGraphicsState, popGraphicsState, concatTransformationMatrix, type PDFFont, type PDFImage, type PDFPage } from 'pdf-lib'
+import { importsFormFields, tagBoxes } from './document-fields'
 import { insist, Refusal, type Adoption, type Envelope, type Field } from './model'
 import { parseStamp } from './stamps'
 import { adoptionOf, typedStyles, markKind } from './marks'
@@ -21,6 +22,15 @@ export function validateFields(value: unknown, signers: number, pages: number, r
 type Marks = Map<string, Uint8Array>
 export async function signedPdf(original: Uint8Array, envelope: Envelope, scans: { bytes: Uint8Array; mediaType: string }[] = [], marks: Marks = new Map()) {
   const { document } = await parsePdf(original)
+  // PREP-007: the executed copy replaces the document's own form fields with the Inkwell fields made from them, and covers
+  // every text tag the document shows, so no empty form field or raw tag sits under a signed value.
+  if (importsFormFields(envelope.fields)) removeFormFields(document)
+  for (const box of envelope.fields.some(field => field.origin === 'text_tag') ? await tagBoxes(document) : []) {
+    const page = document.getPage(box.page), size = envelope.pageSizes[box.page]
+    page.pushOperators(pushGraphicsState(), displayedSpace(page))
+    page.drawRectangle({ x: box.left - .5, y: size.height - box.bottom - .5, width: box.right - box.left + 1, height: box.bottom - box.top + 1, color: rgb(1, 1, 1) })
+    page.pushOperators(popGraphicsState())
+  }
   const regular = await document.embedFont(StandardFonts.Helvetica), fonts = new Map<string, PDFFont>(), images = new Map<string, PDFImage>()
   const fontFor = async (name: StandardFonts) => fonts.get(name) ?? fonts.set(name, await document.embedFont(name)).get(name)!
   for (let signer = 0; signer < envelope.signers.length; signer++) {
@@ -33,12 +43,8 @@ export async function signedPdf(original: Uint8Array, envelope: Envelope, scans:
       const value = printedValue(field, raw), adoption = field.type === 'initials' ? envelope.signers[signer].initialsAdoption ?? { method: 'typed', style: 'sans' } : adoptionOf(envelope, signer), image = field.type === 'stamp' || markField(field) && adoption.method !== 'typed', kind = field.type === 'stamp' ? `stamp-${signer}-${field.id}` : markKind(signer, field.type === 'initials')
       const font = markField(field) ? await fontFor(typedStyles[adoption.style ?? 'sans'].font) : regular
       if (field.type !== 'checkbox') encodable(font, value)
-      const page = document.getPage(field.page), size = envelope.pageSizes[field.page], actual = page.getCropBox(), rotation = ((page.getRotation().angle % 360) + 360) % 360
-      page.pushOperators(pushGraphicsState())
-      if (rotation === 90) page.pushOperators(concatTransformationMatrix(0, 1, -1, 0, actual.x + actual.width, actual.y))
-      else if (rotation === 180) page.pushOperators(concatTransformationMatrix(-1, 0, 0, -1, actual.x + actual.width, actual.y + actual.height))
-      else if (rotation === 270) page.pushOperators(concatTransformationMatrix(0, -1, 1, 0, actual.x, actual.y + actual.height))
-      else page.pushOperators(concatTransformationMatrix(1, 0, 0, 1, actual.x, actual.y))
+      const page = document.getPage(field.page), size = envelope.pageSizes[field.page]
+      page.pushOperators(pushGraphicsState(), displayedSpace(page))
       const boxW = field.width * size.width, boxH = field.height * size.height, left = field.x * size.width, bottom = size.height - (field.y + field.height) * size.height
       if (field.type === 'checkbox') {
         const side = Math.min(boxW, boxH, 16), x = left, y = bottom + (boxH - side) / 2, color = rgb(.08, .12, .2)
@@ -66,6 +72,21 @@ export async function signedPdf(original: Uint8Array, envelope: Envelope, scans:
   return document.save()
 }
 
+/** Draw in the page as displayed: crop box origin, with the page's rotation undone. */
+function displayedSpace(page: PDFPage) {
+  const actual = page.getCropBox(), rotation = ((page.getRotation().angle % 360) + 360) % 360
+  return rotation === 90 ? concatTransformationMatrix(0, 1, -1, 0, actual.x + actual.width, actual.y) : rotation === 180 ? concatTransformationMatrix(-1, 0, 0, -1, actual.x + actual.width, actual.y + actual.height) : rotation === 270 ? concatTransformationMatrix(0, -1, 1, 0, actual.x, actual.y + actual.height) : concatTransformationMatrix(1, 0, 0, 1, actual.x, actual.y)
+}
+/** PREP-007: an executed copy keeps no interactive form (widgets, AcroForm with any XFA, usage rights) of its own. */
+function removeFormFields(document: PDFDocument) {
+  for (const page of document.getPages()) {
+    const annotations = page.node.Annots()
+    if (!annotations) continue
+    const kept = annotations.asArray().filter(item => { const annotation = document.context.lookup(item); return !(annotation instanceof PDFDict && annotation.get(PDFName.of('Subtype')) === PDFName.of('Widget')) })
+    if (kept.length) page.node.set(PDFName.of('Annots'), document.context.obj(kept)); else page.node.delete(PDFName.of('Annots'))
+  }
+  document.catalog.delete(PDFName.of('AcroForm')); document.catalog.delete(PDFName.of('Perms'))
+}
 const printedValue = (field: Field, value: string) => field.type === 'number' ? (value.startsWith('-') ? `-$${value.slice(1)}` : `$${value}`) : displayFieldValue({ ...field, masked: false, pattern: undefined }, value)
 /** SIGNX-008: a hand-signed upload is a PDF scan or one JPEG or PNG photo; its pages follow the document in the executed PDF. */
 export const scanTypes = ['application/pdf', 'image/jpeg', 'image/png']

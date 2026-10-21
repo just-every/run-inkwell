@@ -25,14 +25,16 @@ export function normalizePrefill(field: Field, raw: Field) {
   if (raw.readOnly) field.readOnly = true
 }
 
-/** Templates accept an explicit field-ID map from the sending API client; unknown targets refuse the entire draft. */
-export function applyPrefillPayload(fields: Field[], payload: unknown): Field[] {
+/** Templates and prepared envelopes accept a map from the sending API client keyed by field ID, or by a document field's
+ * own name (PREP-007), which fills every field carrying it; unknown targets refuse the entire draft. */
+export function applyPrefillPayload(fields: Field[], payload: unknown, where = 'this template'): Field[] {
   if (payload === undefined) return fields
   const entries = object(payload)
-  insist(Object.keys(entries).every(id => fields.some(field => field.id === id)), 'Prefill only fields in this template.')
+  for (const key of Object.keys(entries)) insist(fields.some(field => field.id === key || field.name === key), `Prefill only fields in ${where}: ${key.slice(0, 200)} is not one.`)
   return fields.map(field => {
-    if (!Object.hasOwn(entries, field.id)) return field
-    const entry = object(entries[field.id])
+    const key = Object.hasOwn(entries, field.id) ? field.id : field.name !== undefined && Object.hasOwn(entries, field.name) ? field.name : undefined
+    if (key === undefined) return field
+    const entry = object(entries[key])
     return { ...field, prefill: { value: entry.value as string, source: entry.source as string }, ...(entry.readOnly === undefined ? {} : { readOnly: entry.readOnly as boolean }) }
   })
 }

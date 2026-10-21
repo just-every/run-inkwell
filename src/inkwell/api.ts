@@ -28,6 +28,9 @@ import { correctEnvelope } from './corrections'
 import { reassignSigning } from './reassign'
 import { listTemplates, removeTemplate, saveTemplate, templateDocument, templateFromEnvelope, updateTemplate, useTemplate } from './templates'
 import { matchTemplates } from './template-match'
+import { documentFields, readAnchors } from './document-fields'
+import { fromBase64 } from './blobs'
+import { parsePdf } from './pdf'
 import { createFolder, shareTemplate, unshareTemplate } from './template-shares'
 import { resendInvitation } from './resend'
 import { holdEnvelope, liftHold, retentionView, setRetention } from './retention'
@@ -61,6 +64,9 @@ api.get('/api/inkwell/envelopes/:id',async c=>{const actor=await requireActor(c.
 // TMPL-002: with folders and shares, searched by name or tag (`q`) and by folder.
 api.get('/api/inkwell/templates',async c=>{const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);return c.json(await listTemplates(c.env,actor,new URL(c.req.url).searchParams))})
 // TMPL-005: the templates whose document an upload on the prepare screen matches; nothing is placed or stored.
+// PREP-007: the fields an upload carries itself (text tags, anchors and PDF form fields), placed on the prepare screen
+// for the sender to keep or change; nothing is stored.
+api.post('/api/inkwell/documents/fields',async c=>{sameOrigin(c.req.raw,c.env);await requireActor(c.req.raw,c.env,['owner','admin','sender']);const input=object(await readJson(c.req.raw)),{document,pageSizes}=await parsePdf(fromBase64(input.pdfBase64));return c.json({fields:await documentFields(document,pageSizes,readAnchors(input.anchors))})})
 api.post('/api/inkwell/templates/match',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);return c.json(await matchTemplates(c.env,actor,await readJson(c.req.raw)))})
 api.get('/api/inkwell/templates/:id/proposals',async c=>{const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);return c.json(await templateProposals(c.env,actor,c.req.param('id')))})
 api.get('/api/inkwell/templates/:id/document',async c=>{const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);return templateDocument(c.env,actor,c.req.param('id'))})

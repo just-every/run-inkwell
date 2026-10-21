@@ -1,7 +1,9 @@
 import { normalizeRoutingRule, validateCopyRouting, validateRouting } from './routing'
 import { fromBase64, blobWrites, readBlob } from './blobs'
 import { parsePdf, validateFields, validatePdfText, validatePrefilledFields } from './pdf'
-import { accessCodeHash, appendEvent, insist, now, object, sha256, text, type Envelope, type Env, type Signer } from './model'
+import { documentFields, readAnchors } from './document-fields'
+import { applyPrefillPayload } from './prefill'
+import { accessCodeHash, appendEvent, insist, now, object, sha256, text, type Envelope, type Env, type Field, type Signer } from './model'
 import { commandWrite, commitEnvelope, getEnvelope } from './storage'
 import { chooseExpiry } from './expiry'
 import { chooseReminders } from './reminders'
@@ -22,7 +24,7 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   const title = text(input.title, 'a title'), filename = text(input.filename, 'a filename', 240)
   insist(!/[\x00-\x1f/\\]/.test(filename) && filename.toLowerCase().endsWith('.pdf'), 'Choose a PDF filename.')
   insist(!/[\r\n\t]/.test(title), 'Use a single line for the envelope title.')
-  const bytes = fromBase64(input.pdfBase64), { pageSizes } = await parsePdf(bytes)
+  const bytes = fromBase64(input.pdfBase64), { document, pageSizes } = await parsePdf(bytes)
   insist(Array.isArray(input.signers) && input.signers.length >= 1 && input.signers.length <= 5, 'Add 1–5 ordered signers.')
   const accessCodes: (string | 'keep' | undefined)[] = []
   const groups = await Promise.all(input.signers.map(value => object(value).group === undefined ? undefined : snapshotGroup(env, object(value).group)))
@@ -50,7 +52,13 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   })
   const addresses = signers.flatMap(s => s.group ? s.group.members.map(m => m.email) : [s.email])
   insist(new Set(addresses).size === addresses.length, 'Each ordered signer must use a different email, and nobody can sign both alone and in a group.')
-  const fields = validateFields(input.fields, signers.length, pageSizes.length), copies = chooseCopies(input.copies, signers.flatMap(s => s.group ? s.group.members : [s]))
+  // PREP-007: with no fields given, the document's own text tags, the caller's anchors and its form fields are the fields;
+  // a prefill map fills them by field ID or by the document's own field name.
+  insist(input.fields === undefined || input.anchors === undefined, 'Give either fields or anchors to place them, not both.')
+  const carried = input.fields === undefined ? await documentFields(document, pageSizes, readAnchors(input.anchors)) : undefined
+  for (const field of carried ?? []) insist(field.signer < signers.length, `The document places a field for recipient ${field.signer + 1} (${field.name}), but the envelope has ${signers.length}.`)
+  const placed = carried ?? input.fields
+  const fields = validateFields(Array.isArray(placed) && placed.every(field => field && typeof field === 'object') ? applyPrefillPayload(placed as Field[], input.prefill, 'this envelope') : placed, signers.length, pageSizes.length), copies = chooseCopies(input.copies, signers.flatMap(s => s.group ? s.group.members : [s]))
   validateRouting(signers, fields)
   validateCopyRouting(copies, fields)
   await validatePdfText([...signers, ...copies].flatMap(person=>person.includeWhen?[person.includeWhen.value]:[]))

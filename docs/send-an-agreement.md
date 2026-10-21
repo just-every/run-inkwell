@@ -39,6 +39,13 @@ Once the PDF is chosen, its pages appear beside **Place fields**.
 3. Click the page where the field belongs. With a keyboard, focus a page and press Enter
    to place the field at its center.
 
+A PDF that carries its own fields is placed for you on upload, and the screen says how
+many: text tags written in the document, such as `{{signature:1}}`, `{{date_signed:1}}`
+or `{{text:2:Company}}` (type, the recipient's place from 1, and an optional label), and
+the form fields of a fillable PDF such as an IRS W-9, which go to recipient 1. Each one
+covers its tag or form box; move, change or remove any of them like a field you placed.
+The executed PDF covers each tag and keeps none of the document's own form fields.
+
 Every recipient needs at least one signature field. Each field shows its recipient's
 number, such as `2: Signature`. Remove a misplaced field with **×** in the list and place
 it again.
