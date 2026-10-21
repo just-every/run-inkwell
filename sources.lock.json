@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "d4ceaa4715d0af349835747c7085f181b8173119f76a2e7fb9e5b680f0e0edd8",
+      "sha256": "61851c38cc5e048dce469e03f60a9860a1e5219378cc49ad782717d06dc1e19b",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "041f7cb369bd5bf1b911e5e08861f20124dc04a20d12c03cd8a2191c574e85b8",
+      "sha256": "b547bfe5da98d9f3405136d73a82344f751dc35fda77c343827baf7a1c93be76",
       "executable": false
     },
     "DEMO.md": {
@@ -771,11 +771,11 @@
       "executable": false
     },
     "src/inkwell/drafts.ts": {
-      "sha256": "7bc48142e3dff9d714a50a269889a19401221f889a56f30469dd5c6bae300a0e",
+      "sha256": "b89170df76b640f70473e164d192457fdb24d99c9b34b370cf84a5418f4dd43f",
       "executable": false
     },
     "src/inkwell/envelopes.ts": {
-      "sha256": "bd76740b559a0fc50f24096040d47ab04516f3345a5f106710de438f785e55cd",
+      "sha256": "0833d8380a54e4b4bf5b7c580a4214e4446d66cbddd309a43ba94a6d4f9fc3d0",
       "executable": false
     },
     "src/inkwell/erasure.ts": {
@@ -851,7 +851,7 @@
       "executable": false
     },
     "src/inkwell/internal-approval.ts": {
-      "sha256": "a0606093eaeb7364459b7f6d0e763d4f39a06eb586f12c4b63af8389e34bb5c0",
+      "sha256": "7c9352b84cdbdfb7f40f698fc1c8c85cb1fd28bf5f0f72d7cb48bcff557e8be9",
       "executable": false
     },
     "src/inkwell/links.ts": {
@@ -875,7 +875,7 @@
       "executable": false
     },
     "src/inkwell/model.ts": {
-      "sha256": "672f2e60bac128b3ee07ad670cd16ced2cd864f7a1be18d93a7e66584a094e81",
+      "sha256": "293bf37ac834698bf721664b1e7472a3d3620ed9ef611392935d42e910c66d46",
       "executable": false
     },
     "src/inkwell/notices.ts": {
@@ -915,7 +915,7 @@
       "executable": false
     },
     "src/inkwell/reminders.ts": {
-      "sha256": "8eab36240a3af04ff31ea9986e637268e4fbd2da296612392f4649aa92b87b20",
+      "sha256": "b474c1641c107f9d848754f998925c55b5f71df4a330cb1911842434c0fea8ac",
       "executable": false
     },
     "src/inkwell/reports.ts": {
@@ -943,7 +943,7 @@
       "executable": false
     },
     "src/inkwell/schedule.ts": {
-      "sha256": "4101ea28c15e2b106783c60dd7be9537a55bcb9fd6989627b7d1277f6c42c2d9",
+      "sha256": "9203321af27d1c6ce7f77472ad3154125564776f8893616f30446e5cf9edef7e",
       "executable": false
     },
     "src/inkwell/scheduled.ts": {
@@ -956,6 +956,10 @@
     },
     "src/inkwell/search.ts": {
       "sha256": "d094a4ba7dd7293210f0e1343d78ddd7a20106dad8f9d78d88d8fdeb7ead7204",
+      "executable": false
+    },
+    "src/inkwell/send-authority.ts": {
+      "sha256": "c0c279d77af6dbc9c13c985d8c201c5bd779a27a9d7606234681f53dc8030eaa",
       "executable": false
     },
     "src/inkwell/shares.ts": {
@@ -2887,7 +2891,7 @@
       "executable": false
     },
     "src/ui/envelope-detail.tsx": {
-      "sha256": "bdaa0c2c52b2262b7680a72d79b2f6446af8575c3a8939d4d6c7fc0f0da3e31a",
+      "sha256": "01cca9c4c9d539da2511adc8f93b5ff0ead34eebdb7afc2cb8546aaf853c8cf5",
       "executable": false
     },
     "src/ui/envelope-list.tsx": {
@@ -3047,7 +3051,7 @@
       "executable": false
     },
     "src/ui/types.ts": {
-      "sha256": "94ac0ee900ebe2ce1c7dbd69e8f8f175202a75337e1ad22f571ba26be9c5811b",
+      "sha256": "6bf02e6e13467402252f59219c996dd5c1e6c6209c8bba1e568850ec907355d9",
       "executable": false
     },
     "test-budget.json": {
@@ -3167,7 +3171,7 @@
       "executable": false
     },
     "tests/journeys/internal-approval.mjs": {
-      "sha256": "2f399cc7477e914de6e1b9305784af60cb1ac77731afa674542d7460ee69c5b1",
+      "sha256": "ed62a88781201f54bb5216ea44f4a662d2cdeb05d413758b54b838e2e5cd7f1e",
       "executable": false
     },
     "tests/journeys/mail-worker.mjs": {
@@ -3223,7 +3227,7 @@
       "executable": false
     },
     "tests/routing.test.mjs": {
-      "sha256": "4c5b669f942e33dae398211d2f4aa6319d593fd07eeffa3ef9afbfc3d29be24f",
+      "sha256": "6d87125c86d9b2648c9f8ba33a6c62f8def9646fad95124ddfd098a72e781435",
       "executable": false
     },
     "tests/runtime.mjs": {

@@ -7,7 +7,7 @@ import { startInkwellWithMail } from './mail-worker.mjs'
 import { screenshots } from './worker.mjs'
 import { axe } from './a11y.mjs'
 
-const app = await startInkwellWithMail(), images = '/tmp/sx-inkwell-r17-approval-screens'
+const app = await startInkwellWithMail(), images = process.env.INKWELL_APPROVAL_IMAGES ?? '/tmp/inkwell-approval-screens'
 await mkdir(images, { recursive: true })
 try {
  const pdf = await PDFDocument.create(), font = await pdf.embedFont(StandardFonts.Helvetica)
@@ -51,6 +51,63 @@ try {
   const sent = (await app.call('/api/inkwell/envelopes/' + id, { cookie: app.owner })).value.envelope
   assert.equal(sent.status, 'awaiting_signature'); assert.ok(app.mail(`mara${width}@clients.example`, 'Please sign:'), 'the approval sends the invitation')
   await capture('approver-sent', review); await second.close()
+  // SEND-001: a shared editor confirms, then loses the share before the last approval. Nobody is invited.
+  const editorEmail = `editor${width}@harbour.example`
+  await app.call('/auth/invite', { body: { email: editorEmail, displayName: 'Robin Operations', role: 'member' }, cookie: app.owner, status: 202 })
+  const editorToken = new URL(app.mail(editorEmail, '').text.match(/http:\/\/[^\s]+\/auth\/confirm\?token=[^\s]+/)[0]).searchParams.get('token')
+  const editor = (await app.call('/auth/confirm', { body: { token: editorToken }, status: 303 })).cookie
+  const editorId = (await app.call('/api/inkwell', { cookie: editor })).value.actor.id
+  await app.command('member.role', { operatorId: editorId, role: 'sender' })
+  const editorCommand = async (command, input) => (await app.call('/api/inkwell/commands', { cookie: editor, body: { command, input, commandId: crypto.randomUUID() } })).value.result
+  const heldTitle = `Harbour services awaiting release ${width}`, heldEmail = `held${width}@clients.example`
+  const heldId = (await app.command('envelope.prepare', { title: heldTitle, filename: 'services.pdf', pdfBase64, signers: [{ name: 'Mara Quinn', email: heldEmail }], fields })).id
+  await app.command('envelope.share', { id: heldId, email: editorEmail, access: 'edit' })
+  await editorCommand('envelope.approve', { id: heldId, eligible: true })
+  await app.command('envelope.unshare', { id: heldId, operatorId: editorId })
+  // Reopen the approver context to exercise the real decision control.
+  const heldContext = await app.browser.newContext({ viewport })
+  await heldContext.addCookies([{ name: approver.split('=')[0], value: approver.slice(approver.indexOf('=') + 1), url: app.origin }])
+  const heldReview = await heldContext.newPage(); await heldReview.goto(app.origin + '/app')
+  await heldReview.getByRole('row', { name: new RegExp(heldTitle) }).first().click()
+  const release = heldReview.getByRole('button', { name: 'Approve and send', exact: true })
+  await release.focus(); await heldReview.keyboard.press('Enter')
+  await heldReview.getByText('Sending held.', { exact: true }).waitFor()
+  assert.equal(app.mail(heldEmail, 'Please sign:'), undefined)
+  await axe(heldReview, `SEND-001 approver held ${width}`); await capture('approver-held', heldReview)
+  await page.reload(); await page.getByRole('row', { name: new RegExp(heldTitle) }).first().click()
+  detail = page.getByRole('region', { name: heldTitle, exact: true })
+  await detail.getByText('Sending held.', { exact: true }).waitFor()
+  assert.match(await detail.ariaSnapshot(), /A current editor must review and confirm again/)
+  await axe(page, `SEND-001 current editor held ${width}`); await capture('sender-held', page)
+  await page.emulateMedia({ colorScheme: 'dark' }); await axe(page, `SEND-001 held dark ${width}`); await capture('sender-held-dark', page)
+  await page.emulateMedia({ colorScheme: 'light' })
+  const confirm = detail.getByLabel(/confirm it is eligible for electronic signature/)
+  await confirm.focus(); await page.keyboard.press('Space')
+  const confirmSend = detail.getByRole('button', { name: 'Approve and invite first recipient', exact: true })
+  await confirmSend.focus(); await page.keyboard.press('Enter')
+  await detail.getByText('Sending held.', { exact: true }).waitFor({ state: 'detached' })
+  // The new request has its own confirmation, and this final approval releases it.
+  await heldReview.reload(); await heldReview.getByRole('row', { name: new RegExp(heldTitle) }).first().click()
+  await heldReview.getByRole('button', { name: 'Approve and send', exact: true }).click()
+  await heldReview.getByText('Waiting for your approval.').waitFor({ state: 'detached' })
+  assert.ok(app.mail(heldEmail, 'Please sign:'))
+  await capture('fresh-confirmation-sent', heldReview); await heldContext.close()
+  // A scheduled confirmation is held by the hourly pass after the same share revocation.
+  await app.command('account.internal_approval', { rule: null })
+  const laterTitle = `Harbour services scheduled release ${width}`, laterEmail = `later${width}@clients.example`
+  const laterId = (await app.command('envelope.prepare', { title: laterTitle, filename: 'services.pdf', pdfBase64, signers: [{ name: 'Mara Quinn', email: laterEmail }], fields })).id
+  await app.command('envelope.share', { id: laterId, email: editorEmail, access: 'edit' })
+  const scheduled = await editorCommand('envelope.approve', { id: laterId, eligible: true, sendAt: { at: new Date(Date.now()+2*86400000).toISOString().slice(0,16), timeZone: 'Pacific/Honolulu' } })
+  await app.command('envelope.unshare', { id: laterId, operatorId: editorId })
+  await app.scheduled(Date.parse(scheduled.scheduled.at)+60000)
+  await page.reload(); await page.getByRole('row', { name: new RegExp(laterTitle) }).first().click()
+  detail = page.getByRole('region', { name: laterTitle, exact: true })
+  await detail.getByText('Sending held.', { exact: true }).waitFor(); assert.equal(app.mail(laterEmail, 'Please sign:'), undefined)
+  await axe(page, `SEND-001 scheduled held ${width}`); await capture('scheduled-held', page)
+  await detail.getByLabel(/confirm it is eligible for electronic signature/).check()
+  await detail.getByRole('button', { name: 'Approve and invite first recipient', exact: true }).click()
+  await detail.getByText('Sending held.', { exact: true }).waitFor({ state: 'detached' }); assert.ok(app.mail(laterEmail, 'Please sign:'))
+  await capture('scheduled-confirmed-sent', page)
   // A template carries its own rule, edited on the template screen.
   await app.command('account.internal_approval', { rule: null })
   const template = `Supply template ${width}`; await app.command('template.save', { title: template, filename: 'supply.pdf', pdfBase64, roles: [{ role: 'Client', order: 1 }], fields })
@@ -62,5 +119,5 @@ try {
   assert.equal(saved.approval.email, email)
   await owner.close()
  }
- console.log('ROUTE-004 passed at 1440/390: account and template rules, waiting draft, reject with reason, approve and send, accessibility')
+ console.log('SEND-001 held/reconfirmed scheduled and internal-approval sends; ROUTE-004 passed at 1440/390: account and template rules, waiting draft, reject with reason, approve and send, accessibility')
 } catch (error) { await screenshots(app.browser, 'route-004'); throw error } finally { await app.close() }

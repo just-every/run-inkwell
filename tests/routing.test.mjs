@@ -234,3 +234,62 @@ test('ROUTE-005: the "Company Signers" group of three signs as one place; one me
   assert.deepEqual((await read(used)).signers[1].group.members.map(m=>m.name),members.map(m=>m.name))
  }finally{await h.close()}
 })
+
+// SEND-001 / ROUTE-004: authority and the confirmed definition are rechecked when a delayed send is released.
+test('SEND-001: deferred sends hold after role, active status, edit share or confirmed definition changes; a current editor confirms again', async () => {
+ const h = await harness()
+ try {
+  const pdf = await PDFDocument.create(); pdf.addPage([612,792])
+  const pdfBase64 = Buffer.from(await pdf.save()).toString('base64')
+  const fields = [{id:'sig',label:'Signature',signer:0,type:'signature',page:0,x:.1,y:.2,width:.4,height:.05}]
+  const approver = await h.invite('release.approver@harbour.example','admin')
+  const read = async id => (await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
+  const sendAt = new Date(Date.now()+2*86_400_000), local = sendAt.toISOString().slice(0,16)
+  // Honolulu has no clock transitions: a future UTC wall-clock is still a future time there.
+  const schedule = {at:local,timeZone:'Pacific/Honolulu'}
+  for (const mode of ['scheduled','internal']) for (const change of ['role','inactive','share','definition','none']) {
+   const email = `release.${mode}.${change}@harbour.example`, cookie = await h.invite(email,'member')
+   const actor = (await h.send('/api/inkwell',undefined,cookie)).value.actor
+   await h.command('member.role',{operatorId:actor.id,role:'sender'})
+   await h.command('account.internal_approval',{rule:mode==='internal'?{approverEmail:'release.approver@harbour.example'}:null})
+   const recipient = `client.${mode}.${change}@clients.example`
+   const input = {title:`Harbour services ${mode} ${change}`,filename:'services.pdf',pdfBase64,signers:[{name:'Mara Quinn',email:recipient}],fields}
+   const id = (await h.command('envelope.prepare',input,change==='share'?h.owner:cookie)).result.id
+   if (change==='share') await h.command('envelope.share',{id,email,access:'edit'})
+   await h.command('envelope.approve',{id,eligible:true,...(mode==='scheduled'?{sendAt:schedule}:{})},cookie)
+   const confirmed = await read(id)
+   assert.equal(await h.mail(recipient,'Please sign:'),undefined,'no invitation while deferred')
+   if (change==='role') await h.command('member.role',{operatorId:actor.id,role:'viewer'})
+   if (change==='inactive') await h.post('/auth/operator/status',{operatorId:actor.id,status:'inactive'},h.owner)
+   if (change==='share') await h.command('envelope.unshare',{id,operatorId:actor.id})
+   if (change==='definition') await h.command('envelope.extend',{id,days:1})
+   if (mode==='scheduled') await h.scheduled(Date.parse(confirmed.scheduled.at)+60_000)
+   else await h.command('envelope.internal_decide',{id,decision:'approve'},approver)
+   const released = await read(id)
+   if (change==='none') {
+    assert.equal(released.status,'awaiting_signature');assert.ok(await h.mail(recipient,'Please sign:'),'unchanged live authority releases the invitation')
+    assert.equal(released.events.findLast(e=>e.action==='envelope.approved').actor,actor.id)
+    continue
+   }
+   assert.equal(released.status,'prepared');assert.ok(released.sendHold?.at)
+   assert.equal(released.scheduled,undefined);assert.equal(released.internalApproval,undefined)
+   assert.ok(released.events.some(e=>e.action==='envelope.send_held'&&e.detail.authority===actor.id))
+   assert.equal(await h.mail(recipient,'Please sign:'),undefined,'no invitation after revoked authority or a changed definition')
+   await h.command('envelope.open_signing',{id},h.owner,409)
+   // Restoration of the old role/share/status does not automatically release a held confirmation.
+   if (change==='role') await h.command('member.role',{operatorId:actor.id,role:'sender'})
+   if (change==='share') await h.command('envelope.share',{id,email,access:'edit'})
+   if (change==='inactive') await h.post('/auth/operator/status',{operatorId:actor.id,status:'active'},h.owner)
+   await h.scheduled((confirmed.scheduled?Date.parse(confirmed.scheduled.at):sendAt.getTime())+120_000)
+   assert.equal((await read(id)).status,'prepared');assert.equal(await h.mail(recipient,'Please sign:'),undefined)
+   await h.command('envelope.approve',{id,eligible:true})
+   if (mode==='internal') await h.command('envelope.internal_decide',{id,decision:'approve'},approver)
+   const sent = await read(id)
+   assert.equal(sent.status,'awaiting_signature');assert.equal(sent.sendHold,undefined)
+   assert.equal(sent.originalSha256,confirmed.originalSha256);assert.deepEqual(sent.fields,confirmed.fields)
+   assert.ok(await h.mail(recipient,'Please sign:'),'fresh confirmation releases exactly one invitation')
+   const verify = await h.send(`/api/inkwell/envelopes/${id}/verify`,undefined,h.owner)
+   assert.equal(verify.status,200);assert.equal(verify.value.auditChain.ok,true)
+  }
+ } finally { await h.close() }
+})

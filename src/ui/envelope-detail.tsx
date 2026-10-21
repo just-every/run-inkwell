@@ -84,6 +84,7 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
   }
   return <section className="iw-detail" aria-label={envelope.title}><div className="iw-detail-body">
     <div className="iw-detail-top"><Pill {...state} /><button className="iw-icon-button" aria-label="Close" onClick={onClose}><Icon name="close" /></button></div>
+    {envelope.sendHold && <div className="iw-alert" role="status"><span className="iw-alert-mark" aria-hidden="true">!</span><div><strong>Sending held.</strong><p>The sending confirmation is no longer valid. A current editor must review and confirm again.</p></div></div>}
     <h2>{name}</h2><p className="iw-detail-sub">{detail && <span>{detail}</span>}<span className="iw-detail-date">Prepared {dateTime(envelope.createdAt)}</span>{['prepared', 'awaiting_signature', 'expired'].includes(envelope.status) && envelope.expiresAt && <span className="iw-detail-date">{envelope.status === 'expired' ? 'Expired' : 'Expires'} {dateTime(envelope.expiresAt)}</span>}{envelope.reminders && ['prepared', 'awaiting_signature'].includes(envelope.status) && <span>Reminders after {envelope.reminders.afterDays}, then every {envelope.reminders.everyDays} business days</span>}{envelope.copiedFrom && <span>Copied from envelope {envelope.copiedFrom.slice(0, 8)}</span>}</p>
 
     <EnvelopeSupplements envelope={envelope} editable={deciding} refresh={refresh} />

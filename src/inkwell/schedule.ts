@@ -3,6 +3,7 @@ import { sealLink } from './links'
 import { memberLinkWrites } from './signing-groups'
 import { commitEnvelope } from './storage'
 import { dispatchMail, invitationWrite } from './mail'
+import { hasSendAuthority, holdSend, confirmedSendGuard } from './send-authority'
 import { zoneInstant, zoneOffset } from './zone'
 
 /** PREP-009: sending at a chosen wall-clock time in a US time zone. The person's eligibility approval with that time is
@@ -33,13 +34,16 @@ export async function sendScheduled(env: Env, at: number) {
   if (failures.length) throw new AggregateError(failures, `${failures.length} scheduled send(s) failed.`)
 }
 async function send(env: Env, before: Envelope, at: number) {
+  const authority = before.events.findLast(e => e.action === 'envelope.approved')?.actor ?? ''
+  const guard = await confirmedSendGuard(before, authority, 'envelope.approved')
+  if (!await hasSendAuthority(env, guard)) return holdSend(env, before, authority, guard)
   const after = structuredClone(before), schedule = after.scheduled!
   delete after.scheduled
-  const inApp = (after.events.find(e => e.action === 'envelope.approved')?.detail.signsInApp as number[] | undefined) ?? []
+  const inApp = (after.events.findLast(e => e.action === 'envelope.approved')?.detail.signsInApp as number[] | undefined) ?? []
   const first = currentSigners(after).filter(i => !inApp.includes(i) && !after.signers[i].inPerson)
   await appendEvent(after, 'envelope.sent_scheduled', 'inkwell', { scheduledFor: schedule.at, local: schedule.local, timeZone: schedule.timeZone, passAt: new Date(at).toISOString(), invited: first })
   const writes: D1PreparedStatement[] = []
   for (const i of first) { if (after.signers[i].group) { writes.push(...await memberLinkWrites(env, after, i, false, true)); continue }; const token = secret(); writes.push(env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=? WHERE envelope_id=? AND signer=?').bind(await sha256(token), await sealLink(env, after.id, i, token), after.id, i), invitationWrite(env, after, i, token)) }
-  await commitEnvelope(env, before, after, null, writes)
+  await commitEnvelope(env, before, after, null, writes, [guard])
   await dispatchMail(env, after.id)
 }

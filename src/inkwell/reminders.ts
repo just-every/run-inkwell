@@ -38,7 +38,7 @@ function businessDaysBetween(from: string, to: string) {
  * when the last lower order signed. */
 function invitedAt(envelope: Envelope, signer: number) {
   const lower = envelope.signers.filter((s, i) => !s.removedAt && routingOrder(envelope, i) < routingOrder(envelope, signer)).map(s => s.signedAt!)
-  return Date.parse(lower.length ? lower.sort().at(-1)! : (envelope.events.find(e => e.action === 'envelope.sent_scheduled') ?? envelope.events.find(e => e.action === 'envelope.approved')!).at)
+  return Date.parse(lower.length ? lower.sort().at(-1)! : (envelope.events.findLast(e => e.action === 'envelope.sent_scheduled') ?? envelope.events.findLast(e => e.action === 'envelope.approved')!).at)
 }
 
 /** The scheduled pass at `at`: send every reminder that is due. */
