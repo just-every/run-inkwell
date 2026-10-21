@@ -17,7 +17,7 @@ async function capture(page, row, width, state) {
   await row.scrollIntoViewIfNeeded()
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${state} at ${width}: no sideways scroll`)
   await axe(page, `ADMIN-004 ${state} ${width}`)
-  await page.screenshot({ path: join(proof, `${width}-${state}.png`), fullPage: true })
+  await page.screenshot({ path: join(proof, `${width}-${state}.png`), fullPage: false })
 }
 async function save(page, row) {
   const answered = page.waitForResponse(response => response.url().endsWith('/api/inkwell/commands') && response.request().postDataJSON()?.command === 'account.send_policy')
@@ -54,7 +54,7 @@ try {
     await expect(all).toBeChecked()
     assert.equal(await panel.getByRole('form', { name: 'Ad hoc sends', exact: true }).getByRole('group', { name: 'Allowed templates', exact: true }).count(), 0, 'ad hoc sends have no template selection')
     const before = await current('template')
-    await row.getByLabel('Mode', { exact: true }).focus()
+    await row.getByRole('combobox').focus()
     await tabTo(page, all); await page.keyboard.press('Space')
     await tabTo(page, row.getByRole('checkbox', { name: templates[0].title, exact: true })); await page.keyboard.press('Space')
     await expect(row.getByRole('checkbox', { name: templates[1].title, exact: true })).not.toBeChecked()
@@ -82,7 +82,7 @@ try {
     assert.ok(app.mail(allowedEmail, 'Please sign:'), 'the selected template invites its recipient')
 
     // Widen using the visible control and prove the formerly blocked send can now invite.
-    await row.getByLabel('Mode', { exact: true }).focus()
+    await row.getByRole('combobox').focus()
     await tabTo(page, all); await page.keyboard.press('Space')
     await save(page, row)
     await page.reload(); await page.getByRole('button', { name: 'Settings', exact: true }).click()
@@ -94,7 +94,7 @@ try {
     // Enabling a web form needs an explicit, nonempty list; both invalid choices stay unsaved.
     const web = panel.getByRole('form', { name: 'Web form sends', exact: true })
     const webBefore = await current('web_form')
-    await web.getByLabel('Mode', { exact: true }).selectOption('person')
+    await web.getByRole('combobox').selectOption('person')
     await web.getByRole('button', { name: /^Save / }).click()
     await expect(web.getByRole('alert')).toBeVisible()
     assert.equal((await current('web_form')).version, webBefore.version, 'all templates cannot enable a web form')
