@@ -104,3 +104,37 @@ test('PREP-011: reassignment clears unsigned placements and the replacement sign
   assert.equal((await envelope(h, id)).signers[0].values['signature-0'], people[1].name)
  } finally { await h.close() }
 })
+
+test('PREP-011: one signer completes signature/date/initials/name/text, while decline, void and accepted paper signing discard unsigned placements', async () => {
+ const h = await harness({ mailProvider: null })
+ try {
+  await h.command('account.freeform', { enabled: true, expectedVersion: 0 })
+  const open = async () => {
+   const id = await prepare(h, people.slice(0, 1), { allowPaperSigning: true })
+   const [invitation] = (await h.command('envelope.approve', { id, eligible: true })).result.invitations
+   const s = await session(h, invitation); await h.agree(s.path, s.cookie)
+   return { id, ...s }
+  }
+  const one = await open(), placements = ['signature', 'date_signed', 'initials', 'full_name', 'text'].map((type, i) => field(0, type, { y: .2 + i * .1 }))
+  await sign(h, one, placements, { 'signature-0': people[0].name, 'initials-0': 'MQ', 'full_name-0': people[0].name, 'text-0': 'Workshop delivery approved' })
+  const completed = await envelope(h, one.id), signed = (await h.send(`/api/inkwell/envelopes/${one.id}/artifacts/signed`, undefined, h.owner)).bytes
+  assert.equal(completed.status, 'completed'); assert.equal(completed.signers.length, 1)
+  const text = await pdfText(signed)
+  for (const value of Object.values(completed.signers[0].values)) assert.ok(text.includes(value))
+  const source = await h.send(`/api/inkwell/envelopes/${one.id}/artifacts/original`, undefined, h.owner)
+  assert.equal(await h.send(`/api/inkwell/envelopes/${one.id}/verify`, undefined, h.owner).then(r => r.value.ok), true)
+  for (const action of ['decline', 'void', 'paper']) {
+   const s = await open(); await save(h, s, [field(0)], { 'signature-0': 'Unsigned entry' })
+   if (action === 'decline') await h.post(s.path + '/decline', { reason: 'The workshop date changed', commandId: crypto.randomUUID() }, s.cookie)
+   if (action === 'void') await h.command('envelope.void', { id: s.id, reason: 'The workshop date changed' })
+   if (action === 'paper') {
+    const response = await h.mf.dispatchFetch(h.origin + s.path + '/paper', { method: 'POST', headers: { origin: h.origin, cookie: s.cookie, 'content-type': 'application/pdf' }, body: source.bytes })
+    assert.equal(response.status, 200)
+    await h.command('envelope.paper_review', { id: s.id, signer: 0, accept: true })
+   }
+   assert.equal((await h.db.prepare('SELECT progress FROM iw_signers WHERE envelope_id=? AND signer=0').bind(s.id).first()).progress, null, `${action} discards unsigned fields and values`)
+   assert.deepEqual((await h.send(s.path, undefined, s.cookie)).value.fields, [])
+   assert.deepEqual((await envelope(h, s.id)).fields, [])
+  }
+ } finally { await h.close() }
+})
