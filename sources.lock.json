@@ -3318,6 +3318,10 @@
       "sha256": "bf4a239e57234f9de8f71fac2b18437653da998190188fe5e1b3908d200feb32",
       "executable": false
     },
+    "tests/journeys/document-capacity.mjs": {
+      "sha256": "c8a4cd4e0c2b665716d8f20cfdcce36acfc63bdb063cef503362cbf492a5446a",
+      "executable": false
+    },
     "tests/journeys/document-fields.mjs": {
       "sha256": "b55c6a611e389cae975f41e866c607eba188f7ab4729fb5d21e952db7a4472da",
       "executable": false
