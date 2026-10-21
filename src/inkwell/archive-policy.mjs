@@ -1,3 +1,4 @@
+import { validCommentRecords } from './comment-record.mjs';
 import { validSupplementRecord } from './supplement-record.mjs';
 import { stampEvidence } from './stamp-evidence.mjs';
 import { canonicalJson, sha256 } from '@runeditrun/rer/modules/portability';
@@ -12,9 +13,10 @@ export default {
   secretColumns: { iw_signers: ['code_hash', 'session_hash', 'progress', 'link_sealed'] },
   requiredConfiguration: ['OWNER_EMAIL', 'SESSION_SECRET', 'AUTH_ORIGIN', 'MAIL_PROVIDER', 'MAIL_FROM'],
   async validateStaged({ read }) {
-    const envelopes = await read('iw_envelopes'), blobs = await read('iw_blobs'), events = await read('iw_events');
+    const envelopes = await read('iw_envelopes'), blobs = await read('iw_blobs'), events = await read('iw_events'), threads = await read('iw_comment_threads');
     for (const row of envelopes) {
       const e = JSON.parse(row.data);
+      if (!await validCommentRecords(e, threads.filter(t => t.envelope_id === e.id), canonicalJson, sha256)) return false;
       if (e.id !== row.id || e.version !== row.version || !validSupplementRecord(e, canonicalJson) || !await verifyFreeFormRecord(e)) return false;
       // PREP-003: recompute image type, bytes, fingerprint and provenance from signed values.
       // Older records bind the same values with valuesSha256; they retain their original audit/certificate.

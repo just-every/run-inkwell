@@ -150,6 +150,8 @@ test('SIGNX-009: copy, template and archive retain supplemental bytes without ca
   const source = await envelope(h, id)
   const copied = (await h.command('envelope.copy', { id })).result.id
   const template = (await h.command('template.from_envelope', { id })).result.id
+  const savedTemplate=(await h.send('/api/inkwell/templates',undefined,h.owner)).value.templates.find(t=>t.id===template)
+  await h.command('template.update',{...savedTemplate,supplements:undefined,title:'Edited renewal template',pdfBase64:base64(main)})
   const fromTemplate = (await h.command('template.use', { id: template, recipients: people.slice(0, 1) })).result.id
   for (const freshId of [copied, fromTemplate]) {
    const fresh = await envelope(h, freshId)
@@ -201,4 +203,86 @@ test('SIGNX-009: copy, template and archive retain supplemental bytes without ca
    assert.equal((await fenced.send(`/api/inkwell/envelopes/${id}`, undefined, fenced.owner)).status, 404)
   } finally { await fenced.close() }
  } finally { await h.close() }
+})
+
+test('Private page threads: chosen audiences, inherited replies, identity epochs, terminal immutability and complete record custody', async () => {
+ const h=await harness()
+ try {
+  const senderCookie=await h.invite('sender@comments.example','member'),sender=(await h.send('/api/inkwell',undefined,senderCookie)).value.actor
+  await h.command('member.role',{operatorId:sender.id,role:'sender'})
+  const admin=await h.invite('admin@comments.example','admin'),editor=await h.invite('editor@comments.example','member'),editorId=(await h.send('/api/inkwell',undefined,editor)).value.actor.id
+  await h.command('member.role',{operatorId:editorId,role:'sender'})
+  const document=await PDFDocument.create();document.addPage([612,792]);document.addPage([612,792]);const bytes=await document.save()
+  const id=(await h.command('envelope.prepare',{title:'Private discussion',filename:'discussion.pdf',pdfBase64:base64(bytes),signers:people,fields:people.map((_,i)=>field(i))},senderCookie)).result.id
+  await h.command('envelope.share',{id,email:'editor@comments.example',access:'edit'},senderCookie)
+  const base=`/api/inkwell/envelopes/${id}`
+  const post=(path,input,cookie,status=200)=>h.post(path+'/comments',{...input,commandId:crypto.randomUUID()},cookie,status)
+  const view=async(path,cookie)=>(await h.send(path+'/comments',undefined,cookie)).value
+  const recipient=async email=>{const mail=await h.mail(email,'Please sign:'),path=new URL(mail.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.replace('/sign/','/api/sign/');await h.post(path+'/code',{},'');const code=(await h.mail(email,'verification code')).text.match(/\b\d{6}\b/)[0],cookie=(await h.post(path+'/verify',{code},'')).cookie;return{path,cookie}}
+  await post(base,{action:'create',page:1,text:'not sent',audience:['sender']},senderCookie,409)
+  await h.command('envelope.approve',{id,eligible:true},senderCookie)
+  const first=await recipient(people[0].email)
+  assert.equal((await h.send(first.path+'/comments')).status,401)
+  await post(first.path,{action:'create',page:1,text:'private-inkwell-comment-1',audience:['recipient:0']},first.cookie,403)
+  await h.agree(first.path,first.cookie)
+  await post(first.path,{action:'create',page:3,text:'outside page',audience:['recipient:0']},first.cookie,400)
+  await post(first.path,{action:'create',page:1,text:'no implicit audience',audience:[]},first.cookie,400)
+  const root=(await post(first.path,{action:'create',page:1,text:'private-inkwell-comment-1',audience:['recipient:0']},first.cookie)).value.result.thread
+  for(const cookie of [h.owner,admin,editor,senderCookie]) {
+   assert.deepEqual((await view(base,cookie)).threads,[],'owner, admin, edit share and sender receive no unselected text')
+   assert.ok(!JSON.stringify((await h.send(base,undefined,cookie)).value).includes('private-inkwell-comment-1'))
+   assert.ok(!new TextDecoder().decode((await h.send(base+'/artifacts/audit',undefined,cookie)).bytes).includes('private-inkwell-comment-1'))
+   await post(base,{action:'reply',thread:root,text:'cannot read'},cookie,cookie===senderCookie?404:403)
+  }
+  await post(first.path,{action:'audience',thread:root,audience:['recipient:0','sender','recipient:1']},first.cookie)
+  await post(base,{action:'reply',thread:root,text:'private-inkwell-reply-2',audience:['sender']},senderCookie,400)
+  await post(base,{action:'audience',thread:root,audience:['sender']},senderCookie,403)
+  await post(base,{action:'reply',thread:root,text:'private-inkwell-reply-2'},senderCookie)
+  await post(first.path,{action:'reply',thread:root,text:'private-inkwell-round-3'},first.cookie)
+  assert.equal((await view(base,senderCookie)).threads[0].messages.length,3,'multiple rounds retain the author-chosen audience')
+  await sign(h,first,0)
+  const second=await recipient(people[1].email);await h.agree(second.path,second.cookie)
+  const shared=(await view(second.path,second.cookie)).threads[0]
+  assert.equal(shared.page,1);assert.deepEqual(shared.messages.map(m=>m.text),['private-inkwell-comment-1','private-inkwell-reply-2','private-inkwell-round-3'])
+  await post(second.path,{action:'reply',thread:root,text:'private-inkwell-round-4'},second.cookie)
+  await sign(h,second,1)
+  const terminal=(await view(base,senderCookie)).threads
+  for(const [path,cookie] of [[base,senderCookie],[first.path,first.cookie],[second.path,second.cookie]])for(const input of [{action:'create',page:0,text:'late',audience:['sender']},{action:'reply',thread:root,text:'late'},{action:'audience',thread:root,audience:['sender']}])await post(path,input,cookie,409)
+  assert.deepEqual((await view(base,senderCookie)).threads,terminal)
+  const audit=(await h.send('/api/inkwell/comments/audit',undefined,admin)).value
+  assert.ok(audit.events.some(e=>e.action==='comment.audience_changed'));assert.ok(audit.events.some(e=>e.action==='comment.created'));assert.ok(audit.events.some(e=>e.action==='comment.replied'))
+  for(const secret of ['private-inkwell-comment-1','private-inkwell-reply-2',people[0].email])assert.ok(!JSON.stringify(audit).includes(secret),'account comment audit is opaque metadata only')
+  const certificate=await pdfText((await h.send(base+'/artifacts/certificate',undefined,h.owner)).bytes)
+  assert.ok(!certificate.includes('private-inkwell-'))
+  const custody=(await h.send(base+'/artifacts/custody',undefined,h.owner)).value
+  assert.equal(custody.threads[0].messages.length,4,'explicit record custody includes the whole transcript under document authority')
+  const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value,restored=await harness({mailProvider:null})
+  try {await restored.post('/api/inkwell/archive/restore',{archive});assert.deepEqual((await restored.send(base+'/artifacts/custody',undefined,restored.owner)).value.threads,custody.threads);assert.deepEqual((await restored.send(base+'/comments',undefined,restored.owner)).value.threads,[],'custody restore never reassigns a sender audience to the destination owner')}finally{await restored.close()}
+  await h.command('envelope.hold',{id,reason:'Preserve private transcript'})
+  await h.post('/api/inkwell/erase',{id,confirmation:'ERASE'},h.owner,409)
+  await h.command('envelope.lift_hold',{id})
+  await h.post('/api/inkwell/erase',{id,confirmation:'ERASE'})
+  assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM iw_comment_threads WHERE envelope_id=?').bind(id).first()).n,0)
+
+  // A same-email correction and a return to an earlier email after reassignment are new identities.
+  const epochId=await prepare(h,bytes,people,{allowReassignment:true}),supplement=await add(h,epochId,await pdf('Identity handbook'))
+  await h.command('envelope.approve',{id:epochId,eligible:true})
+  const original=await recipient(people[0].email);await h.agree(original.path,original.cookie)
+  assert.equal((await h.send(supplementPath(original,supplement)+'/document',undefined,original.cookie)).status,200)
+  await acknowledge(h,original,supplement)
+  await post(original.path,{action:'create',page:1,text:'identity-bound-thread',audience:['recipient:0']},original.cookie)
+  await h.command('envelope.correct',{id:epochId,signers:[{...people[0],name:'Mara Corrected'},people[1]]})
+  assert.equal((await h.send(original.path+'/comments',undefined,original.cookie)).status,404)
+  const corrected=await recipient(people[0].email);await h.agree(corrected.path,corrected.cookie)
+  assert.deepEqual((await view(corrected.path,corrected.cookie)).threads,[])
+  assert.ok((await h.send(corrected.path,undefined,corrected.cookie)).value.supplements.every(s=>!s.viewedAt&&!s.acknowledgedAt))
+  await post(corrected.path,{action:'create',page:1,text:'second-identity-thread',audience:['recipient:0']},corrected.cookie)
+  await h.post(corrected.path+'/reassign',{name:'Delegate',email:'delegate@comments.example',reason:'New responsible signer',commandId:crypto.randomUUID()},corrected.cookie)
+  const delegate=await recipient('delegate@comments.example');await h.agree(delegate.path,delegate.cookie)
+  assert.deepEqual((await view(delegate.path,delegate.cookie)).threads,[])
+  await h.post(delegate.path+'/reassign',{...people[0],reason:'Return to original mailbox',commandId:crypto.randomUUID()},delegate.cookie)
+  const returned=await recipient(people[0].email);await h.agree(returned.path,returned.cookie)
+  assert.deepEqual((await view(returned.path,returned.cookie)).threads,[],'reusing the email after reassignment never restores old access')
+  assert.ok((await h.send(returned.path,undefined,returned.cookie)).value.supplements.every(s=>!s.viewedAt&&!s.acknowledgedAt))
+ }finally{await h.close()}
 })

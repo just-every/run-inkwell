@@ -1,3 +1,4 @@
+import { commentView, memberCommentParticipant, signerCommentParticipant, writeComment } from './comments'
 import { setFollowup, resumeFollowup, followupView } from './followup-store'
 import { receiveFollowupReply } from './followup-inbound'
 import { apiOpenApi } from './api-openapi'
@@ -118,6 +119,12 @@ api.get('/api/inkwell/envelopes/:id/verify',async c=>{const actor=await requireA
 // DELIV-001: the mail provider's signed delivery webhook (Resend or SendGrid), verified by Base's intake. No session.
 // DELIV-002: a stored bounce alerts the sender before the provider is answered; a failed alert makes the provider retry.
 api.post('/api/inkwell/mail/events',async c=>{const result=await receiveDeliveryEvents(c.env,c.req.raw);await alertBounces(c.env);return c.json({ok:true,...result})})
+// SIGNX-009: comment text is never part of envelope projections or account-audit metadata.
+api.get('/api/inkwell/envelopes/:id/comments',async c=>{const actor=await requireActor(c.req.raw,c.env),e=await getEnvelope(c.env.DB,c.req.param('id'));return c.json(await commentView(c.env,e,await memberCommentParticipant(c.env,e,actor)))})
+api.post('/api/inkwell/envelopes/:id/comments',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env),e=await getEnvelope(c.env.DB,c.req.param('id'));return c.json({ok:true,result:await writeComment(c.env,e,await memberCommentParticipant(c.env,e,actor),await readJson(c.req.raw,16384))})})
+api.get('/api/inkwell/comments/audit',async c=>{await requireActor(c.req.raw,c.env,['owner','admin']);const rows=(await c.env.DB.prepare("SELECT envelope_id,data FROM iw_events WHERE json_extract(data,'$.action') LIKE 'comment.%' ORDER BY rowid").all<{envelope_id:string;data:string}>()).results;return c.json({events:rows.map(r=>({document:r.envelope_id,...JSON.parse(r.data)}))})})
+api.get('/api/sign/:token/comments',async c=>{const context=await signingContext(c.env,c.req.param('token'),c.req.raw);return c.json(await commentView(c.env,context.envelope,signerCommentParticipant(context)))})
+api.post('/api/sign/:token/comments',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw);return c.json({ok:true,result:await writeComment(c.env,context.envelope,signerCommentParticipant(context),await readJson(c.req.raw,16384))})})
 api.get('/api/inkwell/envelopes/:id/followup',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json(await followupView(c.env,actor,await getEnvelope(c.env.DB,c.req.param('id'))))})
 api.post('/api/inkwell/mail/replies',async c=>receiveFollowupReply(c.env,c.req.raw))
 api.post('/api/verify',async c=>c.json(await publicVerification(c.env,c.req.raw)))
