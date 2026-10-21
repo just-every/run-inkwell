@@ -3163,7 +3163,7 @@
       "executable": false
     },
     "tests/journeys/contacts.mjs": {
-      "sha256": "43e9831d36c078b54046ec56260e79f29f5de974364835357581362159739499",
+      "sha256": "e0f4ecb83cd8a82ab364c81e0fd2d3a9c9a0a3112d1644ad8cc8a2bb5c9a0b0d",
       "executable": false
     },
     "tests/journeys/correct-envelope.mjs": {
