@@ -1,3 +1,4 @@
+import { requireSupplements } from './supplements'
 import { active, appendEvent, currentSigners, insist, now, sha256, text, type Env } from './model'
 import { commandWrite, commitEnvelope, getEnvelope } from './storage'
 import { blobWrites, MAX_PDF, readBlob } from './blobs'
@@ -20,6 +21,7 @@ export async function uploadPaper(env: Env, context: SigningContext, request: Re
   insist(currentSigners(before).includes(index), 'This invitation is waiting for an earlier signer, or you have already signed.', 409)
   accessGate(context)
   disclosureGate(signer, 'uploading a paper signature')
+  requireSupplements(before, index, context.recipient.member)
   insist(signer.paper?.status !== 'pending', 'Your paper signature is already waiting for the sender’s review.', 409)
   const mediaType = request.headers.get('content-type')?.split(';')[0].trim() ?? ''
   const bytes = await readBytes(request, MAX_PDF)
@@ -59,6 +61,7 @@ export async function reviewPaper(env: Env, context: CommandContext, input: Reco
     await dispatchMail(env, after.id)
     return result
   }
+  requireSupplements(before, index, paper.member)
   after.signers[index] = { ...signer, signedAt: reviewedAt, paper: { ...paper, status: 'accepted', reviewedAt, reviewedBy: context.actor.id }, ...(signer.group ? { group: { ...signer.group, signedBy: paper.member } } : {}) }
   await appendEvent(after, 'signer.signed_on_paper', context.actor.id, { signer: index, email: party(after, index).email, ...(paper.member === undefined ? {} : { member: paper.member }), wetInk: true, sha256: paper.sha256, pages: paper.pages, originalSha256: after.originalSha256 })
   const writes = await advanceAfterSigning(env, after, index)

@@ -1,3 +1,4 @@
+import { validSupplementRecord } from './supplement-record.mjs';
 import { stampEvidence } from './stamp-evidence.mjs';
 import { canonicalJson, sha256 } from '@runeditrun/rer/modules/portability';
 
@@ -14,7 +15,7 @@ export default {
     const envelopes = await read('iw_envelopes'), blobs = await read('iw_blobs'), events = await read('iw_events');
     for (const row of envelopes) {
       const e = JSON.parse(row.data);
-      if (e.id !== row.id || e.version !== row.version) return false;
+      if (e.id !== row.id || e.version !== row.version || !validSupplementRecord(e, canonicalJson)) return false;
       // PREP-003: recompute image type, bytes, fingerprint and provenance from signed values.
       // Older records bind the same values with valuesSha256; they retain their original audit/certificate.
       try {
@@ -34,7 +35,7 @@ export default {
         if (body.previousHash !== previousHash || hash !== await sha256(canonicalJson(body)) || !stored || stored.hash !== hash || canonicalJson(JSON.parse(stored.data)) !== canonicalJson(e.events[i])) return false;
         previousHash = hash;
       }
-      for (const [kind, fingerprint] of [['original', e.originalSha256], ['signed', e.signedSha256], ['certificate', e.certificateSha256]]) {
+      for (const [kind, fingerprint] of [['original', e.originalSha256], ['signed', e.signedSha256], ['certificate', e.certificateSha256], ...(e.supplements ?? []).map(s => [`supplement-${s.id}`, s.sha256])]) {
         if (!fingerprint) { if (kind === 'original' || (e.status === 'completed' && kind !== 'original')) return false; continue; }
         const parts = blobs.filter(r => r.envelope_id === e.id && r.kind === kind).sort((a,b) => a.part-b.part);
         if (!parts.length || parts.some((r,i) => r.part !== i || !(Array.isArray(r.data) || r.data instanceof ArrayBuffer))) return false;
@@ -43,6 +44,14 @@ export default {
         for (const chunk of chunks) { bytes.set(chunk,offset); offset += chunk.length; }
         if (await sha256(bytes) !== fingerprint) return false;
       }
+    }
+    const templates = await read('iw_templates'), templateBlobs = await read('iw_template_supplement_blobs');
+    for (const row of templates) for (const s of JSON.parse(row.data).supplements ?? []) {
+      const parts = templateBlobs.filter(r => r.template_id === row.id && r.supplement_id === s.id).sort((a,b) => a.part-b.part);
+      if (!parts.length || parts.some((r,i) => r.part !== i)) return false;
+      const chunks = parts.map(r => new Uint8Array(r.data)), bytes = new Uint8Array(chunks.reduce((n,c) => n+c.length,0));
+      let offset = 0; for (const chunk of chunks) { bytes.set(chunk,offset); offset += chunk.length; }
+      if (bytes.length !== s.bytes || await sha256(bytes) !== s.sha256) return false;
     }
     return true;
   },

@@ -5,7 +5,7 @@ import { normalizeRoutingRule, validateRouting } from './routing'
 import { applyPrefillPayload } from './prefill'
 import { blobWrites, download, fromBase64, readBlob } from './blobs'
 import { parsePdf, validateFields, validatePdfText, validatePrefilledFields } from './pdf'
-import { appendEvent, id, insist, now, object, sha256, text, type Actor, type Env, type Field, type Envelope } from './model'
+import { appendEvent, id, insist, now, object, sha256, text, type Actor, type Env, type Field, type Envelope, type Supplement } from './model'
 import { atomic, commandWrite, getEnvelope, insertEnvelope, roleGuard, type Guard } from './storage'
 import { normalizeApprovalRule } from './internal-approval'
 import { insistAccess } from './members'
@@ -14,10 +14,11 @@ import { chooseReminders } from './reminders'
 import { defaultExpiryDays, maxExpiryDays } from './expiry'
 import type { CommandContext } from './envelopes'
 import { accessContext, folderAccess, sharesOf, visibleSql, type TemplateAccess, type TemplateRow } from './template-shares'
+import { supplementDefinition, supplementsFromEnvelope, supplementsFromTemplate, templateSupplementWrites, type TemplateSupplementArtifact } from './template-supplements'
 
 /** A role is a place in the routing order with no person yet; `accessCode` says the sender gives that person a code. */
 export interface Role { includeWhen?: import('./model').RoutingRule; role: string; order: number; accessCode?: boolean; linkOnly?: boolean; message?: string }
-export interface Template { maintenance?: { proposalId: string; by: string; at: string; examples: { id: string; eventHash: string }[] }; approval?: import('./model').ApprovalRule; id: string; title: string; filename: string; originalSha256: string; pageSizes: { width: number; height: number }[]; roles: Role[]; fields: Field[]; expiryDays: number; reminders?: { afterDays: number; everyDays: number }; allowPaper?: boolean; allowReassign?: boolean; subject?: string; message?: string; createdBy: string; createdAt: string; version?: number; updatedAt?: string; tags?: string[] }
+export interface Template { supplements?: Supplement[]; maintenance?: { proposalId: string; by: string; at: string; examples: { id: string; eventHash: string }[] }; approval?: import('./model').ApprovalRule; id: string; title: string; filename: string; originalSha256: string; pageSizes: { width: number; height: number }[]; roles: Role[]; fields: Field[]; expiryDays: number; reminders?: { afterDays: number; everyDays: number }; allowPaper?: boolean; allowReassign?: boolean; subject?: string; message?: string; createdBy: string; createdAt: string; version?: number; updatedAt?: string; tags?: string[] }
 /** TMPL-003: a template stored before versions is version 1. */
 const versionOf = (template: Template) => template.version ?? 1
 const day = 86_400_000
@@ -70,6 +71,7 @@ export async function listTemplates(env: Env, actor: Actor, params = new URLSear
 /** The prepare screen's PDF, fields and settings, with roles in place of people, validated for a new template or a new
  * version of one. */
 async function readTemplate(env: Env, input: Record<string, unknown>) {
+  insist(input.supplements === undefined, 'Save supplemental documents from an envelope; template edits keep the saved documents.')
   const title = text(input.title, 'a template name'), filename = text(input.filename, 'a filename', 240)
   insist(!/[\x00-\x1f/\\]/.test(filename) && filename.toLowerCase().endsWith('.pdf'), 'Choose a PDF filename.')
   insist(!/[\r\n\t]/.test(title), 'Use a single line for the template name.')
@@ -103,10 +105,10 @@ async function readTemplate(env: Env, input: Record<string, unknown>) {
   return { definition, bytes }
 }
 const blobInserts = (env: Env, templateId: string, bytes: Uint8Array) => { const parts: D1PreparedStatement[] = []; for (let offset = 0; offset < bytes.length; offset += 64 * 1024) parts.push(env.DB.prepare('INSERT INTO iw_template_blobs(template_id,part,data) VALUES(?,?,?)').bind(templateId, parts.length, bytes.slice(offset, offset + 64 * 1024).buffer)); return parts }
-async function insertTemplate(env: Env, context: CommandContext, input: Record<string, unknown>, extra: Record<string, unknown> = {}) {
-  const { definition, bytes } = await readTemplate(env, input), template: Template = { id: id(), ...definition, createdBy: context.actor.id, createdAt: now(), version: 1 }
+async function insertTemplate(env: Env, context: CommandContext, input: Record<string, unknown>, extra: Record<string, unknown> = {}, custody?: { artifacts: TemplateSupplementArtifact[]; guard: Guard }) {
+  const { definition, bytes } = await readTemplate(env, input), template: Template = { id: id(), ...definition, createdBy: context.actor.id, createdAt: now(), version: 1, ...(custody?.artifacts.length ? { supplements: custody.artifacts.map(a => a.supplement) } : {}) }
   const folder = await targetFolder(env, context.actor, input.folderId), result = { id: template.id, version: 1, ...extra }
-  await atomic(env.DB, [roleGuard(context.actor)], [env.DB.prepare('INSERT INTO iw_templates(id,created_by,created_at,data,folder_id) VALUES(?,?,?,?,?)').bind(template.id, template.createdBy, template.createdAt, JSON.stringify(template), folder), ...blobInserts(env, template.id, bytes), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
+  await atomic(env.DB, [roleGuard(context.actor), ...(custody ? [custody.guard] : [])], [env.DB.prepare('INSERT INTO iw_templates(id,created_by,created_at,data,folder_id) VALUES(?,?,?,?,?)').bind(template.id, template.createdBy, template.createdAt, JSON.stringify(template), folder), ...blobInserts(env, template.id, bytes), ...(custody?.artifacts ?? []).flatMap(a => templateSupplementWrites(env.DB, template.id, a.supplement.id, a.bytes)), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   return result
 }
 /** `template.save`: a new template, version 1. */
@@ -117,7 +119,7 @@ export const saveTemplate = (env: Env, context: CommandContext, input: Record<st
 export async function updateTemplate(env: Env, context: CommandContext, input: Record<string, unknown>, review?: { version: number; maintenance: NonNullable<Template['maintenance']>; guards: Guard[] }) {
   const { template: before, row } = await loadTemplate(env, context.actor, text(input.id, 'a template ID'), 'edit'), { definition, bytes } = await readTemplate(env, input)
   if (review) insist(before.createdBy === context.actor.id && versionOf(before) === review.version, 'This suggestion changed. Review it again before publishing.', 409)
-  const after: Template = { ...(review ? { maintenance: review.maintenance } : {}), ...definition, id: before.id, createdBy: before.createdBy, createdAt: before.createdAt, version: versionOf(before) + 1, updatedAt: now() }
+  const after: Template = { ...(before.supplements?.length ? { supplements: before.supplements.map(supplementDefinition) } : {}), ...(review ? { maintenance: review.maintenance } : {}), ...definition, id: before.id, createdBy: before.createdBy, createdAt: before.createdAt, version: versionOf(before) + 1, updatedAt: now() }
   // TMPL-002: without `folderId` the template stays where it is; moving it is for those who manage it.
   const moving = input.folderId !== undefined && (input.folderId || null) !== row.folder_id
   if (moving) await loadTemplate(env, context.actor, before.id, 'manage')
@@ -134,10 +136,10 @@ export async function templateFromEnvelope(env: Env, context: CommandContext, in
   const envelope: Envelope = await getEnvelope(env.DB, text(input.id, 'an envelope ID'))
   await insistAccess(env, context.actor, envelope, 'view')
   insist(!envelope.imported, 'Only a native envelope can be saved as a template.', 409)
-  const bytes = await readBlob(env.DB, envelope.id, 'original', envelope.originalSha256), kept = envelope.signers.flatMap((s, i) => s.removedAt ? [] : [i])
+  const [bytes, artifacts] = await Promise.all([readBlob(env.DB, envelope.id, 'original', envelope.originalSha256), supplementsFromEnvelope(env, envelope)]), kept = envelope.signers.flatMap((s, i) => s.removedAt ? [] : [i])
   const names = (envelope.events.find(e => e.action === 'envelope.prepared')?.detail.template as { roles?: string[] } | undefined)?.roles ?? []
   const days = Math.min(maxExpiryDays, Math.max(1, Math.round((Date.parse(envelope.expiresAt) - Date.parse(envelope.createdAt)) / day)))
-  return insertTemplate(env, context, { title: input.title === undefined ? envelope.title : input.title, filename: envelope.filename, pdfBase64: base64(bytes), roles: kept.map((i, k) => ({ ...(envelope.signers[i].includeWhen?{includeWhen:envelope.signers[i].includeWhen}:{}), role: names[i] ?? `Signer ${k + 1}`, order: envelope.signers[i].order ?? i + 1, ...(envelope.signers[i].accessCode ? { accessCode: true } : {}), ...(envelope.signers[i].linkOnly ? { linkOnly: true } : {}), ...(envelope.signers[i].message ? { message: envelope.signers[i].message } : {}) })), fields: envelope.fields.filter(f => kept.includes(f.signer)).map(f => ({ ...f, signer: kept.indexOf(f.signer) })), expiryDays: days, ...(envelope.reminders ? { reminders: envelope.reminders } : {}), ...(envelope.allowPaper ? { allowPaperSigning: true } : {}), ...(envelope.allowReassign ? { allowReassignment: true } : {}), ...(envelope.subject ? { subject: envelope.subject } : {}), ...(envelope.message ? { message: envelope.message } : {}), ...(envelope.approvalRule ? { approval: envelope.approvalRule } : {}) }, { fromEnvelope: envelope.id })
+  return insertTemplate(env, context, { title: input.title === undefined ? envelope.title : input.title, filename: envelope.filename, pdfBase64: base64(bytes), roles: kept.map((i, k) => ({ ...(envelope.signers[i].includeWhen?{includeWhen:envelope.signers[i].includeWhen}:{}), role: names[i] ?? `Signer ${k + 1}`, order: envelope.signers[i].order ?? i + 1, ...(envelope.signers[i].accessCode ? { accessCode: true } : {}), ...(envelope.signers[i].linkOnly ? { linkOnly: true } : {}), ...(envelope.signers[i].message ? { message: envelope.signers[i].message } : {}) })), fields: envelope.fields.filter(f => kept.includes(f.signer)).map(f => ({ ...f, signer: kept.indexOf(f.signer) })), expiryDays: days, ...(envelope.reminders ? { reminders: envelope.reminders } : {}), ...(envelope.allowPaper ? { allowPaperSigning: true } : {}), ...(envelope.allowReassign ? { allowReassignment: true } : {}), ...(envelope.subject ? { subject: envelope.subject } : {}), ...(envelope.message ? { message: envelope.message } : {}), ...(envelope.approvalRule ? { approval: envelope.approvalRule } : {}) }, { fromEnvelope: envelope.id }, { artifacts, guard: { sql: 'EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=?)', values: [envelope.id, envelope.version] } })
 }
 
 /** The template's current PDF, for its edit screen. */
@@ -145,7 +147,7 @@ export async function templateDocument(env: Env, actor: Actor, templateId: strin
 
 export async function removeTemplate(env: Env, context: CommandContext, input: Record<string, unknown>) {
   const { template } = await loadTemplate(env, context.actor, text(input.id, 'a template ID'), 'manage'), result = { id: template.id, removed: true }
-  await atomic(env.DB, [roleGuard(context.actor)], [env.DB.prepare("DELETE FROM iw_template_shares WHERE subject='template' AND subject_id=?").bind(template.id), env.DB.prepare('DELETE FROM iw_template_blobs WHERE template_id=?').bind(template.id), env.DB.prepare('DELETE FROM iw_templates WHERE id=?').bind(template.id), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
+  await atomic(env.DB, [roleGuard(context.actor)], [env.DB.prepare("DELETE FROM iw_template_shares WHERE subject='template' AND subject_id=?").bind(template.id), env.DB.prepare('DELETE FROM iw_template_blobs WHERE template_id=?').bind(template.id), env.DB.prepare('DELETE FROM iw_template_supplement_blobs WHERE template_id=?').bind(template.id), env.DB.prepare('DELETE FROM iw_templates WHERE id=?').bind(template.id), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   return result
 }
 
@@ -154,7 +156,8 @@ const base64 = (bytes: Uint8Array) => { let binary = ''; for (let i = 0; i < byt
 /** `template.use`: one person per role, in the template's order; everything else comes from the template. The envelope is
  * a draft validated by the same rules as one prepared by hand, and records the template it came from. */
 export async function useTemplate(env: Env, context: CommandContext, input: Record<string, unknown>) {
-  const { template } = await loadTemplate(env, context.actor, text(input.id, 'a template ID'), 'use'), bytes = await templateBytes(env, template)
+  const { template } = await loadTemplate(env, context.actor, text(input.id, 'a template ID'), 'use')
+  const [bytes, artifacts] = await Promise.all([templateBytes(env, template), supplementsFromTemplate(env, template)])
   insist(Array.isArray(input.recipients) && input.recipients.length === template.roles.length, `Name one person for each of the template’s ${template.roles.length} roles.`)
   const signers = template.roles.map((role, i) => {
     const person = object((input.recipients as unknown[])[i]), code = person.accessCode === undefined || person.accessCode === '' ? undefined : person.accessCode
@@ -166,10 +169,10 @@ export async function useTemplate(env: Env, context: CommandContext, input: Reco
   const createdAt = now()
   const { draft, accessCodes } = await readDraft(env, { title: template.title, filename: template.filename, pdfBase64: base64(bytes), signers, fields: applyPrefillPayload(template.fields, input.prefill), expiresAt: new Date(Date.parse(createdAt) + template.expiryDays * day).toISOString(), ...(template.reminders ? { reminders: template.reminders } : {}), ...(template.allowPaper ? { allowPaperSigning: true } : {}), ...(template.allowReassign ? { allowReassignment: true } : {}), ...(template.subject ? { subject: template.subject } : {}), ...(template.message ? { message: template.message } : {}) }, createdAt)
   const from = { id: template.id, title: template.title, version: versionOf(template) }
-  const envelope = { id: id(), version: 1, status: 'prepared' as const, createdAt, createdBy: context.actor.id, ...draft, template: from, ...(template.approval ? { approvalRule: template.approval } : {}), events: [] }
-  await appendEvent(envelope, 'envelope.prepared', context.actor.id, { ...draftDetail(draft), template: { ...from, roles: template.roles.map(r => r.role) } })
+  const envelope = { id: id(), version: 1, status: 'prepared' as const, createdAt, createdBy: context.actor.id, ...draft, ...(artifacts.length ? { supplements: artifacts.map(a => a.supplement) } : {}), template: from, ...(template.approval ? { approvalRule: template.approval } : {}), events: [] }
+  await appendEvent(envelope, 'envelope.prepared', context.actor.id, { ...draftDetail(draft), ...(envelope.supplements ? { supplements: envelope.supplements } : {}), template: { ...from, roles: template.roles.map(r => r.role) } })
   const result = { id: envelope.id, template: template.id }
-  await insertEnvelope(env.DB, envelope, context.actor, [...blobWrites(env.DB, envelope.id, 'original', bytes), ...await accessCodeWrites(env, envelope.id, accessCodes), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
+  await insertEnvelope(env.DB, envelope, context.actor, [...blobWrites(env.DB, envelope.id, 'original', bytes), ...artifacts.flatMap(a => blobWrites(env.DB, envelope.id, `supplement-${a.supplement.id}`, a.bytes)), ...await accessCodeWrites(env, envelope.id, accessCodes), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)], [{ sql: 'EXISTS(SELECT 1 FROM iw_templates WHERE id=? AND data=?)', values: [template.id, JSON.stringify(template)] }])
   await readBlob(env.DB, envelope.id, 'original', envelope.originalSha256)
   return result
 }

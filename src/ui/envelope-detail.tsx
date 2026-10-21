@@ -1,3 +1,4 @@
+import { EnvelopeSupplements } from './supplements'
 import { displayFieldValue, displayReferencedValue } from '../inkwell/business-fields'
 import { HostSigning } from './host-signing'
 import { RoutingPreview, routingRuleText } from './routing-rules'
@@ -85,6 +86,7 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
     <div className="iw-detail-top"><Pill {...state} /><button className="iw-icon-button" aria-label="Close" onClick={onClose}><Icon name="close" /></button></div>
     <h2>{name}</h2><p className="iw-detail-sub">{detail && <span>{detail}</span>}<span className="iw-detail-date">Prepared {dateTime(envelope.createdAt)}</span>{['prepared', 'awaiting_signature', 'expired'].includes(envelope.status) && envelope.expiresAt && <span className="iw-detail-date">{envelope.status === 'expired' ? 'Expired' : 'Expires'} {dateTime(envelope.expiresAt)}</span>}{envelope.reminders && ['prepared', 'awaiting_signature'].includes(envelope.status) && <span>Reminders after {envelope.reminders.afterDays}, then every {envelope.reminders.everyDays} business days</span>}{envelope.copiedFrom && <span>Copied from envelope {envelope.copiedFrom.slice(0, 8)}</span>}</p>
 
+    <EnvelopeSupplements envelope={envelope} editable={deciding} refresh={refresh} />
     <h3>Signing status</h3>{mayEdit && !envelope.scheduled && turn.filter(index => envelope.signers[index].inPerson && !me(envelope.signers[index].email)).map(index => <HostSigning key={index} id={envelope.id} signer={index} name={envelope.signers[index].name} />)}
     <ol className="iw-signers">{envelope.signers.map((signer, index) => <li key={index} className={signer.removedAt ? 'iw-declined' : signer.declinedAt ? 'iw-declined' : signer.signedAt ? 'iw-signed' : turn.includes(index) ? 'iw-turn' : undefined}>
       <span className="iw-order" aria-hidden="true">{signer.signedAt ? <Check /> : routingOrder(envelope, index)}</span>

@@ -1,3 +1,4 @@
+import { supplementStatus } from './supplements'
 import { stampEvidence, type StampEvidence } from './stamp-evidence.mjs'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { identityEvents, party, routingOrder, type SignerGroup, type AuditEvent, type Envelope, type RoutingResult, type RoutingRule } from './model'
@@ -20,6 +21,7 @@ export async function certificatePdf(envelope: Envelope, mailed: number[] = []) 
     withdrawn ? 'Inkwell consent withdrawal certificate' : declined ? 'Inkwell decline certificate' : 'Inkwell completion certificate',
     envelope.title, `Envelope: ${envelope.id}`, ...(envelope.copiedFrom ? [`Copied from envelope: ${envelope.copiedFrom}`] : []),
     `Original SHA-256: ${envelope.originalSha256}`,
+    ...(envelope.supplements ?? []).map(s => `Supplemental document: ${s.label}; ${s.pages} page(s); SHA-256 ${s.sha256}; ${s.requirement === 'acknowledge' ? 'acknowledgment required' : 'view required'}; not signed`),
     ...disclosures.map(([version, hash]) => `Electronic record and signature disclosure: version ${version} (SHA-256 ${hash})`),
     ...(declined ? [
       `${withdrawn ? 'Consent withdrawn' : 'Declined'}: ${stamp(declined.declinedAt!)} by ${party(envelope, envelope.signers.indexOf(declined)).name} <${party(envelope, envelope.signers.indexOf(declined)).email}>${declined.group ? ` for the signing group ${declined.group.name}` : ''}`,
@@ -33,6 +35,7 @@ export async function certificatePdf(envelope: Envelope, mailed: number[] = []) 
       ...envelope.events.filter(e => e.action === 'signer.reassigned' && e.detail.signer === i).map(e => { const from = e.detail.before as { name: string; email: string }, to = e.detail.after as { name: string; email: string }; return `Reassigned at ${stamp(e.at)}: by ${from.name} <${from.email}> to ${to.name} <${to.email}> · Reason: ${e.detail.reason}${client(e)}` }),
       ...inPersonLines(envelope, i), ...authLines(envelope, i), ...(s.accessCode ? [accessLine(envelope, i)] : []),
       ...(s.disclosure ? [`Disclosure ${s.disclosure.version} accepted at: ${stamp(s.disclosure.acceptedAt)}`] : []),
+      ...supplementStatus(envelope, i, s.group?.signedBy ?? s.group?.declinedBy).flatMap(doc => [ ...(doc.viewedAt ? [`Supplement opened: ${doc.label} at ${stamp(doc.viewedAt)}`] : []), ...(doc.acknowledgedAt ? [`Supplement acknowledged: ${doc.label} at ${stamp(doc.acknowledgedAt)}; SHA-256 ${doc.sha256}`] : []) ]),
       ...adoptionLines(envelope, i), ...stamps[i].map(stampLine),
       ...(s.paper?.status === 'accepted' ? [`Scan SHA-256: ${s.paper.sha256}`, `Scan: ${s.paper.pages} page(s) appended to the executed PDF; accepted at ${stamp(s.paper.reviewedAt!)}`] : []),
       s.routeResult?.state === 'skipped' ? `Skipped at ${stamp(s.routeResult.at)}: ${s.includeWhen?.field} ${s.includeWhen?.operator} ${s.includeWhen?.value}; result false (source ${s.routeResult.value})` : s.removedAt ? `Not signed: removed by a correction at ${stamp(s.removedAt)}`
