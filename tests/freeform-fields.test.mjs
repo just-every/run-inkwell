@@ -19,6 +19,19 @@ async function pdfText(bytes) {
  let text = ''; for (let n = 1; n <= pdf.numPages; n++) text += (await (await pdf.getPage(n)).getTextContent()).items.map(item => item.str).join(' ') + ' '
  return text
 }
+function assertPlacedCertificate(certificate, record) {
+ const text = certificate.replace(/\s+/g, ' ')
+ for (const f of record.fields) {
+  const signer = record.signers[f.signer], value = signer.values[f.id]
+  assert.ok(text.includes(`Placed ${f.type} (${f.label}): page ${f.page + 1}; position ${f.x.toFixed(4)}, ${f.y.toFixed(4)}; size ${f.width.toFixed(4)} x ${f.height.toFixed(4)}`), `${f.id}: certificate geometry matches the recorded placement`)
+  if (!f.masked) assert.ok(text.includes(`value "${value}"`), `${f.id}: certificate value matches the signed audit record`)
+  else assert.ok(!text.includes(value), `${f.id}: certificate masks the value`)
+  const method = ['signature', 'initials'].includes(f.type) ? 'typed' : f.type === 'date_signed' ? 'server-generated' : 'entered'
+  assert.ok(text.includes(`adoption ${method}; at ${signer.signedAt} UTC`))
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', timeZoneName: 'short' }).formatToParts(new Date(signer.signedAt)).map(p => [p.type, p.value]))
+  assert.ok(text.includes(`${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second} ${p.timeZoneName}`), 'certificate gives the account US time as well as UTC')
+ }
+}
 async function publicVerify(h, bytes) { return (await h.mf.dispatchFetch(h.origin + '/api/verify', { method: 'POST', headers: { 'content-type': 'application/pdf' }, body: bytes })).json() }
 
 test('PREP-011: own placements resume behind verification/disclosure, enforce geometry and signature, survive policy disable, and bind PDF/certificate/archive custody', async () => {
@@ -67,6 +80,7 @@ test('PREP-011: own placements resume behind verification/disclosure, enforce ge
   for (const text of [people[0].name, people[1].name, signedDate]) assert.ok(documentText.includes(text))
   const certificate = await pdfText((await h.send(`/api/inkwell/envelopes/${id}/artifacts/certificate`, undefined, h.owner)).bytes)
   for (const text of [`setting version ${policy.version}`, policy.actor, 'position 0.1000, 0.2000', 'size 0.4000 x 0.0600', 'adoption typed', 'UTC', completed.signers[0].signedAt]) assert.ok(certificate.includes(text), text)
+  assertPlacedCertificate(certificate, completed)
   assert.ok(!certificate.includes('confidential entry'), 'certificate masks marked text')
   assert.equal((await publicVerify(h, signed)).match, true)
   const archive = (await h.send('/api/inkwell/archive', undefined, h.owner)).value
@@ -121,6 +135,13 @@ test('PREP-011: one signer completes signature/date/initials/name/text, while de
   assert.equal(completed.status, 'completed'); assert.equal(completed.signers.length, 1)
   const text = await pdfText(signed)
   for (const value of Object.values(completed.signers[0].values)) assert.ok(text.includes(value))
+  assertPlacedCertificate(await pdfText((await h.send(`/api/inkwell/envelopes/${one.id}/artifacts/certificate`, undefined, h.owner)).bytes), completed)
+  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  const loading = getDocument({ data: new Uint8Array(signed), standardFontDataUrl: new URL('../node_modules/pdfjs-dist/standard_fonts/', import.meta.url).pathname }), document = await loading.promise
+  assert.equal(document.numPages, 1)
+  const items = (await (await document.getPage(1)).getTextContent()).items
+  for (const f of completed.fields) assert.ok(items.some(item => item.str === completed.signers[0].values[f.id] && Math.abs(item.transform[4] - f.x * 612) < 1 && item.transform[5] >= (1 - f.y - f.height) * 792 && item.transform[5] <= (1 - f.y) * 792), `${f.type}: executed one-signer letter shows the value in the chosen place`)
+  await loading.destroy()
   const source = await h.send(`/api/inkwell/envelopes/${one.id}/artifacts/original`, undefined, h.owner)
   assert.equal(await h.send(`/api/inkwell/envelopes/${one.id}/verify`, undefined, h.owner).then(r => r.value.ok), true)
   for (const action of ['decline', 'void', 'paper']) {
