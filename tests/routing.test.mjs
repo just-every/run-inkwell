@@ -273,7 +273,9 @@ test('SEND-001: deferred sends hold after role, active status, edit share or con
    }
    assert.equal(released.status,'prepared');assert.ok(released.sendHold?.at)
    assert.equal(released.scheduled,undefined);assert.equal(released.internalApproval,undefined)
-   assert.ok(released.events.some(e=>e.action==='envelope.send_held'&&e.detail.authority===actor.id))
+   const heldEvent = released.events.findLast(e=>e.action==='envelope.send_held')
+   assert.equal(heldEvent.detail.authority,actor.id)
+   if (mode==='internal') { assert.equal(heldEvent.actor,(await h.send('/api/inkwell',undefined,approver)).value.actor.id); assert.equal(heldEvent.detail.attemptedDecision,'approve'); assert.equal(heldEvent.detail.sendReleased,false) }
    assert.equal(await h.mail(recipient,'Please sign:'),undefined,'no invitation after revoked authority or a changed definition')
    await h.command('envelope.open_signing',{id},h.owner,409)
    // Restoration of the old role/share/status does not automatically release a held confirmation.

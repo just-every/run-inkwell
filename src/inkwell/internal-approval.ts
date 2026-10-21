@@ -137,7 +137,7 @@ export async function decideApproval(env: Env, context: CommandContext, input: R
   const authority = await confirmedSendGuard(before, request.requestedBy.id, 'envelope.internal_approval_requested')
   if (!await hasSendAuthority(env, authority)) {
     const result = { id: before.id, status: 'prepared', held: true }
-    await holdSend(env, before, request.requestedBy.id, authority, [commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)], [roleGuard(context.actor)])
+    await holdSend(env, before, request.requestedBy.id, authority, [commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)], [roleGuard(context.actor)], context.actor.id)
     return result
   }
   after.internalApproval!.state = 'approved'
