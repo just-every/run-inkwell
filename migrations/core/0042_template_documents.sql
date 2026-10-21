@@ -1,0 +1,1 @@
+CREATE TABLE iw_template_document_blobs(template_id TEXT NOT NULL REFERENCES iw_templates(id), document INTEGER NOT NULL, part INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY(template_id,document,part));

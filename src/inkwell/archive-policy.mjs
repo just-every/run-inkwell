@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { validDocumentRecord } from './document-record.mjs';
 import { validCommentRecords } from './comment-record.mjs';
 import { validSupplementRecord } from './supplement-record.mjs';
 import { stampEvidence } from './stamp-evidence.mjs';
@@ -8,52 +10,47 @@ import { canonicalJson, sha256 } from '@runeditrun/rer/modules/portability';
 // document custody travels. A restored member is a viewer until an owner or admin chooses.
 export default {
   product: 'signatures/inkwell',
-  excludeTables: ['iw_followup_capabilities', 'iw_followup_receipts', 'iw_api_keys', 'iw_template_revisions', 'iw_member_access', 'iw_import_retention_mail', 'iw_guards', 'iw_commands', 'iw_agents', 'iw_mail', 'iw_access_codes', 'iw_member_roles', 'iw_copy_links', 'iw_settings', 'iw_freeform_history', 'iw_freeform_policy', 'iw_member_marks', 'iw_shares', 'iw_template_shares', 'iw_contacts', 'iw_notices', 'iw_notice_posts', 'iw_notice_prefs', 'iw_notice_channels', 'iw_retention_purges', 'ik_d1_assertions', 'rer_mail_event_receipts', 'rer_mail_event_states'],
+  excludeTables: ['iw_pdf_uploads','iw_pdf_upload_parts','iw_blob_staging','iw_followup_capabilities', 'iw_followup_receipts', 'iw_api_keys', 'iw_template_revisions', 'iw_member_access', 'iw_import_retention_mail', 'iw_guards', 'iw_commands', 'iw_agents', 'iw_mail', 'iw_access_codes', 'iw_member_roles', 'iw_copy_links', 'iw_settings', 'iw_freeform_history', 'iw_freeform_policy', 'iw_member_marks', 'iw_shares', 'iw_template_shares', 'iw_contacts', 'iw_notices', 'iw_notice_posts', 'iw_notice_prefs', 'iw_notice_channels', 'iw_retention_purges', 'ik_d1_assertions', 'rer_mail_event_receipts', 'rer_mail_event_states'],
   // SIGNX-001: a signer's saved, unsigned entries stay behind like their codes and sessions; DELIV-005: so does the sealed link.
   secretColumns: { iw_signers: ['code_hash', 'session_hash', 'progress', 'link_sealed'] },
   requiredConfiguration: ['OWNER_EMAIL', 'SESSION_SECRET', 'AUTH_ORIGIN', 'MAIL_PROVIDER', 'MAIL_FROM'],
-  async validateStaged({ read }) {
-    const envelopes = await read('iw_envelopes'), blobs = await read('iw_blobs'), events = await read('iw_events'), threads = await read('iw_comment_threads');
-    for (const row of envelopes) {
-      const e = JSON.parse(row.data);
-      if (!await validCommentRecords(e, threads.filter(t => t.envelope_id === e.id), canonicalJson, sha256)) return false;
-      if (e.id !== row.id || e.version !== row.version || !validSupplementRecord(e, canonicalJson) || !await verifyFreeFormRecord(e)) return false;
-      // PREP-003: recompute image type, bytes, fingerprint and provenance from signed values.
-      // Older records bind the same values with valuesSha256; they retain their original audit/certificate.
-      try {
-        for (const [index, signer] of e.signers.entries()) {
-          const fields = e.fields.filter(f => f.signer === index);
-          if (!signer.signedAt || !fields.some(f => f.type === 'stamp' && signer.values?.[f.id])) continue;
-          const signed = e.events.findLast(event => event.action === 'signer.signed' && event.detail.signer === index);
-          if (!signed || signed.detail.valuesSha256 !== await sha256(canonicalJson(signer.values))) return false;
-          const stamps = await stampEvidence(fields, signer.values);
-          if (signed.detail.stamps !== undefined && canonicalJson(signed.detail.stamps) !== canonicalJson(stamps)) return false;
-        }
-      } catch { return false; }
-      let previousHash = '';
-      for (let i = 0; i < e.events.length; i++) {
-        const { hash, ...body } = e.events[i];
-        const stored = events.find(r => r.envelope_id === e.id && r.sequence === i);
-        if (body.previousHash !== previousHash || hash !== await sha256(canonicalJson(body)) || !stored || stored.hash !== hash || canonicalJson(JSON.parse(stored.data)) !== canonicalJson(e.events[i])) return false;
-        previousHash = hash;
-      }
-      for (const [kind, fingerprint] of [['original', e.originalSha256], ['signed', e.signedSha256], ['certificate', e.certificateSha256], ...(e.supplements ?? []).map(s => [`supplement-${s.id}`, s.sha256])]) {
-        if (!fingerprint) { if (kind === 'original' || (e.status === 'completed' && kind !== 'original')) return false; continue; }
-        const parts = blobs.filter(r => r.envelope_id === e.id && r.kind === kind).sort((a,b) => a.part-b.part);
-        if (!parts.length || parts.some((r,i) => r.part !== i || !(Array.isArray(r.data) || r.data instanceof ArrayBuffer))) return false;
-        const chunks = parts.map(r => new Uint8Array(r.data));
-        const bytes = new Uint8Array(chunks.reduce((n,c) => n+c.length,0)); let offset = 0;
-        for (const chunk of chunks) { bytes.set(chunk,offset); offset += chunk.length; }
-        if (await sha256(bytes) !== fingerprint) return false;
-      }
+  async validateStaged({ db, tables }) {
+    const table=name=>tables[name] ? '"'+tables[name].replaceAll('"','""')+'"' : null;
+    async function* rows(name,where='',values=[]) {
+      const source=table(name);if(!source)return;
+      for(let offset=0;;offset+=32){const batch=(await db.prepare(`SELECT * FROM ${source}${where?' WHERE '+where:''} ORDER BY rowid LIMIT 32 OFFSET ?`).bind(...values,offset).all()).results;if(!batch.length)break;yield* batch;}
     }
-    const templates = await read('iw_templates'), templateBlobs = await read('iw_template_supplement_blobs');
-    for (const row of templates) for (const s of JSON.parse(row.data).supplements ?? []) {
-      const parts = templateBlobs.filter(r => r.template_id === row.id && r.supplement_id === s.id).sort((a,b) => a.part-b.part);
-      if (!parts.length || parts.some((r,i) => r.part !== i)) return false;
-      const chunks = parts.map(r => new Uint8Array(r.data)), bytes = new Uint8Array(chunks.reduce((n,c) => n+c.length,0));
-      let offset = 0; for (const chunk of chunks) { bytes.set(chunk,offset); offset += chunk.length; }
-      if (bytes.length !== s.bytes || await sha256(bytes) !== s.sha256) return false;
+    async function fingerprint(name,where,values,expected) {
+      const source=table(name);if(!source)return false;
+      const digest=createHash('sha256');let part=0;
+      for(;;){const batch=(await db.prepare(`SELECT part,data FROM ${source} WHERE ${where} AND part>=? ORDER BY part LIMIT 4`).bind(...values,part).all()).results;if(!batch.length)break;
+       for(const row of batch){if(row.part!==part++)return false;digest.update(new Uint8Array(row.data));}}
+      return part>0&&digest.digest('hex')===expected;
+    }
+    for await(const row of rows('iw_envelopes')) {
+      const e=JSON.parse(row.data);
+      if(e.id!==row.id||e.version!==row.version||!validDocumentRecord(e,canonicalJson)||!validSupplementRecord(e,canonicalJson)||!await verifyFreeFormRecord(e))return false;
+      const threads=[];for await(const r of rows('iw_comment_threads','envelope_id=?',[e.id]))threads.push(r);
+      if(!await validCommentRecords(e,threads,canonicalJson,sha256))return false;
+      try {for(const [index,signer] of e.signers.entries()){
+        const fields=e.fields.filter(f=>f.signer===index);if(!signer.signedAt||!fields.some(f=>f.type==='stamp'&&signer.values?.[f.id]))continue;
+        const signed=e.events.findLast(event=>event.action==='signer.signed'&&event.detail.signer===index);
+        if(!signed||signed.detail.valuesSha256!==await sha256(canonicalJson(signer.values)))return false;
+        const stamps=await stampEvidence(fields,signer.values);if(signed.detail.stamps!==undefined&&canonicalJson(signed.detail.stamps)!==canonicalJson(stamps))return false;
+      }}catch{return false;}
+      let previousHash='',index=0;for await(const stored of rows('iw_events','envelope_id=?',[e.id])){
+        const event=e.events[stored.sequence];if(!event||stored.sequence!==index++||canonicalJson(JSON.parse(stored.data))!==canonicalJson(event)||stored.hash!==event.hash)return false;
+        const {hash,...body}=event;if(body.previousHash!==previousHash||hash!==await sha256(canonicalJson(body)))return false;previousHash=hash;
+      }
+      if(index!==e.events.length)return false;
+      const artifacts=[['original',e.originalSha256],['signed',e.signedSha256],['certificate',e.certificateSha256],...(e.supplements??[]).map(s=>[`supplement-${s.id}`,s.sha256]),...(e.documents??[]).flatMap((d,i)=>[[`document-${i}`,d.sha256],[`executed-${i}`,d.signedSha256]])];
+      for(const [kind,hash] of artifacts){if(!hash){if(kind==='original'||e.status==='completed')return false;continue;}if(!await fingerprint('iw_blobs','envelope_id=? AND kind=?',[e.id,kind],hash))return false;}
+    }
+    for await(const row of rows('iw_templates')){
+      const t=JSON.parse(row.data);
+      if(!await fingerprint('iw_template_blobs','template_id=?',[row.id],t.originalSha256))return false;
+      for(const s of t.supplements??[])if(!await fingerprint('iw_template_supplement_blobs','template_id=? AND supplement_id=?',[row.id,s.id],s.sha256))return false;
+      for(const [i,d] of (t.documents??[]).entries())if(!await fingerprint('iw_template_document_blobs','template_id=? AND document=?',[row.id,i],d.sha256))return false;
     }
     return true;
   },

@@ -1,3 +1,4 @@
+import { documentFields } from './documents'
 import { normalizeFieldSchema } from './field-rules'
 import { insist, type Envelope, type Field } from './model'
 export { verifyFreeFormRecord } from './archive-policy.mjs'
@@ -6,7 +7,7 @@ export { verifyFreeFormRecord } from './archive-policy.mjs'
 export function placedFields(envelope: Envelope, signer: number, input: unknown): Field[] {
   insist(envelope.freeForm === true && envelope.freeFormSetting, 'This envelope is not open for free-form placement.', 409)
   insist(Array.isArray(input) && input.length <= 100, 'Place at most 100 fields for yourself.')
-  const allowed = new Set(['id', 'label', 'type', 'signer', 'page', 'x', 'y', 'width', 'height', 'required', 'masked'])
+  const allowed = new Set(['id', 'label', 'type', 'signer', 'page', 'x', 'y', 'width', 'height', 'required', 'masked', 'document', 'documentPage'])
   for (const field of input) {
     insist(field && typeof field === 'object' && !Array.isArray(field) && Object.keys(field).every(key => allowed.has(key)), 'Free-form fields may only describe your placement and value display.')
     insist(field.signer === signer, 'Place fields only for yourself.')
@@ -22,6 +23,7 @@ export function placedFields(envelope: Envelope, signer: number, input: unknown)
     insist(!signed.some(previous => overlaps(field, previous)), 'A placed field cannot overlap a field already signed.')
     if (field.type === 'signature') field.required = true
   }
+  documentFields(fields,envelope.documents,envelope.signers.length,true)
   return fields
 }
 export function overlaps(a: Field, b: Field) { return a.page === b.page && a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y }

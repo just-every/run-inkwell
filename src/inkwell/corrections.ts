@@ -1,3 +1,4 @@
+import { documentFields, documentInputFields } from './documents'
 import { advanceAfterSigning } from './signing'
 import { guardRoutingCorrection, normalizeRoutingRule, resolveRouting, routeSettled, validateCopyRouting, validateRouting } from './routing'
 // DELIV-006: correct an envelope in flight. Before a recipient acts, whoever may change the envelope (its sender, an edit
@@ -89,10 +90,11 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
   const removedPlaces = after.signers.flatMap((s, i) => s.removedAt ? [i] : [])
   const remainingFields = before.fields.filter(f => !removedPlaces.includes(f.signer))
   insist(!before.freeForm || input.fields === undefined || canonical(input.fields) === canonical(remainingFields), 'Corrections cannot add or change sender fields on a free-form envelope.', 409)
-  after.fields = before.freeForm ? remainingFields : validateFields(input.fields === undefined ? before.fields.filter(f => !removedPlaces.includes(f.signer)) : input.fields, after.signers.length, before.pageSizes.length, removedPlaces)
+  after.fields = before.freeForm ? remainingFields : validateFields(documentInputFields(input.fields === undefined ? before.fields.filter(f => !removedPlaces.includes(f.signer)) : input.fields, before.documents), after.signers.length, before.pageSizes.length, removedPlaces)
   const fixedFields = (fields: Field[]) => canonical(fields.filter(f => settled(before.signers[f.signer] ?? {} as Signer) && !before.signers[f.signer].removedAt).sort((a, b) => a.id.localeCompare(b.id)))
   insist(fixedFields(after.fields) === fixedFields(before.fields), 'A field of a recipient who has already signed cannot be changed.', 409)
 
+  documentFields(after.fields,after.documents,after.signers.length,Boolean(after.freeForm))
   validateRouting(after.signers,after.fields)
   guardRoutingCorrection(before,after)
 

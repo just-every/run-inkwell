@@ -45,8 +45,9 @@ export async function writeComment(env:Env,e:Envelope,p:Participant|null,input:R
  let thread:Thread
  if(action==='create') {
   insist(Number.isInteger(input.page)&&Number(input.page)>=0&&Number(input.page)<e.pageSizes.length,'Choose a page in this document.')
-  insist(input.document===undefined||input.document===0,'Choose the envelope document.')
-  thread={id:id(),envelopeId:e.id,document:0,page:Number(input.page),author:p.identity,audience:[],messages:[]}
+  const documentIndex=e.documents?.findIndex(d=>Number(input.page)>=d.pageStart&&Number(input.page)<d.pageStart+d.pages)??0
+  insist(input.document===undefined||input.document===documentIndex,'Choose the document containing this page.')
+  thread={id:id(),envelopeId:e.id,document:documentIndex,page:Number(input.page),author:p.identity,audience:[],messages:[]}
  }else{
   const row=await env.DB.prepare('SELECT data FROM iw_comment_threads WHERE envelope_id=? AND id=?').bind(e.id,text(input.thread,'a thread ID')).first<{data:string}>()
   insist(row,'Comment thread not found.',404);thread=JSON.parse(row.data)

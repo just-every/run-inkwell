@@ -148,6 +148,6 @@ export async function verifyCopyCode(env: Env, context: CopyContext, input: Reco
 }
 export async function copyArtifact(env: Env, context: CopyContext, kind: string) {
   insist(context.verified, 'Confirm the code sent to your email before downloading.', 401)
-  insist(['signed', 'certificate'].includes(kind), 'Choose the executed PDF or the certificate.', 404)
+  insist(['signed', 'certificate'].includes(kind)||/^executed-[0-9]+$/.test(kind), 'Choose the executed PDF or the certificate.', 404)
   return envelopeArtifact(env, context.envelope, kind)
 }

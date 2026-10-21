@@ -1,3 +1,7 @@
+import { uploadPdf, uploadedBytes } from './documents'
+import { templateOriginal } from './template-documents'
+import { loadTemplate } from './templates'
+import { download } from './blobs'
 import { commentView, memberCommentParticipant, signerCommentParticipant, writeComment } from './comments'
 import { setFollowup, resumeFollowup, followupView } from './followup-store'
 import { receiveFollowupReply } from './followup-inbound'
@@ -88,9 +92,12 @@ api.get('/api/inkwell/templates',async c=>{const actor=await requireActor(c.req.
 // TMPL-005: the templates whose document an upload on the prepare screen matches; nothing is placed or stored.
 // PREP-007: the fields an upload carries itself (text tags, anchors and PDF form fields), placed on the prepare screen
 // for the sender to keep or change; nothing is stored.
-api.post('/api/inkwell/documents/fields',async c=>{sameOrigin(c.req.raw,c.env);await requireActor(c.req.raw,c.env,['owner','admin','sender']);const input=object(await readJson(c.req.raw)),{document,pageSizes}=await parsePdf(fromBase64(input.pdfBase64));return c.json({fields:await documentFields(document,pageSizes,readAnchors(input.anchors))})})
+api.post('/api/inkwell/documents/uploads',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);return c.json(await uploadPdf(c.env,actor,c.req.raw))})
+api.put('/api/inkwell/documents/uploads/:id/parts/:part',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);return c.json(await uploadPdf(c.env,actor,c.req.raw,c.req.param('id'),c.req.param('part')))})
+api.post('/api/inkwell/documents/fields',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);const input=object(await readJson(c.req.raw)),{document,pageSizes}=await parsePdf(input.uploadId?(await uploadedBytes(c.env,actor,input.uploadId)).bytes:fromBase64(input.pdfBase64));return c.json({fields:await documentFields(document,pageSizes,readAnchors(input.anchors))})})
 api.post('/api/inkwell/templates/match',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);return c.json(await matchTemplates(c.env,actor,await readJson(c.req.raw)))})
 api.get('/api/inkwell/templates/:id/proposals',async c=>{const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);return c.json(await templateProposals(c.env,actor,c.req.param('id')))})
+api.get('/api/inkwell/templates/:id/documents/:index',async c=>{const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']),{template}=await loadTemplate(c.env,actor,c.req.param('id'),'use'),index=Number(c.req.param('index'));insist(Number.isInteger(index)&&template.documents?.[index],'Template document not found.',404);return download(await templateOriginal(c.env,template,index),template.documents[index].filename)})
 api.get('/api/inkwell/templates/:id/document',async c=>{const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);return templateDocument(c.env,actor,c.req.param('id'))})
 // DELIV-008: each member's activity feed and notification choices; every role has its own.
 api.get('/api/inkwell/notices',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json(await activityFeed(c.env,actor,new URL(c.req.url).searchParams))})
@@ -130,6 +137,7 @@ api.post('/api/inkwell/mail/replies',async c=>receiveFollowupReply(c.env,c.req.r
 api.post('/api/verify',async c=>c.json(await publicVerification(c.env,c.req.raw)))
 // ROUTE-009: a member signing with their session is offered the signature they saved.
 api.get('/api/sign/:token',async c=>{const context=await signingContext(c.env,c.req.param('token'),c.req.raw),member=context.verified?sessionMember(context.envelope,context.recipient.signer):undefined;return c.json({...signingView(context),mailSuppressed:mailSuppressed(c.env),...(member?await savedMarkView(c.env,member):{})})})
+api.get('/api/sign/:token/documents/:index',async c=>signingDocument(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),Number(c.req.param('index'))))
 api.get('/api/sign/:token/supplements/:id/document',async c=>supplementDocument(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),c.req.param('id')))
 api.post('/api/sign/:token/supplements/:id/acknowledge',async c=>{sameOrigin(c.req.raw,c.env);return c.json({ok:true,result:await acknowledgeSupplement(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),c.req.param('id'),await readJson(c.req.raw,4096))})})
 api.get('/api/sign/:token/document',async c=>signingDocument(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw)))

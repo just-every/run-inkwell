@@ -11,7 +11,7 @@ export async function validCommentRecords(envelope, rows, canonical, sha256) {
   try {
    const thread = JSON.parse(row.data);
    if (thread.id !== row.id || thread.envelopeId !== envelope.id || !expected.has(row.id) || await sha256(canonical(thread)) !== expected.get(row.id)) return false;
-   if (!Number.isInteger(thread.page) || thread.page < 0 || thread.page >= envelope.pageSizes.length || thread.document !== 0 || !thread.audience?.length || !thread.messages?.length) return false;
+   if (!Number.isInteger(thread.page) || thread.page < 0 || thread.page >= envelope.pageSizes.length || thread.document !== (envelope.documents?.findIndex(d=>thread.page>=d.pageStart&&thread.page<d.pageStart+d.pages)??0) || !thread.audience?.length || !thread.messages?.length) return false;
   } catch { return false; }
  }
  return true;

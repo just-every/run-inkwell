@@ -28,6 +28,8 @@ export function normalizeFieldSchema(value: unknown): Field[] {
     insist(Number.isInteger(f.signer) && f.signer >= 0 && Number.isInteger(f.page) && f.page >= 0, 'Each field must name an existing signer and PDF page.')
     insist([f.x, f.y, f.width, f.height].every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1) && f.width > 0 && f.height > 0 && f.x + f.width <= 1.000001 && f.y + f.height <= 1.000001, 'Keep each field inside its PDF page.')
     const field: Field = { id: f.id, label: f.label.trim(), type: f.type, signer: f.signer, page: f.page, x: f.x, y: f.y, width: f.width, height: f.height }
+    if(f.document!==undefined){insist(Number.isInteger(f.document)&&f.document>=0,'Choose a document index.');field.document=f.document}
+    if(f.documentPage!==undefined){insist(Number.isInteger(f.documentPage)&&f.documentPage>=0,'Choose a document page.');field.documentPage=f.documentPage}
     // PREP-007: the document's own name for the field and where it came from, kept through drafts, templates and copies.
     if (f.name !== undefined) { insist(typeof f.name === 'string' && f.name.trim().length > 0 && f.name.length <= 200 && !/[\x00-\x1f\x7f]/.test(f.name), `Keep ${field.label}'s document name to one line of at most 200 characters.`); field.name = f.name.trim() }
     if (f.origin !== undefined) { insist(['text_tag', 'anchor', 'form_field'].includes(f.origin), `Name where ${field.label} came from: a text tag, an anchor or a form field.`); field.origin = f.origin }

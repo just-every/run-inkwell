@@ -1,10 +1,11 @@
+import { consumedUploadWrites, readDocuments, documentInputFields, documentFields as mapDocumentFields, documentWrites, stagedBlobWrites } from './documents'
 import { envelopeDefaults } from './envelope-defaults'
 import { normalizeRoutingRule, validateCopyRouting, validateRouting } from './routing'
 import { fromBase64, blobWrites, readBlob } from './blobs'
 import { parsePdf, validateFields, validatePdfText, validatePrefilledFields } from './pdf'
 import { documentFields, readAnchors } from './document-fields'
 import { applyPrefillPayload } from './prefill'
-import { accessCodeHash, appendEvent, insist, now, object, sha256, text, type Envelope, type Env, type Field, type Signer } from './model'
+import { accessCodeHash, appendEvent, insist, now, object, sha256, text, type Actor, type Envelope, type Env, type Field, type Signer } from './model'
 import { commandWrite, commitEnvelope, getEnvelope } from './storage'
 import { chooseExpiry } from './expiry'
 import { chooseReminders } from './reminders'
@@ -17,16 +18,16 @@ import { groupPlace, snapshotGroup } from './signing-groups'
 /** PREP-009: what a prepared envelope holds, validated the same way when it is first saved and whenever its draft is
  * saved again: the PDF, title, recipients in routing order with any access code and private message, fields, expiry,
  * reminders, copy recipients, the paper option, and the invitation's subject and message. */
-export type Draft = Pick<Envelope, 'freeForm' | 'title' | 'filename' | 'signers' | 'fields' | 'pageSizes' | 'originalSha256' | 'expiresAt' | 'allowPaper' | 'allowReassign' | 'reminders' | 'copies' | 'subject' | 'message'>
+export type Draft = Pick<Envelope, 'documents' | 'freeForm' | 'title' | 'filename' | 'signers' | 'fields' | 'pageSizes' | 'originalSha256' | 'expiresAt' | 'allowPaper' | 'allowReassign' | 'reminders' | 'copies' | 'subject' | 'message'>
 const optional = (value: unknown, label: string, max: number, oneLine = false) => { if (value === undefined || value === '') return undefined; const result = text(value, label, max); insist(!oneLine || !/[\r\n\t]/.test(result), `Use a single line for ${label}.`); return result }
 /** `previous` is the draft being saved again: a recipient at the same place with the same email may keep their access
  * code (`keepAccessCode`), which is bound to that place. */
-export async function readDraft(env: Env, input: Record<string, unknown>, base: string, previous?: Envelope) {
+export async function readDraft(env: Env, input: Record<string, unknown>, base: string, previous?: Envelope, actor?: Actor, prepared?:{bytes:Uint8Array;documents:NonNullable<Envelope['documents']>}) {
   const defaults = previous ? undefined : await envelopeDefaults(env)
-  const title = text(input.title, 'a title'), filename = text(input.filename, 'a filename', 240)
+  const title = text(input.title, 'a title'), filename = text(input.filename ?? (input.documents ? 'combined.pdf' : undefined), 'a filename', 240)
   insist(!/[\x00-\x1f/\\]/.test(filename) && filename.toLowerCase().endsWith('.pdf'), 'Choose a PDF filename.')
   insist(!/[\r\n\t]/.test(title), 'Use a single line for the envelope title.')
-  const bytes = fromBase64(input.pdfBase64), { document, pageSizes } = await parsePdf(bytes)
+  const multiple = prepared?{...await parsePdf(prepared.bytes,2000),bytes:prepared.bytes,documents:prepared.documents,originals:undefined}:await readDocuments(env,input,actor,previous), bytes = multiple?.bytes ?? fromBase64(input.pdfBase64), { document, pageSizes } = multiple ?? await parsePdf(bytes)
   insist(Array.isArray(input.signers) && input.signers.length >= 1 && input.signers.length <= 5, 'Add 1–5 ordered signers.')
   const accessCodes: (string | 'keep' | undefined)[] = []
   const groups = await Promise.all(input.signers.map(value => object(value).group === undefined ? undefined : snapshotGroup(env, object(value).group)))
@@ -62,8 +63,9 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   insist(!freeForm || ((input.fields === undefined || Array.isArray(input.fields) && input.fields.length === 0) && input.anchors === undefined && input.prefill === undefined), 'Free-form envelopes have no sender-placed fields, anchors or prefilled values.')
   const carried = !freeForm && input.fields === undefined ? await documentFields(document, pageSizes, readAnchors(input.anchors)) : undefined
   for (const field of carried ?? []) insist(field.signer < signers.length, `The document places a field for recipient ${field.signer + 1} (${field.name}), but the envelope has ${signers.length}.`)
-  const placed = carried ?? input.fields
+  const placed = carried ?? documentInputFields(input.fields,multiple?.documents)
   const fields = freeForm ? [] : validateFields(Array.isArray(placed) && placed.every(field => field && typeof field === 'object') ? applyPrefillPayload(placed as Field[], input.prefill, 'this envelope') : placed, signers.length, pageSizes.length), copies = chooseCopies(input.copies, signers.flatMap(s => s.group ? s.group.members : [s]))
+  mapDocumentFields(fields,multiple?.documents,signers.length,freeForm)
   validateRouting(signers, fields)
   validateCopyRouting(copies, fields)
   await validatePdfText([...signers, ...copies].flatMap(person=>person.includeWhen?[person.includeWhen.value]:[]))
@@ -74,11 +76,11 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   const allowPaper = input.allowPaperSigning === true, allowReassign = input.allowReassignment === true, reminders = chooseReminders(input.reminders === undefined ? defaults?.reminders : input.reminders)
   const subject = optional(input.subject, 'the email subject', 200, true), message = optional(input.message, 'the message', 2000)
   await validatePdfText([title, ...[...signers, ...copies].flatMap(s => [s.name, s.email]), ...signers.flatMap(s => s.group ? s.group.members.flatMap(m => [m.name, m.email]) : [])])
-  const draft: Draft = { ...(freeForm ? { freeForm: true } : {}), title, filename, signers, fields, pageSizes, originalSha256: await sha256(bytes), expiresAt: chooseExpiry(input.expiresAt, base, defaults?.expiryDays), ...(allowPaper ? { allowPaper } : {}), ...(allowReassign ? { allowReassign } : {}), ...(reminders ? { reminders } : {}), ...(copies.length ? { copies } : {}), ...(subject ? { subject } : {}), ...(message ? { message } : {}) }
-  return { draft, bytes, accessCodes }
+  const draft: Draft = { ...(multiple?{documents:multiple.documents}:{}), ...(freeForm ? { freeForm: true } : {}), title, filename, signers, fields, pageSizes, originalSha256: await sha256(bytes), expiresAt: chooseExpiry(input.expiresAt, base, defaults?.expiryDays), ...(allowPaper ? { allowPaper } : {}), ...(allowReassign ? { allowReassign } : {}), ...(reminders ? { reminders } : {}), ...(copies.length ? { copies } : {}), ...(subject ? { subject } : {}), ...(message ? { message } : {}) }
+  return { draft, bytes, accessCodes, originals:multiple?.originals }
 }
 /** The event detail a saved draft records (prepared or updated). */
-export const draftDetail = (d: Draft) => ({ ...(d.freeForm ? { freeForm: true } : {}), originalSha256: d.originalSha256, orderedSigners: d.signers, fields: d.fields, expiresAt: d.expiresAt, allowPaperSigning: Boolean(d.allowPaper), ...(d.allowReassign ? { allowReassignment: true } : {}), ...(d.reminders ? { reminders: d.reminders } : {}), ...(d.copies ? { copies: d.copies } : {}), ...(d.subject ? { subject: d.subject } : {}), ...(d.message ? { message: d.message } : {}) })
+export const draftDetail = (d: Draft) => ({ ...(d.documents?{documents:d.documents}:{}), ...(d.freeForm ? { freeForm: true } : {}), originalSha256: d.originalSha256, orderedSigners: d.signers, fields: d.fields, expiresAt: d.expiresAt, allowPaperSigning: Boolean(d.allowPaper), ...(d.allowReassign ? { allowReassignment: true } : {}), ...(d.reminders ? { reminders: d.reminders } : {}), ...(d.copies ? { copies: d.copies } : {}), ...(d.subject ? { subject: d.subject } : {}), ...(d.message ? { message: d.message } : {}) })
 export async function accessCodeWrites(env: Env, envelopeId: string, codes: (string | 'keep' | undefined)[]) {
   return Promise.all(codes.flatMap((code, i) => code && code !== 'keep' ? [accessCodeHash(env, envelopeId, i, code).then(hash => env.DB.prepare('INSERT INTO iw_access_codes(envelope_id,signer,code_hash) VALUES(?,?,?)').bind(envelopeId, i, hash))] : []))
 }
@@ -91,12 +93,13 @@ export async function updateDraft(env: Env, context: CommandContext, input: Reco
   insist(!before.imported && before.status === 'prepared', 'Only a draft that has not been approved can be edited.', 409)
   // ROUTE-004: a draft waiting for internal approval is locked; a rejected one keeps its rejection until it is sent again.
   insist(before.internalApproval?.state !== 'pending', 'This envelope is waiting for internal approval and cannot be edited.', 409)
-  const { draft, bytes, accessCodes } = await readDraft(env, input, now(), before)
+  const { draft, bytes, accessCodes, originals } = await readDraft(env, input, now(), before, context.actor)
   const after: Envelope = { id: before.id, version: before.version, status: 'prepared', createdAt: before.createdAt, createdBy: before.createdBy, ...(before.sendHold ? { sendHold: before.sendHold } : {}), ...(before.template ? { template: before.template } : {}), ...(before.copiedFrom ? { copiedFrom: before.copiedFrom } : {}), ...(before.approvalRule ? { approvalRule: before.approvalRule } : {}), ...(before.internalApproval ? { internalApproval: before.internalApproval } : {}), events: structuredClone(before.events), ...(before.supplements ? { supplements: structuredClone(before.supplements) } : {}), ...draft }
   await appendEvent(after, 'envelope.updated', context.actor.id, draftDetail(draft))
   const result = { id: after.id }
   await commitEnvelope(env, before, after, context.actor, [
-    ...(draft.originalSha256 === before.originalSha256 ? [] : [env.DB.prepare("DELETE FROM iw_blobs WHERE envelope_id=? AND kind='original'").bind(after.id), ...blobWrites(env.DB, after.id, 'original', bytes)]),
+    ...(draft.originalSha256 === before.originalSha256 ? [] : [env.DB.prepare("DELETE FROM iw_blobs WHERE envelope_id=? AND kind='original'").bind(after.id), ...await stagedBlobWrites(env, after.id, 'original', bytes)]),
+    env.DB.prepare("DELETE FROM iw_blobs WHERE envelope_id=? AND kind GLOB 'document-[0-9]*'").bind(after.id), ...await documentWrites(env,after.id,originals),...consumedUploadWrites(env,input),
     env.DB.prepare(`DELETE FROM iw_access_codes WHERE envelope_id=?${accessCodes.some(code => code === 'keep') ? ` AND signer NOT IN (${accessCodes.flatMap((code, i) => code === 'keep' ? [i] : []).join(',')})` : ''}`).bind(after.id),
     ...await accessCodeWrites(env, after.id, accessCodes),
     commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])

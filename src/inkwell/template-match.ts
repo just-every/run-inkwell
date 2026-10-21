@@ -1,3 +1,5 @@
+import { templateOriginal } from './template-documents'
+import { uploadedBytes } from './documents'
 // TMPL-005: an uploaded PDF is compared with the documents of the templates this person may use. A template is offered
 // when the upload is the same file (its SHA-256 fingerprint, confidence 100%) or, when it has the same number of pages at
 // the same sizes (within one point, so every field lands where the template put it), when their page text is similar:
@@ -19,19 +21,22 @@ const sameGeometry = (a: Template['pageSizes'], b: Template['pageSizes']) => a.l
 
 /** `POST /api/inkwell/templates/match`: the templates whose document this upload matches, best first. */
 export async function matchTemplates(env: Env, actor: Actor, input: Record<string, unknown>) {
-  const bytes = fromBase64(input.pdfBase64), { document, pageSizes } = await parsePdf(bytes), fingerprint = await sha256(bytes)
+  const bytes = input.uploadId?(await uploadedBytes(env,actor,input.uploadId)).bytes:fromBase64(input.pdfBase64), { document, pageSizes } = await parsePdf(bytes), fingerprint = await sha256(bytes)
   let upload: Set<string> | undefined
   const matches: { template: { id: string; title: string; version: number }; method: 'fingerprint' | 'text'; confidence: number }[] = []
   for (const template of await visibleTemplates(env, actor)) {
-    const named = { id: template.id, title: template.title, version: template.version ?? 1 }
-    if (template.originalSha256 === fingerprint) { matches.push({ template: named, method: 'fingerprint', confidence: 100 }); continue }
-    if (!sameGeometry(template.pageSizes, pageSizes)) continue
-    if (!upload) { const words = documentWords(document); upload = shingles(words.length >= minimumWords ? words : []) }
-    if (!upload.size) continue
-    const words = documentWords((await parsePdf(await templateBytes(env, template))).document)
-    if (words.length < minimumWords) continue
-    const score = similarity(upload, shingles(words))
-    if (score >= textThreshold) matches.push({ template: named, method: 'text', confidence: Math.floor(score * 100) })
+    const candidates=template.documents?.map((d,i)=>({sha256:d.sha256,pageSizes:template.pageSizes.slice(d.pageStart,d.pageStart+d.pages),bytes:()=>templateOriginal(env,template,i),index:i}))??[{sha256:template.originalSha256,pageSizes:template.pageSizes,bytes:()=>templateBytes(env,template),index:undefined}];
+    let best:typeof matches[number]|undefined;
+    for(const candidate of candidates){
+      const named={id:template.id,title:template.title,version:template.version??1,...(candidate.index===undefined?{}:{document:candidate.index})};
+      if(candidate.sha256===fingerprint){best={template:named,method:'fingerprint',confidence:100};break;}
+      if(!sameGeometry(candidate.pageSizes,pageSizes))continue;
+      if(!upload){const words=documentWords(document);upload=shingles(words.length>=minimumWords?words:[]);}
+      if(!upload.size)continue;
+      const words=documentWords((await parsePdf(await candidate.bytes())).document);if(words.length<minimumWords)continue;
+      const score=similarity(upload,shingles(words));if(score>=textThreshold&&(!best||score*100>best.confidence))best={template:named,method:'text',confidence:Math.floor(score*100)};
+    }
+    if(best)matches.push(best);
   }
   return { matches: matches.sort((a, b) => b.confidence - a.confidence).slice(0, maxOffers) }
 }

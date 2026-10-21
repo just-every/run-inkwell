@@ -1,3 +1,5 @@
+import { consumedUploadWrites, readDocuments, documentFields, documentInputFields, documentWrites, stagedBlobWrites, type EnvelopeDocument } from './documents'
+import { templateOriginal, templateDocumentWrites } from './template-documents'
 import { envelopeDefaults } from './envelope-defaults'
 import { normalizeRoutingRule, validateRouting } from './routing'
 // TMPL-001: a template keeps one fixed PDF with its roles in routing order, fields, messages, reminders, expiry and
@@ -19,7 +21,7 @@ import { supplementDefinition, supplementsFromEnvelope, supplementsFromTemplate,
 
 /** A role is a place in the routing order with no person yet; `accessCode` says the sender gives that person a code. */
 export interface Role { includeWhen?: import('./model').RoutingRule; role: string; order: number; accessCode?: boolean; linkOnly?: boolean; message?: string }
-export interface Template { supplements?: Supplement[]; maintenance?: { proposalId: string; by: string; at: string; examples: { id: string; eventHash: string }[] }; approval?: import('./model').ApprovalRule; id: string; title: string; filename: string; originalSha256: string; pageSizes: { width: number; height: number }[]; roles: Role[]; fields: Field[]; expiryDays: number; reminders?: { afterDays: number; everyDays: number }; allowPaper?: boolean; allowReassign?: boolean; subject?: string; message?: string; createdBy: string; createdAt: string; version?: number; updatedAt?: string; tags?: string[] }
+export interface Template { documents?: EnvelopeDocument[]; supplements?: Supplement[]; maintenance?: { proposalId: string; by: string; at: string; examples: { id: string; eventHash: string }[] }; approval?: import('./model').ApprovalRule; id: string; title: string; filename: string; originalSha256: string; pageSizes: { width: number; height: number }[]; roles: Role[]; fields: Field[]; expiryDays: number; reminders?: { afterDays: number; everyDays: number }; allowPaper?: boolean; allowReassign?: boolean; subject?: string; message?: string; createdBy: string; createdAt: string; version?: number; updatedAt?: string; tags?: string[] }
 /** TMPL-003: a template stored before versions is version 1. */
 const versionOf = (template: Template) => template.version ?? 1
 const day = 86_400_000
@@ -71,13 +73,13 @@ export async function listTemplates(env: Env, actor: Actor, params = new URLSear
 
 /** The prepare screen's PDF, fields and settings, with roles in place of people, validated for a new template or a new
  * version of one. */
-async function readTemplate(env: Env, input: Record<string, unknown>) {
+async function readTemplate(env: Env, input: Record<string, unknown>, actor:Actor, retained?:{documents:EnvelopeDocument[];read:(index:number)=>Promise<Uint8Array>}) {
   insist(input.supplements === undefined, 'Save supplemental documents from an envelope; template edits keep the saved documents.')
   const defaults = await envelopeDefaults(env)
   const title = text(input.title, 'a template name'), filename = text(input.filename, 'a filename', 240)
   insist(!/[\x00-\x1f/\\]/.test(filename) && filename.toLowerCase().endsWith('.pdf'), 'Choose a PDF filename.')
   insist(!/[\r\n\t]/.test(title), 'Use a single line for the template name.')
-  const bytes = fromBase64(input.pdfBase64), { pageSizes } = await parsePdf(bytes)
+  const multiple=await readDocuments(env,input,actor,undefined,retained),bytes=multiple?.bytes??fromBase64(input.pdfBase64),{pageSizes}=multiple??await parsePdf(bytes)
   insist(Array.isArray(input.roles) && input.roles.length >= 1 && input.roles.length <= 5, 'Add 1–5 roles in routing order.')
   const roles: Role[] = input.roles.map((value, i) => {
     const r = object(value), order = r.order === undefined ? i + 1 : r.order, message = optional(r.message, 'the private message', 1000)
@@ -87,7 +89,8 @@ async function readTemplate(env: Env, input: Record<string, unknown>) {
     return { ...(r.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(r.includeWhen)}), role: text(r.role, 'the role name', 100), order: order as number, ...(r.accessCode ? { accessCode: true } : {}), ...(r.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
   })
   insist(new Set(roles.map(r => r.role.toLowerCase())).size === roles.length, 'Give each role a different name.')
-  const fields = validateFields(input.fields, roles.length, pageSizes.length)
+  const fields = validateFields(documentInputFields(input.fields,multiple?.documents), roles.length, pageSizes.length)
+  documentFields(fields,multiple?.documents,roles.length)
   validateRouting(roles, fields)
   await validatePdfText(roles.flatMap(person=>person.includeWhen?[person.includeWhen.value]:[]))
   await validatePrefilledFields(fields)
@@ -103,14 +106,14 @@ async function readTemplate(env: Env, input: Record<string, unknown>) {
   await validatePdfText([title, ...roles.map(r => r.role)])
   // ROUTE-004: the template's internal approval rule, saved with this version.
   const approval = await normalizeApprovalRule(env, input.approval)
-  const definition = { ...(approval ? { approval } : {}), title, ...(tags.length ? { tags } : {}), filename, originalSha256: await sha256(bytes), pageSizes, roles, fields, expiryDays: expiryDays as number, ...(reminders ? { reminders } : {}), ...(input.allowPaperSigning ? { allowPaper: true } : {}), ...(input.allowReassignment ? { allowReassign: true } : {}), ...(subject ? { subject } : {}), ...(message ? { message } : {}) }
-  return { definition, bytes }
+  const definition = { ...(multiple?{documents:multiple.documents}:{}), ...(approval ? { approval } : {}), title, ...(tags.length ? { tags } : {}), filename, originalSha256: await sha256(bytes), pageSizes, roles, fields, expiryDays: expiryDays as number, ...(reminders ? { reminders } : {}), ...(input.allowPaperSigning ? { allowPaper: true } : {}), ...(input.allowReassignment ? { allowReassign: true } : {}), ...(subject ? { subject } : {}), ...(message ? { message } : {}) }
+  return { definition, bytes, originals:multiple?.originals }
 }
 const blobInserts = (env: Env, templateId: string, bytes: Uint8Array) => { const parts: D1PreparedStatement[] = []; for (let offset = 0; offset < bytes.length; offset += 64 * 1024) parts.push(env.DB.prepare('INSERT INTO iw_template_blobs(template_id,part,data) VALUES(?,?,?)').bind(templateId, parts.length, bytes.slice(offset, offset + 64 * 1024).buffer)); return parts }
-async function insertTemplate(env: Env, context: CommandContext, input: Record<string, unknown>, extra: Record<string, unknown> = {}, custody?: { artifacts: TemplateSupplementArtifact[]; guard: Guard }) {
-  const { definition, bytes } = await readTemplate(env, input), template: Template = { id: id(), ...definition, createdBy: context.actor.id, createdAt: now(), version: 1, ...(custody?.artifacts.length ? { supplements: custody.artifacts.map(a => a.supplement) } : {}) }
+async function insertTemplate(env: Env, context: CommandContext, input: Record<string, unknown>, extra: Record<string, unknown> = {}, custody?: { artifacts: TemplateSupplementArtifact[]; guard: Guard; source?:Envelope }) {
+  const { definition, bytes, originals } = await readTemplate(env, input, context.actor,custody?.source?.documents?{documents:custody.source.documents,read:i=>readBlob(env.DB,custody.source!.id,`document-${i}`,custody.source!.documents![i].sha256)}:undefined), template: Template = { id: id(), ...definition, createdBy: context.actor.id, createdAt: now(), version: 1, ...(custody?.artifacts.length ? { supplements: custody.artifacts.map(a => a.supplement) } : {}) }
   const folder = await targetFolder(env, context.actor, input.folderId), result = { id: template.id, version: 1, ...extra }
-  await atomic(env.DB, [roleGuard(context.actor), ...(custody ? [custody.guard] : [])], [env.DB.prepare('INSERT INTO iw_templates(id,created_by,created_at,data,folder_id) VALUES(?,?,?,?,?)').bind(template.id, template.createdBy, template.createdAt, JSON.stringify(template), folder), ...blobInserts(env, template.id, bytes), ...(custody?.artifacts ?? []).flatMap(a => templateSupplementWrites(env.DB, template.id, a.supplement.id, a.bytes)), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
+  await atomic(env.DB, [roleGuard(context.actor), ...(custody ? [custody.guard] : [])], [env.DB.prepare('INSERT INTO iw_templates(id,created_by,created_at,data,folder_id) VALUES(?,?,?,?,?)').bind(template.id, template.createdBy, template.createdAt, JSON.stringify(template), folder), ...blobInserts(env, template.id, bytes), ...await templateDocumentWrites(env,template.id,originals),...consumedUploadWrites(env,input), ...(custody?.artifacts ?? []).flatMap(a => templateSupplementWrites(env.DB, template.id, a.supplement.id, a.bytes)), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   return result
 }
 /** `template.save`: a new template, version 1. */
@@ -119,14 +122,14 @@ export const saveTemplate = (env: Env, context: CommandContext, input: Record<st
 /** TMPL-003 `template.update`: an edit is the template's next version. Envelopes already sent keep their own bytes,
  * fields and settings and name the version they came from, so nothing sent changes. */
 export async function updateTemplate(env: Env, context: CommandContext, input: Record<string, unknown>, review?: { version: number; maintenance: NonNullable<Template['maintenance']>; guards: Guard[] }) {
-  const { template: before, row } = await loadTemplate(env, context.actor, text(input.id, 'a template ID'), 'edit'), { definition, bytes } = await readTemplate(env, input)
+  const { template: before, row } = await loadTemplate(env, context.actor, text(input.id, 'a template ID'), 'edit'), { definition, bytes, originals } = await readTemplate(env, {...input,...(before.documents&&input.documents===undefined?{documents:before.documents.map((d,i)=>({existing:i,mode:d.mode}))}:{})},context.actor,before.documents?{documents:before.documents,read:i=>templateOriginal(env,before,i)}:undefined)
   if (review) insist(before.createdBy === context.actor.id && versionOf(before) === review.version, 'This suggestion changed. Review it again before publishing.', 409)
   const after: Template = { ...(before.supplements?.length ? { supplements: before.supplements.map(supplementDefinition) } : {}), ...(review ? { maintenance: review.maintenance } : {}), ...definition, id: before.id, createdBy: before.createdBy, createdAt: before.createdAt, version: versionOf(before) + 1, updatedAt: now() }
   // TMPL-002: without `folderId` the template stays where it is; moving it is for those who manage it.
   const moving = input.folderId !== undefined && (input.folderId || null) !== row.folder_id
   if (moving) await loadTemplate(env, context.actor, before.id, 'manage')
   const folder = moving ? await targetFolder(env, context.actor, input.folderId) : row.folder_id, result = { id: after.id, version: after.version }
-  await atomic(env.DB, [roleGuard(context.actor), ...(review?.guards ?? []), { sql: 'EXISTS(SELECT 1 FROM iw_templates WHERE id=? AND data=?)', values: [before.id, JSON.stringify(before)] }], [env.DB.prepare('UPDATE iw_templates SET data=?,folder_id=? WHERE id=?').bind(JSON.stringify(after), folder, after.id), env.DB.prepare('DELETE FROM iw_template_blobs WHERE template_id=?').bind(after.id), ...blobInserts(env, after.id, bytes), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
+  await atomic(env.DB, [roleGuard(context.actor), ...(review?.guards ?? []), { sql: 'EXISTS(SELECT 1 FROM iw_templates WHERE id=? AND data=?)', values: [before.id, JSON.stringify(before)] }], [env.DB.prepare('UPDATE iw_templates SET data=?,folder_id=? WHERE id=?').bind(JSON.stringify(after), folder, after.id), env.DB.prepare('DELETE FROM iw_template_blobs WHERE template_id=?').bind(after.id), ...blobInserts(env, after.id, bytes), env.DB.prepare('DELETE FROM iw_template_document_blobs WHERE template_id=?').bind(after.id),...await templateDocumentWrites(env,after.id,originals),...consumedUploadWrites(env,input), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   return result
 }
 
@@ -141,7 +144,7 @@ export async function templateFromEnvelope(env: Env, context: CommandContext, in
   const [bytes, artifacts] = await Promise.all([readBlob(env.DB, envelope.id, 'original', envelope.originalSha256), supplementsFromEnvelope(env, envelope)]), kept = envelope.signers.flatMap((s, i) => s.removedAt ? [] : [i])
   const names = (envelope.events.find(e => e.action === 'envelope.prepared')?.detail.template as { roles?: string[] } | undefined)?.roles ?? []
   const days = Math.min(maxExpiryDays, Math.max(1, Math.round((Date.parse(envelope.expiresAt) - Date.parse(envelope.createdAt)) / day)))
-  return insertTemplate(env, context, { title: input.title === undefined ? envelope.title : input.title, filename: envelope.filename, pdfBase64: base64(bytes), roles: kept.map((i, k) => ({ ...(envelope.signers[i].includeWhen?{includeWhen:envelope.signers[i].includeWhen}:{}), role: names[i] ?? `Signer ${k + 1}`, order: envelope.signers[i].order ?? i + 1, ...(envelope.signers[i].accessCode ? { accessCode: true } : {}), ...(envelope.signers[i].linkOnly ? { linkOnly: true } : {}), ...(envelope.signers[i].message ? { message: envelope.signers[i].message } : {}) })), fields: envelope.fields.filter(f => kept.includes(f.signer)).map(f => ({ ...f, signer: kept.indexOf(f.signer) })), expiryDays: days, reminders: envelope.reminders ?? null, ...(envelope.allowPaper ? { allowPaperSigning: true } : {}), ...(envelope.allowReassign ? { allowReassignment: true } : {}), ...(envelope.subject ? { subject: envelope.subject } : {}), ...(envelope.message ? { message: envelope.message } : {}), ...(envelope.approvalRule ? { approval: envelope.approvalRule } : {}) }, { fromEnvelope: envelope.id }, { artifacts, guard: { sql: 'EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=?)', values: [envelope.id, envelope.version] } })
+  return insertTemplate(env, context, { ...(envelope.documents?{documents:envelope.documents.map((d,i)=>({existing:i,mode:d.mode}))}:{}), title: input.title === undefined ? envelope.title : input.title, filename: envelope.filename, pdfBase64: base64(bytes), roles: kept.map((i, k) => ({ ...(envelope.signers[i].includeWhen?{includeWhen:envelope.signers[i].includeWhen}:{}), role: names[i] ?? `Signer ${k + 1}`, order: envelope.signers[i].order ?? i + 1, ...(envelope.signers[i].accessCode ? { accessCode: true } : {}), ...(envelope.signers[i].linkOnly ? { linkOnly: true } : {}), ...(envelope.signers[i].message ? { message: envelope.signers[i].message } : {}) })), fields: envelope.fields.filter(f => kept.includes(f.signer)).map(f => ({ ...f, signer: kept.indexOf(f.signer) })), expiryDays: days, reminders: envelope.reminders ?? null, ...(envelope.allowPaper ? { allowPaperSigning: true } : {}), ...(envelope.allowReassign ? { allowReassignment: true } : {}), ...(envelope.subject ? { subject: envelope.subject } : {}), ...(envelope.message ? { message: envelope.message } : {}), ...(envelope.approvalRule ? { approval: envelope.approvalRule } : {}) }, { fromEnvelope: envelope.id }, { artifacts, source:envelope, guard: { sql: 'EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=?)', values: [envelope.id, envelope.version] } })
 }
 
 /** The template's current PDF, for its edit screen. */
@@ -149,7 +152,7 @@ export async function templateDocument(env: Env, actor: Actor, templateId: strin
 
 export async function removeTemplate(env: Env, context: CommandContext, input: Record<string, unknown>) {
   const { template } = await loadTemplate(env, context.actor, text(input.id, 'a template ID'), 'manage'), result = { id: template.id, removed: true }
-  await atomic(env.DB, [roleGuard(context.actor)], [env.DB.prepare("DELETE FROM iw_template_shares WHERE subject='template' AND subject_id=?").bind(template.id), env.DB.prepare('DELETE FROM iw_template_blobs WHERE template_id=?').bind(template.id), env.DB.prepare('DELETE FROM iw_template_supplement_blobs WHERE template_id=?').bind(template.id), env.DB.prepare('DELETE FROM iw_templates WHERE id=?').bind(template.id), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
+  await atomic(env.DB, [roleGuard(context.actor)], [env.DB.prepare("DELETE FROM iw_template_shares WHERE subject='template' AND subject_id=?").bind(template.id), env.DB.prepare('DELETE FROM iw_template_blobs WHERE template_id=?').bind(template.id), env.DB.prepare('DELETE FROM iw_template_supplement_blobs WHERE template_id=?').bind(template.id), env.DB.prepare('DELETE FROM iw_template_document_blobs WHERE template_id=?').bind(template.id), env.DB.prepare('DELETE FROM iw_templates WHERE id=?').bind(template.id), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   return result
 }
 
@@ -169,12 +172,12 @@ export async function useTemplate(env: Env, context: CommandContext, input: Reco
     return { ...(role.includeWhen?{includeWhen:role.includeWhen}:{}), ...(person.group === undefined ? { name: person.name, email: person.email } : { group: person.group }), order: role.order, ...(role.linkOnly ? { linkOnly: true } : {}), ...(code === undefined ? {} : { accessCode: code }), ...(role.message ? { message: role.message } : {}) }
   })
   const createdAt = now()
-  const { draft, accessCodes } = await readDraft(env, { title: template.title, filename: template.filename, pdfBase64: base64(bytes), signers, fields: applyPrefillPayload(template.fields, input.prefill), expiresAt: new Date(Date.parse(createdAt) + template.expiryDays * day).toISOString(), reminders: template.reminders ?? null, ...(template.allowPaper ? { allowPaperSigning: true } : {}), ...(template.allowReassign ? { allowReassignment: true } : {}), ...(template.subject ? { subject: template.subject } : {}), ...(template.message ? { message: template.message } : {}) }, createdAt)
+  const { draft, accessCodes } = await readDraft(env, { title: template.title, filename: template.filename, pdfBase64: base64(bytes), signers, fields: applyPrefillPayload(template.fields, input.prefill), expiresAt: new Date(Date.parse(createdAt) + template.expiryDays * day).toISOString(), reminders: template.reminders ?? null, ...(template.allowPaper ? { allowPaperSigning: true } : {}), ...(template.allowReassign ? { allowReassignment: true } : {}), ...(template.subject ? { subject: template.subject } : {}), ...(template.message ? { message: template.message } : {}) }, createdAt,undefined,context.actor,template.documents?{bytes,documents:template.documents}:undefined)
   const from = { id: template.id, title: template.title, version: versionOf(template) }
   const envelope = { id: id(), version: 1, status: 'prepared' as const, createdAt, createdBy: context.actor.id, ...draft, ...(artifacts.length ? { supplements: artifacts.map(a => a.supplement) } : {}), template: from, ...(template.approval ? { approvalRule: template.approval } : {}), events: [] }
   await appendEvent(envelope, 'envelope.prepared', context.actor.id, { ...draftDetail(draft), ...(envelope.supplements ? { supplements: envelope.supplements } : {}), template: { ...from, roles: template.roles.map(r => r.role) } })
   const result = { id: envelope.id, template: template.id }
-  await insertEnvelope(env.DB, envelope, context.actor, [...blobWrites(env.DB, envelope.id, 'original', bytes), ...artifacts.flatMap(a => blobWrites(env.DB, envelope.id, `supplement-${a.supplement.id}`, a.bytes)), ...await accessCodeWrites(env, envelope.id, accessCodes), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)], [{ sql: 'EXISTS(SELECT 1 FROM iw_templates WHERE id=? AND data=?)', values: [template.id, JSON.stringify(template)] }])
+  await insertEnvelope(env.DB, envelope, context.actor, [...await stagedBlobWrites(env, envelope.id, 'original', bytes), ...(template.documents??[]).map((_,i)=>env.DB.prepare('INSERT INTO iw_blobs(envelope_id,kind,part,data) SELECT ?,?,part,data FROM iw_template_document_blobs WHERE template_id=? AND document=?').bind(envelope.id,`document-${i}`,template.id,i)), ...artifacts.flatMap(a => blobWrites(env.DB, envelope.id, `supplement-${a.supplement.id}`, a.bytes)), ...await accessCodeWrites(env, envelope.id, accessCodes), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)], [{ sql: 'EXISTS(SELECT 1 FROM iw_templates WHERE id=? AND data=?)', values: [template.id, JSON.stringify(template)] }])
   await readBlob(env.DB, envelope.id, 'original', envelope.originalSha256)
   return result
 }

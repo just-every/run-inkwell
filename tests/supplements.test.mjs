@@ -292,3 +292,82 @@ test('Private page threads: chosen audiences, inherited replies, identity epochs
   assert.ok((await h.send(returned.path,undefined,returned.cookie)).value.supplements.every(s=>!s.viewedAt&&!s.acknowledgedAt))
  }finally{await h.close()}
 })
+
+test('Ordered documents: two signers complete agreement and W-9 in one session each; view-only policy, separate executed files, one certificate and full draft/template/archive custody',async()=>{
+ const h=await harness({mailProvider:null})
+ try{
+  const originals=await Promise.all(['Service agreement','W-9 taxpayer form','View-only service policy'].map(pdf))
+  const documents=originals.map((bytes,i)=>({filename:['agreement.pdf','w9.pdf','policy.pdf'][i],pdfBase64:base64(bytes),mode:i===2?'view':'sign'}))
+  const fields=[0,1].flatMap(document=>people.map((_,signer)=>({...field(signer),id:`d${document}-s${signer}`,document,page:0})))
+  const input={title:'Three-document supplier agreement',filename:'combined.pdf',documents,signers:people,fields}
+  await h.command('envelope.prepare',{...input,documents:Array(21).fill(documents[0])},h.owner,400)
+  await h.command('envelope.prepare',{...input,fields:[...fields,{...field(0),id:'view-only-signature',document:2,page:0}]},h.owner,400)
+  await h.command('envelope.prepare',{...input,fields:fields.filter(f=>f.document===0)},h.owner,400)
+  const id=(await h.command('envelope.prepare',input)).result.id,base=`/api/inkwell/envelopes/${id}`
+  let record=await envelope(h,id)
+  assert.deepEqual(record.documents.map(d=>[d.filename,d.mode,d.pageStart,d.pages]),[['agreement.pdf','sign',0,1],['w9.pdf','sign',1,1],['policy.pdf','view',2,1]])
+  assert.deepEqual(record.fields.map(f=>[f.document,f.documentPage,f.page]),[[0,0,0],[0,0,0],[1,0,1],[1,0,1]])
+  for(let i=0;i<3;i++)assert.deepEqual((await h.send(base+`/artifacts/document-${i}`,undefined,h.owner)).bytes,originals[i])
+  assert.equal((await h.send(base+'/artifacts/executed-0',undefined,h.owner)).status,404)
+  // An optional document can be left without signing fields; a view-only one can never get one.
+  await h.command('envelope.prepare',{...input,title:'Optional W-9',documents:documents.map((d,i)=>i===1?{...d,mode:'optional'}:d),fields:fields.filter(f=>f.document===0)})
+  const first=await verify(h,(await h.command('envelope.approve',{id,eligible:true})).result.invitations[0]);await h.agree(first.path,first.cookie)
+  assert.deepEqual((await h.send(first.path,undefined,first.cookie)).value.documents.map(d=>d.filename),['agreement.pdf','w9.pdf','policy.pdf'])
+  assert.deepEqual((await h.send(first.path+'/documents/2',undefined,first.cookie)).bytes,originals[2])
+  await h.post(first.path+'/sign',{values:{'d0-s0':people[0].name},consent:true,commandId:crypto.randomUUID()},first.cookie,400)
+  await h.post(first.path+'/sign',{values:{'d0-s0':people[0].name,'d1-s0':people[0].name},consent:true,commandId:crypto.randomUUID()},first.cookie)
+  assert.equal((await envelope(h,id)).status,'awaiting_signature')
+  const second=await verify(h,(await h.command('envelope.invite',{id})).result.invitations[0]);await h.agree(second.path,second.cookie)
+  await h.post(second.path+'/sign',{values:{'d0-s1':people[1].name,'d1-s1':people[1].name},consent:true,commandId:crypto.randomUUID()},second.cookie)
+  record=await envelope(h,id);assert.equal(record.status,'completed')
+  const combined=await PDFDocument.load((await h.send(base+'/artifacts/signed',undefined,h.owner)).bytes)
+  assert.equal(combined.getPageCount(),3)
+  for(let i=0;i<3;i++){
+   const executed=(await h.send(base+`/artifacts/executed-${i}`,undefined,h.owner)).bytes
+   assert.equal((await PDFDocument.load(executed)).getPageCount(),1);assert.equal(digest(executed),record.documents[i].signedSha256)
+   const text=await pdfText(executed);assert.ok(text.includes(['Service agreement','W-9 taxpayer form','View-only service policy'][i]))
+   if(i<2)for(const p of people)assert.ok(text.includes(p.name),'each required document carries both adopted signatures')
+   else for(const p of people)assert.ok(!text.includes(p.name),'view-only policy has no signature overlay')
+   assert.deepEqual((await h.send(second.path+`/artifacts/executed-${i}`,undefined,second.cookie)).bytes,executed)
+  }
+  const certificate=await pdfText((await h.send(base+'/artifacts/certificate',undefined,h.owner)).bytes)
+  for(const d of record.documents){assert.ok(certificate.includes(d.filename));for(const hash of [d.sha256,d.signedSha256])assert.ok(certificate.replace(/\s/g,'').includes(hash))}
+  assert.equal((await h.send(base+'/verify',undefined,h.owner)).value.ok,true)
+  const copy=(await h.command('envelope.copy',{id})).result.id,template=(await h.command('template.from_envelope',{id})).result.id
+  let definition=(await h.send('/api/inkwell/templates',undefined,h.owner)).value.templates.find(t=>t.id===template)
+  await h.command('template.update',{...definition,documents:definition.documents.map((d,i)=>({existing:i,mode:d.mode})),supplements:undefined,title:'Edited multi-document template',pdfBase64:base64((await h.send(base+'/artifacts/original',undefined,h.owner)).bytes)})
+  const use=(await h.command('template.use',{id:template,recipients:people})).result.id
+  for(const fresh of [copy,use]){
+   const e=await envelope(h,fresh);assert.deepEqual(e.documents.map(({signedSha256,...d})=>d),record.documents.map(({signedSha256,...d})=>d));assert.ok(e.documents.every(d=>!d.signedSha256));assert.ok(e.signers.every(s=>!s.signedAt))
+   for(let i=0;i<3;i++)assert.deepEqual((await h.send(`/api/inkwell/envelopes/${fresh}/artifacts/document-${i}`,undefined,h.owner)).bytes,originals[i])
+  }
+  const copied=await envelope(h,copy),reordered=[{existing:2,mode:'view'},{existing:0,mode:'sign'},{existing:1,mode:'sign'}]
+  await h.command('envelope.update',{...input,id:copy,documents:reordered,fields:copied.fields.map(f=>({...f,document:f.document+1,documentPage:0,page:0}))})
+  assert.deepEqual((await envelope(h,copy)).documents.map(d=>d.filename),['policy.pdf','agreement.pdf','w9.pdf'])
+  const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value,destination=await harness({mailProvider:null})
+  try{await destination.post('/api/inkwell/archive/restore',{archive});assert.equal((await destination.send(base+'/verify',undefined,destination.owner)).value.ok,true);const used=(await destination.command('template.use',{id:template,recipients:people})).result.id;for(let i=0;i<3;i++)assert.deepEqual((await destination.send(`/api/inkwell/envelopes/${used}/artifacts/document-${i}`,undefined,destination.owner)).bytes,originals[i])}finally{await destination.close()}
+  await h.command('envelope.hold',{id,reason:'Keep all document custody'});await h.post('/api/inkwell/erase',{id,confirmation:'ERASE'},h.owner,409);await h.command('envelope.lift_hold',{id});await h.post('/api/inkwell/erase',{id,confirmation:'ERASE'})
+  for(let i=0;i<3;i++)assert.equal((await h.send(base+`/artifacts/document-${i}`,undefined,h.owner)).status,404)
+ }finally{await h.close()}
+})
+
+test('Document uploads: bounded private chunks refuse incomplete, foreign and conflicting parts, then preserve original bytes through prepare',async()=>{
+ const h=await harness()
+ try{
+  const bytes=await pdf('Chunk-uploaded agreement'),u=(await h.post('/api/inkwell/documents/uploads',{filename:'upload.pdf',bytes:bytes.length})).value
+  await h.post('/api/inkwell/documents/uploads',{filename:'upload.pdf',bytes:100*1024*1024+1},h.owner,400)
+  await h.post('/api/inkwell/documents/uploads',{filename:'upload.pdf',bytes:bytes.length},'',401)
+  const viewer=await h.invite('viewer@documents.example','member');await h.post('/api/inkwell/documents/uploads',{filename:'upload.pdf',bytes:bytes.length},viewer,403)
+  const other=await h.invite('sender@documents.example','member'),actor=(await h.send('/api/inkwell',undefined,other)).value.actor
+  await h.command('member.role',{operatorId:actor.id,role:'sender'})
+  const input={title:'Uploaded contract',documents:[{uploadId:u.id,mode:'sign'}],signers:people.slice(0,1),fields:[field(0)]}
+  await h.command('envelope.prepare',input,h.owner,409)
+  await h.command('envelope.prepare',input,other,404)
+  const put=async(cookie,body,status)=>{const response=await h.mf.dispatchFetch(h.origin+`/api/inkwell/documents/uploads/${u.id}/parts/0`,{method:'PUT',headers:{origin:h.origin,cookie,'content-type':'application/octet-stream'},body});assert.equal(response.status,status)}
+  await put(other,bytes,404);await put(h.owner,new Uint8Array(bytes.length+1),400);await put(h.owner,bytes,200);await put(h.owner,bytes,200)
+  const changed=bytes.slice();changed[changed.length-1]^=1;await put(h.owner,changed,409)
+  const id=(await h.command('envelope.prepare',input)).result.id
+  assert.deepEqual((await h.send(`/api/inkwell/envelopes/${id}/artifacts/document-0`,undefined,h.owner)).bytes,bytes)
+  assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM iw_pdf_upload_parts WHERE upload_id=?').bind(u.id).first()).n,0,'successful preparation consumes transient upload bytes')
+ }finally{await h.close()}
+})

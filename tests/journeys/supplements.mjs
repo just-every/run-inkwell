@@ -120,5 +120,40 @@ try {
     await capture(epochPage,'same-email-replacement');await epochContext.close()
     await signingContext.close(); await context.close()
   }
+  for(const width of [1440,390]) {
+    const originals=[];for(const title of ['Service agreement','Supplier W-9','View-only policy']){const doc=await PDFDocument.create();doc.addPage([612,792]).drawText(title,{x:54,y:720,size:18});originals.push(Buffer.from(await doc.save()))}
+    const template=(await app.command('template.save',{title:`Supplier W-9 fields ${width}`,filename:'w9.pdf',pdfBase64:originals[1].toString('base64'),roles:[{role:'Supplier',order:1},{role:'Studio',order:2}],fields:[0,1].map(signer=>({id:`w9-${signer}`,type:'signature',label:`W9 signature ${signer+1}`,signer,page:0,x:.1,y:.4+signer*.15,width:.5,height:.06}))})).id
+    const title=`Three-document agreement ${width}`,id=(await app.command('envelope.prepare',{title,filename:'agreement.pdf',pdfBase64:originals[0].toString('base64'),signers:[{name:'Mara Quinn',email:`multi-mara-${width}@supplier.example`},{name:'Noor Haddad',email:`multi-noor-${width}@supplier.example`}],fields:[0,1].map(signer=>({id:`agreement-${signer}`,type:'signature',label:`Agreement signature ${signer+1}`,signer,page:0,x:.1,y:.4+signer*.15,width:.5,height:.06}))})).id
+    const context=await app.browser.newContext({viewport:{width,height:width===390?844:1000}});await context.addCookies([app.ownerCookie()]);const page=await context.newPage()
+    await page.goto(app.origin+'/app');await page.getByRole('row',{name:new RegExp(title)}).click();await page.getByRole('button',{name:'Edit draft',exact:true}).click();await page.getByRole('button',{name:'Save draft',exact:true}).waitFor()
+    const add=async(name,buffer)=>{await page.getByLabel('Additional PDF',{exact:true}).setInputFiles({name,mimeType:'application/pdf',buffer})}
+    await add('w9.pdf',originals[1]);await page.getByRole('button',{name:`Apply Supplier W-9 fields ${width}`,exact:true}).click();await page.getByRole('region',{name:'Matching templates',exact:true}).waitFor({state:'detached'})
+    await add('policy.pdf',originals[2]);await page.getByLabel('Document 3 signing requirement',{exact:true}).selectOption('view')
+    const list=page.getByRole('region',{name:'Envelope documents',exact:true});await list.getByRole('button',{name:'Move policy.pdf up',exact:true}).click();await list.getByRole('button',{name:'Move policy.pdf down',exact:true}).click()
+    assert.ok((await list.ariaSnapshot()).indexOf('w9.pdf')<(await list.ariaSnapshot()).indexOf('policy.pdf'))
+    for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await axe(page,`PREP-002 preparation ${width} ${theme}`)}
+    await page.emulateMedia({colorScheme:'light'});await list.scrollIntoViewIfNeeded();await page.screenshot({path:`${proof}/${width}-multi-prepare.png`})
+    await page.getByRole('button',{name:'Save draft',exact:true}).click();await page.getByRole('button',{name:'Edit draft',exact:true}).waitFor()
+    const detail=page.getByRole('region',{name:'Envelope documents',exact:true});await detail.getByRole('link',{name:'Original policy.pdf',exact:true}).waitFor();assert.ok((await detail.ariaSnapshot()).includes('View only'))
+    await detail.scrollIntoViewIfNeeded();await page.screenshot({path:`${proof}/${width}-multi-detail.png`})
+    await page.getByRole('checkbox',{name:/I reviewed this envelope/}).check();await page.getByRole('button',{name:'Approve and invite first recipient',exact:true}).click()
+    const invites=page.locator('.iw-manual-invitation');await invites.getByRole('link').waitFor();const first={url:await invites.getByRole('link').getAttribute('href'),code:await invites.locator('strong').innerText()}
+    for(const [index,name] of ['Mara Quinn','Noor Haddad'].entries()){
+      const invitation=index===0?first:(await app.command('envelope.invite',{id,signer:1})).invitations[0],signing=await app.browser.newContext({viewport:{width,height:width===390?844:1000}}),signer=await signing.newPage()
+      await signer.goto(invitation.url);await signer.getByLabel('Verification code',{exact:true}).fill(invitation.code);await signer.getByRole('button',{name:'Verify code',exact:true}).click();await signer.getByRole('checkbox',{name:/I have read the electronic record/}).check();await signer.getByRole('button',{name:'Agree and continue',exact:true}).click()
+      const documents=signer.getByRole('region',{name:'Envelope documents',exact:true});await documents.getByRole('link',{name:'Download policy.pdf',exact:true}).waitFor()
+      for(const label of [`Agreement signature ${index+1} Page 1 · signature`,`W9 signature ${index+1} Page 2 · signature`]){await tab(signer,signer.getByRole('textbox',{name:label,exact:true}));await signer.keyboard.type(name)}
+      assert.equal(await signer.getByRole('textbox',{name:/Page 3/}).count(),0)
+      for(const theme of ['light','dark']){await signer.emulateMedia({colorScheme:theme});await axe(signer,`PREP-002 signer ${index+1} ${width} ${theme}`)}
+      await signer.emulateMedia({colorScheme:'light'});await documents.scrollIntoViewIfNeeded();await signer.screenshot({path:`${proof}/${width}-multi-signer-${index+1}.png`})
+      await tab(signer,signer.getByRole('checkbox',{name:/I have reviewed this document and consent/}));await signer.keyboard.press('Space');await activate(signer,signer.getByRole('button',{name:'Sign document',exact:true}));await signer.getByRole('heading',{name:index===0?'Your signature has been recorded.':'All signatures are complete.',exact:true}).waitFor();await signing.close()
+    }
+    const record=(await (await page.request.get(app.origin+`/api/inkwell/envelopes/${id}`)).json()).envelope
+    assert.equal(record.documents.length,3);assert.equal(record.status,'completed');assert.ok(record.documents.every(d=>d.signedSha256))
+    assert.equal((await PDFDocument.load(await (await page.request.get(app.origin+`/api/inkwell/envelopes/${id}/artifacts/signed`)).body())).getPageCount(),3)
+    await page.reload();await page.getByRole('row',{name:new RegExp(title)}).click();for(const filename of ['agreement.pdf','w9.pdf','policy.pdf'])await page.getByRole('link',{name:`Executed ${filename}`,exact:true}).waitFor()
+    await page.getByRole('region',{name:'Envelope documents',exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:`${proof}/${width}-multi-completed.png`});await context.close()
+  }
+  console.log('PREP-002: ordered three-document preparation, W-9 template application, view-only policy, two single-session signers, separate/combined records; light/dark accessibility proof at 1440 and 390 passed')
   console.log('SIGNX-009: supplemental PDF authoring, opening and acknowledgment, keyboard and accessibility-tree completion; SIGNX-003 light/dark scans at 1440 and 390 passed')
 } catch (error) { await screenshots(app.browser, 'supplements-failure'); throw error } finally { await app.close() }
