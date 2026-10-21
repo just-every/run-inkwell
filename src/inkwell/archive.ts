@@ -1,3 +1,5 @@
+import { exitExportResponse } from './exit-export'
+import { archiveTransfers } from './archive-transfers'
 import { createPortability, readArchive, PortabilityError, type Manifest, type Part, type Closing } from '@runeditrun/rer/modules/portability'
 import { operatorAuth, runtimeBindings, type Bindings } from '../auth.server'
 import policy from './archive-policy.mjs'
@@ -8,6 +10,7 @@ import { erasureWrites } from './erasure'
 type Archive = { format: 'inkwell-archive'; ndjson: string }
 const json = (value: unknown, status = 200) => Response.json(value, { status, headers: { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' } })
 async function owner(request: Request, env: Bindings): Promise<Actor> {
+ insist(!request.headers.has('authorization'),'Use a member session to manage archives.',403)
  const session = await operatorAuth(env).getSession(request)
  insist(session, 'Sign in to manage the archive.', 401)
  insist(session.operator.role === 'owner', 'Only the owner can manage archives or erase documents.', 403)
@@ -64,10 +67,12 @@ async function erase(env: Bindings, actor: Actor, input: Record<string, unknown>
 }
 export async function archiveResponse(request: Request, original: Bindings): Promise<Response | null> {
  const path = new URL(request.url).pathname
- if (!['/api/inkwell/archive','/api/inkwell/archive/restore','/api/inkwell/erase'].includes(path)) return null
+ if(path.startsWith('/api/inkwell/exports'))return exitExportResponse(request,runtimeBindings(original))
+ if (!['/api/inkwell/archive','/api/inkwell/archive/restore','/api/inkwell/erase'].includes(path)&&!path.startsWith('/api/inkwell/archive/transfers/')) return null
  const env = runtimeBindings(original)
  try {
   const actor = await owner(request,env)
+  if(path.startsWith('/api/inkwell/archive/transfers/'))return await archiveTransfers(request,env,actor,guardedDatabase(env.DB,actor))??json({error:'Archive route not found.'},404)
   if (path === '/api/inkwell/archive' && request.method === 'GET') {
    const service = await createPortability({db:guardedDatabase(env.DB,actor),policy}), job = await service.exports.create(actor.id)
    try {

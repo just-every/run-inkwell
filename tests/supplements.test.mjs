@@ -371,3 +371,69 @@ test('Document uploads: bounded private chunks refuse incomplete, foreign and co
   assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM iw_pdf_upload_parts WHERE upload_id=?').bind(u.id).first()).n,0,'successful preparation consumes transient upload bytes')
  }finally{await h.close()}
 })
+
+function untar(bytes){
+ const files=new Map();for(let offset=0;offset+512<=bytes.length;){const header=bytes.subarray(offset,offset+512);if(header.every(b=>b===0))break;const name=Buffer.from(header.subarray(0,100)).toString().split('\0')[0],size=parseInt(Buffer.from(header.subarray(124,136)).toString().replace(/\0.*$/,''),8);assert.ok(Number.isSafeInteger(size));files.set(name,bytes.slice(offset+512,offset+512+size));offset+=512+Math.ceil(size/512)*512}return files
+}
+test('Document export: all or selected stable snapshots, PDF/certificate/audit/CSV fingerprints, byte-range resume, current admin authority and erasure invalidation',async()=>{
+ const h=await harness()
+ try{
+  const main=await pdf('Exportable agreement'),one=await prepare(h,main,people.slice(0,1)),two=await prepare(h,await pdf('Other agreement'),people.slice(0,1))
+  const finished=await prepare(h,await pdf('Executed export record'),people.slice(0,1))
+  await h.command('envelope.approve',{id:finished,eligible:true})
+  const invite=await h.mail(people[0].email,'Please sign:'),path=new URL(invite.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.replace('/sign/','/api/sign/')
+  await h.post(path+'/code',{},'');const code=(await h.mail(people[0].email,'verification code')).text.match(/\b\d{6}\b/)[0],cookie=(await h.post(path+'/verify',{code},'')).cookie;await h.agree(path,cookie);await sign(h,{path,cookie},0)
+  const admin=await h.invite('export-admin@inkwell.example','admin'),viewer=await h.invite('export-viewer@inkwell.example','member')
+  await h.post('/api/inkwell/exports',{scope:'all'},'',401);await h.post('/api/inkwell/exports',{scope:'all'},viewer,403)
+  await h.post('/api/inkwell/exports',{scope:'selected',ids:['00000000-0000-0000-0000-000000000000']},h.owner,409)
+  const selected=(await h.post('/api/inkwell/exports',{scope:'selected',ids:[one,finished]},admin)).value.id
+  assert.equal((await h.send(`/api/inkwell/exports/${selected}`,undefined,admin)).value.records,2)
+  assert.equal((await h.send(`/api/inkwell/exports/${selected}/download`,undefined,h.owner)).status,404,'another member cannot take over an export job')
+  const first=await h.send(`/api/inkwell/exports/${selected}/download`,undefined,admin),files=untar(first.bytes)
+  assert.deepEqual(files.get(`envelopes/${one}/original.pdf`),main);assert.ok(![...files.keys()].some(k=>k.includes(two)))
+  const manifest=Buffer.from(files.get('fingerprints.ndjson')).toString().trim().split('\n').map(JSON.parse)
+  for(const f of manifest){assert.equal(digest(files.get(f.path)),f.sha256);assert.equal(files.get(f.path).length,f.bytes)}
+  assert.ok(Buffer.from(files.get('index.csv')).toString().includes(one));assert.ok(files.has(`envelopes/${one}/audit.json`));assert.ok(files.has(`envelopes/${one}/custody.json`));assert.ok(files.has(`envelopes/${finished}/signed.pdf`));assert.ok(files.has(`envelopes/${finished}/certificate.pdf`))
+  const cut=Math.floor(first.bytes.length/2),a=await h.send(`/api/inkwell/exports/${selected}/download`,undefined,admin,{range:`bytes=0-${cut-1}`}),b=await h.send(`/api/inkwell/exports/${selected}/download`,undefined,admin,{range:`bytes=${cut}-`})
+  assert.equal(a.status,206);assert.equal(b.status,206);assert.deepEqual(Buffer.concat([a.bytes,b.bytes]),Buffer.from(first.bytes));assert.equal(b.headers.get('accept-ranges'),'bytes')
+  await h.command('envelope.update',{id:one,title:'Changed after export',filename:'changed.pdf',pdfBase64:base64(await pdf('Changed document')),signers:people.slice(0,1),fields:[field(0)]})
+  assert.deepEqual((await h.send(`/api/inkwell/exports/${selected}/download`,undefined,admin)).bytes,first.bytes,'an interrupted export resumes the exact snapshot after a live edit')
+  const all=(await h.post('/api/inkwell/exports',{scope:'all'})).value.id,allFiles=untar((await h.send(`/api/inkwell/exports/${all}/download`,undefined,h.owner)).bytes)
+  assert.ok(allFiles.has(`envelopes/${one}/original.pdf`));assert.ok(allFiles.has(`envelopes/${two}/original.pdf`))
+  await h.post('/api/inkwell/erase',{id:one,confirmation:'ERASE'})
+  assert.equal((await h.send(`/api/inkwell/exports/${selected}/download`,undefined,admin)).status,410)
+  assert.equal((await h.send(`/api/inkwell/exports/${all}/download`,undefined,h.owner)).status,410)
+  await h.post(`/api/inkwell/exports/${all}/discard`,{})
+  const adminId=(await h.send('/api/inkwell',undefined,admin)).value.actor.id;await h.post('/auth/operator/status',{operatorId:adminId,status:'inactive'})
+  assert.equal((await h.send(`/api/inkwell/exports/${selected}/download`,undefined,admin)).status,401,'the first request after losing authority is refused')
+ }finally{await h.close()}
+})
+
+test('Whole archive transfers: durable build cursor, range resume and idempotent part restore publish an empty destination only after all fingerprints pass',async()=>{
+ const h=await harness({mailProvider:null}),destination=await harness({mailProvider:null})
+ try{
+  const original=await pdf('Resumable whole-installation record'),id=await prepare(h,original,people.slice(0,1))
+  const base='/api/inkwell/archive/transfers',job=(await h.post(base+'/exports',{} ,h.owner,201)).value.id
+  let state=(await h.post(`${base}/exports/${job}/advance`,{maxParts:1})).value
+  const checkpoint=state.completed;assert.ok(checkpoint>0)
+  assert.equal((await h.send(`${base}/exports/${job}`,undefined,h.owner)).value.completed,checkpoint)
+  while(state.phase==='building')state=(await h.post(`${base}/exports/${job}/advance`,{expectedPart:state.completed,maxParts:1})).value
+  assert.equal(state.phase,'complete')
+  const download=await h.send(`${base}/exports/${job}/download`,undefined,h.owner),cut=113
+  const first=await h.send(`${base}/exports/${job}/download`,undefined,h.owner,{range:`bytes=0-${cut-1}`}),rest=await h.send(`${base}/exports/${job}/download`,undefined,h.owner,{range:`bytes=${cut}-`})
+  assert.equal(rest.status,206);assert.deepEqual(Buffer.concat([first.bytes,rest.bytes]),Buffer.from(download.bytes))
+  const manifest=(await h.send(`${base}/exports/${job}/records/manifest`,undefined,h.owner)).value,closing=(await h.send(`${base}/exports/${job}/records/closing`,undefined,h.owner)).value
+  assert.ok(!manifest.tables.some(t=>t.name.startsWith('iw_exit_')),'export working copies never enter installation custody')
+  const restore=(await destination.post(base+'/imports',{manifest,confirmed:true},destination.owner,201)).value.id
+  await destination.post(`${base}/imports/${restore}/finalize`,{contentHash:closing.contentHash,archiveHash:closing.archiveHash},destination.owner,400)
+  assert.equal((await destination.send(`/api/inkwell/envelopes/${id}`,undefined,destination.owner)).status,404,'incomplete restore publishes no product record')
+  const put=async(index,part,status=200)=>{const response=await destination.mf.dispatchFetch(destination.origin+`${base}/imports/${restore}/parts/${index}`,{method:'PUT',headers:{origin:destination.origin,cookie:destination.owner,'content-type':'application/json'},body:JSON.stringify(part)});assert.equal(response.status,status,await response.text())}
+  for(let index=0;index<manifest.partCount;index++){const part=(await h.send(`${base}/exports/${job}/records/${index}`,undefined,h.owner)).value;await put(index,part);if(index===0){await put(index,part);const corrupt=structuredClone(part);corrupt.sha256='0'.repeat(64);await put(index,corrupt,400)}}
+  const staged=(await destination.send(`${base}/imports/${restore}`,undefined,destination.owner)).value;assert.equal(staged.completed,manifest.partCount)
+  const result=(await destination.post(`${base}/imports/${restore}/finalize`,{contentHash:closing.contentHash,archiveHash:closing.archiveHash})).value;assert.equal(result.phase,'complete')
+  assert.deepEqual((await destination.send(`/api/inkwell/envelopes/${id}/artifacts/original`,undefined,destination.owner)).bytes,original)
+  assert.equal((await destination.send(`/api/inkwell/envelopes/${id}/verify`,undefined,destination.owner)).value.ok,true)
+  await h.post('/api/inkwell/erase',{id,confirmation:'ERASE'})
+  assert.equal((await h.send(`${base}/exports/${job}/download`,undefined,h.owner)).status,404,'erasure removes all transfer snapshots and download capabilities')
+ }finally{await h.close();await destination.close()}
+})

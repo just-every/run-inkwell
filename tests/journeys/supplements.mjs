@@ -1,7 +1,8 @@
 import { expect } from '@playwright/test'
 // SIGNX-009 supplemental-document slice joins SIGNX-003 through the built public pages.
 import assert from 'node:assert/strict'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, readFile, copyFile } from 'node:fs/promises'
+import { startInkwellWithMail } from './mail-worker.mjs'
 import { PDFDocument } from 'pdf-lib'
 import { startInkwell, screenshots } from './worker.mjs'
 import { axe, tabTo } from './a11y.mjs'
@@ -159,6 +160,35 @@ try {
     for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await axe(page,`PREP-002 template edit ${width} ${theme}`)}
     await page.emulateMedia({colorScheme:'light'});await templateDocs.scrollIntoViewIfNeeded();await page.screenshot({path:`${proof}/${width}-multi-template.png`});await page.getByRole('button',{name:'Save new version',exact:true}).click();await page.getByRole('heading',{name:'Your templates',exact:true}).waitFor();await context.close()
   }
+  for(const width of [1440,390]) {
+    const context=await app.browser.newContext({viewport:{width,height:width===390?844:1000}});await context.addCookies([app.ownerCookie()]);const page=await context.newPage();await page.goto(app.origin+'/app');await page.getByRole('button',{name:'Archive',exact:true}).click()
+    const documents=page.getByRole('region',{name:'Document export',exact:true});await documents.getByLabel('Records to export',{exact:true}).selectOption('selected');await documents.getByLabel('Find envelopes for export',{exact:true}).fill(`Three-document agreement ${width}`);await documents.getByRole('checkbox',{name:`Three-document agreement ${width}`,exact:true}).check();await activate(page,documents.getByRole('button',{name:'Prepare document export',exact:true}));await documents.getByRole('status').filter({hasText:'Document export ready'}).waitFor()
+    const bundlePromise=page.waitForEvent('download');await activate(page,documents.getByRole('link',{name:'Download document export',exact:true}));const bundle=await bundlePromise;assert.ok(bundle.suggestedFilename().endsWith('.tar'));assert.ok((await readFile(await bundle.path())).includes(Buffer.from('index.csv')))
+    for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await axe(page,`PORT-002 archive ${width} ${theme}`)}
+    await page.emulateMedia({colorScheme:'light'});await documents.scrollIntoViewIfNeeded();await page.screenshot({path:`${proof}/${width}-port-selected.png`})
+    let requests=0;await page.route('**/archive/transfers/exports/*/advance',route=>++requests===2?route.abort('failed'):route.continue())
+    const whole=page.getByRole('region',{name:'Whole installation archive',exact:true});await activate(page,whole.getByRole('button',{name:'Build installation archive',exact:true}));await page.getByRole('alert').waitFor();await whole.getByRole('status').filter({hasText:'1 chunks'}).waitFor()
+    await whole.scrollIntoViewIfNeeded();await page.screenshot({path:`${proof}/${width}-port-paused.png`});await page.unroute('**/archive/transfers/exports/*/advance');await page.reload();await page.getByRole('button',{name:'Archive',exact:true}).click();await whole.getByRole('status').filter({hasText:'1 chunks'}).waitFor();await activate(page,whole.getByRole('button',{name:'Resume building archive',exact:true}));await whole.getByRole('link',{name:'Download installation archive',exact:true}).waitFor()
+    const archivePromise=page.waitForEvent('download');await activate(page,whole.getByRole('link',{name:'Download installation archive',exact:true}));const archive=await archivePromise,file=`${proof}/${width}-installation.ndjson`;await copyFile(await archive.path(),file);assert.equal(JSON.parse((await readFile(file,'utf8')).split('\n')[0]).kind,'manifest')
+    await whole.scrollIntoViewIfNeeded();await page.screenshot({path:`${proof}/${width}-port-ready.png`})
+    const target=await startInkwell()
+    try {
+      const destination=await target.browser.newContext({viewport:{width,height:width===390?844:1000}});await destination.addCookies([target.ownerCookie()]);const restorePage=await destination.newPage();await restorePage.goto(target.origin+'/app');await restorePage.getByRole('button',{name:'Archive',exact:true}).click()
+      const restore=restorePage.getByRole('region',{name:'Resumable archive restore',exact:true}),choose=async()=>{const chooser=restorePage.waitForEvent('filechooser');await activate(restorePage,restore.getByLabel('Installation archive (NDJSON)',{exact:true}));await(await chooser).setFiles(file);await restore.getByRole('checkbox',{name:/I selected the intended archive/}).check()}
+      await choose();await restorePage.route('**/archive/transfers/imports/*/finalize',route=>route.abort('failed'));await activate(restorePage,restore.getByRole('button',{name:'Restore or resume archive',exact:true}));await restore.getByRole('alert').waitFor();assert.equal((await(await restorePage.request.get(target.origin+'/api/inkwell/envelopes')).json()).total,0,'interrupted restore publishes no records')
+      await restore.scrollIntoViewIfNeeded();await restorePage.screenshot({path:`${proof}/${width}-port-restore-paused.png`});await restorePage.unroute('**/archive/transfers/imports/*/finalize');await restorePage.reload();await restorePage.getByRole('button',{name:'Archive',exact:true}).click();await choose();await activate(restorePage,restore.getByRole('button',{name:'Restore or resume archive',exact:true}));await restore.getByRole('status').filter({hasText:'Archive restored; every stored fingerprint passed.'}).waitFor()
+      const records=(await(await restorePage.request.get(target.origin+'/api/inkwell/envelopes?limit=100')).json()).envelopes;assert.ok(records.length>0);for(const e of records)assert.equal((await(await restorePage.request.get(target.origin+`/api/inkwell/envelopes/${e.id}/verify`)).json()).ok,true)
+      for(const theme of ['light','dark']){await restorePage.emulateMedia({colorScheme:theme});await axe(restorePage,`PORT-002 restored ${width} ${theme}`)}await restorePage.emulateMedia({colorScheme:'light'});await restore.scrollIntoViewIfNeeded();await restorePage.screenshot({path:`${proof}/${width}-port-restored.png`});await destination.close()
+    }finally{await target.close()}
+    await context.close()
+  }
+  const adminApp=await startInkwellWithMail()
+  try {
+    await adminApp.command('envelope.prepare',{title:'Admin export example',filename:'agreement.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),signers:[{name:'Mara Quinn',email:'admin-export@supplier.example'}],fields:[{id:'signature',type:'signature',label:'Signature',signer:0,page:0,x:.1,y:.5,width:.5,height:.06}]})
+    const email='archive-admin@harbour.example';await adminApp.call('/auth/invite',{cookie:adminApp.owner,body:{email,displayName:'Archive admin',role:'admin'},status:202});const message=adminApp.mail(email,''),token=new URL(message.text.match(/http:\/\/[^\s]+\/auth\/confirm\?token=[^\s]+/)[0]).searchParams.get('token'),admin=(await adminApp.call('/auth/confirm',{body:{token},status:303})).cookie
+    for(const width of [1440,390]){const context=await adminApp.browser.newContext({viewport:{width,height:width===390?844:1000}});await context.addCookies([{name:admin.split('=')[0],value:admin.slice(admin.indexOf('=')+1),url:adminApp.origin}]);const page=await context.newPage();await page.goto(adminApp.origin+'/app');await page.getByRole('button',{name:'Archive',exact:true}).click();await activate(page,page.getByRole('button',{name:'Prepare document export',exact:true}));await page.getByRole('link',{name:'Download document export',exact:true}).waitFor();assert.equal(await page.getByRole('region',{name:'Whole installation archive',exact:true}).count(),0);await axe(page,`PORT-002 admin export ${width}`);await page.screenshot({path:`${proof}/${width}-port-admin.png`});await context.close()}
+  }finally{await adminApp.close()}
+  console.log('PORT-002: selected export, durable interrupted build and restore, fingerprint-verified publication, owner/admin boundaries and accessible Archive screens at 1440/390 passed')
   console.log('PREP-002: ordered three-document preparation, W-9 template application, view-only policy, two single-session signers, separate/combined records; light/dark accessibility proof at 1440 and 390 passed')
   console.log('SIGNX-009: supplemental PDF authoring, opening and acknowledgment, keyboard and accessibility-tree completion; SIGNX-003 light/dark scans at 1440 and 390 passed')
 } catch (error) { await screenshots(app.browser, 'supplements-failure'); throw error } finally { await app.close() }

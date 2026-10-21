@@ -23,7 +23,7 @@ export function Sidebar({ place, actor, waiting, onGo }: { place: Place; actor?:
       {item('activity', 'alert', 'Activity')}
       {actor && ['owner', 'admin', 'sender'].includes(actor.role) && item('templates', 'document', 'Templates')}
       {item('reports', 'chart', 'Reports')}
-      {owner && <>{item('move-in', 'movein', 'Move in')}{item('archive', 'archive', 'Archive')}{item('agents', 'agent', 'Agent access')}</>}
+      {owner&&item('move-in','movein','Move in')}{actor&&['owner','admin'].includes(actor.role)&&item('archive','archive','Archive')}{owner&&item('agents','agent','Agent access')}
       {item('settings', 'settings', 'Settings')}
     </ul></nav>
     {actor && <div className="iw-person"><span className="iw-avatar" aria-hidden="true">{initials(actor.name || actor.email)}</span><div><strong>{actor.name || actor.email}</strong><small>{roleLabel[actor.role] ?? actor.role}</small><small className="iw-person-email">{actor.email}</small></div></div>}

@@ -1,3 +1,4 @@
+import { invalidateExitQueries } from '../exit-export'
 import { archiveRetentionMessages } from './retention-mail'
 import { archiveMailErasure } from './retention-mail-erasure'
 import { Buffer } from 'node:buffer'
@@ -44,7 +45,8 @@ export async function eraseImportedArchive(env:Bindings,session:Session,id:strin
  const context={...owner,originalErasurePolicy:'withdraw-affected-artifacts' as const,authorization:{...owner.authorization,predicate:(action:ImportAction,destination:string)=>{const p=owner.authorization.predicate(action,destination);return {sql:`(${p.sql}) AND (${unheld.sql})`,params:[...p.params??[],...unheld.params??[]]}}}}
  const group=archiveGroups(await archiveClocks(env)).find(g=>g.some(c=>(JSON.parse(c.records) as {id:string}[]).some(r=>r.id===id)))??[]
  const jobs=JSON.stringify(group.map(g=>g.job_id))
- const native:D1Sql[]=[{sql:'DELETE FROM iw_imported_archives WHERE id=?',params:[id]},{sql:'DELETE FROM iw_import_hold_events WHERE record_id=?',params:[id]},
+ const invalidations=await invalidateExitQueries(env.DB,'import:'+id)
+ const native:D1Sql[]=[...invalidations,{sql:'DELETE FROM iw_imported_archives WHERE id=?',params:[id]},{sql:'DELETE FROM iw_import_hold_events WHERE record_id=?',params:[id]},
   ...archiveMailErasure(group.map(g=>g.job_id)),
   {sql:"DELETE FROM iw_notice_posts WHERE notice_id IN (SELECT id FROM iw_notices WHERE envelope_id IN (SELECT 'import:'||value FROM json_each(?)))",params:[jobs]},
   {sql:"DELETE FROM iw_notices WHERE envelope_id IN (SELECT 'import:'||value FROM json_each(?))",params:[jobs]},
