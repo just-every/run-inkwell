@@ -775,7 +775,7 @@
       "executable": false
     },
     "src/inkwell/comments.ts": {
-      "sha256": "7d4f80da4b455b96e87d6a788d898028045c5ba31af5a4545f4d78fd23f01ddc",
+      "sha256": "b194f689a25017bd34e54091bae95dc39a91f13c0b8f2d36bca19790ca2ea9fb",
       "executable": false
     },
     "src/inkwell/completed-copies.ts": {
@@ -827,7 +827,7 @@
       "executable": false
     },
     "src/inkwell/envelopes.ts": {
-      "sha256": "9cb6ad20ae0ee7dfdf0b99e044787afdb5ee4727323f5c6356d04419e753c503",
+      "sha256": "c6912bff0e15aacd84c23882e6f234b92e9e9290655af2ffa00307a16794ef12",
       "executable": false
     },
     "src/inkwell/erasure.ts": {
@@ -2995,7 +2995,7 @@
       "executable": false
     },
     "src/ui/comments.tsx": {
-      "sha256": "1b08ceeaf733c74b852889384ec13e3731bb028ce08bfda702f6c3ef6ca03c2e",
+      "sha256": "5b07343f7629d1ec4139ef2e80a0af9ced8622f74d25dc68bf461c78acaa7f6e",
       "executable": false
     },
     "src/ui/completed-copy.tsx": {
@@ -3359,7 +3359,7 @@
       "executable": false
     },
     "tests/journeys/supplements.mjs": {
-      "sha256": "e24211500904a4f7dd8d02c1691a7b3c33ed9d8ba58f31be9e31fb86d69bfcef",
+      "sha256": "102966af48ac4f571d4a887938a3594593b670d054d8d47c49f1c636cbfa69d2",
       "executable": false
     },
     "tests/journeys/template-maintenance.mjs": {
@@ -3407,7 +3407,7 @@
       "executable": false
     },
     "tests/supplements.test.mjs": {
-      "sha256": "59d0ba1fab61df53ea1266d2159cdbe3d355fc7679326d315fd5ee75145bed7e",
+      "sha256": "4753933c0b924caac8ff00135137c6607aa0d914fd4df52a4d512104086b3cd5",
       "executable": false
     },
     "tests/template-maintenance.test.mjs": {

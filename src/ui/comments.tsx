@@ -12,11 +12,11 @@ export function Comments({ base }: {base:string}) {
  useEffect(()=>{let live=true;void request<View>(`${base}/comments`).then(v=>{if(live)setView(v)}).catch(()=>{});return()=>{live=false}},[base])
  const post=async(input:unknown)=>{await request(`${base}/comments`,{...(input as object),commandId:crypto.randomUUID()});await refresh()}
  if(!view)return null
- return <section className="iw-stack iw-callout" aria-label="Document comments"><h2>Document comments</h2><p>Only the parties explicitly selected by a thread’s author can read it. Replies keep the same audience.</p>
+ return <section className="iw-stack iw-callout" aria-label="Document comments"><details className="iw-audit-trail"><summary>Document comments</summary><div className="iw-stack"><p>Only the parties explicitly selected by a thread’s author can read it. Replies keep the same audience.</p>
  {view.threads.length===0&&<p>No comments shared with you.</p>}
  {view.threads.map(t=><CommentThread key={t.id} thread={t} parties={view.parties} canWrite={view.canWrite} post={post}/>)}
  {view.canWrite&&<form className="iw-stack" onSubmit={e=>{e.preventDefault();void action.run(async()=>{await post({action:'create',page:page-1,text:body,audience});setBody('');setAudience([])})}}><h3>Start a thread</h3><label>Comment page<input type="number" required min={1} max={view.pages} value={page} onChange={e=>setPage(Number(e.target.value))}/></label><label>New comment<textarea required maxLength={4000} value={body} onChange={e=>setBody(e.target.value)}/></label><Audience parties={view.parties} selected={audience} setSelected={setAudience}/><button className="iw-fit" disabled={action.busy||!audience.length}>Post comment</button></form>}
- {!view.canWrite&&<p>Comments are read-only for this session.</p>}<ErrorNotice error={action.error}/></section>
+ {!view.canWrite&&<p>Comments are read-only for this session.</p>}<ErrorNotice error={action.error}/></div></details></section>
 }
 function Audience({parties,selected,setSelected}:{parties:Party[];selected:string[];setSelected:(values:string[])=>void}) {
  return <fieldset className="iw-stack"><legend>Who can read this thread?</legend>{parties.map(p=><label className="iw-check" key={p.key}><input type="checkbox" checked={selected.includes(p.key)} onChange={e=>setSelected(e.target.checked?[...selected,p.key]:selected.filter(k=>k!==p.key))}/>{p.name}{p.self?' (you)':''}</label>)}</fieldset>

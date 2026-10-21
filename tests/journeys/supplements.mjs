@@ -36,6 +36,7 @@ try {
     await signer.goto(link); await tab(signer, signer.getByLabel('Verification code', { exact: true })); await signer.keyboard.type(code); await activate(signer, signer.getByRole('button', { name: 'Verify code', exact: true }))
     const disclosure = signer.getByRole('checkbox', { name: /I have read the electronic record/ }); await tab(signer, disclosure); await signer.keyboard.press('Space'); await activate(signer, signer.getByRole('button', { name: 'Agree and continue', exact: true }))
     const comments=signer.getByRole('region',{name:'Document comments',exact:true})
+    await activate(signer,comments.locator('summary'))
     await tab(signer,comments.getByLabel('Comment page'));await signer.keyboard.press('ControlOrMeta+A');await signer.keyboard.type('2')
     await tab(signer,comments.getByLabel('New comment',{exact:true}));await signer.keyboard.type('Can delivery move to Friday?')
     await tab(signer,comments.getByRole('checkbox',{name:'Mara Quinn (you)',exact:true}));await signer.keyboard.press('Space')
@@ -43,6 +44,7 @@ try {
     const thread=comments.getByRole('article',{name:'Thread on page 2',exact:true});await thread.getByText('Can delivery move to Friday?',{exact:true}).waitFor()
     await page.reload();await page.getByRole('row',{name:new RegExp(title)}).click()
     const senderComments=page.getByRole('region',{name:'Document comments',exact:true})
+    await activate(page,senderComments.locator('summary'))
     await senderComments.getByText('No comments shared with you.',{exact:true}).waitFor()
     assert.equal(await page.getByText('Can delivery move to Friday?',{exact:true}).count(),0,'an unselected sender cannot read the thread in the UI')
     await activate(signer,thread.getByRole('button',{name:'Change thread audience',exact:true}))
@@ -50,6 +52,7 @@ try {
     await activate(signer,thread.getByRole('button',{name:'Save thread audience',exact:true}))
     await page.reload();await page.getByRole('row',{name:new RegExp(title)}).click()
     const senderThread=senderComments.getByRole('article',{name:'Thread on page 2',exact:true})
+    await activate(page,senderComments.locator('summary'))
     await senderThread.getByText('Can delivery move to Friday?',{exact:true}).waitFor()
     await tab(page,senderThread.getByLabel('Reply on page 2',{exact:true}));await page.keyboard.type('Friday is agreed; please keep the same scope.')
     await activate(page,senderThread.getByRole('button',{name:'Post reply',exact:true}))
@@ -57,7 +60,7 @@ try {
     assert.ok((await senderThread.ariaSnapshot()).includes('Can delivery move to Friday?'),'the accessibility tree exposes the page anchor and shared transcript')
     for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await axe(page,`SIGNX-009 sender comments ${width} ${theme}`)}
     await page.emulateMedia({colorScheme:'light'});await senderThread.scrollIntoViewIfNeeded();await capture(page,'sender-thread')
-    await signer.reload();await thread.getByText('Friday is agreed; please keep the same scope.',{exact:true}).waitFor()
+    await signer.reload();await activate(signer,comments.locator('summary'));await thread.getByText('Friday is agreed; please keep the same scope.',{exact:true}).waitFor()
     await tab(signer,thread.getByLabel('Reply on page 2',{exact:true}));await signer.keyboard.type('Thank you, ready to sign.')
     await activate(signer,thread.getByRole('button',{name:'Post reply',exact:true}));await thread.getByText('Thank you, ready to sign.',{exact:true}).waitFor()
     assert.ok((await thread.ariaSnapshot()).includes('Thank you, ready to sign.'))
@@ -81,12 +84,13 @@ try {
     const nextContext=await app.browser.newContext({viewport:{width,height:width===390?844:1000}}),nextPage=await nextContext.newPage()
     await nextPage.goto(next.url);await tab(nextPage,nextPage.getByLabel('Verification code',{exact:true}));await nextPage.keyboard.type(next.code);await activate(nextPage,nextPage.getByRole('button',{name:'Verify code',exact:true}))
     const nextDisclosure=nextPage.getByRole('checkbox',{name:/I have read the electronic record/});await tab(nextPage,nextDisclosure);await nextPage.keyboard.press('Space');await activate(nextPage,nextPage.getByRole('button',{name:'Agree and continue',exact:true}))
-    const nextComments=nextPage.getByRole('region',{name:'Document comments',exact:true});await nextComments.getByText('Friday is agreed; please keep the same scope.',{exact:true}).waitFor()
+    const nextComments=nextPage.getByRole('region',{name:'Document comments',exact:true});await activate(nextPage,nextComments.locator('summary'));await nextComments.getByText('Friday is agreed; please keep the same scope.',{exact:true}).waitFor()
     assert.ok((await nextComments.ariaSnapshot()).includes('Thank you, ready to sign.'),'the next explicitly selected recipient sees the inherited reply audience')
     await activate(nextPage,nextPage.getByRole('button',{name:'Open Supplier handbook',exact:true}));await activate(nextPage,nextPage.getByRole('button',{name:'I acknowledge Supplier handbook',exact:true}))
     await tab(nextPage,nextPage.getByRole('textbox',{name:'Next supplier signature Page 2 · signature',exact:true}));await nextPage.keyboard.type('Noor Haddad')
     await tab(nextPage,nextPage.getByRole('checkbox',{name:/I have reviewed this document and consent/}));await nextPage.keyboard.press('Space');await activate(nextPage,nextPage.getByRole('button',{name:'Sign document',exact:true}))
     await nextPage.getByRole('heading',{name:'All signatures are complete.',exact:true}).waitFor()
+    await activate(nextPage,nextComments.locator('summary'))
     assert.equal(await nextComments.getByRole('textbox').count(),0,'terminal transcript has no write controls')
     await nextComments.scrollIntoViewIfNeeded();await capture(nextPage,'completed-thread');await nextContext.close()
     await signer.reload();await signer.getByRole('heading', { name: 'All signatures are complete.', exact: true }).waitFor()
@@ -95,6 +99,25 @@ try {
     assert.equal(completed.status, 'completed'); assert.ok(completed.events.some(e => e.action === 'signer.supplement_acknowledged' && e.detail.sha256 === completed.supplements[0].sha256))
     await page.reload(); await page.getByRole('row', { name: new RegExp(title) }).click(); await page.getByRole('link', { name: 'Supplier handbook', exact: true }).waitFor(); await page.getByRole('region', { name: 'Supplemental documents', exact: true }).scrollIntoViewIfNeeded(); await capture(page, 'sender-completed')
     assert.equal(await page.getByLabel('Supplement label').count(), 0, 'sent documents have no editing form')
+    // A correction reusing the mailbox is a new audience/acknowledgment identity in the built UI too.
+    const epochId=(await app.command('envelope.prepare',{title:`Corrected recipient ${width}`,filename:'identity.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),signers:[{name:'Mara Quinn',email:'epoch@supplier.example'}],fields:[{id:'signature',type:'signature',label:'Signature',signer:0,page:0,x:.1,y:.5,width:.5,height:.06}]})).id
+    const epochSupplement=(await app.command('envelope.supplement',{id:epochId,label:'Identity handbook',filename:'handbook.pdf',pdfBase64:handbookBytes.toString('base64'),requirement:'acknowledge'})).supplementId
+    const epochInvite=(await app.command('envelope.approve',{id:epochId,eligible:true})).invitations[0]
+    const epochContext=await app.browser.newContext({viewport:{width,height:width===390?844:1000}}),epochPage=await epochContext.newPage()
+    const enter=async invite=>{await epochPage.goto(invite.url);await tab(epochPage,epochPage.getByLabel('Verification code',{exact:true}));await epochPage.keyboard.type(invite.code);await activate(epochPage,epochPage.getByRole('button',{name:'Verify code',exact:true}));await tab(epochPage,epochPage.getByRole('checkbox',{name:/I have read the electronic record/}));await epochPage.keyboard.press('Space');await activate(epochPage,epochPage.getByRole('button',{name:'Agree and continue',exact:true}))}
+    await enter(epochInvite)
+    const epochBase=new URL(epochInvite.url).pathname.replace('/sign/','/api/sign/')
+    for(const [suffix,body] of [[`/supplements/${epochSupplement}/document`,undefined],[`/supplements/${epochSupplement}/acknowledge`,{acknowledge:true}],['/comments',{action:'create',page:1,text:'Only the earlier identity may read this.',audience:['recipient:0'],commandId:crypto.randomUUID()}]]){
+     const response=body?await epochPage.request.post(app.origin+epochBase+suffix,{data:body,headers:{origin:app.origin}}):await epochPage.request.get(app.origin+epochBase+suffix);assert.equal(response.status(),200)
+    }
+    await app.command('envelope.correct',{id:epochId,signers:[{name:'Mara Corrected',email:'epoch@supplier.example'}]})
+    const replacement=(await app.command('envelope.invite',{id:epochId})).invitations[0]
+    await enter(replacement)
+    const replacementComments=epochPage.getByRole('region',{name:'Document comments',exact:true});await activate(epochPage,replacementComments.locator('summary'));await replacementComments.getByText('No comments shared with you.',{exact:true}).waitFor()
+    assert.equal(await epochPage.getByText('Only the earlier identity may read this.',{exact:true}).count(),0)
+    assert.ok(await epochPage.getByRole('button',{name:'I acknowledge Identity handbook',exact:true}).isDisabled(),'replacement must open and acknowledge again')
+    assert.equal(await epochPage.getByRole('status').filter({hasText:'Acknowledged'}).count(),0)
+    await capture(epochPage,'same-email-replacement');await epochContext.close()
     await signingContext.close(); await context.close()
   }
   console.log('SIGNX-009: supplemental PDF authoring, opening and acknowledgment, keyboard and accessibility-tree completion; SIGNX-003 light/dark scans at 1440 and 390 passed')

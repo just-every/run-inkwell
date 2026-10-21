@@ -250,7 +250,7 @@ test('Private page threads: chosen audiences, inherited replies, identity epochs
   for(const [path,cookie] of [[base,senderCookie],[first.path,first.cookie],[second.path,second.cookie]])for(const input of [{action:'create',page:0,text:'late',audience:['sender']},{action:'reply',thread:root,text:'late'},{action:'audience',thread:root,audience:['sender']}])await post(path,input,cookie,409)
   assert.deepEqual((await view(base,senderCookie)).threads,terminal)
   const audit=(await h.send('/api/inkwell/comments/audit',undefined,admin)).value
-  assert.ok(audit.events.some(e=>e.action==='comment.audience_changed'));assert.ok(audit.events.some(e=>e.action==='comment.created'));assert.ok(audit.events.some(e=>e.action==='comment.replied'))
+  assert.ok(audit.events.some(e=>e.action==='comment.shared'));assert.ok(audit.events.some(e=>e.action==='comment.audience_changed'));assert.ok(audit.events.some(e=>e.action==='comment.created'));assert.ok(audit.events.some(e=>e.action==='comment.replied'))
   for(const secret of ['private-inkwell-comment-1','private-inkwell-reply-2',people[0].email])assert.ok(!JSON.stringify(audit).includes(secret),'account comment audit is opaque metadata only')
   const certificate=await pdfText((await h.send(base+'/artifacts/certificate',undefined,h.owner)).bytes)
   assert.ok(!certificate.includes('private-inkwell-'))
@@ -258,6 +258,12 @@ test('Private page threads: chosen audiences, inherited replies, identity epochs
   assert.equal(custody.threads[0].messages.length,4,'explicit record custody includes the whole transcript under document authority')
   const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value,restored=await harness({mailProvider:null})
   try {await restored.post('/api/inkwell/archive/restore',{archive});assert.deepEqual((await restored.send(base+'/artifacts/custody',undefined,restored.owner)).value.threads,custody.threads);assert.deepEqual((await restored.send(base+'/comments',undefined,restored.owner)).value.threads,[],'custody restore never reassigns a sender audience to the destination owner')}finally{await restored.close()}
+  const savedRow=await h.db.prepare('SELECT data FROM iw_comment_threads WHERE id=?').bind(root).first()
+  const damaged=JSON.parse(savedRow.data);damaged.messages[0].text='tampered text'
+  await h.db.prepare('UPDATE iw_comment_threads SET data=? WHERE id=?').bind(JSON.stringify(damaged),root).run()
+  assert.equal((await h.send(base+'/comments',undefined,senderCookie)).status,503)
+  assert.equal((await h.send(base+'/verify',undefined,h.owner)).value.ok,false)
+  await h.db.prepare('UPDATE iw_comment_threads SET data=? WHERE id=?').bind(savedRow.data,root).run()
   await h.command('envelope.hold',{id,reason:'Preserve private transcript'})
   await h.post('/api/inkwell/erase',{id,confirmation:'ERASE'},h.owner,409)
   await h.command('envelope.lift_hold',{id})

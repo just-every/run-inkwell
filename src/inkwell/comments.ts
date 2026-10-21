@@ -63,6 +63,7 @@ export async function writeComment(env:Env,e:Envelope,p:Participant|null,input:R
  insist(await validCommentRecords(e,rows,canonical,sha256),'The stored transcript failed its integrity check.',503)
  const after=structuredClone(e)
  await appendEvent(after,action==='create'?'comment.created':action==='reply'?'comment.replied':'comment.audience_changed',p.actor?.id??`recipient:${p.signing!.recipient.row}`,{thread:thread.id,document:thread.document,page:thread.page,recipients:thread.audience.flatMap(a=>a.kind==='recipient'?[{signer:a.signer,...(a.member===undefined?{}:{member:a.member})}]:[]),sender:thread.audience.some(a=>a.kind==='sender'),transcriptSha256:await sha256(canonical(thread))})
+ if(action==='audience') await appendEvent(after,'comment.shared',p.actor?.id??`recipient:${p.signing!.recipient.row}`,{...after.events.at(-1)!.detail})
  const result={id:e.id,thread:thread.id}
  await commitEnvelope(env,e,after,p.actor??null,[env.DB.prepare('INSERT INTO iw_comment_threads(id,envelope_id,data) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data').bind(thread.id,e.id,JSON.stringify(thread)),commandWrite(env.DB,key,commandId,fingerprint,result)],p.signing?[liveGuard(p.signing),sessionGuard(p.signing)]:[])
  return result
