@@ -21,6 +21,7 @@ class TarVerifier {
 assert.equal(execFileSync('git',['status','--porcelain'],{encoding:'utf8'}).trim(),'','scale proof requires a clean committed candidate')
 const sha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),runId='cloud-port-'+new Date().toISOString().replace(/[-:.]/g,''),h=await harness({mailProvider:null})
 let destination
+process.once('SIGINT',()=>void(async()=>{await destination?.close();await h.close();process.exit(130)})())
 const base='/api/inkwell/archive/transfers',started=Date.now()
 try{
  const source=await capacityFixture(h),invitation=(await h.command('envelope.approve',{id:source.id,eligible:true})).result.invitations[0],path='/api'+new URL(invitation.url).pathname,cookie=(await h.post(path+'/verify',{code:invitation.code},'')).cookie
@@ -42,7 +43,7 @@ try{
  let state=(await h.post(`${base}/exports/${archive}/advance`,{maxParts:1})).value
  assert.equal((await h.send(`${base}/exports/${archive}`,undefined,h.owner)).value.completed,state.completed)
  let reported=0
- while(state.phase==='building'){state=(await h.post(`${base}/exports/${archive}/advance`,{expectedPart:state.completed,maxParts:8})).value;if(state.completed-reported>=128){reported=state.completed;console.log(JSON.stringify({phase:'building',parts:state.completed,bytes:state.bytes}))}}
+ while(state.phase==='building'){state=(await h.post(`${base}/exports/${archive}/advance`,{expectedPart:state.completed,maxParts:8})).value;if(state.completed-reported>=16){reported=state.completed;console.log(JSON.stringify({phase:'building',parts:state.completed,bytes:state.bytes}))}}
  assert.equal(state.phase,'complete');assert.ok(state.bytes>=2*1024**3)
  const manifest=(await h.send(`${base}/exports/${archive}/records/manifest`,undefined,h.owner)).value,closing=(await h.send(`${base}/exports/${archive}/records/closing`,undefined,h.owner)).value
  destination=await harness({mailProvider:null})
@@ -52,7 +53,7 @@ try{
   const put=async()=>{const response=await destination.mf.dispatchFetch(destination.origin+`${base}/imports/${restore}/parts/${index}`,{method:'PUT',headers:{origin:destination.origin,cookie:destination.owner,'content-type':'application/json'},body:JSON.stringify(part)});assert.equal(response.status,200,await response.text())}
   await put();if(index===0)await put()
   if(index===2){assert.equal((await destination.send(`${base}/imports/${restore}`,undefined,destination.owner)).value.completed,3);assert.equal((await destination.send(`/api/inkwell/envelopes/${source.id}`,undefined,destination.owner)).status,404)}
-  if((index+1)%128===0)console.log(JSON.stringify({phase:'restoring',parts:index+1,total:manifest.partCount}))
+  if((index+1)%16===0)console.log(JSON.stringify({phase:'restoring',parts:index+1,total:manifest.partCount}))
  }
  const restored=(await destination.post(`${base}/imports/${restore}/finalize`,{contentHash:closing.contentHash,archiveHash:closing.archiveHash})).value;assert.equal(restored.phase,'complete')
  let fingerprints=0

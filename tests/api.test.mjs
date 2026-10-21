@@ -794,6 +794,14 @@ test('DocuSeal dry run, explicit fingerprint, journal, downloads and undo preser
  assert.equal(library.length,1);importedId=library[0].id
  const file=library[0].artifacts[0],download=await h.send(file.url,undefined,h.owner)
  assert.equal(download.status,200);assert.equal(digest(download.bytes),file.sha256)
+ // PORT-002: selected imported custody keeps its provider files and owner-only authority.
+ const selected=(await h.post('/api/inkwell/exports',{scope:'selected',ids:['import:'+importedId]})).value.id
+ const bundle=await h.send(`/api/inkwell/exports/${selected}/download`,undefined,h.owner),files=new Map()
+ for(let offset=0;offset+512<=bundle.bytes.length;){const header=bundle.bytes.subarray(offset,offset+512);if(header.every(b=>b===0))break;const name=Buffer.from(header.subarray(0,100)).toString().split('\0')[0],size=parseInt(Buffer.from(header.subarray(124,136)).toString().replace(/\0.*$/,''),8);files.set(name,bundle.bytes.slice(offset+512,offset+512+size));offset+=512+Math.ceil(size/512)*512}
+ assert.equal(bundle.status,200);assert.ok(files.has(`imports/${importedId}/audit.json`));for(const [index,artifact] of library[0].artifacts.entries())assert.equal(digest(files.get(`imports/${importedId}/${artifact.role==='certificate'?'audit':artifact.role}-${index}.pdf`)),artifact.sha256)
+ const exportAdmin=await h.invite('import-export-admin@harbour.example','admin')
+ await h.post('/api/inkwell/exports',{scope:'selected',ids:['import:'+importedId]},exportAdmin,403)
+ await h.post(`/api/inkwell/exports/${selected}/discard`,{})
  const undone=(await h.post('/api/inkwell/import/undo',{id:applied.job.id})).value
  assert.equal(undone.job.state,'undone')
  assert.equal((await h.send('/api/inkwell/import/records',undefined,h.owner)).value.records.length,0)

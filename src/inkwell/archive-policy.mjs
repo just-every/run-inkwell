@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { validDocumentRecord } from './document-record.mjs';
 import { validCommentRecords } from './comment-record.mjs';
@@ -18,12 +19,12 @@ export default {
     const table=name=>tables[name] ? '"'+tables[name].replaceAll('"','""')+'"' : null;
     async function* rows(name,where='',values=[]) {
       const source=table(name);if(!source)return;
-      for(let offset=0;;offset+=32){const batch=(await db.prepare(`SELECT * FROM ${source}${where?' WHERE '+where:''} ORDER BY rowid LIMIT 32 OFFSET ?`).bind(...values,offset).all()).results;if(!batch.length)break;yield* batch;}
+      for(let offset=0;;offset+=2){const batch=(await db.prepare(`SELECT * FROM ${source}${where?' WHERE '+where:''} ORDER BY rowid LIMIT 2 OFFSET ?`).bind(...values,offset).all()).results;if(!batch.length)break;yield* batch;}
     }
-    async function fingerprint(name,where,values,expected) {
+    async function fingerprint(name,where,values,expected,partColumn='part',dataColumn='data') {
       const source=table(name);if(!source)return false;
       const digest=createHash('sha256');let part=0;
-      for(;;){const batch=(await db.prepare(`SELECT part,data FROM ${source} WHERE ${where} AND part>=? ORDER BY part LIMIT 4`).bind(...values,part).all()).results;if(!batch.length)break;
+      for(;;){const batch=(await db.prepare(`SELECT ${partColumn} AS part,${dataColumn} AS data FROM ${source} WHERE ${where} AND ${partColumn}>=? ORDER BY ${partColumn} LIMIT 4`).bind(...values,part).all()).results;if(!batch.length)break;
        for(const row of batch){if(row.part!==part++)return false;digest.update(new Uint8Array(row.data));}}
       return part>0&&digest.digest('hex')===expected;
     }
@@ -43,7 +44,7 @@ export default {
         const {hash,...body}=event;if(body.previousHash!==previousHash||hash!==await sha256(canonicalJson(body)))return false;previousHash=hash;
       }
       if(index!==e.events.length)return false;
-      const artifacts=[['original',e.originalSha256],['signed',e.signedSha256],['certificate',e.certificateSha256],...(e.supplements??[]).map(s=>[`supplement-${s.id}`,s.sha256]),...(e.documents??[]).flatMap((d,i)=>[[`document-${i}`,d.sha256],[`executed-${i}`,d.signedSha256]])];
+      const artifacts=[['original',e.originalSha256],['signed',e.signedSha256],['certificate',e.certificateSha256],...(e.supplements??[]).map(s=>[`supplement-${s.id}`,s.sha256]),...(e.documents??[]).flatMap((d,i)=>[[`document-${i}`,d.sha256],[`executed-${i}`,d.signedSha256]]),...e.signers.flatMap((s,i)=>[...(s.paper?[['paper-'+i,s.paper.sha256]]:[]),...(s.adoption?.sha256?[['mark-'+i,s.adoption.sha256]]:[]),...(s.initialsAdoption?.sha256?[['initials-'+i,s.initialsAdoption.sha256]]:[])])];
       for(const [kind,hash] of artifacts){if(!hash){if(kind==='original'||e.status==='completed')return false;continue;}if(!await fingerprint('iw_blobs','envelope_id=? AND kind=?',[e.id,kind],hash))return false;}
     }
     for await(const row of rows('iw_templates')){
@@ -51,6 +52,13 @@ export default {
       if(!await fingerprint('iw_template_blobs','template_id=?',[row.id],t.originalSha256))return false;
       for(const s of t.supplements??[])if(!await fingerprint('iw_template_supplement_blobs','template_id=? AND supplement_id=?',[row.id,s.id],s.sha256))return false;
       for(const [i,d] of (t.documents??[]).entries())if(!await fingerprint('iw_template_document_blobs','template_id=? AND document=?',[row.id,i],d.sha256))return false;
+    }
+    for await(const row of rows('iw_imported_archives')){
+      const record=JSON.parse(row.value);for(const file of record.files??[]){const bytes=Buffer.from(file.base64,'base64');if(bytes.length!==file.size||createHash('sha256').update(bytes).digest('hex')!==file.sha256)return false;}
+    }
+    for await(const row of rows('ik_originals')){
+      if(row.bytes!==null&&row.bytes!==undefined){if(createHash('sha256').update(new Uint8Array(row.bytes)).digest('hex')!==row.sha256)return false;}
+      else if(table('ik_d1_original_chunks')){const available=await db.prepare(`SELECT 1 FROM ${table('ik_d1_original_chunks')} WHERE job_id=? AND kind=? AND original_key=? LIMIT 1`).bind(row.job_id,row.kind,row.original_key).first();if(available&&!await fingerprint('ik_d1_original_chunks','job_id=? AND kind=? AND original_key=?',[row.job_id,row.kind,row.original_key],row.sha256,'ordinal','bytes'))return false;}
     }
     return true;
   },

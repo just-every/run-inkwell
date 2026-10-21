@@ -18,9 +18,9 @@ export async function archiveTransfers(request:Request,env:Bindings,actor:Actor,
    if(route[3]==='manifest')return Response.json(manifest,{headers:{'cache-control':'no-store'}})
    if(route[3]==='closing')return Response.json(closing,{headers:{'cache-control':'no-store'}})
    const part=Number(route[3]);insist(Number.isSafeInteger(part)&&part>=0&&part<status.completed,'Archive part not found.',404)
-   const rows=(await env.DB.prepare('SELECT data FROM rer_portability_segments WHERE job=? AND part=? ORDER BY segment').bind(job,part).all<{data:string}>()).results
-   insist(rows.length,'Archive part is no longer available.',410)
-   return new Response(rows.map(r=>r.data).join(''),{headers:{'content-type':'application/json','cache-control':'no-store'}})
+   async function* segments(){let segment=0;for(;;){const rows=(await env.DB.prepare('SELECT segment,data FROM rer_portability_segments WHERE job=? AND part=? AND segment>=? ORDER BY segment LIMIT 16').bind(job,part,segment).all<{segment:number;data:string}>()).results;if(!rows.length)break;for(const row of rows){insist(row.segment===segment++,'Archive part is incomplete.',503);yield encode(row.data)}}insist(segment>0,'Archive part is no longer available.',410)}
+   const iterator=segments()[Symbol.asyncIterator](),stream=new ReadableStream<Uint8Array>({async pull(c){try{const value=await iterator.next();if(value.done)c.close();else c.enqueue(value.value)}catch(error){c.error(error)}},async cancel(){await iterator.return(undefined)}})
+   return new Response(stream,{headers:{'content-type':'application/json','cache-control':'no-store'}})
   }
   // Byte ranges resume at a stored segment, without replaying the archive prefix through JavaScript.
   const prefix=encode(canonicalJson(manifest)+'\n'),suffix=encode(canonicalJson(closing)+'\n')
@@ -46,5 +46,5 @@ export async function archiveTransfers(request:Request,env:Bindings,actor:Actor,
   const iterator=chunks()[Symbol.asyncIterator](),stream=new ReadableStream<Uint8Array>({async pull(c){try{const r=await iterator.next();if(r.done)c.close();else c.enqueue(r.value)}catch(error){c.error(error)}},async cancel(){await iterator.return?.()}})
   return new Response(stream,{status:range?206:200,headers:{'content-type':'application/x-ndjson','content-disposition':`attachment; filename="inkwell-${job}.ndjson"`,'content-length':String(end-start+1),'accept-ranges':'bytes','etag':`"${metadata.archiveHash}"`,'cache-control':'no-store',...(range?{'content-range':`bytes ${start}-${end}/${total}`}:{})}})
  }
- return (await createPortabilityHandler({db,policy:route[0]==='exports'?{...policy,partBytes:1024*1024}:policy,appOrigin:env.AUTH_ORIGIN,basePath,authorize:async()=>actor.id}))(request)
+ return (await createPortabilityHandler({db,policy,appOrigin:env.AUTH_ORIGIN,basePath,authorize:async()=>actor.id}))(request)
 }

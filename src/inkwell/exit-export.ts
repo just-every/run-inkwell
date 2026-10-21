@@ -54,7 +54,7 @@ async function* entries(env:Bindings,job:Job):AsyncGenerator<Entry>{
   yield memoryEntry(`${prefix}/audit.json`,encode(JSON.stringify({format:'inkwell-audit/1',envelope:e})),metadata)
   yield memoryEntry(`${prefix}/custody.json`,encode(JSON.stringify({format:'inkwell-record-custody/1',envelope:e,threads})),metadata)
   const artifacts=(await env.DB.prepare(`SELECT kind,SUM(length(data)) AS bytes,COUNT(*) AS parts FROM ${quote(tables.blobs)} WHERE envelope_id=? GROUP BY kind ORDER BY kind`).bind(e.id).all<{kind:string;bytes:number;parts:number}>()).results
-  for(const a of artifacts){const hash=expected(e,a.kind);insist(hash,'An export artifact has no recorded fingerprint.',503);const pdf=!a.kind.startsWith('mark-')&&!a.kind.startsWith('initials-')&&(!a.kind.startsWith('paper-')||e.signers[Number(a.kind.slice(6))]?.paper?.mediaType==='application/pdf')
+  for(const a of artifacts){const hash=expected(e,a.kind);if(!hash||a.kind.startsWith('mark-')||a.kind.startsWith('initials-'))continue;const pdf=!a.kind.startsWith('mark-')&&!a.kind.startsWith('initials-')&&(!a.kind.startsWith('paper-')||e.signers[Number(a.kind.slice(6))]?.paper?.mediaType==='application/pdf')
    yield{name:`${prefix}/${a.kind}.${pdf?'pdf':'bin'}`,size:a.bytes,sha256:hash,...metadata,async*open(offset,length){
     let part=Math.floor(offset/65536),position=part*65536,remaining=length;const digest=offset===0&&length===a.bytes?createHash('sha256'):undefined
     while(remaining>0){const chunks=(await env.DB.prepare(`SELECT part,data FROM ${quote(tables.blobs)} WHERE envelope_id=? AND kind=? AND part>=? ORDER BY part LIMIT 32`).bind(e.id,a.kind,part).all<{part:number;data:number[]}>()).results;insist(chunks.length,'Export snapshot is no longer available.',410)
