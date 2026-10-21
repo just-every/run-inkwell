@@ -31,7 +31,8 @@ const capture = async (page, width, state) => {
 const invitation = email => app.mail(email, 'Please sign:').text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]
 async function openSigner(context, email) {
   const page = await context.newPage(); await page.goto(invitation(email))
-  await activate(page, page.getByRole('button', { name: 'Email me a code', exact: true }))
+  const codeSent = page.waitForResponse(response => response.url().endsWith('/code') && response.request().method() === 'POST')
+  await activate(page, page.getByRole('button', { name: 'Email me a code', exact: true })); assert.equal((await codeSent).status(), 200)
   await enter(page, page.getByLabel('Email verification code', { exact: true }), app.mail(email, 'Your Inkwell verification code').text.match(/\b\d{6}\b/)[0])
   await activate(page, page.getByRole('button', { name: 'Verify code', exact: true }))
   await tab(page, page.getByRole('checkbox', { name: /I have read the electronic record/ })); await page.keyboard.press('Space')
