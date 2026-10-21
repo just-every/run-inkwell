@@ -1,3 +1,4 @@
+import { expect } from '@playwright/test'
 // SIGNX-009 supplemental-document slice joins SIGNX-003 through the built public pages.
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
@@ -126,11 +127,11 @@ try {
     const title=`Three-document agreement ${width}`,id=(await app.command('envelope.prepare',{title,filename:'agreement.pdf',pdfBase64:originals[0].toString('base64'),signers:[{name:'Mara Quinn',email:`multi-mara-${width}@supplier.example`},{name:'Noor Haddad',email:`multi-noor-${width}@supplier.example`}],fields:[0,1].map(signer=>({id:`agreement-${signer}`,type:'signature',label:`Agreement signature ${signer+1}`,signer,page:0,x:.1,y:.4+signer*.15,width:.5,height:.06}))})).id
     const context=await app.browser.newContext({viewport:{width,height:width===390?844:1000}});await context.addCookies([app.ownerCookie()]);const page=await context.newPage()
     await page.goto(app.origin+'/app');await page.getByRole('row',{name:new RegExp(title)}).click();await page.getByRole('button',{name:'Edit draft',exact:true}).click();await page.getByRole('button',{name:'Save draft',exact:true}).waitFor()
-    const add=async(name,buffer)=>{await page.getByLabel('Additional PDF',{exact:true}).setInputFiles({name,mimeType:'application/pdf',buffer})}
+    const add=async(name,buffer)=>{const chooser=page.waitForEvent('filechooser');await activate(page,page.getByLabel('Additional PDF',{exact:true}));await(await chooser).setFiles({name,mimeType:'application/pdf',buffer})}
     await add('w9.pdf',originals[1]);await page.getByRole('button',{name:`Apply Supplier W-9 fields ${width}`,exact:true}).click();await page.getByRole('region',{name:'Matching templates',exact:true}).waitFor({state:'detached'})
     await add('policy.pdf',originals[2]);await page.getByLabel('Document 3 signing requirement',{exact:true}).selectOption('view')
     const list=page.getByRole('region',{name:'Envelope documents',exact:true});await list.getByRole('button',{name:'Move policy.pdf up',exact:true}).click();await list.getByRole('button',{name:'Move policy.pdf down',exact:true}).click()
-    assert.ok((await list.ariaSnapshot()).indexOf('w9.pdf')<(await list.ariaSnapshot()).indexOf('policy.pdf'))
+    await expect(list.locator('ol > li > strong')).toHaveText(['1. agreement.pdf','2. w9.pdf','3. policy.pdf'])
     for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await axe(page,`PREP-002 preparation ${width} ${theme}`)}
     await page.emulateMedia({colorScheme:'light'});await list.scrollIntoViewIfNeeded();await page.screenshot({path:`${proof}/${width}-multi-prepare.png`})
     await page.getByRole('button',{name:'Save draft',exact:true}).click();await page.getByRole('button',{name:'Edit draft',exact:true}).waitFor()
