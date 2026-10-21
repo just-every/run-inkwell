@@ -21,7 +21,7 @@ try {
   const viewport = { width, height: width === 390 ? 844 : 1000 }
   const owner = await app.browser.newContext({ viewport, hasTouch: width === 390 }); await owner.addCookies([app.ownerCookie()])
   const page = await owner.newPage(); page.setDefaultTimeout(20000)
-  const capture = async (name, p) => { assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${name} no sideways scroll ${width}`); await p.screenshot({ path: `${images}/${width}-${name}.png` }) }
+  const capture = async (name, p) => { if (name.includes('held')) await p.getByText('Sending held.', { exact: true }).scrollIntoViewIfNeeded(); assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${name} no sideways scroll ${width}`); await p.screenshot({ path: `${images}/${width}-${name}.png` }) }
   // The owner names the approver for envelopes whose Contract value is above 10,000 USD.
   await page.goto(app.origin + '/app'); await page.getByRole('button', { name: 'Settings', exact: true }).click()
   const panel = page.locator('section', { has: page.getByRole('heading', { name: 'Internal approval', exact: true }) })
