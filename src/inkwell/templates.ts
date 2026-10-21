@@ -1,5 +1,5 @@
 import { consumedUploadWrites, readDocuments, documentFields, documentInputFields, documentWrites, stagedBlobWrites, type EnvelopeDocument } from './documents'
-import { templateOriginal, templateDocumentWrites } from './template-documents'
+import { verifyTemplateDocument, templateOriginal, templateDocumentWrites } from './template-documents'
 import { envelopeDefaults } from './envelope-defaults'
 import { normalizeRoutingRule, validateRouting } from './routing'
 // TMPL-001: a template keeps one fixed PDF with its roles in routing order, fields, messages, reminders, expiry and
@@ -172,6 +172,7 @@ export async function useTemplate(env: Env, context: CommandContext, input: Reco
     return { ...(role.includeWhen?{includeWhen:role.includeWhen}:{}), ...(person.group === undefined ? { name: person.name, email: person.email } : { group: person.group }), order: role.order, ...(role.linkOnly ? { linkOnly: true } : {}), ...(code === undefined ? {} : { accessCode: code }), ...(role.message ? { message: role.message } : {}) }
   })
   const createdAt = now()
+  for(const [i] of (template.documents??[]).entries())await verifyTemplateDocument(env,template,i)
   const { draft, accessCodes } = await readDraft(env, { title: template.title, filename: template.filename, pdfBase64: base64(bytes), signers, fields: applyPrefillPayload(template.fields, input.prefill), expiresAt: new Date(Date.parse(createdAt) + template.expiryDays * day).toISOString(), reminders: template.reminders ?? null, ...(template.allowPaper ? { allowPaperSigning: true } : {}), ...(template.allowReassign ? { allowReassignment: true } : {}), ...(template.subject ? { subject: template.subject } : {}), ...(template.message ? { message: template.message } : {}) }, createdAt,undefined,context.actor,template.documents?{bytes,documents:template.documents}:undefined)
   const from = { id: template.id, title: template.title, version: versionOf(template) }
   const envelope = { id: id(), version: 1, status: 'prepared' as const, createdAt, createdBy: context.actor.id, ...draft, ...(artifacts.length ? { supplements: artifacts.map(a => a.supplement) } : {}), template: from, ...(template.approval ? { approvalRule: template.approval } : {}), events: [] }

@@ -131,7 +131,7 @@ try {
     await add('w9.pdf',originals[1]);await page.getByRole('button',{name:`Apply Supplier W-9 fields ${width}`,exact:true}).click();await page.getByRole('region',{name:'Matching templates',exact:true}).waitFor({state:'detached'})
     await add('policy.pdf',originals[2]);await page.getByLabel('Document 3 signing requirement',{exact:true}).selectOption('view')
     const list=page.getByRole('region',{name:'Envelope documents',exact:true});await list.getByRole('button',{name:'Move policy.pdf up',exact:true}).click();await list.getByRole('button',{name:'Move policy.pdf down',exact:true}).click()
-    await expect(list.locator('ol > li > strong')).toHaveText(['1. agreement.pdf','2. w9.pdf','3. policy.pdf'])
+    await expect(list.locator('ol > li > strong')).toHaveText(['agreement.pdf','w9.pdf','policy.pdf'])
     for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await axe(page,`PREP-002 preparation ${width} ${theme}`)}
     await page.emulateMedia({colorScheme:'light'});await list.scrollIntoViewIfNeeded();await page.screenshot({path:`${proof}/${width}-multi-prepare.png`})
     await page.getByRole('button',{name:'Save draft',exact:true}).click();await page.getByRole('button',{name:'Edit draft',exact:true}).waitFor()
@@ -153,7 +153,11 @@ try {
     assert.equal(record.documents.length,3);assert.equal(record.status,'completed');assert.ok(record.documents.every(d=>d.signedSha256))
     assert.equal((await PDFDocument.load(await (await page.request.get(app.origin+`/api/inkwell/envelopes/${id}/artifacts/signed`)).body())).getPageCount(),3)
     await page.reload();await page.getByRole('row',{name:new RegExp(title)}).click();for(const filename of ['agreement.pdf','w9.pdf','policy.pdf'])await page.getByRole('link',{name:`Executed ${filename}`,exact:true}).waitFor()
-    await page.getByRole('region',{name:'Envelope documents',exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:`${proof}/${width}-multi-completed.png`});await context.close()
+    await page.getByRole('region',{name:'Envelope documents',exact:true}).scrollIntoViewIfNeeded();await page.screenshot({path:`${proof}/${width}-multi-completed.png`})
+    await app.command('template.from_envelope',{id,title:`Three-document template ${width}`});await page.getByRole('button',{name:'Templates',exact:true}).click();await page.getByRole('button',{name:`Edit Three-document template ${width}`,exact:true}).click()
+    const templateDocs=page.getByRole('region',{name:'Envelope documents',exact:true});await expect(templateDocs.locator('ol > li > strong')).toHaveText(['agreement.pdf','w9.pdf','policy.pdf'])
+    for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await axe(page,`PREP-002 template edit ${width} ${theme}`)}
+    await page.emulateMedia({colorScheme:'light'});await templateDocs.scrollIntoViewIfNeeded();await page.screenshot({path:`${proof}/${width}-multi-template.png`});await page.getByRole('button',{name:'Save new version',exact:true}).click();await page.getByRole('heading',{name:'Your templates',exact:true}).waitFor();await context.close()
   }
   console.log('PREP-002: ordered three-document preparation, W-9 template application, view-only policy, two single-session signers, separate/combined records; light/dark accessibility proof at 1440 and 390 passed')
   console.log('SIGNX-009: supplemental PDF authoring, opening and acknowledgment, keyboard and accessibility-tree completion; SIGNX-003 light/dark scans at 1440 and 390 passed')

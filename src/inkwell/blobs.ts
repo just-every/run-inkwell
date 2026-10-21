@@ -10,6 +10,7 @@ export async function* blobChunks(db:D1Database,envelopeId:string,kind:string) {
  for(;;){const rows=(await db.prepare('SELECT part,data FROM iw_blobs WHERE envelope_id=? AND kind=? AND part>=? ORDER BY part LIMIT 4').bind(envelopeId,kind,part).all<{part:number;data:number[]|ArrayBuffer}>()).results;if(!rows.length)break;for(const row of rows){insist(row.part===part++,'The stored artifact is incomplete.',503);yield new Uint8Array(row.data)}}
  insist(part>0,'This artifact is not available.',404)
 }
+export async function blobFingerprint(db:D1Database,envelopeId:string,kind:string){const digest=createHash('sha256');for await(const chunk of blobChunks(db,envelopeId,kind))digest.update(chunk);return digest.digest('hex')}
 export async function readBlob(db:D1Database,envelopeId:string,kind:string,expected?:string) {
  const row=await db.prepare('SELECT SUM(length(data)) AS bytes FROM iw_blobs WHERE envelope_id=? AND kind=?').bind(envelopeId,kind).first<{bytes:number|null}>();insist(row?.bytes,'This artifact is not available.',404)
  const bytes=new Uint8Array(row.bytes),digest=createHash('sha256');let offset=0

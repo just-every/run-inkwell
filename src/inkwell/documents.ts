@@ -1,7 +1,7 @@
 import { PDFDocument } from 'pdf-lib'
 import { active, canonical, id, insist, now, object, sha256, text, type Actor, type Envelope, type Env, type Field } from './model'
-import { fromBase64, readBlob } from './blobs'
-import { parsePdf } from './pdf'
+import { blobFingerprint, fromBase64, readBlob } from './blobs'
+import { parsePdf, validatePdfText } from './pdf'
 import { atomic, roleGuard } from './storage'
 import { readBytes } from './body'
 export const MAX_ENVELOPE_BYTES=100*1024*1024
@@ -68,6 +68,7 @@ export async function readDocuments(env:Env,input:Record<string,unknown>,actor?:
   else {bytes=fromBase64(d.pdfBase64);filename=text(d.filename,'a PDF filename',240)}
   insist(filename.toLowerCase().endsWith('.pdf')&&!/[\x00-\x1f/\\]/.test(filename),'Choose a PDF filename.')
   total+=bytes.length;insist(total<=MAX_ENVELOPE_BYTES,'The documents exceed the envelope’s 100 MiB total limit.')
+  await validatePdfText([filename])
   const {document,pageSizes}=await parsePdf(bytes),pageStart=combined.getPageCount()
   for(const page of await combined.copyPages(document,document.getPageIndices()))combined.addPage(page)
   documents.push({filename,sha256:await sha256(bytes),bytes:bytes.length,pageStart,pages:pageSizes.length,mode:mode as EnvelopeDocument['mode']});originals.push(await stageBytes(env,bytes))
@@ -103,3 +104,5 @@ export async function executedDocuments(env:Env,e:Envelope,combined:Uint8Array) 
 export function documentInputFields(value:unknown,documents:EnvelopeDocument[]|undefined){if(!documents||!Array.isArray(value))return value;return value.map(f=>{if(!f||typeof f!=='object'||f.document===undefined)return f;const d=documents[f.document];insist(Number.isInteger(f.document)&&d,'Choose an existing document for each field.');const local=f.documentPage??f.page;insist(Number.isInteger(local)&&local>=0&&local<d.pages,'Choose a page in the field’s document.');return{...f,page:d.pageStart+local,documentPage:local}})}
 
 export function consumedUploadWrites(env:Env,input:Record<string,unknown>){return(Array.isArray(input.documents)?input.documents:[]).flatMap(d=>typeof d?.uploadId==='string'?[env.DB.prepare('DELETE FROM iw_pdf_upload_parts WHERE upload_id=?').bind(d.uploadId),env.DB.prepare('DELETE FROM iw_pdf_uploads WHERE id=?').bind(d.uploadId)]:[])}
+
+export async function verifyDocumentArtifacts(env:Env,e:Envelope){for(const [i,d] of (e.documents??[]).entries())insist(await blobFingerprint(env.DB,e.id,documentKind(i))===d.sha256,'A stored document failed its SHA-256 integrity check.',503)}

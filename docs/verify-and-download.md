@@ -63,3 +63,9 @@ Next: [Move in from DocuSeal](/docs/move-in).
 ## Private document comments
 
 While an envelope awaits signature, open **Document comments**, choose a page, write a comment and explicitly select who may read it. Neither the sender nor an owner, admin or edit-share holder receives thread access automatically. Replies keep the chosen audience. Only the thread author can change that audience. A replacement recipient starts a new identity, including when a corrected mailbox is reused, and inherits neither earlier threads nor supplemental acknowledgments. Terminal threads are read-only. Certificates include supplemental titles, fingerprints and acknowledgment times, never comment text.
+
+## Several documents in one envelope
+
+Use **Additional PDF** while preparing or editing a draft to add up to 20 ordered PDFs, 100 MiB together. Move a document up or down, remove it, or choose **Required to sign**, **Optional to sign** or **View only**. Every required document needs a signature field for every recipient; view-only documents have no signing fields. A matching template offers its fields for the added document, and applies only when you choose it.
+
+Each signer completes all assigned documents in one session. The envelope detail lists originals and executed documents in order; **Executed PDF** downloads the combined record. One certificate covers the individual and combined fingerprints. Copies and templates preserve the document bytes while clearing signatures for the new envelope.
