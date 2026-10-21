@@ -13,6 +13,9 @@ try {
  const pdf = await PDFDocument.create(), font = await pdf.embedFont(StandardFonts.Helvetica)
  pdf.addPage([612, 792]).drawText('Harbour Studio - Supply agreement', { x: 60, y: 740, size: 18, font })
  const pdfBase64 = Buffer.from(await pdf.save()).toString('base64')
+ const defaultedPdf = await PDFDocument.create(), defaultedPage = defaultedPdf.addPage([612, 792])
+ defaultedPage.drawText('{{signature:1}}', { x: 72, y: 600, size: 14 }); defaultedPage.drawText('{{signature:2}}', { x: 72, y: 500, size: 14 })
+ const defaultedBytes = Buffer.from(await defaultedPdf.save())
  const fields = [{ id: 'sig', label: 'Client signature', signer: 0, type: 'signature', page: 0, x: .1, y: .2, width: .4, height: .05 }, { id: 'value', label: 'Contract value', signer: 0, type: 'number', page: 0, x: .1, y: .3, width: .3, height: .04, readOnly: true, prefill: { value: '25000.00', source: 'Sender input' } }]
  for (const width of [1440, 390]) {
   const email = `approver${width}@harbour.example`
@@ -49,6 +52,26 @@ try {
   await page.getByLabel('Remind the recipients whose turn it is by email').uncheck()
   assert.equal(await page.getByLabel(/^Expires after \(days\)/).inputValue(), '9')
   await capture('overridden-preparation', page)
+  const defaultedTitle = `Account defaults override ${width}`
+  await page.getByLabel('Envelope title', { exact: true }).fill(defaultedTitle)
+  await page.getByLabel('Fixed PDF document', { exact: true }).setInputFiles({ name: 'defaulted.pdf', mimeType: 'application/pdf', buffer: defaultedBytes })
+  await page.getByText(/Placed 2 fields from the document/).waitFor()
+  for (const n of [1, 2]) {
+    await page.getByLabel(`Recipient ${n} name`, { exact: true }).fill(`Client ${n}`)
+    await page.getByLabel(`Recipient ${n} email`, { exact: true }).fill(`defaults${width}.${n}@clients.example`)
+  }
+  const preparedResponse = page.waitForResponse(response => response.url().endsWith('/api/inkwell/commands') && response.request().postDataJSON()?.command === 'envelope.prepare')
+  await page.getByRole('button', { name: 'Save prepared envelope', exact: true }).click()
+  const defaultedId = (await (await preparedResponse).json()).result.id
+  const defaultedEnvelope = (await app.call('/api/inkwell/envelopes/' + defaultedId, { cookie: app.owner })).value.envelope
+  assert.equal(defaultedEnvelope.reminders, undefined, 'the unchecked browser choice explicitly overrides account reminders')
+  assert.equal(Math.round((Date.parse(defaultedEnvelope.expiresAt) - Date.parse(defaultedEnvelope.createdAt)) / 86400000), 9)
+  await page.getByRole('button', { name: 'Edit draft', exact: true }).click()
+  await page.getByRole('heading', { name: 'Edit draft', exact: true }).waitFor()
+  await page.waitForFunction(() => [...document.querySelectorAll('input[type=number]')].some(input => input.value === '9'))
+  assert.equal(await page.getByLabel('Remind the recipients whose turn it is by email').isChecked(), false)
+  await page.getByLabel(/^Expires after \(days\)/).scrollIntoViewIfNeeded()
+  await axe(page, `ADMIN-004 saved override ${width}`); await capture('saved-override', page)
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   // Reset to the installation defaults so the rest of this journey keeps its own explicit settings.
