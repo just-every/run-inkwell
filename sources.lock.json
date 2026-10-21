@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "a8d257fd204cc4b1d21200cae342ab182c6d019eef2488902129002e823e8b3f",
+      "sha256": "818d0713e20f1aa3025b5460e011b031cac181d31cad8e3cd20d2bdcf5ab47f7",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "852172a8517a14780e96f8e18e913f107996a5d504a13a8a8709a653cc89f264",
+      "sha256": "eb9aeca00786b7f0cea2ffcc2c58dd7c433b0fe5f659bee5588c560bb2a1c933",
       "executable": false
     },
     "DEMO.md": {
@@ -104,6 +104,10 @@
     },
     "docs/agent-commands.md": {
       "sha256": "91392cac80f3b31f2cb1ae1e2bff876340e9680132a96725cecc4ef7a06b6eac",
+      "executable": false
+    },
+    "docs/api.md": {
+      "sha256": "62ba01afaeea72a73ec7e2de7a35f4d114913b8bd94af8ba6e452d84b7280aff",
       "executable": false
     },
     "docs/backup-and-restore.md": {
@@ -312,6 +316,10 @@
     },
     "migrations/core/0037_template_revisions.sql": {
       "sha256": "1a5100e08119a9179c7a0b018d87bd334c0ed6a9fa5c53ef6c2e1b9d7c7b1542",
+      "executable": false
+    },
+    "migrations/core/0038_api_keys.sql": {
+      "sha256": "5573eac2dc60a53ed44ba46d97b5be1c37a6dc2a4accef354c7f5b8b3e51379e",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -706,8 +714,16 @@
       "sha256": "49b958f54ee1034adef585edc26ddff004fc93d5fe701f78d8e2f546d42b2e99",
       "executable": false
     },
+    "src/inkwell/api-keys.ts": {
+      "sha256": "0a7afcc702b6aef5ca6323dc089af7b36e531172432c6c37d3649a1cd6b4abb7",
+      "executable": false
+    },
+    "src/inkwell/api-openapi.ts": {
+      "sha256": "74af168f33b62f4696213a31a29f9e388651a6e36de0751bc8a181851974fd78",
+      "executable": false
+    },
     "src/inkwell/api.ts": {
-      "sha256": "c809d7e604a2e0816750d402ffb590d7dec8a26a5830789d2eb23437a53350b4",
+      "sha256": "655557b92be3f8bbd60650b563a3a38f7b3252edba452253148ba25495ed245c",
       "executable": false
     },
     "src/inkwell/archive-policy.d.mts": {
@@ -715,7 +731,7 @@
       "executable": false
     },
     "src/inkwell/archive-policy.mjs": {
-      "sha256": "e7ef1caa819f6297867cb3b448dc8de172d56ac527c5ec3913b851f8a72ad456",
+      "sha256": "e24ce4212d7262912205faacf64335a24f0d56b180f088bb8dbe046f24aa80cd",
       "executable": false
     },
     "src/inkwell/archive.ts": {
@@ -791,7 +807,7 @@
       "executable": false
     },
     "src/inkwell/envelopes.ts": {
-      "sha256": "0290be83752617b4fa8c8692e9e3a61b3de53e6e2dfb40f48b8183a63d42a9e0",
+      "sha256": "9e5c2dbb006c8a0a66e21d75da0851471a303dd35d05b2f76030a8f075568213",
       "executable": false
     },
     "src/inkwell/erasure.ts": {
@@ -899,7 +915,7 @@
       "executable": false
     },
     "src/inkwell/model.ts": {
-      "sha256": "257ef76c109b98ba04288e8a4fcac784e32f8acbf81d0f147cf13bfc705b9940",
+      "sha256": "19752a0fcc8228dcb80bd86c815bde4b86fc95dcd457a17c14986d947950bb40",
       "executable": false
     },
     "src/inkwell/notices.ts": {
@@ -1027,7 +1043,7 @@
       "executable": false
     },
     "src/inkwell/storage.ts": {
-      "sha256": "ce431f0f11c6bee01264f56d9630af1be9f1cc6b00184ce4f3147a5dfcfb7392",
+      "sha256": "b4420d81991f126ff808390967bad7da6a8e11d205eae0936d9d759a9be9191a",
       "executable": false
     },
     "src/inkwell/supplement-record.d.mts": {
@@ -3110,12 +3126,16 @@
       "sha256": "95a1724ca4c0b8866cfe7f4395ce80e29a719e6c01c7569de4df658d0eccb6bf",
       "executable": false
     },
+    "tests/api-keys.test.mjs": {
+      "sha256": "ef527c0390c8e51db982ba9a1c6b3fb4af5674802996cf2f5a0b10882b1e20e1",
+      "executable": false
+    },
     "tests/api-worker.ts": {
       "sha256": "4a529480ab38ef80f7d83ce1007616be5c71122064b16633e501b70fabe8c315",
       "executable": false
     },
     "tests/api.test.mjs": {
-      "sha256": "c0bfd5c2ff3ed8d5caae30ff748fe3fd5bd8f0f4f288b40bcb97181ff7e49ce6",
+      "sha256": "ca3851de883935dcc39daf5ca4171af0b2de7d59123b268ee8c45c5c5c6e5e9b",
       "executable": false
     },
     "tests/compliance.test.mjs": {

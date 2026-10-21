@@ -175,7 +175,7 @@ test('agent credentials can prepare but cannot approve, sign or retain authority
  const created=await h.post('/api/inkwell/agent/prepare',{...preparation(),commandId:crypto.randomUUID()},'',200,headers)
  const id=created.value.result.id
  const attempt=await h.send('/api/inkwell/commands',{command:'envelope.approve',commandId:crypto.randomUUID(),input:{id,eligible:true}},'',headers)
- assert.equal(attempt.status,401)
+ assert.equal(attempt.status,403)
  await h.command('agent.revoke',{id:issued.id})
  await h.post('/api/inkwell/agent/prepare',{...preparation(),commandId:crypto.randomUUID()},'',401,headers)
  await h.command('envelope.void',{id,reason:'Agent proposal declined by owner'})

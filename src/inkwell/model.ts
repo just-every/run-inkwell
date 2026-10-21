@@ -3,7 +3,7 @@ export class Refusal extends Error { constructor(message: string, public status 
 export function insist(condition: unknown, message: string, status = 400): asserts condition { if (!condition) throw new Refusal(message, status) }
 /** ACCESS-001: Base's owner and admin, and Inkwell's sender and viewer for a Base member (members.ts). */
 export type Role = 'owner' | 'admin' | 'sender' | 'viewer'
-export interface Actor { id: string; name: string; email: string; role: Role; version: number; sessionId?: string; agentId?: string }
+export interface Actor { id: string; name: string; email: string; role: Role; version: number; sessionId?: string; agentId?: string; apiKeyId?: string; apiKeyScope?: string }
 /** PREP-007: `name` is the document's own name for a field it carried (its tag's label, anchor string or AcroForm full
  * name), usable in API prefill maps; `origin` records where the field came from. */
 export interface Field { name?: string; origin?: 'text_tag' | 'anchor' | 'form_field'; id: string; label: string; type: 'signature' | 'initials' | 'date_signed' | 'full_name' | 'email' | 'company' | 'title' | 'text' | 'date' | 'checkbox' | 'number' | 'radio' | 'dropdown' | 'checkbox_group' | 'note' | 'stamp'; options?: string[]; minimum?: number; maximum?: number; pattern?: 'zip' | 'phone' | 'ssn' | 'ein' | 'email' | 'date'; masked?: boolean; signer: number; page: number; x: number; y: number; width: number; height: number; prefill?: { value: string; source: string }; readOnly?: boolean; required?: boolean; requiredWhen?: { field: string; equals: string }; condition?: { field: string; equals: string }; calculation?: { operation: 'sum' | 'difference' | 'product'; fields: string[] } }
