@@ -11,7 +11,8 @@ Open a completed envelope from **Envelopes**. Its buttons download:
 | **Executed PDF** | A copy of the original with every adopted signature and field value placed on it. |
 | **Certificate** | A PDF recording, for each signer, their routing order, how and when they were authenticated (emailed code, sender-provided code or their signed-in Inkwell session) with the IP address and browser, any access code, the disclosure they accepted, the signature they adopted and how, and when they signed; the original and executed PDFs' fingerprints; and every audit event. Times show in UTC and in Eastern time. |
 | **Handoff manifest** | The envelope, signers, dates and content fingerprints, to file the record elsewhere by hand. |
-| **Audit JSON** | Every event in the envelope's audit trail. |
+| **Audit JSON** | Every event in the envelope's audit trail, including opaque comment metadata without comment text. |
+| **Record custody export** | The complete document record and private comment transcripts, for the record holder’s export and custody. Restoring custody does not grant the new owner access to a thread in the app. |
 
 ## Copies for everyone who took part
 
@@ -58,3 +59,7 @@ other. They are not an external timestamp: someone with direct control of the da
 could replace both.
 
 Next: [Move in from DocuSeal](/docs/move-in).
+
+## Private document comments
+
+While an envelope awaits signature, open **Document comments**, choose a page, write a comment and explicitly select who may read it. Neither the sender nor an owner, admin or edit-share holder receives thread access automatically. Replies keep the chosen audience. Only the thread author can change that audience. A replacement recipient starts a new identity, including when a corrected mailbox is reused, and inherits neither earlier threads nor supplemental acknowledgments. Terminal threads are read-only. Certificates include supplemental titles, fingerprints and acknowledgment times, never comment text.
