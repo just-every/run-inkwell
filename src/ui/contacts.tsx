@@ -11,9 +11,18 @@ const detail = (contact: Contact) => [contact.email, contact.company, contact.ph
 /** Search the book as the sender types (name, email or company); with nothing typed, offer recent recipients. */
 export function ContactPicker({ onPick }: { onPick: (contact: Contact, as: 'signer' | 'copy') => void }) {
   const [q, setQ] = useState('')
-  const [book, setBook] = useState<Book>()
-  const action = useAction()
-  useEffect(() => { const timer = setTimeout(() => void action.run(async () => setBook(await request<Book>(`/api/inkwell/contacts?limit=8&q=${encodeURIComponent(q.trim())}`))), 150); return () => clearTimeout(timer) }, [q])
+  const [result, setResult] = useState<{ query: string; book: Book }>()
+  const action = useAction(), query = q.trim()
+  useEffect(() => {
+    let active = true
+    const timer = setTimeout(() => void action.run(async () => {
+      const book = await request<Book>(`/api/inkwell/contacts?limit=8&q=${encodeURIComponent(query)}`)
+      if (active) setResult({ query, book })
+    }), 150)
+    return () => { active = false; clearTimeout(timer) }
+  }, [query])
+  // A query change must never relabel the previous query's suggestions as current matches.
+  const book = result?.query === query ? result.book : undefined
   const shown = q.trim() ? book?.contacts ?? [] : book?.recent ?? []
   return <div className="iw-contact-picker iw-stack">
     <label>Find a contact<input type="search" placeholder="Name, email or company" value={q} maxLength={200} onChange={event => setQ(event.target.value)} /></label>
