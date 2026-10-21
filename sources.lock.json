@@ -3127,7 +3127,7 @@
       "executable": false
     },
     "src/ui/ordered-documents.tsx": {
-      "sha256": "c17e2cfb6b711b237529ce0fd80c7ed9162583bbd57d571d627b2ccd4fd6ba6a",
+      "sha256": "9af4ecf51dbe2df49392328a6b07766e277910b7f5d8ed679dfa036da99b8ad2",
       "executable": false
     },
     "src/ui/page-thumbnails.tsx": {
@@ -3143,7 +3143,7 @@
       "executable": false
     },
     "src/ui/prepare-envelope.tsx": {
-      "sha256": "cf847544e8027d46a43ea25aeeba74d73b3e51f1033c917a837b2afd09346395",
+      "sha256": "fe4ad5e931127a024b26eb716d7c11b26160bb001d4584c0b4f23b66a5159d9c",
       "executable": false
     },
     "src/ui/public-verify.tsx": {
@@ -3203,7 +3203,7 @@
       "executable": false
     },
     "src/ui/template-offer.tsx": {
-      "sha256": "e8f95296bd873c1b09aab19a6ff869788196616703ba11141dacb1fc4cd0fd7f",
+      "sha256": "b18f854882a71a07a1dd268d068d03d813f06a357268fb06bc1750b1b0eb67d9",
       "executable": false
     },
     "src/ui/template-sharing.tsx": {

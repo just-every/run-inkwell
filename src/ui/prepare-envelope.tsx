@@ -127,10 +127,10 @@ export function PrepareEnvelope({ draft, correcting, asTemplate, template, folde
   // TMPL-005: applying a matching template sets one recipient per role, in its routing order with its private message
   // and access-code need, keeping any name and email already typed in that place, and places every template field.
   async function applyTemplate(id: string) {
-    const template = await offeredTemplate(id)
+    const template = await offeredTemplate(id),matched=matches.find(m=>m.template.id===id)?.template.document,source=matched===undefined?undefined:template.documents?.[matched],matchedFields=source?template.fields.filter(f=>f.page>=source.pageStart&&f.page<source.pageStart+source.pages).map(f=>({...f,page:f.page-source.pageStart})):template.fields
     setSigners(current => template.roles.map((role, index) => ({ name: current[index]?.name ?? '', email: current[index]?.email ?? '', accessCode: '', order: role.order, role: role.role, needsCode: Boolean(role.accessCode), linkOnly: Boolean(role.linkOnly), includeWhen: role.includeWhen, message: role.message ?? '' })))
     const index=documents.findIndex(d=>d.key===matchingDocument),start=index<0?0:documents.slice(0,index).reduce((n,d)=>n+d.pages,0),end=index<0?Infinity:start+documents[index].pages
-    setFields(current=>[...(index<0?[]:current.filter(f=>f.page<start||f.page>=end)),...template.fields.map(field=>({...field,id:index<0?field.id:`d${index}-${field.id}`,page:field.page+start,document:undefined,documentPage:undefined}))]);setSigner(0);setMatches([])
+    setFields(current=>[...(index<0?[]:current.filter(f=>f.page<start||f.page>=end)),...matchedFields.map(field=>({...field,id:index<0?field.id:`d${index}-${field.id}`,page:field.page+start,document:undefined,documentPage:undefined}))]);setSigner(0);setMatches([])
   }
   async function changeDocuments(next:DocumentFile[]) {
     if(next.length>20||next.reduce((n,d)=>n+d.file.size,0)>100*1024*1024)throw new Error('Use at most 20 PDFs and 100 MiB in total.')
