@@ -9,11 +9,16 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  verify_shards:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        journey_shard: [1, 2, 3]
     env:
       CI: 'true'
+      INKWELL_JOURNEY_SHARD: ${{ matrix.journey_shard }}/3
       WRANGLER_SEND_METRICS: 'false'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1; action runtime Node 24
@@ -28,3 +33,12 @@ jobs:
       - run: pnpm exec rer check --profile first-party
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm run verify
+
+  verify:
+    if: ${{ always() }}
+    needs: verify_shards
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Require every Verify shard
+        run: test '${{ needs.verify_shards.result }}' = success

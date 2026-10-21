@@ -51,7 +51,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "e127d0850576402ad25d6cd26937b4a465ed32b10141ec42fb326fda0a500e62",
+      "sha256": "a06c7d24a47e866c6ce1986aa58d1359d183fb28235cc72bcf5a9e6f2991a0a5",
       "executable": false
     },
     ".gitignore": {
@@ -355,7 +355,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "20cbc456048d3a1f3257ca09a28fcdba1815d326bc128e5fb97bd002f9d07162",
+      "sha256": "a94a7578f5b567c68c88f08e14c98fae5ec7487f2fb2742212e0982a723f4693",
       "executable": false
     },
     "pnpm-lock.yaml": {
@@ -3396,6 +3396,10 @@
     },
     "tests/journeys/routing.mjs": {
       "sha256": "4c2b72d459cf52148709c90b15a4df7d1ad9b1d4a9fa01764a7162a5bb574a56",
+      "executable": false
+    },
+    "tests/journeys/run.mjs": {
+      "sha256": "77d12c7456e996c6c5b54c5762207b07ea92443647d731447c35d30cac8adfa6",
       "executable": false
     },
     "tests/journeys/send-policies.mjs": {
