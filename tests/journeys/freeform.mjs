@@ -21,7 +21,7 @@ const tab = async (page, control) => {
   await tabTo(page, control, { backwards })
 }
 const activate = async (page, control) => { await tab(page, control); await page.keyboard.press('Enter') }
-const enter = async (page, control, value) => { await tab(page, control); await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.type(String(value)); assert.equal(await control.inputValue(), String(value), 'keyboard entry preserves the chosen value') }
+const enter = async (page, control, value) => { await tab(page, control); const editor = await control.elementHandle(); assert.ok(editor); await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.type(String(value)); assert.equal(await editor.inputValue(), String(value), 'keyboard entry preserves the chosen value'); await editor.dispose() }
 const choose = async (page, control, index) => { await tab(page, control); const label = await control.evaluate((el, i) => el.options[i].label, index); await page.keyboard.type(label); await page.keyboard.press('Tab'); assert.equal(await control.evaluate(el => el.selectedIndex), index, 'keyboard typeahead selects the requested option') }
 const capture = async (page, width, state) => {
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width} ${state}: no sideways scrolling`)
