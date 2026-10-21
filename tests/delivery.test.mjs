@@ -372,6 +372,8 @@ test('Follow-up grants chase three stalled signers through signed replies, human
   await h.command('envelope.resend',{id,signer:1});await h.command('envelope.resend',{id,signer:2})
   const replyAddress=async email=>{const message=await h.mail(email,'Please sign:');const address=message.headers?.['Reply-To']??message.reply_to;assert.match(String(address),/^reply\+[A-Za-z0-9_-]{43}@replies\.harbour\.example$/);return String(address)}
   const awayAddress=await replyAddress(emails[1]),objectAddress=await replyAddress(emails[2])
+  await h.command('envelope.followup',grant)
+  assert.equal((await view()).value.grant.version,2,'settings create a new immutable version without closing the thread')
   const receive=async(email,to,body,headers={},eventId=crypto.randomUUID(),status=200)=>{
    const messageId=crypto.randomUUID();h.inbound({id:messageId,from:email,to:[to],subject:'Re: Harbour agreement',text:body,headers,attachments:[],message_id:'<'+messageId+'@clients.example>'})
    return signedEvent('/api/inkwell/mail/replies',inboundSecret,{type:'email.received',data:{email_id:messageId}},eventId,status)
@@ -409,6 +411,8 @@ test('Follow-up grants chase three stalled signers through signed replies, human
   assert.equal((await h.send(oldLink)).status,404,'human correction invalidates the old link')
   await h.command('envelope.resend',{id,signer:1,newLink:true})
   await receive(emails[1],awayAddress,'old capability',{},crypto.randomUUID(),403)
+  await receive(emails[2],objectAddress,'Untrusted provider failure',{'Authentication-Results':'mail.clients.example; dmarc=fail; dkim=fail'})
+  assert.equal((await view()).value.replies.at(-1).verified,false,'provider authentication failure is held for people')
   await receive(emails[2],objectAddress,'A later automatic reply must not resume an objection.',{'Auto-Submitted':'auto-replied'})
   assert.equal((await view()).value.states[2].paused,true,'automatic replies do not override an unresolved objection')
   await receive(emails[2],objectAddress,'é'.repeat(250001))

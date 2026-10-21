@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "bdb77873bfaecc7470ced7c814a127f7e7ee5339604d2f2ef4ae05dbf38c8d6d",
+      "sha256": "5551b730e0d5b4d80d15a53f517ac05828fed0a58db9be5518e69016eba86069",
       "executable": false
     },
     "DEMO.md": {
@@ -323,7 +323,7 @@
       "executable": false
     },
     "migrations/core/0039_followup.sql": {
-      "sha256": "b9a62ef4402fd8d87d7762b926175c8c634da715b191230b68f896633ee103ea",
+      "sha256": "1ae3c58ec934a345331c3340f018975d63c16cdc0ccba38014533e46395ec3a2",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -791,7 +791,7 @@
       "executable": false
     },
     "src/inkwell/delivery.ts": {
-      "sha256": "7e5e4f46396e6dcad3c5fe363e5b1ca05cdc98d961c383cecde088ae7660f1e3",
+      "sha256": "d67203cd9f05b58c91f9a85875e960f11ec295b8328422589ec21377044ee719",
       "executable": false
     },
     "src/inkwell/disclosure.ts": {
@@ -827,7 +827,7 @@
       "executable": false
     },
     "src/inkwell/followup-engine.ts": {
-      "sha256": "596a32bf38acf136a1f6ff69f8d00879aa6c435863bcbd53d530382dfe3106ba",
+      "sha256": "44a9fbdab428811609362f27e0fc2a4b40771ab0e933be5ec12ef6bfb7a97a39",
       "executable": false
     },
     "src/inkwell/followup-inbound-types.ts": {
@@ -843,7 +843,7 @@
       "executable": false
     },
     "src/inkwell/followup-store.ts": {
-      "sha256": "61d19a6d810747784deb334e2dc55c473c37ec57db8fcd1420930cb2c3a169cc",
+      "sha256": "5736c7b8e7dece5b0a1b821435fc6784ef301f54e07dea95c094c6b013252e1b",
       "executable": false
     },
     "src/inkwell/followup-time.ts": {
@@ -931,7 +931,7 @@
       "executable": false
     },
     "src/inkwell/mail.ts": {
-      "sha256": "68334180ba0725ef1afe0d00ddde2d77f5dd4a2b459d3553893b15f172e02f76",
+      "sha256": "8a2df12a0c299bb81af14f83e18811ac9d4c0d40d09d0897c0866a8dabbbc292",
       "executable": false
     },
     "src/inkwell/manual-invitations.ts": {
@@ -3027,7 +3027,7 @@
       "executable": false
     },
     "src/ui/followup.tsx": {
-      "sha256": "fe4cdfbe85607f189af809ac1edacce353e8f9a302454609072d083d6a316adc",
+      "sha256": "22314bb2506f0f6a100fc398cd737189f54f6d3030af7dd9979990c595e8fdde",
       "executable": false
     },
     "src/ui/freeform-editor.tsx": {
@@ -3179,7 +3179,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "1df7285887be83f26c6c52af8b2844f24e18b9b6d4b69a786c28ce0511894f09",
+      "sha256": "fe928684746a07a0a41ae15793f6735eae5538315c64008892acbc8a32f596f2",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
@@ -3263,7 +3263,7 @@
       "executable": false
     },
     "tests/journeys/envelope-detail.mjs": {
-      "sha256": "8f49182fbd597f5d836ed72e853d05e24cd7e3c216834f590291f552f6fbf18a",
+      "sha256": "4c72a689ada1ccd385bf44267bf4353f0156dc60aa172cb97dfdb0216744a24a",
       "executable": false
     },
     "tests/journeys/field-placement.mjs": {

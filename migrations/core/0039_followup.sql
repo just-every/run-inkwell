@@ -31,3 +31,8 @@ CREATE TRIGGER iw_followup_closed AFTER UPDATE OF data ON iw_envelopes WHEN json
  DELETE FROM iw_followup_capabilities WHERE envelope_id=NEW.id;
  UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=NEW.id AND state='pending' AND followup_version IS NOT NULL;
 END;
+CREATE TRIGGER iw_followup_drop_suspended_capabilities AFTER UPDATE OF state ON iw_followup_grants
+WHEN NEW.state IN ('suspended','ended') BEGIN
+ DELETE FROM iw_followup_capabilities WHERE envelope_id=NEW.envelope_id;
+ UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=NEW.envelope_id AND state='pending' AND followup_version IS NOT NULL;
+END;

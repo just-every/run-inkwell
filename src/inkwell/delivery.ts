@@ -46,13 +46,13 @@ async function sentHere(env: Env, provider: string, event: DeliveryEvent) {
 
 export type MessageStatus = 'queued' | 'sent' | 'delivered' | 'opened' | 'bounced' | 'failed' | 'complained' | 'uncertain' | 'not_sent'
 export interface Message { id: string; kind: string; signer: number; recipient: string; subject: string; status: MessageStatus; label: string; createdAt: string; sentAt?: string; deliveredAt?: string; openedAt?: string; bouncedAt?: string; failedAt?: string }
-export interface DeliveryMessageRow { id: string; kind: string; signer: number; recipient: string; subject: string; state: string; provider: string | null; provider_message_id: string | null; created_at: string; sent_at: string | null }
+export interface DeliveryMessageRow { followup_version?: number | null; id: string; kind: string; signer: number; recipient: string; subject: string; state: string; provider: string | null; provider_message_id: string | null; created_at: string; sent_at: string | null }
 const iso = (ms: number) => new Date(ms).toISOString()
 const earliest = (events: DeliveryEvent[], match: (event: DeliveryEvent) => boolean) => { const times = events.filter(match).map(event => event.occurredAt); return times.length ? iso(Math.min(...times)) : undefined }
 
 /** Every message sent for one envelope, oldest first, with the status its provider's events support. */
 export async function envelopeMessages(env: Env, envelopeId: string): Promise<Message[]> {
-  const rows = (await env.DB.prepare("SELECT id,kind,signer,recipient,subject,state,provider,provider_message_id,created_at,sent_at,rowid AS message_order,0 AS message_store FROM iw_mail WHERE envelope_id=? UNION ALL SELECT id,'retention',0,recipient,subject,state,provider,provider_message_id,created_at,sent_at,rowid,1 FROM iw_import_retention_mail WHERE group_id=? ORDER BY created_at,message_store,message_order").bind(envelopeId,`envelope:${envelopeId}`).all<DeliveryMessageRow>()).results
+  const rows = (await env.DB.prepare("SELECT id,kind,signer,recipient,subject,state,provider,provider_message_id,created_at,sent_at,followup_version,rowid AS message_order,0 AS message_store FROM iw_mail WHERE envelope_id=? UNION ALL SELECT id,'retention',0,recipient,subject,state,provider,provider_message_id,created_at,sent_at,NULL,rowid,1 FROM iw_import_retention_mail WHERE group_id=? ORDER BY created_at,message_store,message_order").bind(envelopeId,`envelope:${envelopeId}`).all<DeliveryMessageRow>()).results
   return deliveryMessages(env,rows)
 }
 
@@ -71,7 +71,7 @@ export async function deliveryMessages(env:Env, rows:DeliveryMessageRow[]):Promi
     const mine = own(row), state = states[index]
     const base = { id: row.id, kind: row.kind, signer: row.signer, recipient: row.recipient, subject: row.subject, createdAt: row.created_at, ...(row.sent_at ? { sentAt: row.sent_at } : {}) }
     if (['pending', 'sending'].includes(row.state)) return { ...base, status: 'queued' as const, label: 'Queued' }
-    if (row.state === 'cancelled') return { ...base, status: 'not_sent' as const, label: row.kind === 'retention' ? 'Not sent: retention warning superseded' : 'Not sent: mail is not set up' }
+    if (row.state === 'cancelled') return { ...base, status: 'not_sent' as const, label: row.followup_version ? 'Not sent: follow-up authority or record changed' : row.kind === 'retention' ? 'Not sent: retention warning superseded' : 'Not sent: mail is not set up' }
     if (row.state === 'uncertain') return { ...base, status: 'uncertain' as const, label: 'Uncertain: the provider’s answer was unclear, so it was not sent again' }
     if (row.state !== 'sent') return { ...base, status: 'failed' as const, label: 'Failed: the provider refused it' }
     if (!eventProviders.includes(row.provider ?? '')) return { ...base, status: 'sent' as const, label: row.provider === 'development' ? 'Sent to the development outbox, not to a mailbox' : 'Sent, no delivery confirmation from this provider' }

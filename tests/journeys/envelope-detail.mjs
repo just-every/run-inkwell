@@ -90,7 +90,7 @@ try {
     const context=await inkwell.browser.newContext({viewport:{width,height:width===390?844:1000}});await context.addCookies([inkwell.ownerCookie()])
     const page=await context.newPage();page.setDefaultTimeout(20000)
     const open=async()=>{await page.goto(inkwell.origin+'/app');await page.getByRole('row',{name:new RegExp(title)}).click();await page.getByRole('region',{name:'Signer follow-up',exact:true}).getByRole('status').first().waitFor()}
-    const capture=async(name)=>{const panel=page.getByRole('region',{name:'Signer follow-up',exact:true});await panel.scrollIntoViewIfNeeded();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${width} no sideways scroll`);await page.screenshot({path:`${images}/${width}-${name}.png`})}
+    const capture=async(name,target)=>{const panel=page.getByRole('region',{name:'Signer follow-up',exact:true});await (target??panel).scrollIntoViewIfNeeded();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${width} no sideways scroll`);await page.screenshot({path:`${images}/${width}-${name}.png`})}
     await open()
     let followup=page.getByRole('region',{name:'Signer follow-up',exact:true})
     await followup.locator('summary').filter({hasText:'Turn on follow-up'}).click()
@@ -110,7 +110,7 @@ try {
     await followup.getByText(/Proposed corrected address:/).waitFor()
     await followup.getByText(/Casey Client · Authenticated reply/).click()
     await followup.getByText('Clause 4 needs review by our legal team.',{exact:true}).waitFor()
-    await capture('causes-and-reply');await axe(page,`follow-up causes and private reply ${width}`)
+    await capture('causes-and-reply');await capture('private-reply',followup.getByText('Clause 4 needs review by our legal team.',{exact:true}));await axe(page,`follow-up causes and private reply ${width}`)
     const detail=page.getByRole('region',{name:title,exact:true})
     await detail.getByLabel('Corrected email for Alex Client').fill(`correct${width}@clients.example`)
     await detail.getByRole('button',{name:'Correct and resend',exact:true}).click()
@@ -120,6 +120,7 @@ try {
     await capture('human-correction-and-resume')
     await followup.getByRole('button',{name:'Revoke follow-up',exact:true}).click()
     await followup.getByText(/Grant version 1 · revoked/).waitFor();await capture('grant-revoked');await axe(page,`follow-up revoked ${width}`)
+    await inkwell.call('/api/inkwell/contacts/remove',{cookie:inkwell.owner,body:{email:`correct${width}@clients.example`}})
     await context.close()
   }
   console.log('AGENT-003 built controls passed at 1440/390: explicit grant, three causes, private reply, human correction, resume and revoke')

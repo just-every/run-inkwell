@@ -39,7 +39,7 @@ export async function dispatchMail(env: Env, envelopeId: string) {
    AND EXISTS(SELECT 1 FROM iw_envelopes WHERE id=iw_mail.envelope_id AND (iw_mail.kind NOT IN ('invitation','code') OR COALESCE(json_extract(data,'$.signers[' || iw_mail.signer || '].inPerson'),0)<>1)
     AND ((json_extract(data,'$.status')='awaiting_signature' AND json_extract(data,'$.expiresAt')>?) OR (iw_mail.kind='code' AND json_extract(data,'$.status')='completed') OR (iw_mail.kind='notice' AND json_extract(data,'$.status') IN ('prepared','declined','completed')) OR (iw_mail.kind IN ('copy','copy_code') AND json_extract(data,'$.status')='completed')))
    RETURNING id,signer,kind,recipient,subject,body,attach,followup_version`).bind(job.id,now()).first<{id:string;signer:number;kind:string;recipient:string;subject:string;body:string;attach:number;followup_version:number|null}>()
-  if(!claimed)continue
+  if(!claimed){await env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE id=? AND state='pending' AND followup_version IS NOT NULL").bind(job.id).run();continue}
   let state='uncertain',messageId:string|null=null
   try{
    const attachments=claimed.attach?await completedFiles(env,envelopeId):undefined

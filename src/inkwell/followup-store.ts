@@ -54,7 +54,7 @@ export async function resumeFollowup(env:Env,c:CommandContext,input:Record<strin
  const before=await getEnvelope(env.DB,text(input.id,'an envelope ID'));active(before);await insistAccess(env,c.actor,before,'edit')
  const g=await followupGrant(env,before.id);insist(g?.state==='active'&&await liveGrant(env,before,g),'Follow-up is not active.',409)
  const i=Number(input.signer);insist(currentFollowupRecipients(before).some(p=>p.row===i),'Choose a current recipient.',409)
- const state=await followupState(env,before,i);state.paused=false;delete state.waitUntil;delete state.cause
+ const state=await followupState(env,before,i);insist(state.paused&&state.cause==='substantive reply','Only a paused substantive reply can be resumed.',409);state.paused=false;delete state.waitUntil;delete state.cause
  const after=structuredClone(before);await appendEvent(after,'followup.resumed',c.actor.id,{signer:i,version:g.version})
  const result={id:before.id};await commitEnvelope(env,before,after,c.actor,[stateWrite(env,before,state),commandWrite(env.DB,c.actor.id,c.commandId,c.fingerprint,result)],[grantGuard(before,g)]);return result
 }
@@ -82,7 +82,7 @@ export async function replyTo(env:Env,e:Envelope,i:number) {
 export async function resolveReplyCapability(env:Env,token:string) {
  const cap=await env.DB.prepare('SELECT envelope_id,signer,token_hash,grant_version FROM iw_followup_capabilities WHERE cap_hash=?').bind(await sha256(token)).first<{envelope_id:string;signer:number;token_hash:string;grant_version:number}>();if(!cap)return null
  const e=await getEnvelope(env.DB,cap.envelope_id),g=await followupGrant(env,e.id)
- if(e.status!=='awaiting_signature'||Date.parse(e.expiresAt)<=Date.now()||!g||g.state!=='active'||g.version!==cap.grant_version||!await liveGrant(env,e,g))return null
+ if(e.status!=='awaiting_signature'||Date.parse(e.expiresAt)<=Date.now()||!g||g.state!=='active'||!await liveGrant(env,e,g))return null
  const signer=await env.DB.prepare('SELECT token_hash FROM iw_signers WHERE envelope_id=? AND signer=?').bind(e.id,cap.signer).first<{token_hash:string}>()
  if(signer?.token_hash!==cap.token_hash||!currentFollowupRecipients(e).some(p=>p.row===cap.signer))return null
  return {envelope:e,signer:cap.signer,state:await followupState(env,e,cap.signer)}
@@ -101,7 +101,7 @@ export async function storeReply(env:Env,before:Envelope,i:number,reply:Followup
  await appendEvent(after,'followup.reply_received','inkwell-followup',{signer:i,version:g.version,cause:reply.verified?s.cause:'unverified sender',reply:reply.id,member:g.memberId})
  const { followupAttentionWrites }=await import('./followup-engine')
  const writes=[env.DB.prepare('INSERT INTO iw_followup_receipts(event_id,received_at) VALUES(?,?)').bind(eventId,reply.receivedAt),env.DB.prepare('INSERT INTO iw_followup_replies(id,envelope_id,signer,data) VALUES(?,?,?,?)').bind(reply.id,before.id,i,JSON.stringify(reply)),stateWrite(env,before,s),...await followupAttentionWrites(env,before,g,i,'a signer replied')]
- await commitEnvelope(env,before,after,null,writes,[grantGuard(before,g),{sql:'EXISTS(SELECT 1 FROM iw_signers WHERE envelope_id=? AND signer=? AND token_hash IN (SELECT token_hash FROM iw_followup_capabilities WHERE envelope_id=? AND signer=? AND grant_version=?))',values:[before.id,i,before.id,i,g.version]}])
+ await commitEnvelope(env,before,after,null,writes,[grantGuard(before,g),{sql:'EXISTS(SELECT 1 FROM iw_signers WHERE envelope_id=? AND signer=? AND token_hash IN (SELECT token_hash FROM iw_followup_capabilities WHERE envelope_id=? AND signer=?))',values:[before.id,i,before.id,i]}])
  const {dispatchMail}=await import('./mail');await dispatchMail(env,before.id)
 }
 
