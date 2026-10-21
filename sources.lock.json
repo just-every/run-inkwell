@@ -2971,7 +2971,7 @@
       "executable": false
     },
     "src/ui/pdf-viewer.tsx": {
-      "sha256": "7e02b91987e4b8b60ebb0c53593bc1c7809f3fdde7663516cfd1e69c607601fd",
+      "sha256": "cf5c46c0db01fe4fd50f926b34fedccc9d4aba0315556176498db5db8f22bff8",
       "executable": false
     },
     "src/ui/people.tsx": {
@@ -3027,7 +3027,7 @@
       "executable": false
     },
     "src/ui/supplements.tsx": {
-      "sha256": "cf0e68c12bfe3215c389bad77377daaeb9fd67e9ce68e80b65306c6c19d344eb",
+      "sha256": "5195dab847e108aadba4763bd2b9f424765116e6cb6468c795a0a1b9354285c9",
       "executable": false
     },
     "src/ui/template-maintenance.tsx": {

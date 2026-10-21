@@ -21,7 +21,7 @@ export function SignerSupplements({ documents, base, refresh, canAct }: { docume
     {documents.map(s => <div className="iw-stack" key={s.id}><h3>{s.label}</h3><p>{s.pages} page(s) · {s.requirement === 'acknowledge' ? 'Acknowledgment required before signing' : 'Open before signing'}</p><button type="button" className="iw-fit" disabled={action.busy} onClick={() => void action.run(() => show(s))}>Open {s.label}</button>
       {s.viewedAt && <p role="status">Opened {dateTime(s.viewedAt)}</p>}
       {s.acknowledgedAt ? <p role="status">Acknowledged {dateTime(s.acknowledgedAt)}</p> : s.requirement === 'acknowledge' && canAct && <button type="button" className="iw-fit" disabled={action.busy || !s.viewedAt} onClick={() => void action.run(async () => { await request(`${base}/supplements/${s.id}/acknowledge`, { acknowledge: true }); await refresh() })}>I acknowledge {s.label}</button>}
-      {opened?.startsWith(`${s.id}|`) && <div aria-label={`${s.label} document`}><PdfViewer source={opened.split('|')[1]} /></div>}
+      {opened?.startsWith(`${s.id}|`) && <div role="group" aria-label={`${s.label} document`}><PdfViewer source={opened.split('|')[1]} /></div>}
     </div>)}<ErrorNotice error={action.error} /></section>
 }
 
