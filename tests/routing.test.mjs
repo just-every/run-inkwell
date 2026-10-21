@@ -236,7 +236,7 @@ test('ROUTE-005: the "Company Signers" group of three signs as one place; one me
 })
 
 // SEND-001 / ROUTE-004: authority and the confirmed definition are rechecked when a delayed send is released.
-test('SEND-001: deferred sends hold after role, active status, edit share or confirmed definition changes; a current editor confirms again', async () => {
+test('SEND-001 and ADMIN-004: deferred sends hold after role, active status, edit share or confirmed definition changes; a current editor confirms again', async () => {
  const h = await harness()
  try {
   const pdf = await PDFDocument.create(); pdf.addPage([612,792])
@@ -275,6 +275,7 @@ test('SEND-001: deferred sends hold after role, active status, edit share or con
    assert.equal(released.scheduled,undefined);assert.equal(released.internalApproval,undefined)
    const heldEvent = released.events.findLast(e=>e.action==='envelope.send_held')
    assert.equal(heldEvent.detail.authority,actor.id)
+   assert.ok(await h.mail(email, 'Sending held:'), 'ADMIN-004 notifies the principal even when their account was deactivated')
    if (mode==='internal') { assert.equal(heldEvent.actor,(await h.send('/api/inkwell',undefined,approver)).value.actor.id); assert.equal(heldEvent.detail.attemptedDecision,'approve'); assert.equal(heldEvent.detail.sendReleased,false) }
    assert.equal(await h.mail(recipient,'Please sign:'),undefined,'no invitation after revoked authority or a changed definition')
    await h.command('envelope.open_signing',{id},h.owner,409)
