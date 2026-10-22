@@ -12,7 +12,7 @@ import { markKind } from './marks'
 
 export function witnessView(context: SigningContext) {
   const s = recipientOf(context), parent = s.witnessFor === undefined ? undefined : context.envelope.signers[s.witnessFor]
-  return { role: s.role ?? 'signer', completedAt: s.completedAt, ...(parent ? { witnessedSigner: { name: parent.name, email: parent.email } } : {}),
+  return { role: s.role ?? 'signer', completedAt: s.completedAt, ...(parent ? { witnessedSigner: { name: parent.name, email: parent.email }, witnessAddressRequired:Boolean(parent.witnesses?.address) } : {}),
     ...(s.witnesses && context.verified ? { witnesses: { ...s.witnesses, nominees: s.witnessReturnRequired ? [] : s.witnessNominees ?? s.witnesses.named ?? [], ...(s.witnessReturnRequired?{minimum:1,maximum:s.witnesses.maximum-context.envelope.signers.filter(w=>w.witnessFor===context.recipient.signer&&!w.removedAt).length}:{}), returnRequired: Boolean(s.witnessReturnRequired) } } : {}) }
 }
 

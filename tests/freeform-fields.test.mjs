@@ -159,3 +159,22 @@ test('PREP-011: one signer completes signature/date/initials/name/text, while de
   }
  } finally { await h.close() }
 })
+
+test('Free-form witness: nomination keeps placements signer-owned, requires witness identity fields and address, and preserves signed custody',async()=>{
+ const h=await harness({mailProvider:null})
+ try{
+  await h.command('account.freeform',{enabled:true,expectedVersion:0})
+  const id=await prepare(h,[{...people[0],witnesses:{minimum:1,maximum:1,address:true}}]),[invitation]=(await h.command('envelope.approve',{id,eligible:true})).result.invitations,principal=await session(h,invitation)
+  await h.agree(principal.path,principal.cookie)
+  await h.post(principal.path+'/witnesses',{nominees:[{name:people[1].name,email:people[1].email}],commandId:crypto.randomUUID()},principal.cookie)
+  await sign(h,principal,[field(0)],{'signature-0':people[0].name})
+  const e=await envelope(h,id),index=e.signers.findIndex(s=>s.witnessFor===0),[link]=(await h.command('envelope.invite',{id,signer:index})).result.invitations,witness=await session(h,link)
+  await h.agree(witness.path,witness.cookie)
+  const own=['signature','full_name','date_signed','text'].map((type,i)=>field(index,type,{y:.4+i*.1})),values=Object.fromEntries(own.filter(f=>f.type!=='date_signed').map(f=>[f.id,f.type==='text'?'18 Harbour Road':people[1].name]))
+  for(const missing of ['signature','full_name','date_signed','text'])await sign(h,witness,own.filter(f=>f.type!==missing),Object.fromEntries(Object.entries(values).filter(([id])=>id!==`${missing}-${index}`)),400)
+  await sign(h,witness,own,values)
+  const done=await envelope(h,id);assert.equal(done.status,'completed');assert.ok(done.fields.every(f=>done.signers[f.signer].signedAt));assert.deepEqual(done.fields.filter(f=>f.signer===0),e.fields)
+  assert.equal((await h.send(`/api/inkwell/envelopes/${id}/verify`,undefined,h.owner)).value.ok,true)
+  assertPlacedCertificate(await pdfText((await h.send(`/api/inkwell/envelopes/${id}/artifacts/certificate`,undefined,h.owner)).bytes),done)
+ }finally{await h.close()}
+})
