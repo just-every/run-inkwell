@@ -1,3 +1,4 @@
+import {recipientTemplateActions} from './recipient-template-actions.mjs'
 import assert from 'node:assert/strict'
 import {expect} from '@playwright/test'
 import { mkdir, writeFile } from 'node:fs/promises'
@@ -158,6 +159,7 @@ export async function recipientActions() {
         for (const label of ['Naming agent 1:', 'Editor 2:', 'Needs to view 3:', 'Certified delivery 4:']) assert.ok(text.includes(label), `Certificate names ${label}`)
         for (const index of [2, 3]) assert.ok(text.includes(done.signers[index].completedAt), 'Certificate records each authenticated opening time')
         assert.ok(text.includes('human reading is not asserted'), 'Certified delivery describes its observed evidence without claiming reading')
+        await recipientTemplateActions({app,owner,width,title,services,capture})
       } catch(error) { for(const [ci,context] of contexts.entries())for(const [pi,page] of context.pages().entries())await page.screenshot({path:join(images,`${width}-failure-${ci}-${pi}.png`),fullPage:true}).catch(()=>{});throw error } finally { for (const context of contexts) await context.close() }
     }
     console.log(`Recipient naming, editing, required viewing and certified delivery journey passed at 1440/390. Screens: ${images}`)
