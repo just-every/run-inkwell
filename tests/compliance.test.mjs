@@ -4,6 +4,23 @@ import { createHmac, randomBytes } from 'node:crypto'
 import { PDFDocument, StandardFonts } from 'pdf-lib'
 import { harness } from './harness.mjs'
 
+const accounts = new WeakMap()
+async function enrolledSigner(h, email, name) {
+ let cache=accounts.get(h);if(!cache){cache=new Map();accounts.set(h,cache)}
+ if(cache.has(email))return cache.get(email)
+ const cookie=email==='owner@harbour.example'?h.owner:await h.invite(email,'member')
+ const operatorId=(await h.send('/api/inkwell',undefined,cookie)).value.actor.id
+ const verified=(await h.command('account.part11_identity',{operatorId,name,method:'Synthetic supervised government photo ID review',confirm:true})).result
+ const password='synthetic-inkwell-'+crypto.randomUUID()
+ await h.post('/api/inkwell/compliance/password',{activationToken:verified.activationToken,password},cookie)
+ const result={cookie,password,operatorId};cache.set(email,result);return result
+}
+async function identify(h, path, cookie, email, name) {
+ const person=await enrolledSigner(h,email,name)
+ const proof=await h.post(path+'/identity',{password:person.password},cookie)
+ return cookie+'; '+proof.cookie
+}
+
 test('COMPLY-002: healthcare signing keeps content out of operational/provider logs, preserves signed evidence and reviews every member across public doors', async () => {
   const webhookSecret = randomBytes(24)
   const h = await harness({ bindings: { MAIL_WEBHOOK_KEY: 'whsec_' + webhookSecret.toString('base64') } })
@@ -99,6 +116,8 @@ test('Signature controls: explicit owner/admin consent, fresh per-signature emai
   let detail=(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
   assert.deepEqual(detail.part11,enabled,'saving a draft never relaxes the requirement')
   await h.command('envelope.update',{id,...source,allowPaperSigning:true},h.owner,409)
+  await h.command('account.part11_record',{kind:'meaning',meaning:'Batch release by qualified reviewer'})
+  await h.command('account.part11_record',{kind:'fda-certification',date:'2026-10-22',reference:'synthetic-inkwell-1',confirm:true})
   await h.command('envelope.approve',{id,eligible:true})
   const sessions=[]
   for(const email of ['morgan@harbour.example','jordan@harbour.example']){
@@ -108,9 +127,11 @@ test('Signature controls: explicit owner/admin consent, fresh per-signature emai
    const initialCode=(await h.mail(email,'verification code')).text.match(/\b\d{6}\b/)[0],cookie=(await h.post(path+'/verify',{code:initialCode},'')).cookie
    await h.agree(path,cookie)
    assert.equal((await h.send(path,undefined,cookie)).value.part11,true)
-   sessions.push({path,cookie,email,initialCode})
+   await h.post(path+'/signature-code',{},cookie,403)
+   const strong=await identify(h,path,cookie,email,email.startsWith('morgan')?'Morgan River':'Jordan Lake')
+   sessions.push({path,cookie:strong,email,initialCode})
   }
-  const [one,two]=sessions,first={values:{one:'Morgan River'},consent:true,signingReason:'Approval',commandId:crypto.randomUUID()}
+  const [one,two]=sessions,first={values:{one:'Morgan River'},consent:true,signingReason:'Responsibility',commandId:crypto.randomUUID()}
   await h.post(one.path+'/sign',{...first,signatureCode:one.initialCode},one.cookie,401)
   await h.post(one.path+'/signature-code',{},one.cookie)
   await h.post(one.path+'/signature-code',{},one.cookie,429)
@@ -122,19 +143,19 @@ test('Signature controls: explicit owner/admin consent, fresh per-signature emai
   await h.post(one.path+'/sign',{...first,signatureCode:wrong},one.cookie)
   detail=(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
   assert.equal(detail.events.filter(e=>e.action==='signer.signed').length,1,'retrying the same operation adds no second signature')
-  assert.equal(detail.signers[0].part11.reason,'Approval')
+  assert.equal(detail.signers[0].part11.reason,'Responsibility')
   assert.equal(detail.signers[0].part11.name,'Morgan River')
-  assert.equal(detail.events.find(e=>e.action==='signer.signed').detail.part11.method,'single-use emailed code')
+  assert.equal(detail.events.find(e=>e.action==='signer.signed').detail.part11.method,'verified identity and single-use emailed code')
   await h.command('envelope.part11',{id,confirm:true},h.owner,409)
   await h.post(two.path+'/signature-code',{},two.cookie)
   const secondCode=(await h.mail(two.email,'signature code')).text.match(/\b\d{6}\b/)[0]
-  const second={values:{two:'Jordan Lake'},consent:true,signingReason:'Review',commandId:crypto.randomUUID()}
+  const second={values:{two:'Jordan Lake'},consent:true,signingReason:'Batch release by qualified reviewer',commandId:crypto.randomUUID()}
   await h.post(two.path+'/sign',{...second,signatureCode:secondCode},two.cookie)
   const signed=(await h.send(`/api/inkwell/envelopes/${id}/artifacts/signed`,undefined,h.owner)).bytes
   const {getDocument}=await import('pdfjs-dist/legacy/build/pdf.mjs'),document=await getDocument({data:new Uint8Array(signed),standardFontDataUrl:new URL('../node_modules/pdfjs-dist/standard_fonts/',import.meta.url).pathname}).promise
   let text='';for(let n=1;n<=document.numPages;n++)text+=(await(await document.getPage(n)).getTextContent()).items.map(i=>i.str).join(' ')+' '
   assert.equal(document.numPages,3)
-  for(const value of ['Signature manifestation','Printed name: Morgan River','Printed name: Jordan Lake','Meaning: Approval','Meaning: Review','Signed at (UTC):','Re-authenticated (UTC):'])assert.ok(text.includes(value),value)
+  for(const value of ['Signature manifestation','Printed name: Morgan River','Printed name: Jordan Lake','Meaning: Responsibility','Meaning: Batch release by qualified reviewer','Signed at (UTC):','Re-authenticated (UTC):'])assert.ok(text.includes(value),value)
   assert.equal((await h.send(`/api/inkwell/envelopes/${id}/verify`,undefined,h.owner)).value.ok,true)
   const publicCheck=await h.mf.dispatchFetch(h.origin+'/api/verify',{method:'POST',headers:{'content-type':'application/pdf'},body:signed});assert.equal((await publicCheck.json()).match,true)
   const copy=(await h.command('envelope.copy',{id})).result.id
@@ -149,7 +170,7 @@ test('Signature controls: explicit owner/admin consent, fresh per-signature emai
    await destination.post('/api/inkwell/archive/restore',{archive})
    const restored=(await destination.send('/api/inkwell/envelopes/'+id,undefined,destination.owner)).value.envelope
    assert.deepEqual(restored.signers.map(s=>s.part11),(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope.signers.map(s=>s.part11))
-   assert.equal(restored.signers[1].part11.reason,'Review')
+   assert.equal(restored.signers[1].part11.reason,'Batch release by qualified reviewer')
    assert.deepEqual((await destination.send(`/api/inkwell/envelopes/${id}/artifacts/signed`,undefined,destination.owner)).bytes,signed)
    assert.equal((await destination.send(`/api/inkwell/envelopes/${id}/verify`,undefined,destination.owner)).value.ok,true)
   }finally{await destination.close()}
@@ -157,10 +178,22 @@ test('Signature controls: explicit owner/admin consent, fresh per-signature emai
   await h.command('envelope.approve',{id:copy,eligible:true})
   const invitation=await h.mail(one.email,'Please sign:'),path='/api/sign/'+new URL(invitation.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)
   await h.post(path+'/code',{},'');const cookie=(await h.post(path+'/verify',{code:(await h.mail(one.email,'verification code')).text.match(/\b\d{6}\b/)[0]},'')).cookie;await h.agree(path,cookie)
-  await h.post(path+'/signature-code',{},cookie)
+  const strong=await identify(h,path,cookie,one.email,'Morgan River')
+  await h.post(path+'/signature-code',{},strong)
   const lockedCode=(await h.mail(one.email,'signature code')).text.match(/\b\d{6}\b/)[0],bad=lockedCode==='000000'?'000001':'000000'
-  for(let n=0;n<5;n++)await h.post(path+'/sign',{...first,commandId:crypto.randomUUID(),signatureCode:bad},cookie,401)
-  await h.post(path+'/sign',{...first,signatureCode:lockedCode},cookie,401)
+  for(let n=0;n<5;n++)await h.post(path+'/sign',{...first,commandId:crypto.randomUUID(),signatureCode:bad},strong,401)
+  await h.post(path+'/sign',{...first,signatureCode:lockedCode},strong,401)
+  const alerts=(await h.send('/api/inkwell/compliance/part11',undefined,h.owner)).value
+  assert.equal(alerts.alerts.filter(a=>a.envelopeId===copy&&a.cause==='signature-code-attempts').length,1)
+  const alert=await h.mail('owner@harbour.example','Inkwell security alert:')
+  assert.ok(alert)
+  const emittedAt=Date.parse(alert.text.match(/Time \(UTC\): ([^\n]+)/)[1])
+  assert.ok(Date.now()-emittedAt<60_000,'security contact receives the fifth-attempt alert within one minute')
+  assert.ok(alerts.records.some(r=>r.kind==='fda-certification'&&r.data.reference==='synthetic-inkwell-1'))
+  assert.equal((await h.send('/api/inkwell/compliance/part11')).status,401)
+  assert.equal((await h.send('/api/inkwell/compliance/part11',undefined,sender)).status,403)
+  assert.ok(!JSON.stringify(alerts).includes('activation_hash')&&!JSON.stringify(alerts).includes('password_hash'))
+
  }finally{await h.close()}
 })
 
@@ -184,12 +217,16 @@ test('Signature controls: signed-in, link-only, signing-group and hosted doors c
    }
    await h.agree(path,cookie)
    const body={values:{signature:mode==='group'?members[1].name:person.name},consent:true,signingReason:'Authorship',commandId:crypto.randomUUID()}
+   await h.post(path+'/sign',body,cookie,403)
+   await h.post(path+'/signature-code',{},cookie,403)
+   cookie=await identify(h,path,cookie,email,mode==='group'?members[1].name:person.name)
    await h.post(path+'/sign',body,cookie,400)
    await h.post(path+'/signature-code',{},cookie)
    let code=(await h.mail(email,'signature code')).text.match(/\b\d{6}\b/)[0]
    if(mode==='member'){
     const oldPath=path,oldCookie=cookie,opened=await h.post('/api/inkwell/commands',{command:'envelope.open_signing',input:{id},commandId:crypto.randomUUID()})
-    path='/api'+new URL(opened.value.result.signing.url).pathname;cookie=opened.cookie
+    path='/api'+new URL(opened.value.result.signing.url).pathname;cookie=await identify(h,path,opened.cookie,email,person.name)
+    await h.agree(path,cookie)
     assert.equal((await h.send(oldPath,undefined,oldCookie)).status,404,'the old link is invalid after a new native session')
     await h.post(path+'/sign',{...body,signatureCode:code},cookie,401)
     await h.post(path+'/signature-code',{},cookie)
