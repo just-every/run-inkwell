@@ -13,10 +13,12 @@ import type { CommandContext } from './envelopes'
 function choicesOf(value: unknown): CompositionChoices {
   if (value === undefined) return {}
   const raw = object(value)
-  insist(Object.keys(raw).every(key => key === 'settingsTemplate' || key === 'identity'), 'Choose only envelope settings and role authentication.')
+  insist(Object.keys(raw).every(key => key === 'settingsTemplate' || key === 'identity' || key === 'orders'), 'Choose only envelope settings and role authentication.')
   const identity = raw.identity === undefined ? undefined : object(raw.identity)
   if (identity) insist(Object.values(identity).every(method => ['email', 'link', 'sms'].includes(String(method))), 'Choose email code, SMS code or link only.')
-  return { ...(raw.settingsTemplate === undefined ? {} : { settingsTemplate: text(raw.settingsTemplate, 'a settings template ID') }), ...(identity ? { identity: identity as NonNullable<CompositionChoices['identity']> } : {}) }
+  const orders = raw.orders === undefined ? undefined : object(raw.orders)
+  if(orders)insist(Object.values(orders).every(order=>order===null||Number.isSafeInteger(order)), 'Choose an existing whole-number routing order or keep separate recipients.')
+  return { ...(orders?{orders:orders as Record<string,number|null>}:{}), ...(raw.settingsTemplate === undefined ? {} : { settingsTemplate: text(raw.settingsTemplate, 'a settings template ID') }), ...(identity ? { identity: identity as NonNullable<CompositionChoices['identity']> } : {}) }
 }
 async function sourcesOf(env: Env, actor: Actor, input: Record<string, unknown>) {
   insist(['owner', 'admin', 'sender'].includes(actor.role), 'Your role does not allow template composition.', 403)

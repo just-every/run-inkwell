@@ -1123,6 +1123,9 @@ test('Composition previews preserve Client at distinct orders and propose the st
  const id=(await h.command('template.combine',{ids,choices,recipients:[person,person]})).result.id,prepared=await stored(id)
  assert.equal(prepared.signers.length,2);assert.deepEqual(prepared.signers.map(s=>s.order),chosen.roles.map(r=>r.order));assert.ok(prepared.signers.every(s=>!s.sms))
  assert.equal(prepared.documents.length,3)
+ const orderChoice={...choices,orders:{Client:1}},merged=(await h.post('/api/inkwell/templates/compose-preview',{ids,choices:orderChoice},h.owner)).value
+ assert.equal(merged.roles.length,1);assert.equal(merged.roles[0].sources.length,3);assert.equal(merged.roles[0].order,1);const mergedId=(await h.command('template.combine',{ids,choices:orderChoice,recipients:[person]})).result.id;assert.equal((await stored(mergedId)).signers.length,1);assert.equal((await stored(mergedId)).documents.length,3);assert.ok(merged.conflicts.some(c=>c.kind==='order'&&c.selected===1))
+ await h.post('/api/inkwell/templates/compose-preview',{ids,choices:{orders:{Client:9}}},h.owner,400)
 })
 
 test('Composition preparation refuses inaccessible sources and a source definition changed while document bytes are staged',async()=>{

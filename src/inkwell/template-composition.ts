@@ -5,14 +5,14 @@ import { validateRecipientCount } from './recipient-roles'
 
 type Identity = 'email' | 'link' | 'sms'
 type Source = { template: number; role: number }
-export interface CompositionChoices { settingsTemplate?: string; identity?: Record<string, Identity> }
+export interface CompositionChoices { settingsTemplate?: string; identity?: Record<string, Identity>; orders?: Record<string, number | null> }
 export interface CompositionRole extends Role {
   key: string; sms?: boolean; identity: Identity; sources: Source[]
   messages: { template: number; role: number; message: string }[]
 }
 export interface CompositionConflict {
   kind: 'order' | 'identity' | 'reminders' | 'expiry' | 'witnesses' | 'message'
-  message: string; templates: number[]; role?: string; proposed?: unknown; selected?: unknown
+  message: string; templates: number[]; role?: string; proposed?: unknown; selected?: unknown; orders?: number[]
 }
 export type CompositionDocument = Omit<EnvelopeDocument, 'bytes' | 'signedSha256'> & { bytes?: number }
 const method = (r: Role & { sms?: boolean }): Identity => r.sms ? 'sms' : r.linkOnly ? 'link' : 'email'
@@ -34,7 +34,15 @@ export function composition(templates: Template[], choices: CompositionChoices =
   insist(new Set(templates.map(t => t.id)).size === templates.length, 'Choose each template once.')
   const selectedSettings = choices.settingsTemplate === undefined ? 0 : templates.findIndex(t => t.id === choices.settingsTemplate)
   insist(selectedSettings >= 0, 'Choose envelope settings from one of the selected templates.')
-  const settingsTemplate = templates[selectedSettings], roles: CompositionRole[] = [], conflicts: CompositionConflict[] = []
+  const orderConflicts = [...new Set(templates.flatMap(t=>t.roles.map(r=>r.role.trim())))].flatMap(label=>{
+    const orders=[...new Set(templates.flatMap(t=>t.roles.filter(r=>r.role.trim()===label).map(r=>r.order)))].sort((a,b)=>a-b)
+    return orders.length>1?[{label,orders}]:[]
+  })
+  for(const [label,order] of Object.entries(choices.orders??{}))insist(orderConflicts.some(c=>c.label===label&&(order===null||c.orders.includes(order))), 'Choose an existing routing order for a conflicting role.')
+  const conflicts: CompositionConflict[] = orderConflicts.map(c=>({kind:'order',role:c.label,orders:c.orders,templates:templates.flatMap((t,i)=>t.roles.some(r=>r.role.trim()===c.label)?[i]:[]),selected:choices.orders?.[c.label]??null,
+    message:choices.orders?.[c.label] ? `${c.label} appears at routing orders ${c.orders.join(', ')}; merge at the selected order ${choices.orders[c.label]}.` : `${c.label} appears at routing orders ${c.orders.join(', ')} and remains separate recipients.`}))
+  templates=templates.map(t=>({...t,roles:t.roles.map(r=>choices.orders?.[r.role.trim()] ? {...r,order:choices.orders[r.role.trim()]!}:r)}))
+  const settingsTemplate = templates[selectedSettings], roles: CompositionRole[] = []
   const roleIndexes = templates.map(() => [] as number[]), methods = new Map<string, Identity[]>(), byKey = new Map<string, number>()
   const ids = templates.map((t, index) => {
     const map = new Map(t.fields.map((f, fieldIndex) => {
@@ -80,12 +88,6 @@ export function composition(templates: Template[], choices: CompositionChoices =
     r.message = messages.length > 1 ? r.messages.map(m => `${templates[m.template].title}: ${m.message}`).join('\n\n') : messages[0]
     insist(!r.message || r.message.length <= 1000, `The merged private message for ${r.role} exceeds 1000 characters. Shorten the source messages.`, 409)
     if (messages.length > 1) conflicts.push({ kind: 'message', role: r.key, templates: r.sources.map(s => s.template), message: `${r.role}: private messages are combined with their template names.` })
-  }
-  const labels = [...new Set(roles.map(r => r.role))]
-  for (const label of labels) {
-    const same = roles.filter(r => r.role === label)
-    if (same.length > 1) conflicts.push({ kind: 'order', role: label, templates: [...new Set(same.flatMap(r => r.sources.map(s => s.template)))],
-      message: `${label} appears at routing orders ${same.map(r => r.order).join(', ')} and remains separate recipients.` })
   }
   for (const [kind, property] of [['reminders', 'reminders'], ['expiry', 'expiryDays']] as const) {
     if (templates.some(t => canonical(t[property] ?? null) !== canonical(templates[0][property] ?? null))) conflicts.push({ kind, templates: templates.map((_, i) => i),

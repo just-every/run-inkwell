@@ -5,7 +5,7 @@ import { ErrorNotice, useAction } from './feedback'
 import { uploadDocument } from './ordered-documents'
 
 type Identity = 'email' | 'link' | 'sms'
-type Choices = { settingsTemplate?: string; identity?: Record<string, Identity> }
+type Choices = { orders?: Record<string, number | null>; settingsTemplate?: string; identity?: Record<string, Identity> }
 type Person = { name: string; email: string; phone: string; accessCode: string }
 type PreviewRole = {
   role: string; key: string; order: number; action?: 'signer' | 'approver' | 'form_filler'
@@ -15,7 +15,7 @@ type PreviewRole = {
 type Preview = {
   templates: { id: string; title: string; version: number }[]
   roles: PreviewRole[]; documents: { filename: string; pages: number; mode: 'sign' | 'optional' | 'view'; bytes?: number }[]
-  conflicts: { kind: string; message: string; role?: string; proposed?: unknown; selected?: unknown }[]
+  conflicts: { kind: string; message: string; role?: string; orders?: number[]; proposed?: unknown; selected?: unknown }[]
   settingsTemplate: string
   settings: { expiryDays: number; reminders?: { afterDays: number; everyDays: number } | null; subject?: string; message?: string; allowPaper?: boolean; allowReassign?: boolean }
 }
@@ -95,7 +95,10 @@ export function TemplateComposition({ templates, onSent, onCancel }: { templates
     <ErrorNotice error={previewAction.error} />{previewPending && <p role="status">Updating composition preview…</p>}
     {current && <form className="iw-stack" onSubmit={submit}>
       <section className="iw-callout iw-stack" aria-label="Composition preview"><h2>Review the combination</h2><p>{documentCount} of 20 documents · {current.roles.length} roles · {recipientCount} of 100 recipient places including reserved witnesses</p><p>Settings from {current.templates.find(t => t.id === current.settingsTemplate)?.title}: expires after {current.settings.expiryDays} days; {current.settings.reminders ? `reminders after ${current.settings.reminders.afterDays}, then every ${current.settings.reminders.everyDays} business days` : 'no automatic reminders'}.</p>
-        {current.conflicts.length > 0 ? <ul className="iw-stack" aria-label="Conflicts and resolutions">{current.conflicts.map((conflict, index) => <li key={index}><p>{conflict.message}</p>{conflict.proposed !== undefined && <p>Proposed: {resolution(conflict.proposed)}</p>}{conflict.selected !== undefined && <p>Selected: {resolution(conflict.selected)}</p>}</li>)}</ul> : <p>No conflicting settings or role definitions.</p>}
+        {current.conflicts.length > 0 ? <ul className="iw-stack" aria-label="Conflicts and resolutions">{current.conflicts.map((conflict, index) => <li key={index}><p>{conflict.message}</p>{conflict.proposed !== undefined && <p>Proposed: {resolution(conflict.proposed)}</p>}{conflict.selected !== undefined && <p>Selected: {conflict.kind === 'order' ? typeof conflict.selected === 'number' ? `Merge at routing order ${conflict.selected}` : 'Keep separate recipients' : resolution(conflict.selected)}</p>}{conflict.kind === 'order' && conflict.role && conflict.orders && <label>{conflict.role} routing conflict<select aria-label={`${conflict.role} routing conflict`} disabled={busy} value={typeof conflict.selected === 'number' ? conflict.selected : ''} onChange={event => {
+          const label = conflict.role!, order = event.target.value === '' ? null : Number(event.target.value)
+          setChoices(previous => ({ ...previous, orders: { ...previous.orders, [label]: order }, identity: Object.fromEntries(Object.entries(previous.identity ?? {}).filter(([key]) => !current.roles.some(role => role.role.trim() === label && role.key === key))) }))
+        }}><option value="">Keep separate recipients</option>{conflict.orders.map(order => <option key={order} value={order}>Merge at routing order {order}</option>)}</select></label>}</li>)}</ul> : <p>No conflicting settings or role definitions.</p>}
         {current.settings.subject && <p>Invitation subject: {current.settings.subject}</p>}{current.settings.message && <p>Message to everyone: {current.settings.message}</p>}
       </section>
       <fieldset disabled={busy} className="iw-stack"><legend>Recipients</legend>{current.roles.map((role, index) => {

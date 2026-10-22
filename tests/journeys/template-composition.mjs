@@ -31,6 +31,7 @@ export async function templateComposition() {
    await capture(owner,'selected-templates');await owner.getByRole('button',{name:'Combine selected templates',exact:true}).click()
    const preview=owner.getByRole('region',{name:'Composition preview',exact:true}),ready=()=>expect(owner.getByRole('button',{name:'Prepare combined envelope',exact:true})).toBeEnabled()
    await ready();await expect(preview).toContainText('2 roles');await expect(preview).toContainText('expires after 30 days');await expect(preview).toContainText('reminders after 2, then every 3')
+   const orderChoice=owner.getByLabel('Client routing conflict',{exact:true});await orderChoice.selectOption('1');await ready();await expect(preview).toContainText('1 roles');await orderChoice.selectOption('');await ready();await expect(preview).toContainText('2 roles');
    await expect(preview).toContainText('Proposed: SMS code');await expect(preview).toContainText('remains separate recipients');assert.ok((await preview.ariaSnapshot()).includes('Selected: SMS code'),'the accessibility tree exposes the stricter identity proposal')
    // Order changes re-preview and keep first-source settings as the default until the sender explicitly chooses otherwise.
    await owner.getByRole('button',{name:`Move ${titles[1]} up`,exact:true}).click();await ready();await expect(preview).toContainText('expires after 45 days')
@@ -68,9 +69,9 @@ export async function templateComposition() {
    await owner.goto(app.origin+'/app');await owner.getByRole('row',{name:new RegExp(titles[1])}).click();detail=owner.getByRole('region',{name:titles[1],exact:true});await detail.getByRole('link',{name:'Executed PDF',exact:true}).waitFor();await detail.getByRole('region',{name:'Source templates',exact:true}).evaluate(el=>el.scrollIntoView({block:'start'}));await capture(owner,'completed-sources')
    const done=await read();assert.equal(done.status,'completed');assert.ok(done.documents.every(d=>d.signedSha256));assert.equal((await app.call(`/api/inkwell/envelopes/${id}/verify`,{cookie:app.owner})).value.ok,true)
    const response=await fetch(`${app.origin}/api/inkwell/envelopes/${id}/artifacts/certificate`,{headers:{cookie:app.owner}});assert.equal(response.status,200)
-   const {getDocument}=await import('pdfjs-dist/legacy/build/pdf.mjs'),certificate=await getDocument({data:new Uint8Array(await response.arrayBuffer()),standardFontDataUrl:new URL('../../node_modules/pdfjs-dist/standard_fonts/',import.meta.url).pathname}).promise;let text='';for(let n=1;n<=certificate.numPages;n++)text+=(await(await certificate.getPage(n)).getTextContent()).items.map(i=>i.str).join(' ')+'\n'
+   const {getDocument}=await import('pdfjs-dist/legacy/build/pdf.mjs'),certificateTask=getDocument({data:new Uint8Array(await response.arrayBuffer()),standardFontDataUrl:new URL('../../node_modules/pdfjs-dist/standard_fonts/',import.meta.url).pathname}),certificate=await certificateTask.promise;let text='';for(let n=1;n<=certificate.numPages;n++)text+=(await(await certificate.getPage(n)).getTextContent()).items.map(i=>i.str).join(' ')+'\n'
    for(const source of e.templates){assert.ok(text.includes(source.title));assert.match(text,new RegExp(source.title+'[^\\n]*'+source.version))}
-   await certificate.destroy();await first.ctx.close();await second.ctx.close();await context.close()
+   await certificateTask.destroy();await first.ctx.close();await second.ctx.close();await context.close()
   }
   console.log(`Template composition passed at 1440/390: merged and distinct orders, settings and identity choices, extra PDF, complete signing, source versions, keyboard and light/dark accessibility. Screens: ${images}`)
  }catch(error){await screenshots(app.browser,'template-composition');throw error}finally{await app.close()}

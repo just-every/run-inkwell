@@ -594,7 +594,7 @@ test('SMS recipient verifies only an SMS code, corrects phone with audited rotat
   await h.post(newPath+'/sign',{values:{signature:person.name},consent:true,commandId:crypto.randomUUID()},verified)
   const certificate=await h.send(newPath+'/artifacts/certificate',undefined,verified);assert.equal(certificate.status,200)
   const text=await smsTestPdfText(certificate.bytes);assert.match(text,/SMS.*verified/i);assert.ok(text.includes('0103'));assert.ok(!text.includes('+12025550103'))
-  const stored=await smsTestDetail(h,id);assert.equal(stored.status,'completed');assert.equal(stored.events.filter(e=>e.action==='signer.sms_verified').length,2)
+  const stored=await smsTestDetail(h,id);assert.equal((await h.send('/api/inkwell/envelopes/'+id+'/verify',undefined,h.owner)).value.ok,true);assert.equal(stored.status,'completed');assert.equal(stored.events.filter(e=>e.action==='signer.sms_verified').length,2)
   assert.ok(stored.messages.some(m=>m.subject==='SMS invitation'&&m.status==='sent'))
   assert.ok(!h.logs().some(log=>JSON.stringify(log).includes('+12025550103')),'operational logs omit numbers')
  }finally{await h.close()}
