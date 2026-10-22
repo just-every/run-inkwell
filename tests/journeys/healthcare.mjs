@@ -29,7 +29,7 @@ try {
     await review.getByRole('listitem').filter({ hasText: 'No recorded access' }).waitFor()
     await review.getByText('owner@harbour.example', { exact: true }).waitFor()
     assert.equal(await review.locator('time').count(), width===1440?1:2, 'COMPLY-002: owner and the prior-width enrolled signer have access; the unused invitation has none')
-    assert.ok(await review.locator('time').getAttribute('datetime'))
+    for(const time of await review.locator('time').all())assert.ok(await time.getAttribute('datetime'))
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: no sideways scroll`)
     await axe(page, `COMPLY-002 healthcare review ${width}`)
     await panel.screenshot({ path: join(evidence, `comply-002-review-${width}.png`) })

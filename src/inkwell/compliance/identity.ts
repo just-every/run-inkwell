@@ -9,9 +9,9 @@ import { recipientOf, liveGuard, sessionGuard, type SigningContext } from '../si
 import type { CommandContext } from '../envelopes'
 
 type Identity = { operator_id: string; operator_version: number; email: string; name: string; method: string; verified_by: string; verified_at: string; version: number; activation_hash: string | null; activation_expires: number | null; salt: string | null; password_hash: string | null }
-const cookieName = 'inkwell_part11_identity'
-export const identityCookie = (env: Env, token = '') => `${cookieName}=${token}; Path=/; HttpOnly; SameSite=Strict${token ? '' : '; Max-Age=0'}${new URL(env.AUTH_ORIGIN).protocol === 'https:' ? '; Secure' : ''}`
-const credential = (request: Request) => request.headers.get('cookie')?.split(';').map(s => s.trim()).find(s => s.startsWith(cookieName + '='))?.slice(cookieName.length + 1)
+const cookieName = (env: Env) => new URL(env.AUTH_ORIGIN).protocol==='https:'?'__Host-inkwell_part11_identity':`inkwell_part11_identity_${new URL(env.AUTH_ORIGIN).port}`
+export const identityCookie = (env: Env, token = '') => `${cookieName(env)}=${token}; Path=/; HttpOnly; SameSite=Strict${token ? '' : '; Max-Age=0'}${new URL(env.AUTH_ORIGIN).protocol === 'https:' ? '; Secure' : ''}`
+const credential = (request: Request, env: Env) => request.headers.get('cookie')?.split(';').map(s => s.trim()).find(s => s.startsWith(cookieName(env) + '='))?.slice(cookieName(env).length + 1)
 const identity = (env: Env, operator: string) => env.DB.prepare("SELECT i.* FROM iw_part11_identities i JOIN oa_operators o ON o.id=i.operator_id AND o.version=i.operator_version AND lower(o.email)=i.email AND o.status='active' WHERE i.operator_id=?").bind(operator).first<Identity>()
 /** No mailbox-only reset. An admin repeats identity verification and separately delivers a new activation token. */
 export async function verifySignerIdentity(env: Env, context: CommandContext, input: Record<string, unknown>) {
@@ -20,6 +20,7 @@ export async function verifySignerIdentity(env: Env, context: CommandContext, in
   const operator = text(input.operatorId, 'a member ID'), name = text(input.name, 'the verified printed name', 120), method = text(input.method, 'the identity verification method', 500)
   insist(!/[\x00-\x1f\x7f]/.test(name+method),'Use single-line names and identity methods.')
   await validatePdfText([name,method])
+  insist(operator!==context.actor.id,'A different owner or admin must verify your identity.',403)
   const person = await env.DB.prepare("SELECT id,email,version FROM oa_operators WHERE id=? AND status='active'").bind(operator).first<{id:string;email:string;version:number}>()
   insist(person, 'Choose an active member.', 409)
   const previous = await env.DB.prepare('SELECT version FROM iw_part11_identities WHERE operator_id=?').bind(operator).first<{version:number}>()
@@ -75,7 +76,7 @@ function identityGuard(row: Identity): Guard {
 /** A separate identity session grants no app access. Email-link, owner-setup, review and dev sessions never qualify. */
 export async function signerIdentity(env: Env, c: SigningContext, request: Request) {
   let row: Identity | null = null, method: 'password' | 'OIDC' = 'password', fence: Guard | undefined
-  const token = credential(request), hash = token ? await sha256(token) : ''
+  const token = credential(request,env), hash = token ? await sha256(token) : ''
   if (token) {
     const session = await env.DB.prepare('SELECT operator_id,identity_version FROM iw_part11_sessions WHERE token_hash=? AND expires>?').bind(hash,Date.now()).first<{operator_id:string;identity_version:number}>()
     if(session) { row=await identity(env,session.operator_id); if(row?.version!==session.identity_version)row=null }
@@ -93,4 +94,4 @@ export async function signerIdentity(env: Env, c: SigningContext, request: Reque
   return { row, method, guards:[identityGuard(row),fence], evidence:{operator:row.operator_id,version:row.version,name:row.name,method:row.method,verifiedBy:row.verified_by,verifiedAt:row.verified_at,component:method} }
 }
 
-export async function endSignerIdentity(env: Env, request: Request) { const token=credential(request);if(token)await env.DB.prepare('DELETE FROM iw_part11_sessions WHERE token_hash=?').bind(await sha256(token)).run();return identityCookie(env) }
+export async function endSignerIdentity(env: Env, request: Request) { const token=credential(request,env);if(token)await env.DB.prepare('DELETE FROM iw_part11_sessions WHERE token_hash=?').bind(await sha256(token)).run();return identityCookie(env) }

@@ -10,7 +10,8 @@ async function enrolledSigner(h, email, name) {
  if(cache.has(email))return cache.get(email)
  const cookie=email==='owner@harbour.example'?h.owner:await h.invite(email,'member')
  const operatorId=(await h.send('/api/inkwell',undefined,cookie)).value.actor.id
- const verified=(await h.command('account.part11_identity',{operatorId,name,method:'Synthetic supervised government photo ID review',confirm:true})).result
+ const verifier=email==='owner@harbour.example'?await h.invite('identity-verifier@harbour.example','admin'):h.owner
+ const verified=(await h.command('account.part11_identity',{operatorId,name,method:'Synthetic supervised government photo ID review',confirm:true},verifier)).result
  const password='synthetic-inkwell-'+crypto.randomUUID()
  await h.post('/api/inkwell/compliance/password',{activationToken:verified.activationToken,password},cookie)
  const result={cookie,password,operatorId};cache.set(email,result);return result
@@ -250,6 +251,7 @@ test('Verified signer credentials: private one-use enrollment, separate continuo
   await h.post('/api/inkwell/compliance/password',{activationToken:'synthetic-inkwell-1',password:'synthetic-inkwell-password'},viewer,403)
   await h.post('/api/inkwell/compliance/password',{activationToken:'synthetic-inkwell-1',password:'synthetic-inkwell-password'},person.cookie,403)
   const admin=await h.invite('security@harbour.example','admin')
+  await h.command('account.part11_identity',{operatorId:person.operatorId,name:'Self verification refused',method:'Synthetic review',confirm:true},person.cookie,403)
   await h.command('account.part11_record',{kind:'meaning',meaning:'Not owner defined'},admin,403)
   await h.command('account.part11_record',{kind:'fda-certification',date:'2026-02-30',reference:'synthetic-inkwell-2',confirm:true},admin,400)
   const pdf=await PDFDocument.create();pdf.addPage([612,792])

@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "2f84b1767fde99e60f97f26b1505046398f98313f9e56217eb5ed8eb971055d5",
+      "sha256": "b60f57860e576a2b5d9723759482ce3a3a1606d11f96dc41c70e0979626a84f8",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "00505e5c6c58f171abf29eccb7342ac3ab6385cd744aa3647ab7b77e9100196e",
+      "sha256": "2d3ef72f30682e8c0c2aa8b6f7d51512ba8e975f7b914dc34dd34062ff73db42",
       "executable": false
     },
     "DEMO.md": {
@@ -139,7 +139,7 @@
       "executable": false
     },
     "docs/part11/README.md": {
-      "sha256": "466c970d70caa9ac7e53c5192c28749eb362cec2b4e4ff07bdc58cddacb53606",
+      "sha256": "e8f6101fbdd93d1e0e38d95b17f9807629a9cbf90c0677b98e5ccfb967b8d1f2",
       "executable": false
     },
     "docs/part11/traceability.md": {
@@ -827,7 +827,7 @@
       "executable": false
     },
     "src/inkwell/compliance/identity.ts": {
-      "sha256": "f62f04a1ee7cdb8d761b1bba5f199bf60e3172875227bd1a6d647c5a95015413",
+      "sha256": "7ca5ff2d4a5d0094d472ff4cc7dd7aab407e67167b1c969949debe862b830fd0",
       "executable": false
     },
     "src/inkwell/compliance/manifestation.ts": {
@@ -3199,7 +3199,7 @@
       "executable": false
     },
     "src/ui/part11-settings.tsx": {
-      "sha256": "b18071e623a271094e765444e1868c13175cd376f15cfc365fb11863b3b2eecb",
+      "sha256": "3a3373f077a504715da4201d1089dbd145bdb60f7a86733f1f96ec4659d021e0",
       "executable": false
     },
     "src/ui/part11.tsx": {
@@ -3307,7 +3307,7 @@
       "executable": false
     },
     "tests/compliance.test.mjs": {
-      "sha256": "5f9adea743f97a81028ca0eadb837e7116193346c0e34e9b6fb0464b8dcbeeaa",
+      "sha256": "55dacaa99c11e61f053e76b9d5ca5f69be97dd46d12888b10e3eb706af50f0c9",
       "executable": false
     },
     "tests/delivery.test.mjs": {
@@ -3423,7 +3423,7 @@
       "executable": false
     },
     "tests/journeys/healthcare.mjs": {
-      "sha256": "5dba772d02ad2800390a6e5b4b2f00adbe24fe8fdc482a5147820f1db63fd8b2",
+      "sha256": "0ac9e3310d6ec9afae41019901e53f3684a55f9a96202221be563c5b39137f16",
       "executable": false
     },
     "tests/journeys/import-retention.mjs": {
