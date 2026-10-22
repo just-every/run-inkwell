@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {expect} from '@playwright/test'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -30,9 +31,9 @@ export async function smsJourney(){
    const record=async()=>(await app.call('/api/inkwell/envelopes/'+id,{cookie:app.owner})).value.envelope
    await owner.goto(app.origin+'/app');await owner.getByRole('row',{name:new RegExp(title)}).click()
    await owner.getByRole('region',{name:title}).getByRole('button',{name:'Edit draft',exact:true}).click()
-   await owner.getByLabel('Recipient 1 name',{exact:true}).waitFor()
+   await expect(owner.getByLabel('Recipient 1 name',{exact:true})).toHaveValue(name);await expect(owner.getByLabel('Recipient 1 email',{exact:true})).toHaveValue(email)
    const authentication=owner.getByLabel('Recipient 1 authentication',{exact:true})
-   await authentication.selectOption('sms');await owner.getByLabel('Recipient 1 mobile number',{exact:true}).waitFor();await tabTo(owner,owner.getByLabel('Recipient 1 mobile number',{exact:true}))
+   await authentication.selectOption('sms');await owner.getByLabel('Recipient 1 mobile number',{exact:true}).waitFor();await authentication.focus();await owner.keyboard.press('Tab')
    assert.equal(await owner.getByLabel('Recipient 1 mobile number',{exact:true}).evaluate(el=>el===document.activeElement),true,'SMS selection leads by keyboard to its mobile input: '+await owner.evaluate(()=>document.activeElement.outerHTML))
    await owner.getByLabel('Recipient 1 mobile number',{exact:true}).fill('+12025550102');await capture(owner,'prepare')
    await owner.getByRole('button',{name:'Save draft',exact:true}).click()
