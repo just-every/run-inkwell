@@ -1,5 +1,5 @@
 import { recipientPdf, visibleDocumentIndexes } from './document-visibility'
-import { accessGate, disclosureGate, liveGuard, recipientOf, sessionGuard, type SigningContext } from './signing'
+import { accessGate, disclosureGate, liveGuard, notGroupSigner, recipientOf, sessionGuard, type SigningContext } from './signing'
 import { witnessNames } from './recipient-roles'
 import { active, appendEvent, canonical, currentSigners, insist, now, routingOrder, secret, sha256, text, type Envelope, type Env, type Field } from './model'
 import { commandWrite, commitEnvelope, previousCommand } from './storage'
@@ -22,7 +22,7 @@ export async function nominateWitnesses(env: Env, context: SigningContext, input
   const commandId = text(input.commandId, 'a command ID', 100), nominees = witnessNames(input.nominees), fingerprint = await sha256(canonical({ nominees })), key = `witness:${context.envelope.id}:${context.recipient.row}`
   const previous = await previousCommand(env.DB, key, commandId, fingerprint)
   if (previous) { await dispatchMail(env, context.envelope.id); return previous }
-  active(context.envelope); accessGate(context); disclosureGate(recipientOf(context), 'nominating witnesses')
+  active(context.envelope); notGroupSigner(context); accessGate(context); disclosureGate(recipientOf(context), 'nominating witnesses')
   const before = context.envelope, index = context.recipient.signer, principal = before.signers[index], rule = principal.witnesses
   insist(rule && currentSigners(before).includes(index) && (!principal.signedAt || principal.witnessReturnRequired), 'Only the signer whose witness step is open may nominate witnesses.', 409)
   const count = principal.signedAt ? before.signers.filter(s => s.witnessFor === index && !s.removedAt).length : 0

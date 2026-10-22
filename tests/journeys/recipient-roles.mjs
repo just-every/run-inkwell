@@ -8,7 +8,7 @@ import { axe, tabTo } from './a11y.mjs'
 import { screenshots } from './worker.mjs'
 
 export async function recipientRoles() {
- const app=await startInkwellWithMail(),images=process.env.INKWELL_PROOF_DIR??'/tmp/inkwell-recipient-roles';await mkdir(images,{recursive:true})
+ const app=await startInkwellWithMail(),images=process.env.INKWELL_PROOF_DIR??'test-results/recipient-roles';await mkdir(images,{recursive:true})
  try {
   const pdf=async text=>{const d=await PDFDocument.create();d.addPage([612,792]).drawText(text,{x:50,y:740});return Buffer.from(await d.save()).toString('base64')}
   for(const width of [1440,390]){
@@ -21,7 +21,7 @@ export async function recipientRoles() {
    const title=`Harbour workshop agreement ${width}`,id=(await app.command('envelope.prepare',{title,documents:[{filename:'workshop-agreement.pdf',pdfBase64:await pdf('Harbour Studio - Workshop service agreement'),mode:'sign',visibleTo:{signers:[0,2,3,4,5,6,7,8,9],copies:[0,1,2]}},{filename:'private-compensation.pdf',pdfBase64:await pdf('PRIVATE COMPENSATION - Noor Haddad only'),mode:'sign',visibleTo:{signers:[1],copies:[0,1,2]}}],signers,fields,copies:Array.from({length:3},(_,i)=>({name:`Records team ${i+1}`,email:`copy-${i}-${width}@harbour.example`}))})).id
    await owner.goto(app.origin+'/app');await owner.getByRole('row',{name:new RegExp(title)}).click();let detail=owner.getByRole('region',{name:title,exact:true});await detail.getByRole('button',{name:'Edit draft',exact:true}).click()
    await expect(owner.getByLabel('Recipient 10 name',{exact:true})).toHaveValue('Accounts Coordinator');await expect(owner.getByLabel('Recipient 9 action',{exact:true})).toHaveValue('approver');await expect(owner.getByLabel('Recipient 10 action',{exact:true})).toHaveValue('form_filler')
-   const requirement=owner.getByLabel('Recipient 1 witness requirement',{exact:true});await tabTo(owner,requirement);await requirement.selectOption('1:2');await owner.getByLabel('Collect witness address',{exact:true}).check();await requirement.scrollIntoViewIfNeeded();await capture(owner,'prepare-witnesses')
+   const requirement=owner.getByLabel('Recipient 1 witness requirement',{exact:true});await expect(requirement).toBeEnabled();await owner.getByLabel('Recipient 1 action',{exact:true}).click();await tabTo(owner,requirement);await requirement.selectOption('1:2');await owner.getByLabel('Collect witness address',{exact:true}).check();await requirement.scrollIntoViewIfNeeded();await capture(owner,'prepare-witnesses')
    await owner.getByLabel('Recipient 9 action',{exact:true}).scrollIntoViewIfNeeded();await capture(owner,'prepare-recipient-actions');await owner.getByRole('button',{name:'Save draft',exact:true}).click();await owner.getByRole('button',{name:'Edit draft',exact:true}).waitFor()
    const prepared=(await app.call('/api/inkwell/envelopes/'+id,{cookie:app.owner})).value.envelope;assert.equal(prepared.signers[0].witnesses.maximum,2);assert.equal(prepared.signers[0].witnesses.address,true)
    detail=owner.getByRole('region',{name:title,exact:true});await detail.getByLabel(/confirm it is eligible for electronic signature/).check();await detail.getByRole('button',{name:'Approve and invite first recipient',exact:true}).click();await detail.getByRole('heading',{name:'Signing status',exact:true}).waitFor();await capture(owner,'sent-detail')
