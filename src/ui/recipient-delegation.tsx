@@ -13,11 +13,11 @@ export type RecipientDelegationProps = {
   base: string; role: 'specify_recipients' | 'editor'; targets: DelegatedTarget[]
   /** Fields have stable recipient places in signer, but local pages in the scoped source PDF. */
   fields: Field[]; sourceURL?: string; canonicalPages?: number[]; pageSizes?: { width: number; height: number }[]
-  disabled?: boolean; onComplete: () => Promise<void>
+  freeForm?:boolean;disabled?: boolean; onComplete: () => Promise<void>
 }
 type Person = { name: string; email: string; phone: string; message: string }
 
-export function RecipientDelegation({ base, role, targets, fields, sourceURL, canonicalPages, pageSizes, disabled = false, onComplete }: RecipientDelegationProps) {
+export function RecipientDelegation({ base, role, targets, fields, sourceURL, canonicalPages, pageSizes, freeForm=false, disabled = false, onComplete }: RecipientDelegationProps) {
   const editor = role === 'editor'
   const initialPeople = () => Object.fromEntries(targets.map(target => [target.place, { name: target.name, email: target.email, phone: target.phone ?? '', message: target.message ?? '' }]))
   const localFields = () => fields.map(field => ({ ...field, signer: targets.findIndex(target => target.place === field.signer) }))
@@ -98,7 +98,7 @@ export function RecipientDelegation({ base, role, targets, fields, sourceURL, ca
         {editor && <label>{label} private message<textarea aria-label={`${label} private message`} maxLength={1000} rows={3} value={person?.message ?? ''} onChange={event => changePerson(target.place, 'message', event.target.value)} /></label>}
       </>}</div>
     })}</fieldset>
-    {editor && pdf && !scopeError && <fieldset disabled={busy} className="iw-stack"><legend>Delegated fields</legend><p>Choose a later recipient and place or edit their fields on the permitted pages. Existing fields cannot be removed.</p><FieldEditor pdf={pdf} fields={editingFields} setFields={setScopedFields} signer={recipient} setSigner={setRecipient} recipients={targets.map(target => ({ name: `${people[target.place]?.name || target.name} · order ${target.order}`, locked: Boolean(target.role && !['signer', 'form_filler'].includes(target.role)) }))} busy={busy} /></fieldset>}
+    {editor && pdf && !scopeError && <fieldset disabled={busy} className="iw-stack"><legend>Delegated fields</legend><p>{freeForm?'Signers place their own fields in this free-form request. You may change only the granted identities and private messages.':'Choose a later recipient and place or edit their fields on the permitted pages. Existing fields cannot be removed.'}</p><FieldEditor readOnly={freeForm} pdf={pdf} fields={editingFields} setFields={setScopedFields} signer={recipient} setSigner={setRecipient} recipients={targets.map(target => ({ name: `${people[target.place]?.name || target.name} · order ${target.order}`, locked: Boolean(target.role && !['signer', 'form_filler'].includes(target.role)) }))} busy={busy} /></fieldset>}
     {!actionable.length && <p role="status">There are no open delegated recipients to name.</p>}
     <label className="iw-check"><input type="checkbox" required disabled={busy || Boolean(scopeError)} checked={consent} onChange={event => setConsent(event.target.checked)} />{editor ? 'I have reviewed these recipient and field changes and authorize passing this envelope to the next routing step.' : 'I have reviewed these recipient identities and authorize continuing the routing.'}</label>
     <ErrorNotice error={action.error} /><button type="submit" className="iw-primary iw-fit" disabled={busy || Boolean(scopeError || loadAction.error) || !consent || !actionable.length || editor && !pdf}>{action.busy ? 'Saving…' : editor ? 'Save edits and continue' : 'Name recipients and continue'}</button>

@@ -79,7 +79,6 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   const placed = carried ?? documentInputFields(input.fields,multiple?.documents)
   const fields = freeForm ? [] : validateFields(Array.isArray(placed) && placed.every(field => field && typeof field === 'object') ? applyPrefillPayload(placed as Field[], input.prefill, 'this envelope') : placed, signers.length, pageSizes.length, [], signers.flatMap((s,i)=>s.role && s.role!=='signer' && s.role!=='witness'?[i]:[])), copies = chooseCopies(input.copies, signers.flatMap(s => s.group ? s.group.members : [s]))
   validateRoleFields(signers, fields)
-  insist(!freeForm || signers.every(s=>!s.role || ['signer','witness'].includes(s.role)), 'Free-form fields require signing roles; prepare placed fields for other actions.')
   validateRecipientCount(signers, copies.length)
   for (const s of signers) for (const w of s.witnesses?.named ?? []) insist(![...addresses,...copies.map(c=>c.email)].includes(w.email), 'A witness cannot be the signer or another recipient.')
   validateDocumentAudience(multiple?.documents,signers.length,copies.length,fields,(await envelopeDefaults(env)).hideDocumentsWithoutFields===true)

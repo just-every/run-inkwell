@@ -6,6 +6,7 @@ export { verifyFreeFormRecord } from './archive-policy.mjs'
 
 /** PREP-011: signer-owned placements are unsigned progress until the signing transaction commits them. */
 export function placedFields(envelope: Envelope, signer: number, input: unknown): Field[] {
+  insist(['signer','witness'].includes(envelope.signers[signer]?.role??'signer'),'This recipient action does not place signing fields.',403)
   insist(envelope.freeForm === true && envelope.freeFormSetting, 'This envelope is not open for free-form placement.', 409)
   insist(Array.isArray(input) && input.length <= 100, 'Place at most 100 fields for yourself.')
   const allowed = new Set(['id', 'label', 'type', 'signer', 'page', 'x', 'y', 'width', 'height', 'required', 'masked', 'document', 'documentPage'])

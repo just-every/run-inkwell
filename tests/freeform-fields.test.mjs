@@ -178,3 +178,24 @@ test('Free-form witness: nomination keeps placements signer-owned, requires witn
   assertPlacedCertificate(await pdfText((await h.send(`/api/inkwell/envelopes/${id}/artifacts/certificate`,undefined,h.owner)).bytes),done)
  }finally{await h.close()}
 })
+
+test('Free-form routing keeps approver and document-opening actions separate from the signer’s own placements',async()=>{
+ const h=await harness()
+ try{
+  await h.command('account.freeform',{enabled:true,expectedVersion:0})
+  const parties=[{name:'Nadia Bell',email:'nadia.freeform@harbour.example',role:'specify_recipients',order:1,delegates:[4]},{name:'Theo Reed',email:'theo.freeform@harbour.example',role:'editor',order:2,delegates:[4]},{name:'Elise Chen',email:'elise.approval@harbour.example',role:'approver',order:3},{name:'Jordan Vale',email:'jordan.delivery@harbour.example',role:'certified_delivery',order:4},{name:'',email:'',unresolvedIdentity:true,order:5}]
+  const id=await prepare(h,parties),open=async email=>{const invitation=await h.mail(email),path='/api'+new URL(invitation.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname;await h.post(path+'/code',{},'');const code=(await h.mail(email,'verification code')).text.match(/\b\d{6}\b/)[0],cookie=(await h.post(path+'/verify',{code},'')).cookie;await h.agree(path,cookie);return{path,cookie}}
+  await h.command('envelope.approve',{id,eligible:true})
+  const agent=await open(parties[0].email);await h.post(agent.path+'/specify-recipients',{recipients:[{place:4,name:'Mara Quinn',email:'mara.freeform@harbour.example'}],consent:true,commandId:crypto.randomUUID()},agent.cookie)
+  const editor=await open(parties[1].email);await h.post(editor.path+'/edit',{recipients:[{place:4,name:'Mara Quinn',email:'mara.procurement.freeform@harbour.example',message:'Please sign your own placed fields.'}],fields:[field(4,'signature',{y:.3})],consent:true,commandId:crypto.randomUUID()},editor.cookie,409);await h.post(editor.path+'/edit',{recipients:[{place:4,name:'Mara Quinn',email:'mara.procurement.freeform@harbour.example',message:'Please sign your own placed fields.'}],fields:[],consent:true,commandId:crypto.randomUUID()},editor.cookie)
+  const approver=await open(parties[2].email)
+  await h.post(approver.path+'/progress',{fields:[field(2)],values:{'signature-2':'A mark outside this role'}},approver.cookie,403)
+  await h.post(approver.path+'/approve',{consent:true,commandId:crypto.randomUUID()},approver.cookie)
+  const viewer=await open(parties[3].email)
+  await h.post(viewer.path+'/progress',{fields:[field(3,'signature',{y:.3})],values:{'signature-3':'A mark outside this role'}},viewer.cookie,403)
+  await h.send(viewer.path+'/document',undefined,viewer.cookie)
+  const signer=await open('mara.procurement.freeform@harbour.example')
+  await h.post(signer.path+'/sign',{fields:[field(4,'signature',{y:.3})],values:{'signature-4':'Mara Quinn'},consent:true,commandId:crypto.randomUUID()},signer.cookie)
+  const completed=await envelope(h,id);assert.equal(completed.status,'completed');assert.ok(completed.signers.slice(0,4).every(s=>s.completedAt&&!s.signedAt));assert.ok(completed.fields.every(f=>f.signer===4));assert.equal((await h.send(`/api/inkwell/envelopes/${id}/verify`,undefined,h.owner)).value.ok,true)
+ }finally{await h.close()}
+})

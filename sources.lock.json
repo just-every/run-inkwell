@@ -907,7 +907,7 @@
       "executable": false
     },
     "src/inkwell/drafts.ts": {
-      "sha256": "8d8b058b4a961561b08d3f72ec2d7ec58052add0a469800eaadf853815e87c32",
+      "sha256": "46fd77d01718ddad63b6cc627eb223900d3fb269cb3c708a98fee384f41ea736",
       "executable": false
     },
     "src/inkwell/envelope-defaults.ts": {
@@ -967,7 +967,7 @@
       "executable": false
     },
     "src/inkwell/freeform-fields.ts": {
-      "sha256": "049ef2b63dd9b99bbb8cb69d875e5b35a5cf1b7e82e0a02a325bd4a3fe6fe3ca",
+      "sha256": "557246735f66c6970222c00c1699d044e561447958c00b135c28481533cbe7af",
       "executable": false
     },
     "src/inkwell/freeform-policy.ts": {
@@ -3323,7 +3323,7 @@
       "executable": false
     },
     "src/ui/recipient-delegation.tsx": {
-      "sha256": "2b2ce15741b949e5eb3c58f5fc1240f89533ca12e70cdfae023812cad19fc3ba",
+      "sha256": "89e69c1fab281f3bfdf8a99e001ff2c0c07eee8f401156a937ff946d109b6971",
       "executable": false
     },
     "src/ui/recipient-role-controls.tsx": {
@@ -3355,7 +3355,7 @@
       "executable": false
     },
     "src/ui/signer-app.tsx": {
-      "sha256": "ac84a48914619a515d0356652da35143d065bdef00f50324b7d1e1873dc31b9d",
+      "sha256": "807b4eac50aea5747866449c367415bfb77c6816b4e8dc4627085f29339527e1",
       "executable": false
     },
     "src/ui/signing-field-input.tsx": {
@@ -3475,7 +3475,7 @@
       "executable": false
     },
     "tests/freeform-fields.test.mjs": {
-      "sha256": "e3f41b222bee23b38d23b5adea615b59ec7b5b26d4d3a4e6731c1c382ef1ae05",
+      "sha256": "7e7c1c594096c3173d5ad41ebf7ec7a2d1722e9af98bb82454fc97077f62695c",
       "executable": false
     },
     "tests/freeform-policy.test.mjs": {
@@ -3575,11 +3575,15 @@
       "executable": false
     },
     "tests/journeys/recipient-actions.mjs": {
-      "sha256": "dd51284f4cef748e6741c25c1084061fd674b2a5cd37082ff3137cbee796cd00",
+      "sha256": "809ab3d51faefe82164cdb782bc3dee0e367759651c0ae009ada5438d2bdd7d7",
       "executable": false
     },
     "tests/journeys/recipient-capacity.mjs": {
       "sha256": "b0440d1dd1724dc960e69cbd0b2d8b621362adaa932d27db0ecbaf64971350f9",
+      "executable": false
+    },
+    "tests/journeys/recipient-freeform-actions.mjs": {
+      "sha256": "aed0c2fc8b716a7a825413c8538ede33dcbcdaffce2abbed80f0af99c89b8595",
       "executable": false
     },
     "tests/journeys/recipient-roles.mjs": {
