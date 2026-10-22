@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'node:url'
 // ROUTE-001/010 built-page path, called by routing.mjs; the mail provider is the only fake.
 import assert from 'node:assert/strict'
 import { expect } from '@playwright/test'
@@ -40,3 +41,5 @@ export async function recipientRoles() {
   console.log(`Recipient roles and nominated/replacement witness passed at 1440/390 with light/dark axe and keyboard controls. Screens: ${images}`)
  }catch(e){await screenshots(app.browser,'recipient-roles');throw e}finally{await app.close()}
 }
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await recipientRoles()

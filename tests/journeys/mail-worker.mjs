@@ -30,12 +30,9 @@ export async function startInkwellWithMail({ inbound = false } = {}) {
   let browser
   async function close() { await browser?.close(); await mf.dispose(); await rm(persist, { recursive: true, force: true }) }
   try {
-    console.log('Mail journey: starting built Worker')
     await mf.ready
-    console.log('Mail journey: Worker ready')
     const db = await mf.getD1Database('DB')
     for (const file of (await readdir('migrations/core')).filter(f => f.endsWith('.sql')).sort()) await db.batch(unstable_splitSqlQuery(await readFile('migrations/core/' + file, 'utf8')).map(sql => db.prepare(sql)))
-    console.log('Mail journey: migrated store; launching browser')
     browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
     const call = async (path, { body, cookie = '', headers = {}, status = 200 } = {}) => {
       const response = await fetch(origin + path, { method: body === undefined ? 'GET' : 'POST', redirect: 'manual', headers: { origin, cookie, 'content-type': 'application/json', ...headers }, ...(body === undefined ? {} : { body: typeof body === 'string' ? body : JSON.stringify(body) }) })
@@ -43,9 +40,7 @@ export async function startInkwellWithMail({ inbound = false } = {}) {
       assert.equal(response.status, status, `${path.replace(/\/sign\/[^/]+/, '/sign/[private]')}: ${text.slice(0, 300)}`)
       return { value, cookie: response.headers.get('set-cookie')?.split(';')[0] }
     }
-    console.log('Mail journey: browser ready; opening owner session')
     const owner = (await call('/auth/bootstrap', { body: { token: setupToken, displayName: 'Harbour Owner' }, status: 303 })).cookie
-    console.log('Mail journey: owner ready; completing setup')
     const setup = await fetch(`${origin}/setup`, { method: 'POST', redirect: 'manual', headers: { origin, cookie: owner, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ displayName: 'Harbour Owner', confirm: 'yes' }) })
     assert.ok([200, 303].includes(setup.status), `setup: ${setup.status}`)
     const command = async (name, input) => (await call('/api/inkwell/commands', { body: { command: name, input, commandId: crypto.randomUUID() }, cookie: owner })).value.result
