@@ -12,9 +12,9 @@ export async function smsJourney(){
  const app=await startInkwellWithMail({sms:true}),images=join(process.env.INKWELL_PROOF_DIR??'test-results','sms')
  await mkdir(images,{recursive:true})
  try{
-  const pdf=await PDFDocument.create();pdf.addPage([612,792]);const pdfBase64=Buffer.from(await pdf.save()).toString('base64')
+  const pdf=await PDFDocument.create();const letter=pdf.addPage([612,792]);letter.drawText('Harbour Studio - Workshop service agreement',{x:50,y:740,size:14});letter.drawText('Project: Autumn workshop design and facilitation',{x:50,y:710,size:11});letter.drawText('The client approves the agreed schedule and delivery terms below.',{x:50,y:685,size:11});const pdfBase64=Buffer.from(await pdf.save()).toString('base64')
   for(const width of [1440,390]){
-   const viewport={width,height:width===390?844:1000},email=`sms.${width}@example.test`,name=`SMS Client ${width}`,title=`SMS signing ${width}`
+   const viewport={width,height:width===390?844:1000},email=`mara.quinn.${width}@harbour.example`,name='Mara Quinn',title=`Harbour workshop services ${width}`
    const {id}=await app.command('envelope.prepare',{title,filename:'sms-agreement.pdf',pdfBase64,signers:[{name,email}],fields:[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.4,height:.07}]})
    const context=await app.browser.newContext({viewport});await context.addCookies([app.ownerCookie()])
    const owner=await context.newPage();owner.setDefaultTimeout(20000)
