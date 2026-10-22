@@ -1,3 +1,4 @@
+import { validPart11Record } from './part11-record.mjs';
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { validDocumentRecord } from './document-record.mjs';
@@ -11,7 +12,7 @@ import { canonicalJson, sha256 } from '@runeditrun/rer/modules/portability';
 // document custody travels. A restored member is a viewer until an owner or admin chooses.
 export default {
   product: 'signatures/inkwell',
-  excludeTables: ['iw_exit_%','iw_pdf_uploads','iw_pdf_upload_parts','iw_blob_staging','iw_followup_capabilities', 'iw_followup_receipts', 'iw_api_keys', 'iw_template_revisions', 'iw_member_access', 'iw_import_retention_mail', 'iw_guards', 'iw_commands', 'iw_agents', 'iw_mail', 'iw_access_codes', 'iw_member_roles', 'iw_copy_links', 'iw_settings', 'iw_freeform_history', 'iw_freeform_policy', 'iw_member_marks', 'iw_shares', 'iw_template_shares', 'iw_contacts', 'iw_notices', 'iw_notice_posts', 'iw_notice_prefs', 'iw_notice_channels', 'iw_retention_purges', 'ik_d1_assertions', 'rer_mail_event_receipts', 'rer_mail_event_states'],
+  excludeTables: ['iw_part11_challenges','iw_exit_%','iw_pdf_uploads','iw_pdf_upload_parts','iw_blob_staging','iw_followup_capabilities', 'iw_followup_receipts', 'iw_api_keys', 'iw_template_revisions', 'iw_member_access', 'iw_import_retention_mail', 'iw_guards', 'iw_commands', 'iw_agents', 'iw_mail', 'iw_access_codes', 'iw_member_roles', 'iw_copy_links', 'iw_settings', 'iw_freeform_history', 'iw_freeform_policy', 'iw_member_marks', 'iw_shares', 'iw_template_shares', 'iw_contacts', 'iw_notices', 'iw_notice_posts', 'iw_notice_prefs', 'iw_notice_channels', 'iw_retention_purges', 'ik_d1_assertions', 'rer_mail_event_receipts', 'rer_mail_event_states'],
   // SIGNX-001: a signer's saved, unsigned entries stay behind like their codes and sessions; DELIV-005: so does the sealed link.
   secretColumns: { iw_signers: ['code_hash', 'session_hash', 'progress', 'link_sealed'] },
   requiredConfiguration: ['OWNER_EMAIL', 'SESSION_SECRET', 'AUTH_ORIGIN', 'MAIL_PROVIDER', 'MAIL_FROM'],
@@ -35,7 +36,7 @@ export default {
     }
     for await(const row of rows('iw_envelopes')) {
       const e=JSON.parse(row.data);
-      if(e.id!==row.id||e.version!==row.version||!validDocumentRecord(e,canonicalJson)||!validSupplementRecord(e,canonicalJson)||!await verifyFreeFormRecord(e))return false;
+      if(e.id!==row.id||e.version!==row.version||!validPart11Record(e,canonicalJson)||!validDocumentRecord(e,canonicalJson)||!validSupplementRecord(e,canonicalJson)||!await verifyFreeFormRecord(e))return false;
       const threads=[];for await(const r of rows('iw_comment_threads','envelope_id=?',[e.id]))threads.push(r);
       if(!await validCommentRecords(e,threads,canonicalJson,sha256))return false;
       try {for(const [index,signer] of e.signers.entries()){

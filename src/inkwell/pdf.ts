@@ -1,6 +1,7 @@
 // Uploaded-original preservation and separate evidence PDF follow
 // locket/src/locket/execution.ts and locket/src/locket/pdf.ts. Unlike Locket's
 // manual handoff, Inkwell parses actual page trees and overlays each signer's adopted mark (SIGNX-002).
+import { appendManifestations } from './compliance/manifestation'
 import { PDFDict, PDFDocument, PDFName, StandardFonts, rgb, pushGraphicsState, popGraphicsState, concatTransformationMatrix, type PDFFont, type PDFImage, type PDFPage } from 'pdf-lib'
 import { importsFormFields, tagBoxes } from './document-fields'
 import { insist, Refusal, type Adoption, type Envelope, type Field } from './model'
@@ -69,6 +70,7 @@ export async function signedPdf(original: Uint8Array, envelope: Envelope, scans:
     }
   }
   for (const scan of scans) await appendScan(document, scan.bytes, scan.mediaType)
+  await appendManifestations(document,envelope)
   return document.save()
 }
 

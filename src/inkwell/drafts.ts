@@ -18,7 +18,7 @@ import { groupPlace, snapshotGroup } from './signing-groups'
 /** PREP-009: what a prepared envelope holds, validated the same way when it is first saved and whenever its draft is
  * saved again: the PDF, title, recipients in routing order with any access code and private message, fields, expiry,
  * reminders, copy recipients, the paper option, and the invitation's subject and message. */
-export type Draft = Pick<Envelope, 'documents' | 'freeForm' | 'title' | 'filename' | 'signers' | 'fields' | 'pageSizes' | 'originalSha256' | 'expiresAt' | 'allowPaper' | 'allowReassign' | 'reminders' | 'copies' | 'subject' | 'message'>
+export type Draft = Pick<Envelope, 'part11' | 'documents' | 'freeForm' | 'title' | 'filename' | 'signers' | 'fields' | 'pageSizes' | 'originalSha256' | 'expiresAt' | 'allowPaper' | 'allowReassign' | 'reminders' | 'copies' | 'subject' | 'message'>
 const optional = (value: unknown, label: string, max: number, oneLine = false) => { if (value === undefined || value === '') return undefined; const result = text(value, label, max); insist(!oneLine || !/[\r\n\t]/.test(result), `Use a single line for ${label}.`); return result }
 /** `previous` is the draft being saved again: a recipient at the same place with the same email may keep their access
  * code (`keepAccessCode`), which is bound to that place. */
@@ -73,14 +73,15 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   insist(input.allowPaperSigning === undefined || typeof input.allowPaperSigning === 'boolean', 'Choose whether recipients may sign on paper.')
   // ROUTE-006: whether a recipient may reassign their signing to someone else; off unless the sender turns it on.
   insist(input.allowReassignment === undefined || typeof input.allowReassignment === 'boolean', 'Choose whether recipients may reassign their signing.')
+  insist(!previous?.part11 || input.allowPaperSigning !== true, 'Paper signing is unavailable in this unvalidated electronic profile.',409)
   const allowPaper = input.allowPaperSigning === true, allowReassign = input.allowReassignment === true, reminders = chooseReminders(input.reminders === undefined ? defaults?.reminders : input.reminders)
   const subject = optional(input.subject, 'the email subject', 200, true), message = optional(input.message, 'the message', 2000)
   await validatePdfText([title, ...[...signers, ...copies].flatMap(s => [s.name, s.email]), ...signers.flatMap(s => s.group ? s.group.members.flatMap(m => [m.name, m.email]) : [])])
-  const draft: Draft = { ...(multiple?{documents:multiple.documents}:{}), ...(freeForm ? { freeForm: true } : {}), title, filename, signers, fields, pageSizes, originalSha256: await sha256(bytes), expiresAt: chooseExpiry(input.expiresAt, base, defaults?.expiryDays), ...(allowPaper ? { allowPaper } : {}), ...(allowReassign ? { allowReassign } : {}), ...(reminders ? { reminders } : {}), ...(copies.length ? { copies } : {}), ...(subject ? { subject } : {}), ...(message ? { message } : {}) }
+  const draft: Draft = { ...(previous?.part11?{part11:structuredClone(previous.part11)}:{}), ...(multiple?{documents:multiple.documents}:{}), ...(freeForm ? { freeForm: true } : {}), title, filename, signers, fields, pageSizes, originalSha256: await sha256(bytes), expiresAt: chooseExpiry(input.expiresAt, base, defaults?.expiryDays), ...(allowPaper ? { allowPaper } : {}), ...(allowReassign ? { allowReassign } : {}), ...(reminders ? { reminders } : {}), ...(copies.length ? { copies } : {}), ...(subject ? { subject } : {}), ...(message ? { message } : {}) }
   return { draft, bytes, accessCodes, originals:multiple?.originals }
 }
 /** The event detail a saved draft records (prepared or updated). */
-export const draftDetail = (d: Draft) => ({ ...(d.documents?{documents:d.documents}:{}), ...(d.freeForm ? { freeForm: true } : {}), originalSha256: d.originalSha256, orderedSigners: d.signers, fields: d.fields, expiresAt: d.expiresAt, allowPaperSigning: Boolean(d.allowPaper), ...(d.allowReassign ? { allowReassignment: true } : {}), ...(d.reminders ? { reminders: d.reminders } : {}), ...(d.copies ? { copies: d.copies } : {}), ...(d.subject ? { subject: d.subject } : {}), ...(d.message ? { message: d.message } : {}) })
+export const draftDetail = (d: Draft) => ({ ...(d.part11?{part11:d.part11}:{}), ...(d.documents?{documents:d.documents}:{}), ...(d.freeForm ? { freeForm: true } : {}), originalSha256: d.originalSha256, orderedSigners: d.signers, fields: d.fields, expiresAt: d.expiresAt, allowPaperSigning: Boolean(d.allowPaper), ...(d.allowReassign ? { allowReassignment: true } : {}), ...(d.reminders ? { reminders: d.reminders } : {}), ...(d.copies ? { copies: d.copies } : {}), ...(d.subject ? { subject: d.subject } : {}), ...(d.message ? { message: d.message } : {}) })
 export async function accessCodeWrites(env: Env, envelopeId: string, codes: (string | 'keep' | undefined)[]) {
   return Promise.all(codes.flatMap((code, i) => code && code !== 'keep' ? [accessCodeHash(env, envelopeId, i, code).then(hash => env.DB.prepare('INSERT INTO iw_access_codes(envelope_id,signer,code_hash) VALUES(?,?,?)').bind(envelopeId, i, hash))] : []))
 }

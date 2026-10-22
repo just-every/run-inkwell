@@ -6,7 +6,7 @@ import { commitEnvelope, memberRoleSql, type Guard } from './storage'
 
 /** Fingerprint only the prepared sending definition, excluding decisions derived from it and approval history. */
 export const sendingFingerprint = (e: Envelope) => sha256(canonical({
-  ...(e.freeForm ? { freeForm: true } : {}),
+  ...(e.freeForm ? { freeForm: true } : {}), ...(e.part11?{part11:e.part11}:{}),
   template: e.template ?? null, ...(e.documents?{documents:e.documents}:{}),
   title: e.title, filename: e.filename, originalSha256: e.originalSha256, expiresAt: e.expiresAt,
   signers: e.signers.map(({ routeResult, activatedAt, ...signer }) => signer), fields: e.fields,

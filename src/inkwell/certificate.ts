@@ -39,6 +39,7 @@ export async function certificatePdf(envelope: Envelope, mailed: number[] = []) 
       ...inPersonLines(envelope, i), ...authLines(envelope, i), ...(s.accessCode ? [accessLine(envelope, i)] : []),
       ...(s.disclosure ? [`Disclosure ${s.disclosure.version} accepted at: ${stamp(s.disclosure.acceptedAt)}`] : []),
       ...supplementStatus(envelope, i, s.group?.signedBy ?? s.group?.declinedBy).flatMap(doc => [ ...(doc.viewedAt ? [`Supplement opened: ${doc.label} at ${stamp(doc.viewedAt)}`] : []), ...(doc.acknowledgedAt ? [`Supplement acknowledged: ${doc.label} at ${stamp(doc.acknowledgedAt)}; SHA-256 ${doc.sha256}`] : []) ]),
+      ...(s.part11?[`Signing reason: ${s.part11.reason}`,`Signature re-authenticated at ${stamp(s.part11.reauthenticatedAt)}: ${s.part11.method}`]:[]),
       ...adoptionLines(envelope, i), ...placedLines(envelope, i), ...stamps[i].map(stampLine),
       ...(s.paper?.status === 'accepted' ? [`Scan SHA-256: ${s.paper.sha256}`, `Scan: ${s.paper.pages} page(s) appended to the executed PDF; accepted at ${stamp(s.paper.reviewedAt!)}`] : []),
       s.routeResult?.state === 'skipped' ? `Skipped at ${stamp(s.routeResult.at)}: ${s.includeWhen?.field} ${s.includeWhen?.operator} ${s.includeWhen?.value}; result false (source ${s.routeResult.value})` : s.removedAt ? `Not signed: removed by a correction at ${stamp(s.removedAt)}`
