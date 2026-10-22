@@ -3071,7 +3071,7 @@
       "executable": false
     },
     "src/ui/envelope-detail.tsx": {
-      "sha256": "4f99beb1418628ac35d20f62f0bdece78028a5c54987836d220f1418882d34b1",
+      "sha256": "fd7eda5777aec36cf4ea291bb12515b8a6378e838251c38fd6e46c4644008658",
       "executable": false
     },
     "src/ui/envelope-list.tsx": {
