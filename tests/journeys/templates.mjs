@@ -222,3 +222,5 @@ try {
 }
 
 await (await import('./template-composition.mjs')).templateComposition()
+
+await (await import('./sms.mjs')).smsJourney()
