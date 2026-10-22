@@ -68,6 +68,7 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   const fields = freeForm ? [] : validateFields(Array.isArray(placed) && placed.every(field => field && typeof field === 'object') ? applyPrefillPayload(placed as Field[], input.prefill, 'this envelope') : placed, signers.length, pageSizes.length), copies = chooseCopies(input.copies, signers.flatMap(s => s.group ? s.group.members : [s]))
   validateDocumentAudience(multiple?.documents,signers.length,copies.length,fields,(await envelopeDefaults(env)).hideDocumentsWithoutFields===true)
   mapDocumentFields(fields,multiple?.documents,signers.length,freeForm)
+  if(multiple)insist(signers.every((_,i)=>multiple.documents.some(d=>!d.visibleTo||d.visibleTo.signers.includes(i))),'Every signer needs at least one visible document. Free-form drafts have no fields: turn off the hide-without-fields default before preparing one.')
   validateRouting(signers, fields)
   validateCopyRouting(copies, fields)
   await validatePdfText([...signers, ...copies].flatMap(person=>person.includeWhen?[person.includeWhen.value]:[]))
