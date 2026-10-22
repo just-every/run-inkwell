@@ -4,7 +4,7 @@ export function validDelegationRecord(envelope, canonical) {
   const delegated = s => ['specify_recipients','editor'].includes(s?.role);
   if (!envelope.signers.some(s=>delegated(s)||s.delegates||s.unresolvedIdentity) && !envelope.events.some(e=>e.detail?.byRecipient!==undefined||['recipient.specified','recipient.edited'].includes(e.action))) return true;
   let people, fields=[], documents; const activated=new Set(), acted=new Set(), removed=new Set(), skipped=new Set(), completed=new Map(), pending=new Map(), pendingIdentities=new Map();
-  const same=(a,b)=>canonical(a)===canonical(b), order=i=>people[i].order??i+1;
+  const same=(a,b)=>a===undefined||b===undefined?a===b:canonical(a)===canonical(b), order=i=>people[i].order??i+1;
   const immutable=['role','order','linkOnly','inPerson','accessCode','witnesses','includeWhen','delegates'];
   const projection=s=>({name:s.name,email:s.email,...Object.fromEntries(immutable.map(key=>[key,s[key]])),...(s.phone?{phone:s.phone}:{}),...(s.sms?{sms:true}:{}),...(s.message?{message:s.message}:{}),...(s.unresolvedIdentity?{unresolvedIdentity:true}:{})});
   const documentDefinition=value=>value?.map(({signedSha256:_signed,...document})=>document)??null;
