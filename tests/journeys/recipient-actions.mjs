@@ -118,10 +118,10 @@ export async function recipientActions() {
         await naming.page.getByRole('heading', { name: 'Your recipient action has been recorded.', exact: true }).waitFor(); await capture(naming.page, 'agent-completed')
         assert.equal((await record()).signers[4].name, 'Mara Quinn'); assert.equal(app.mail(initialEmail, ''), undefined, 'Naming preserves the stable later routing place')
         const editing = await open(people[1].email), editor = editing.page.getByRole('form', { name: 'Edit delegated recipients and fields', exact: true })
-        await editor.getByLabel('Field type', { exact: true }).waitFor(); await scoped(editing)
+        await editor.getByRole('combobox', { name: /^Field type/ }).waitFor(); await scoped(editing)
         await editor.getByLabel('Recipient 5, routing order 5 email', { exact: true }).fill(finalEmail)
         await editor.getByLabel('Recipient 5, routing order 5 private message', { exact: true }).fill('Mara, add purchase order QD-2048 before signing the workshop engagement.')
-        await editor.getByLabel('Field type', { exact: true }).selectOption('text'); await editor.getByLabel('Field label', { exact: true }).fill('Purchase order reference')
+        await editor.getByRole('combobox', { name: /^Field type/ }).selectOption('text'); await editor.getByLabel('Field label', { exact: true }).fill('Purchase order reference')
         const place = editor.getByRole('button', { name: /^Place field on page 1;/ }); await tabTo(editing.page, place); await editing.page.keyboard.press('Enter')
         await editor.getByRole('checkbox', { name: /Select field 2: Purchase order reference/ }).waitFor()
         assert.ok(await editor.getByRole('checkbox', { name: /Select field 1: Client signature/ }).isVisible(), 'The existing signature is retained')
@@ -158,7 +158,7 @@ export async function recipientActions() {
         for (const label of ['Naming agent 1:', 'Editor 2:', 'Needs to view 3:', 'Certified delivery 4:']) assert.ok(text.includes(label), `Certificate names ${label}`)
         for (const index of [2, 3]) assert.ok(text.includes(done.signers[index].completedAt), 'Certificate records each authenticated opening time')
         assert.ok(text.includes('human reading is not asserted'), 'Certified delivery describes its observed evidence without claiming reading')
-      } finally { for (const context of contexts) await context.close() }
+      } catch(error) { for(const [ci,context] of contexts.entries())for(const [pi,page] of context.pages().entries())await page.screenshot({path:join(images,`${width}-failure-${ci}-${pi}.png`),fullPage:true}).catch(()=>{});throw error } finally { for (const context of contexts) await context.close() }
     }
     console.log(`Recipient naming, editing, required viewing and certified delivery journey passed at 1440/390. Screens: ${images}`)
   } catch (error) { await screenshots(app.browser, 'recipient-actions'); throw error } finally { await app.close() }
