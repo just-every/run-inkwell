@@ -55,7 +55,7 @@ export async function recipientPdf(env:Env,e:Envelope,party:number,executed=fals
  if(visibleDocumentIndexes(e,party).length===e.documents.length)return bytes
  const pages=recipientPages(e,party);insist(pages.length,'No documents are visible to this recipient.',404)
  if(executed)pages.push(...permittedScanPages(e,visibleDocumentIndexes(e,party)))
- const source=await PDFDocument.load(bytes),output=await PDFDocument.create()
+ const source=await PDFDocument.load(bytes),output=await PDFDocument.create({updateMetadata:false})
  for(const page of await output.copyPages(source,pages))output.addPage(page)
  return new Uint8Array(await output.save())
 }
@@ -63,13 +63,21 @@ export async function recipientCertificate(env:Env,e:Envelope,party:number) {
  if(!e.documents||visibleDocumentIndexes(e,party).length===e.documents.length)return readBlob(env.DB,e.id,'certificate',e.certificateSha256)
  return new Uint8Array(await certificatePdf(e,[],visibleDocumentIndexes(e,party)))
 }
+async function recipientComponent(env:Env,e:Envelope,party:number,index:number) {
+ const scope=visibleDocumentIndexes(e,party),d=e.documents![index]
+ const unsafeScan=e.signers.some((s,i)=>s.paper?.status==='accepted'&&visibleDocumentIndexes(e,i).some(k=>!scope.includes(k)))
+ if(!unsafeScan)return readBlob(env.DB,e.id,`executed-${index}`,d.signedSha256)
+ const source=await PDFDocument.load(await readBlob(env.DB,e.id,'signed',e.signedSha256)),output=await PDFDocument.create({updateMetadata:false})
+ for(const page of await output.copyPages(source,[...Array.from({length:d.pages},(_,n)=>d.pageStart+n),...permittedScanPages(e,scope)]))output.addPage(page)
+ return new Uint8Array(await output.save())
+}
 export async function recipientArtifact(env:Env,e:Envelope,party:number,kind:string) {
  if(kind==='signed')return download(await recipientPdf(env,e,party,true),`${e.id}-executed.pdf`)
  if(kind==='certificate')return download(await recipientCertificate(env,e,party),`${e.id}-certificate.pdf`)
  const match=/^executed-([0-9]+)$/.exec(kind),index=Number(match?.[1]),d=e.documents?.[index]
  insist(match&&d&&canSeeDocument(e,index,party),'Document not found.',404)
  insist(d.signedSha256,'This document is not yet executed.',404)
- return download(await readBlob(env.DB,e.id,kind,d.signedSha256),`executed-${d.filename}`)
+ return download(await recipientComponent(env,e,party,index),`executed-${d.filename}`)
 }
 
 /** Recipient list edits preserve grants by copy identity; new copy recipients default to all documents only when the

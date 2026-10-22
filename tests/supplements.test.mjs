@@ -494,6 +494,12 @@ test('Document visibility: offer-only candidate cannot fetch the memo through si
    assert.equal((await h.send(path,undefined,cookie)).value.documents.length,manager?2:1)
   }
   assert.equal((await h.send(base+'/verify',undefined,h.owner)).value.ok,true)
+  await h.command('envelope.send_copy',{id,recipients:[{name:'Later offer copy',email:'later@visibility.example'}],documents:[0]})
+  const laterPath='/api'+new URL((await h.mail('later@visibility.example','Completed:')).text.match(/http:\/\/[^\s]+\/copy\/[^\s]+/)[0]).pathname
+  await h.post(laterPath+'/code',{},'');const laterCookie=(await h.post(laterPath+'/verify',{code:(await h.mail('later@visibility.example','Your Inkwell code for a completed copy')).text.match(/\b\d{6}\b/)[0]},'')).cookie
+  await checkPdf((await h.send(laterPath+'/artifacts/signed',undefined,laterCookie)).bytes,1,false)
+  assert.equal((await h.send(laterPath+'/artifacts/executed-1',undefined,laterCookie)).status,404)
+  assert.equal((await h.send(base+'/verify',undefined,h.owner)).value.ok,true,'a new explicit copy grant is audited without changing executed fingerprints')
   // The attachment delivery path must use the same per-party scope, including paper scan appendices.
   await h.command('account.completed_copies',{delivery:'attachment'})
   const second=(await h.command('envelope.prepare',{...input,title:'Attached hiring offer',signers:people.map((p,i)=>({...p,email:`attached-${i}@visibility.example`}))})).result.id

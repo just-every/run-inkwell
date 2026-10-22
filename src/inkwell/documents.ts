@@ -1,4 +1,4 @@
-import { readDocumentAudience, permittedScanPages } from './document-visibility'
+import { readDocumentAudience } from './document-visibility'
 import { PDFDocument } from 'pdf-lib'
 import { active, canonical, id, insist, now, object, sha256, text, type Actor, type Envelope, type Env, type Field } from './model'
 import { blobFingerprint, fromBase64, readBlob } from './blobs'
@@ -96,7 +96,7 @@ export async function executedDocuments(env:Env,e:Envelope,combined:Uint8Array) 
  if(!e.documents)return writes
  const pdf=await PDFDocument.load(combined)
  for(const [i,d] of e.documents.entries()){
-  const output=await PDFDocument.create();for(const page of await output.copyPages(pdf,[...Array.from({length:d.pages},(_,n)=>d.pageStart+n),...permittedScanPages(e,[i])]))output.addPage(page)
+  const output=await PDFDocument.create();for(const page of await output.copyPages(pdf,[...Array.from({length:d.pages},(_,n)=>d.pageStart+n),...Array.from({length:pdf.getPageCount()-e.pageSizes.length},(_,n)=>e.pageSizes.length+n)]))output.addPage(page)
   const bytes=new Uint8Array(await output.save());d.signedSha256=await sha256(bytes);writes.push(...await stagedBlobWrites(env,e.id,documentKind(i,true),bytes))
  }
  return writes
