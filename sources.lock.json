@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "b60f57860e576a2b5d9723759482ce3a3a1606d11f96dc41c70e0979626a84f8",
+      "sha256": "0d915b5b36d799346e38b495bdf1fa93feceaf01194511c908ea7221d39a14ce",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "2d3ef72f30682e8c0c2aa8b6f7d51512ba8e975f7b914dc34dd34062ff73db42",
+      "sha256": "5738c3c5b0d952b0d2674a79301713c224b7359006fd48a94e17e3193173618f",
       "executable": false
     },
     "DEMO.md": {
@@ -143,7 +143,7 @@
       "executable": false
     },
     "docs/part11/traceability.md": {
-      "sha256": "0ed996dbd1a7493f6d961be8faea502743fce27b370e69eb1419117f17ea41c9",
+      "sha256": "cea3bfb0d48573e8d39b28c27cf3ffeb8253be8e3c1f4b035202f725249eae28",
       "executable": false
     },
     "docs/provenance.md": {
