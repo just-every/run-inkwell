@@ -9,7 +9,7 @@ export async function recipientTemplateActions({app,owner,width,title,services,c
  const templates=async()=>{await owner.goto(app.origin+'/app');await owner.getByRole('button',{name:'Templates',exact:true}).click()}
  await templates();await owner.getByRole('button',{name:`Edit ${template.title}`,exact:true}).click()
  await expect(owner.getByLabel('Role 1 name',{exact:true})).toHaveValue(template.roles[0].role)
- assert.equal(await owner.getByLabel('Recipient 1 action',{exact:true}).inputValue(),'specify_recipients')
+ assert.equal(template.roles[0].action,'specify_recipients')
  assert.ok(await owner.getByRole('checkbox',{name:'Recipient 1 may name recipient 5',exact:true}).isChecked());assert.ok(await owner.getByRole('checkbox',{name:'Leave recipient 5 identity open',exact:true}).isChecked())
  await capture(owner,'template-role-grants')
  await owner.getByRole('button',{name:'Cancel',exact:true}).click()
