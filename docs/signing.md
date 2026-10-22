@@ -111,3 +111,26 @@ sources disagree. Every source approval rule still applies. Preparation freezes
 all source versions and bytes; changing any source before a deferred release
 holds the send until a current editor confirms again. The record and completion
 certificate list every source template and version.
+
+### Naming, editing and document-opening recipients
+
+A signed-in owner or admin can prepare an envelope with a naming agent or editor
+and explicitly select the existing later recipient places they may change. Leave a
+naming agent's target identity open: no invitation exists until that agent supplies
+the name and email. If the agent is skipped, the unnamed place waits for an audited
+sender correction. An editor changes only the granted later identities, private
+messages and fields on documents visible to both the editor and the affected
+recipient. Each action needs authentication, disclosure agreement and explicit
+confirmation. These recipients gain no account access and cannot change routing,
+authentication, document bytes or document audiences. Copies and templates keep
+the grants and reset open identities and completed actions.
+
+A recipient who must view documents, including certified delivery, explicitly
+opens the permitted PDF. Routing waits until authenticated opening requests cover
+every visible document. The certificate records each original document fingerprint
+and opening time. This is evidence of a server-observed authenticated PDF request;
+it does not assert human reading. Repeated openings do not duplicate the delivery
+record. These roles also follow the envelope's conditional include/skip rules.
+
+The delegation authority and delivery-evidence policy use the conservative default
+recorded in ROUTE-011 and remain pending policy approval.
