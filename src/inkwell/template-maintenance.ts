@@ -1,4 +1,5 @@
 // AGENT-007: learn from recorded corrections, propose a revision with its sources, and publish only on its maker's command.
+import {copiedDelegation} from './delegation-grants'
 import { canonical, insist, now, sha256, text, type Actor, type Env, type Envelope, type Field, type Signer } from './model'
 import { envelopeAccess } from './members'
 import { readBlob } from './blobs'
@@ -10,7 +11,7 @@ type Definition = Pick<Template, 'fields' | 'roles' | 'originalSha256'>
 export type Proposal = { id: string; templateVersion: number; reasons: string[]; changes: { before: Definition; after: Definition }; examples: Example[] }
 type Candidate = Proposal & { source: Envelope }
 const versionOf = (t: Template) => t.version ?? 1
-const roleSettings = (s: Signer, i: number) => ({ order: s.order ?? i + 1, ...(s.accessCode ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(s.includeWhen ? { includeWhen: s.includeWhen } : {}), ...(s.message ? { message: s.message } : {}) })
+const roleSettings = (s: Signer, i: number) => ({ ...(s.role && s.role!=='signer' && s.role!=='witness'?{action:s.role}:{}),...(s.witnesses?{witnesses:structuredClone(s.witnesses)}:{}),...(s.sms?{sms:true}:{}),...(s.delegates?{delegates:s.delegates}:{}),...(s.unresolvedIdentity?{unresolvedIdentity:true as const}:{}),order: s.order ?? i + 1, ...(s.accessCode ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(s.includeWhen ? { includeWhen: s.includeWhen } : {}), ...(s.message ? { message: s.message } : {}) })
 
 /** IDs of newly placed fields differ per envelope. Give equal labelled placements equal IDs and remap their references. */
 async function stableFields(fields: Field[], baseline: Field[], template: Template) {
@@ -41,10 +42,10 @@ async function candidates(env: Env, actor: Actor, templateId: string) {
     const correction = envelope.events.findLast(event => ['envelope.updated', 'envelope.corrected', 'signer.corrected', 'signer.added', 'signer.removed'].includes(event.action))
     if (!correction) continue
     const initial = prepared.detail.fields as Field[], initialSigners = prepared.detail.orderedSigners as Signer[]
-    const kept = envelope.signers.flatMap((s, i) => s.removedAt ? [] : [i])
+    const kept = envelope.signers.flatMap((s, i) => s.removedAt || s.witnessFor!==undefined ? [] : [i])
     const fields = (await stableFields(envelope.fields, initial, template)).filter(f => kept.includes(f.signer)).map(f => ({ ...f, signer: kept.indexOf(f.signer) }))
     const roles: Role[] = kept.map((place, index) => {
-      const signer = envelope.signers[place], original = template.roles[place]
+      const signer = {...envelope.signers[place],...copiedDelegation(envelope,kept,place)}, original = template.roles[place]
       if (original && initialSigners[place] && canonical(roleSettings(signer, place)) === canonical(roleSettings(initialSigners[place], place))) return original
       return { role: original?.role ?? `Signer ${index + 1}`, ...roleSettings(signer, place) }
     })

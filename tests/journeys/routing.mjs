@@ -63,3 +63,5 @@ try{
 }catch(error){await screenshots(app.browser,'route-003');throw error}finally{await app.close()}
 
 await recipientRoles()
+
+await (await import('./recipient-actions.mjs')).recipientActions()

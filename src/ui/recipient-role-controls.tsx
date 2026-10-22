@@ -7,7 +7,7 @@ export function RecipientRoleControls({ index, role, witnesses, disabled, remain
   const label = `Recipient ${index + 1}`
   return <div className="iw-stack" style={{ gridColumn: '1 / -1' }}>
     <label>{label} action<select aria-label={`${label} action`} value={role} disabled={disabled || role === 'witness'} onChange={e => onChange(e.target.value as RecipientRole, e.target.value === 'signer' ? witnesses : undefined)}>
-      <option value="signer">Sign</option><option value="approver">Approve without signing</option><option value="form_filler">Fill in fields</option>{role === 'witness' && <option value="witness">Witness</option>}
+      <option value="signer">Sign</option><option value="approver">Approve without signing</option><option value="form_filler">Fill in fields</option><option value="specify_recipients">Name later recipients</option><option value="editor">Edit later recipients</option><option value="needs_to_view">Must open documents</option><option value="certified_delivery">Certified delivery</option>{role === 'witness' && <option value="witness">Witness</option>}
     </select></label>
     {role === 'approver' && <p className="iw-muted">This recipient approves the documents without completing fields or signing.</p>}
     {role === 'form_filler' && <p className="iw-muted">Place business fields for this recipient; omit signature, initials and stamp fields.</p>}

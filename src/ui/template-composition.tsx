@@ -8,7 +8,7 @@ type Identity = 'email' | 'link' | 'sms'
 type Choices = { orders?: Record<string, number | null>; settingsTemplate?: string; identity?: Record<string, Identity> }
 type Person = { name: string; email: string; phone: string; accessCode: string }
 type PreviewRole = {
-  role: string; key: string; order: number; action?: 'signer' | 'approver' | 'form_filler'
+  role: string; key: string; order: number; action?: Exclude<import('./types').RecipientRole,'witness'>;delegates?:number[];unresolvedIdentity?:true
   identity: Identity; accessCode?: boolean; witnesses?: { minimum: number; maximum: number }
   sources: { template: number; role: number }[]; messages: { template: number; role: number; message: string }[]
 }
@@ -80,6 +80,7 @@ export function TemplateComposition({ templates, onSent, onCancel }: { templates
         const documents = []
         for (const item of files) documents.push({ uploadId: await uploadDocument(item.file), mode: 'view' as const })
         const recipients = current.roles.map(role => {
+          if(role.unresolvedIdentity)return {}
           const person = people[role.key] ?? emptyPerson()
           return { name: person.name, email: person.email, ...(role.identity === 'sms' ? { phone: person.phone } : {}), ...(role.accessCode ? { accessCode: person.accessCode } : {}) }
         })
@@ -102,6 +103,7 @@ export function TemplateComposition({ templates, onSent, onCancel }: { templates
         {current.settings.subject && <p>Invitation subject: {current.settings.subject}</p>}{current.settings.message && <p>Message to everyone: {current.settings.message}</p>}
       </section>
       <fieldset disabled={busy} className="iw-stack"><legend>Recipients</legend>{current.roles.map((role, index) => {
+        if(role.unresolvedIdentity)return <div key={role.key}><h3>{role.role}</h3><p className="iw-muted">Routing order {role.order} · the granted earlier agent names this person. Email verification is required.</p></div>
         const person = people[role.key] ?? emptyPerson(), label = `${role.role}, routing order ${role.order}`
         return <div key={role.key} className="iw-stack"><h3>{role.role}</h3><p>Routing order {role.order}{role.action === 'approver' ? ' · approves without signing' : role.action === 'form_filler' ? ' · fills business fields' : ''}</p><p className="iw-muted">From {role.sources.map(source => current.templates[source.template]?.title).join(', ')}</p><div className="iw-two"><label>{label} name<input required maxLength={100} value={person.name} onChange={e => changePerson(role.key, 'name', e.target.value)} /></label><label>{label} email<input required type="email" maxLength={254} value={person.email} onChange={e => changePerson(role.key, 'email', e.target.value)} /></label></div>
           <label>{label} authentication<select aria-label={`${label} authentication`} value={role.identity} onChange={e => setChoices(previous => ({ ...previous, identity: { ...previous.identity, [role.key]: e.target.value as Identity } }))}><option value="email">Email code</option><option value="link">Link only</option><option value="sms">SMS code</option></select></label>

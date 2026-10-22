@@ -1,13 +1,18 @@
+import {validDelegationRecord} from './delegation-record.mjs';
+import {validRecipientViewRecord} from './recipient-view-record.mjs';
 /** Role actions and nominated witnesses are business custody, including their document grants and exact fields. */
 export async function validRecipientRecord(e, canonical, sha256) {
  try {
+  if(!validRecipientViewRecord(e,canonical)||!validDelegationRecord(e,canonical))return false;
   for (const [i,s] of e.signers.entries()) {
-   if (s.role && !['signer','approver','form_filler','witness'].includes(s.role)) return false;
+   if (s.role && !['signer','approver','form_filler','witness','specify_recipients','editor','needs_to_view','certified_delivery'].includes(s.role)) return false;
    const fields=e.fields.filter(f=>f.signer===i);
+   if(s.role && !['signer','witness','form_filler'].includes(s.role) && (s.signedAt||fields.length||s.values||s.adoption||s.paper))return false;
+   if(s.unresolvedIdentity && (s.name||s.email||s.signedAt||s.completedAt))return false;
    if (s.role==='approver' && (s.signedAt||fields.length||s.values)) return false;
    if (s.role==='form_filler' && (s.signedAt||fields.some(f=>['signature','initials','stamp'].includes(f.type)))) return false;
-   if (s.completedAt) {
-    const event=e.events.findLast(v=>v.detail.signer===i&&v.action===(s.role==='approver'?'recipient.approved':'recipient.filled'));
+   if (s.completedAt && !['needs_to_view','certified_delivery'].includes(s.role)) {
+    const event=e.events.findLast(v=>v.detail.signer===i&&v.action===({approver:'recipient.approved',form_filler:'recipient.filled',specify_recipients:'recipient.specified',editor:'recipient.edited'}[s.role]));
     if(!event||event.at!==s.completedAt||event.detail.consent!==true||event.detail.role!==s.role||event.detail.email!==s.email) return false;
     if(s.role==='form_filler'&&event.detail.valuesSha256!==await sha256(canonical(s.values)))return false;
    }

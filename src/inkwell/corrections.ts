@@ -30,7 +30,7 @@ import { memberLinkWrites } from './signing-groups'
 const maxPlaces = 999, maxActive = 100
 /** A recipient who has acted (signed, declined, or uploaded a paper scan awaiting review) or was removed: fixed for good. */
 const settled = (s: Signer) => Boolean(s.signedAt || s.completedAt || s.declinedAt || s.paper?.status === 'pending' || s.removedAt || s.routeResult?.state === 'skipped')
-const identity = (s: Signer, place: number) => ({ ...(s.role?{role:s.role}:{}), ...(s.witnesses?{witnesses:s.witnesses}:{}), ...(s.includeWhen?{includeWhen:s.includeWhen}:{}), name: s.name, email: s.email, ...(s.phone ? { phone: s.phone } : {}), ...(s.sms ? { sms: true } : {}), order: s.order ?? place + 1, ...(s.inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(s.message ? { message: s.message } : {}) })
+const identity = (s: Signer, place: number) => ({ ...(s.role?{role:s.role}:{}), ...(s.delegates?{delegates:s.delegates}:{}), ...(s.unresolvedIdentity?{unresolvedIdentity:true}:{}), ...(s.witnesses?{witnesses:s.witnesses}:{}), ...(s.includeWhen?{includeWhen:s.includeWhen}:{}), name: s.name, email: s.email, ...(s.phone ? { phone: s.phone } : {}), ...(s.sms ? { sms: true } : {}), order: s.order ?? place + 1, ...(s.inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(s.message ? { message: s.message } : {}) })
 /** An optional text: absent keeps the current value, an empty string clears it. */
 function edit(value: unknown, current: string | undefined, label: string, max: number, oneLine = false) {
   if (value === undefined) return current
@@ -60,7 +60,7 @@ function readRecipient(value: unknown, place: number, previous?: Signer): { sign
   insist(!previous || s.inPerson === undefined || s.inPerson === Boolean(previous.inPerson), 'A sent recipient’s signing method cannot change. Prepare and approve a new envelope to change between in-person and remote signing.', 409)
   const includeWhen = s.includeWhen === undefined ? previous?.includeWhen : normalizeRoutingRule(s.includeWhen)
   const inPerson = previous ? previous.inPerson : s.inPerson === true
-  return { signer: { ...kept, ...mobile, ...(role!=='signer'?{role}:{}), ...(witnesses?{witnesses}:{}), ...(includeWhen?{includeWhen}:{}), name, email, order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}), ...(code || previous?.accessCode ? { accessCode: true } : {}) }, code }
+  return { signer: { ...kept, ...mobile, ...(previous?.delegates?{delegates:previous.delegates}:{}), ...(role!=='signer'?{role}:{}), ...(witnesses?{witnesses}:{}), ...(includeWhen?{includeWhen}:{}), name, email, order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}), ...(code || previous?.accessCode ? { accessCode: true } : {}) }, code }
 }
 
 export async function correctEnvelope(env: Env, context: CommandContext, input: Record<string, unknown>) {
@@ -72,6 +72,8 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
     insist(Array.isArray(input.signers) && input.signers.length >= before.signers.length && input.signers.length <= maxPlaces, `Keep every recipient in their place (remove one with "remove") and add at most ${maxPlaces - before.signers.length} more.`)
     after.signers = input.signers.map((value, i) => {
       const previous = before.signers[i], entry = object(value)
+      insist(entry.delegates === undefined || canonical(entry.delegates) === canonical(previous?.delegates), 'Sent delegation grants cannot change.',409)
+      if(previous?.unresolvedIdentity && entry.unresolvedIdentity === true) { insist(!entry.name && !entry.email && !entry.phone && !entry.sms && !entry.remove && (entry.order??previous.order)===previous.order, 'Keep an open identity unchanged or name its person.',409); return previous }
       if (previous?.witnessFor!==undefined) {
         insist(previous.removedAt ? entry.remove===true : entry.remove!==true&&entry.name===previous.name&&entry.email===previous.email&&(entry.order??previous.order)===previous.order&&Boolean(entry.linkOnly)===Boolean(previous.linkOnly)&&!entry.inPerson&&entry.accessCode===undefined&&canonical(entry.includeWhen??null)===canonical(previous.includeWhen??null)&&(entry.message??'')===(previous.message??'')&&(entry.role??'witness')==='witness', 'Witnesses are changed only by their signer’s nomination.',409)
         return previous
@@ -92,18 +94,18 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
   const live = after.signers.flatMap((s, i) => s.removedAt ? [] : [i]), open = live.filter(i => !routeSettled(after.signers[i]))
   insist(live.length <= maxActive, `An envelope has at most ${maxActive} signers.`)
   insist(open.length, 'Keep at least one recipient who has not signed, or void the envelope instead.', 409)
-  insist(new Set(live.map(i => after.templates ? `${after.signers[i].email}:${routingOrder(after,i)}` : after.signers[i].email)).size === live.length, 'Each ordered signer must use a different email.')
+  insist(new Set(live.filter(i=>!after.signers[i].unresolvedIdentity).map(i => after.templates ? `${after.signers[i].email}:${routingOrder(after,i)}` : after.signers[i].email)).size === live.filter(i=>!after.signers[i].unresolvedIdentity).length, 'Each ordered signer must use a different email.')
   const highestSigned = Math.max(0, ...live.filter(i => after.signers[i].signedAt||after.signers[i].completedAt).map(i => routingOrder(after, i)))
   for (const i of open) insist(routingOrder(after, i) >= highestSigned, `${after.signers[i].name} can only be placed at routing order ${highestSigned} or later: recipients there have already signed.`, 409)
 
   const removedPlaces = after.signers.flatMap((s, i) => s.removedAt ? [i] : [])
   const remainingFields = before.fields.filter(f => !removedPlaces.includes(f.signer))
   insist(!before.freeForm || input.fields === undefined || canonical(input.fields) === canonical(remainingFields), 'Corrections cannot add or change sender fields on a free-form envelope.', 409)
-  after.fields = before.freeForm ? remainingFields : validateFields(documentInputFields(input.fields === undefined ? before.fields.filter(f => !removedPlaces.includes(f.signer)) : input.fields, before.documents), after.signers.length, before.pageSizes.length, removedPlaces,after.signers.flatMap((s,i)=>s.role==='approver'||s.role==='form_filler'?[i]:[]))
+  after.fields = before.freeForm ? remainingFields : validateFields(documentInputFields(input.fields === undefined ? before.fields.filter(f => !removedPlaces.includes(f.signer)) : input.fields, before.documents), after.signers.length, before.pageSizes.length, removedPlaces,after.signers.flatMap((s,i)=>s.role && s.role!=='signer' && s.role!=='witness'?[i]:[]))
   const fixedFields = (fields: Field[]) => canonical(fields.filter(f => before.signers[f.signer]?.witnessFor!==undefined || settled(before.signers[f.signer] ?? {} as Signer) && !before.signers[f.signer].removedAt).sort((a, b) => a.id.localeCompare(b.id)))
   insist(fixedFields(after.fields) === fixedFields(before.fields), 'A field of a recipient who has already signed cannot be changed.', 409)
 
-  documentFields(after.fields,after.documents,after.signers.length,Boolean(after.freeForm),[...removedPlaces,...after.signers.flatMap((s,i)=>s.role==='approver'||s.role==='form_filler'?[i]:[])],after.signers)
+  documentFields(after.fields,after.documents,after.signers.length,Boolean(after.freeForm),[...removedPlaces,...after.signers.flatMap((s,i)=>s.role && s.role!=='signer' && s.role!=='witness'?[i]:[])],after.signers)
   validateRouting(after.signers,after.fields)
   guardRoutingCorrection(before,after)
 

@@ -1,3 +1,4 @@
+import { delegatedPlaces, validateDelegationGrants, validateActionDocuments, requireDelegationAuthority } from './delegation-grants'
 import { smsIdentity, smsReady } from './sms'
 import { recipientRole, witnessRule, validateRoleFields, validateRecipientCount } from './recipient-roles'
 import { validateDocumentAudience } from './document-visibility'
@@ -40,9 +41,11 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
     if (group) insist(s.name === undefined && s.email === undefined, 'Name either a person or a signing group for each recipient, not both.')
     insist(!group || ((s.accessCode === undefined || s.accessCode === '') && s.keepAccessCode !== true && s.inPerson !== true), 'Signing groups cannot use access codes or in-person signing.', 409)
     insist(!group || !mailSuppressed(env), 'Signing groups need mail: every member gets their own link and code by email. Set up mail first.', 409)
-    const email = group ? groupPlace(group).email : text(s.email, 'the signer email', 254).toLowerCase()
+    insist(s.unresolvedIdentity === undefined || s.unresolvedIdentity === true, 'Leave a recipient open explicitly.'); const unresolved = s.unresolvedIdentity === true
+    insist(!unresolved || !group && !s.sms && !s.linkOnly && !s.inPerson && !s.accessCode && !s.keepAccessCode && !s.name && !s.email, 'An open identity has no person, phone, group or secret yet; it uses email verification.')
+    const email = unresolved ? '' : group ? groupPlace(group).email : text(s.email, 'the signer email', 254).toLowerCase()
     insist(Number.isInteger(order) && (order as number) >= 1 && (order as number) <= 100, 'Give each signer a whole-number routing order from 1 to 100.')
-    insist(group || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), 'Provide a valid signer email.')
+    insist(unresolved || group || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), 'Provide a valid signer email.')
     const code = s.accessCode === undefined || s.accessCode === '' ? undefined : text(s.accessCode, 'an access code', 32)
     insist(code === undefined || /^\S{4,32}$/.test(code), 'Use an access code of 4–32 characters with no spaces.')
     const keep = s.keepAccessCode === true && !code
@@ -59,10 +62,11 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
     insist(!witnesses?.linkOnly || !mailSuppressed(env), 'Link-only witnesses need mail.')
     const sms = smsIdentity({sms:s.sms,phone:s.phone,linkOnly:s.linkOnly,inPerson,group:s.group},previous?.signers[i])
     insist(!sms.sms || smsReady(env), 'SMS delivery is not configured. Ask the owner to configure Twilio.',503)
-    return { ...sms, ...(role !== 'signer' ? { role } : {}), ...(witnesses ? { witnesses } : {}), ...(s.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(s.includeWhen)}), ...(group ? groupPlace(group) : { name: text(s.name, 'the signer name', 100), email }), order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
+    return { ...sms, ...(unresolved ? {unresolvedIdentity:true as const} : {}), ...(s.delegates === undefined ? {} : {delegates:delegatedPlaces(s.delegates)}), ...(role !== 'signer' ? { role } : {}), ...(witnesses ? { witnesses } : {}), ...(s.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(s.includeWhen)}), ...(group ? groupPlace(group) : { name: unresolved ? '' : text(s.name, 'the signer name', 100), email }), order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
   })
-  const addresses = signers.flatMap(s => s.group ? s.group.members.map(m => m.email) : [s.email])
-  const places = signers.flatMap(s => s.group ? s.group.members.map(m => m.email) : [prepared?.composition || previous?.templates ? `${s.email}:${s.order}` : s.email])
+  validateDelegationGrants(signers);requireDelegationAuthority(signers,actor)
+  const addresses = signers.filter(s=>!s.unresolvedIdentity).flatMap(s => s.group ? s.group.members.map(m => m.email) : [s.email])
+  const places = signers.filter(s=>!s.unresolvedIdentity).flatMap(s => s.group ? s.group.members.map(m => m.email) : [prepared?.composition || previous?.templates ? `${s.email}:${s.order}` : s.email])
   insist(new Set(places).size === places.length && !signers.some(s=>s.group?.members.some(m=>signers.some(other=>other!==s&&!other.group&&other.email===m.email))), 'Each ordered signer must use a different email, and nobody can sign both alone and in a group.')
   // PREP-007: with no fields given, the document's own text tags, the caller's anchors and its form fields are the fields;
   // a prefill map fills them by field ID or by the document's own field name.
@@ -73,12 +77,14 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   const carried = !freeForm && input.fields === undefined ? await documentFields(document, pageSizes, readAnchors(input.anchors)) : undefined
   for (const field of carried ?? []) insist(field.signer < signers.length, `The document places a field for recipient ${field.signer + 1} (${field.name}), but the envelope has ${signers.length}.`)
   const placed = carried ?? documentInputFields(input.fields,multiple?.documents)
-  const fields = freeForm ? [] : validateFields(Array.isArray(placed) && placed.every(field => field && typeof field === 'object') ? applyPrefillPayload(placed as Field[], input.prefill, 'this envelope') : placed, signers.length, pageSizes.length, [], signers.flatMap((s,i)=>s.role==='approver'||s.role==='form_filler'?[i]:[])), copies = chooseCopies(input.copies, signers.flatMap(s => s.group ? s.group.members : [s]))
+  const fields = freeForm ? [] : validateFields(Array.isArray(placed) && placed.every(field => field && typeof field === 'object') ? applyPrefillPayload(placed as Field[], input.prefill, 'this envelope') : placed, signers.length, pageSizes.length, [], signers.flatMap((s,i)=>s.role && s.role!=='signer' && s.role!=='witness'?[i]:[])), copies = chooseCopies(input.copies, signers.flatMap(s => s.group ? s.group.members : [s]))
   validateRoleFields(signers, fields)
+  insist(!freeForm || signers.every(s=>!s.role || ['signer','witness'].includes(s.role)), 'Free-form fields require signing roles; prepare placed fields for other actions.')
   validateRecipientCount(signers, copies.length)
   for (const s of signers) for (const w of s.witnesses?.named ?? []) insist(![...addresses,...copies.map(c=>c.email)].includes(w.email), 'A witness cannot be the signer or another recipient.')
   validateDocumentAudience(multiple?.documents,signers.length,copies.length,fields,(await envelopeDefaults(env)).hideDocumentsWithoutFields===true)
-  mapDocumentFields(fields,multiple?.documents,signers.length,freeForm,signers.flatMap((s,i)=>s.role==='approver'||s.role==='form_filler'?[i]:[]))
+  validateActionDocuments(signers,multiple?.documents)
+  mapDocumentFields(fields,multiple?.documents,signers.length,freeForm,signers.flatMap((s,i)=>s.role && s.role!=='signer' && s.role!=='witness'?[i]:[]))
   if(multiple)insist(signers.every((_,i)=>multiple.documents.some(d=>!d.visibleTo||d.visibleTo.signers.includes(i))),'Every signer needs at least one visible document. Free-form drafts have no fields: turn off the hide-without-fields default before preparing one.')
   validateRouting(signers, fields)
   validateCopyRouting(copies, fields)

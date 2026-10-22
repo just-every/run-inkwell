@@ -49,7 +49,7 @@ export async function combineTemplates(env: Env, context: CommandContext, input:
     insist(person.group === undefined, 'Name a person for each combined role.')
     insist(!role.accessCode || code !== undefined, `Enter the access code for ${role.role} at order ${role.order}.`)
     insist(role.accessCode || code === undefined, `The ${role.role} role does not use an access code.`)
-    return { name: person.name, email: person.email, order: role.order, ...(role.action ? { role: role.action } : {}),
+    return { name:role.unresolvedIdentity?'':person.name, email:role.unresolvedIdentity?'':person.email, ...(role.unresolvedIdentity?{unresolvedIdentity:true as const}:{}), ...(role.delegates?{delegates:role.delegates}:{}), order: role.order, ...(role.action ? { role: role.action } : {}),
       ...(role.witnesses ? { witnesses: structuredClone(role.witnesses) } : {}), ...(role.includeWhen ? { includeWhen: role.includeWhen } : {}),
       ...(role.identity === 'sms' ? { sms: true, phone: person.phone } : role.identity === 'link' ? { linkOnly: true } : {}),
       ...(code === undefined ? {} : { accessCode: code }), ...(role.message ? { message: role.message } : {}) }

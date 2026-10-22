@@ -410,3 +410,142 @@ test('Recipient include rules: approver, filler and both pre-named witnesses inh
   }
  }finally{await h.close()}
 })
+
+// Append to routing.test.mjs, reusing its test/assert/PDFDocument/StandardFonts/harness/pdfText imports.
+async function viewRolePdf(label){const doc=await PDFDocument.create(),font=await doc.embedFont(StandardFonts.Helvetica);doc.addPage([612,792]).drawText(label,{x:50,y:700,size:14,font});return Buffer.from(await doc.save()).toString('base64')}
+async function viewRoleSession(h,email){
+ const invitation=await h.mail(email),path='/api'+new URL(invitation.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+ await h.post(path+'/code',{},'');const code=(await h.mail(email,'verification code')).text.match(/\b\d{6}\b/)[0]
+ const cookie=(await h.post(path+'/verify',{code},'')).cookie
+ return {path,cookie}
+}
+const viewRoleRecord=async(h,id)=>(await h.post('/api/inkwell/envelopes/'+id,undefined)).value.envelope
+
+test('View roles advance only after authenticated successful PDF openings cover every permitted component; hidden, metadata and repeated requests do not fabricate delivery',async()=>{
+ const h=await harness()
+ try{
+  const viewRule={field:'delivery-route',operator:'equals',value:'yes'},people=[{name:'Reader',email:'reader@example.test',role:'needs_to_view',order:1,includeWhen:viewRule},{name:'Certified recipient',email:'certified@example.test',role:'certified_delivery',order:2,includeWhen:viewRule},{name:'Final signer',email:'final@example.test',order:3}]
+  const definitions=await Promise.all(['Agreement','Visible appendix','Private memo'].map(viewRolePdf))
+  const {id}=(await h.command('envelope.prepare',{title:'Observed document openings',documents:definitions.map((pdfBase64,i)=>({filename:`document-${i}.pdf`,pdfBase64,mode:i===0?'sign':'view',visibleTo:{signers:i===2?[2]:[0,1,2],copies:[]}})),signers:people,fields:[{id:'signature',label:'Signature',type:'signature',signer:2,document:0,page:0,x:.1,y:.5,width:.4,height:.07},{id:'delivery-route',label:'Delivery route',type:'text',signer:2,document:0,page:0,x:.1,y:.7,width:.4,height:.04,readOnly:true,prefill:{value:'yes',source:'Sender input'}}]})).result
+  await h.command('envelope.approve',{id,eligible:true})
+  assert.ok((await viewRoleRecord(h,id)).signers.slice(0,2).every(s=>s.routeResult?.state==='included'))
+  const first=await viewRoleSession(h,people[0].email)
+  await h.post(first.path+'/document',undefined,first.cookie,403)
+  await h.agree(first.path,first.cookie)
+  await h.post(first.path,undefined,first.cookie)
+  assert.equal((await viewRoleRecord(h,id)).signers[0].completedAt,undefined,'authentication and metadata never finish a view role')
+  await h.post(first.path+'/documents/2',undefined,first.cookie,404)
+  assert.equal((await viewRoleRecord(h,id)).events.filter(e=>e.action==='recipient.document_opened').length,0,'a hidden PDF request stores no opening')
+  const duplicate=await Promise.all([h.send(first.path+'/documents/0',undefined,first.cookie),h.send(first.path+'/documents/0',undefined,first.cookie)])
+  assert.ok(duplicate.every(r=>r.status===200),'concurrent same-document openings are idempotent')
+  let record=await viewRoleRecord(h,id)
+  assert.equal(record.signers[0].viewedDocuments.length,1);assert.equal(record.signers[0].completedAt,undefined)
+  assert.equal(await h.mail(people[1].email),undefined,'the later routing order is not invited after only one component')
+  await h.post(first.path+'/documents/1',undefined,first.cookie)
+  record=await viewRoleRecord(h,id)
+  assert.ok(record.signers[0].completedAt);assert.equal(record.signers[0].signedAt,undefined);assert.equal(record.signers[0].adoption,undefined)
+  assert.deepEqual(record.signers[0].viewedDocuments.map(d=>[d.document,d.sha256]),[0,1].map(i=>[i,record.documents[i].sha256]))
+  const completion=record.events.find(e=>e.action==='recipient.viewed')
+  assert.equal(completion.at,record.signers[0].completedAt);assert.equal(completion.detail.observation,'authenticated_pdf_open_request')
+  await h.post(first.path+'/documents/0',undefined,first.cookie)
+  assert.equal((await viewRoleRecord(h,id)).events.filter(e=>e.action==='recipient.viewed').length,1,'reopening does not duplicate the completed action')
+  const second=await viewRoleSession(h,people[1].email);await h.agree(second.path,second.cookie)
+  const delivered=await h.post(second.path+'/document',undefined,second.cookie)
+  assert.ok((await pdfText(delivered.bytes)).includes('Visible appendix'));assert.ok(!(await pdfText(delivered.bytes)).includes('Private memo'))
+  record=await viewRoleRecord(h,id)
+  assert.deepEqual(record.signers[1].viewedDocuments.map(d=>d.document),[0,1]);assert.ok(record.events.some(e=>e.action==='recipient.certified_delivered'&&e.at===record.signers[1].completedAt))
+  const final=await viewRoleSession(h,people[2].email);await h.agree(final.path,final.cookie)
+  await h.post(final.path+'/sign',{values:{signature:people[2].name},consent:true,commandId:crypto.randomUUID()},final.cookie)
+  record=await viewRoleRecord(h,id);assert.equal(record.status,'completed')
+  for(const i of [0,1]){assert.equal(record.signers[i].signedAt,undefined);assert.equal(record.signers[i].values,undefined)}
+ }finally{await h.close()}
+})
+
+test('A legacy single-PDF view role opens virtual document zero and completes without adopting a signature',async()=>{
+ const h=await harness()
+ try{
+  const email='single-reader@example.test', {id}=(await h.command('envelope.prepare',{title:'Legacy single-document view',filename:'single.pdf',pdfBase64:await viewRolePdf('Single view document'),signers:[{name:'Single reader',email,role:'needs_to_view'}],fields:[]})).result
+  await h.command('envelope.approve',{id,eligible:true})
+  const session=await viewRoleSession(h,email);await h.agree(session.path,session.cookie)
+  await h.post(session.path+'/document',undefined,session.cookie)
+  const completed=await viewRoleRecord(h,id)
+  assert.equal(completed.status,'completed');assert.equal(completed.signers[0].signedAt,undefined)
+  assert.deepEqual(completed.signers[0].viewedDocuments,[{document:0,sha256:completed.originalSha256,at:completed.signers[0].completedAt}])
+  await h.post(session.path+'/document',undefined,session.cookie)
+  assert.equal((await viewRoleRecord(h,id)).events.filter(e=>e.action==='recipient.viewed').length,1)
+ }finally{await h.close()}
+})
+
+test('Naming and editing use sender-granted later places, audit identities and fields, refuse wider authority and invite only the resulting recipient',async()=>{
+ const h=await harness()
+ try{
+  const pdfBase64=await viewRolePdf('Harbour Studio - Contractor services'),field={id:'client-signature',label:'Client signature',type:'signature',signer:2,page:0,x:.1,y:.65,width:.4,height:.07}
+  const namingRule={field:'naming-route',operator:'equals',value:'yes'}
+  const signers=[{name:'Jordan Ellis',email:'jordan@harbour.example',role:'specify_recipients',order:1,delegates:[2],includeWhen:namingRule},{name:'Priya Shah',email:'priya@harbour.example',role:'editor',order:2,delegates:[2],includeWhen:namingRule},{name:'',email:'',unresolvedIdentity:true,order:3}]
+  const locked={id:'naming-route',label:'Naming route',type:'text',signer:2,page:0,x:.1,y:.8,width:.4,height:.04,readOnly:true,prefill:{value:'yes',source:'Sender input'}}
+  const input={title:'Contractor services',documents:[{filename:'services.pdf',pdfBase64,mode:'sign'},{filename:'internal-memo.pdf',pdfBase64:await viewRolePdf('Private internal compensation memo'),mode:'view',visibleTo:{signers:[2],copies:[]}}],signers,fields:[field,locked]}
+  await h.command('envelope.prepare',{...input,signers:signers.map((s,i)=>i===0?{...s,delegates:[1]}:s)},h.owner,400)
+  const sender=await h.invite('sender.delegation@harbour.example','member'),people=(await h.send('/api/inkwell',undefined,h.owner)).value.people
+  await h.command('member.role',{operatorId:people.find(p=>p.email==='sender.delegation@harbour.example').id,role:'sender'})
+  await h.command('envelope.prepare',input,sender,403)
+  const {id}=(await h.command('envelope.prepare',input)).result;await h.command('envelope.approve',{id,eligible:true})
+  const read=async()=>(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
+  assert.ok((await read()).signers.slice(0,2).every(s=>s.routeResult?.state==='included'));assert.equal((await read()).signers[2].email,'');assert.equal((await read()).signers[2].activatedAt,undefined)
+  const agent=await viewRoleSession(h,signers[0].email);await h.agree(agent.path,agent.cookie)
+  const projection=(await h.post(agent.path,undefined,agent.cookie)).value.delegation
+  assert.deepEqual(projection.targets.map(t=>[t.place,t.unresolved]),[[2,true]]);assert.deepEqual(projection.fields,[])
+  await h.post(agent.path+'/sign',{values:{},consent:true,commandId:crypto.randomUUID()},agent.cookie,403)
+  await h.post(agent.path+'/specify-recipients',{recipients:[{place:1,name:'Other editor',email:'other@harbour.example'}],consent:true,commandId:crypto.randomUUID()},agent.cookie,403)
+  await h.post(agent.path+'/specify-recipients',{recipients:[{place:2,name:'Mara Quinn',email:'mara@harbour.example'}],message:'Replace the sender message',consent:true,commandId:crypto.randomUUID()},agent.cookie,403)
+  const naming={recipients:[{place:2,name:'Mara Quinn',email:'mara@harbour.example'}],consent:true,commandId:crypto.randomUUID()}
+  await h.post(agent.path+'/specify-recipients',naming,agent.cookie);await h.post(agent.path+'/specify-recipients',naming,agent.cookie)
+  assert.equal((await read()).events.filter(e=>e.action==='recipient.specified').length,1)
+  assert.equal(await h.mail('mara@harbour.example','Please sign:'),undefined,'order three waits for editor')
+  const editor=await viewRoleSession(h,signers[1].email);await h.agree(editor.path,editor.cookie)
+  const editView=(await h.post(editor.path,undefined,editor.cookie)).value.delegation
+  assert.deepEqual(editView.targets.map(t=>t.place),[2]);assert.equal(editView.fields[0].id,field.id)
+  const added={id:'purchase-order',label:'Purchase order',type:'text',signer:2,page:0,x:.1,y:.5,width:.4,height:.05}
+  await h.post(editor.path+'/edit',{recipients:[{place:2,name:'Mara Quinn',email:'mara.corrected@harbour.example',order:1}],fields:[field,locked,added],consent:true,commandId:crypto.randomUUID()},editor.cookie,403)
+  await h.post(editor.path+'/edit',{recipients:[],fields:[field,locked,{...added,signer:1}],consent:true,commandId:crypto.randomUUID()},editor.cookie,403)
+  await h.post(editor.path+'/edit',{recipients:[],fields:[field,locked,{...added,page:1}],consent:true,commandId:crypto.randomUUID()},editor.cookie,403)
+  const editing={recipients:[{place:2,name:'Mara Quinn',email:'mara.corrected@harbour.example',message:'Please supply the workshop purchase order.'}],fields:[field,locked,added],consent:true,commandId:crypto.randomUUID()}
+  await h.post(editor.path+'/edit',editing,editor.cookie)
+  const edited=await read(),identity=edited.events.findLast(e=>e.action==='signer.corrected'&&e.detail.byRecipient===1),fields=edited.events.find(e=>e.action==='envelope.corrected'&&e.detail.byRecipient===1)
+  assert.equal(identity.detail.before.email,'mara@harbour.example');assert.equal(identity.detail.after.email,'mara.corrected@harbour.example');assert.ok(fields.detail.changes.fields.after.some(f=>f.id===added.id));assert.equal(edited.signers[2].message,editing.recipients[0].message)
+  assert.equal(await h.mail('mara@harbour.example','Please sign:'),undefined)
+  const client=await viewRoleSession(h,'mara.corrected@harbour.example');await h.agree(client.path,client.cookie)
+  await h.post(client.path+'/edit',editing,client.cookie,403)
+  await h.post(client.path+'/sign',{values:{'client-signature':'Mara Quinn','purchase-order':'PO-2026-42'},consent:true,commandId:crypto.randomUUID()},client.cookie)
+  assert.equal((await read()).status,'completed');assert.equal((await h.send(`/api/inkwell/envelopes/${id}/verify`,undefined,h.owner)).value.ok,true)
+  const certificate=(await pdfText((await h.send(`/api/inkwell/envelopes/${id}/artifacts/certificate`,undefined,h.owner)).bytes)).replace(/\s+/g,' ')
+  assert.ok(certificate.includes('Naming agent'));assert.ok(certificate.includes('Editor'));assert.ok(certificate.includes('Later recipients named'));assert.ok(certificate.includes('Later recipient edits completed'))
+  const copied=(await h.command('envelope.copy',{id})).result.id,copy=(await h.send('/api/inkwell/envelopes/'+copied,undefined,h.owner)).value.envelope
+  assert.deepEqual(copy.signers[0].delegates,[2]);assert.equal(copy.signers[2].unresolvedIdentity,true);assert.equal(copy.signers[2].email,'');assert.ok(copy.signers.every(s=>!s.completedAt&&!s.signedAt))
+  const template=(await h.command('template.from_envelope',{id})).result.id,reused=(await h.command('template.use',{id:template,recipients:[{name:'Jordan Ellis',email:'jordan.reuse@harbour.example'},{name:'Priya Shah',email:'priya.reuse@harbour.example'},{}]})).result.id
+  const reuse=(await h.send('/api/inkwell/envelopes/'+reused,undefined,h.owner)).value.envelope;assert.equal(reuse.signers[2].unresolvedIdentity,true);assert.deepEqual(reuse.signers[1].delegates,[2])
+ }finally{await h.close()}
+})
+
+test('Conditional naming, editing, required-view and certified-delivery roles are skipped without an action or copy; a skipped naming agent leaves its open place held for sender correction',async()=>{
+ const h=await harness()
+ try{
+  const pdfBase64=await viewRolePdf('Harbour Studio - Conditional delivery')
+  for(const role of ['specify_recipients','editor','needs_to_view','certified_delivery']){
+   const rule={field:'route',operator:'equals',value:'include'},recipient={name:'Routing participant',email:`${role}@harbour.example`,order:1,role,includeWhen:rule,...(['specify_recipients','editor'].includes(role)?{delegates:[1]}:{})},final=role==='specify_recipients'?{name:'',email:'',unresolvedIdentity:true,order:3}:{name:'Mara Quinn',email:`mara.${role}@harbour.example`,order:3}
+   const signature={id:'signature',label:'Client signature',type:'signature',signer:1,page:0,x:.1,y:.6,width:.4,height:.07},route={id:'route',label:'Route',type:'text',signer:1,page:0,x:.1,y:.75,width:.4,height:.04,readOnly:true,prefill:{value:'skip',source:'Sender input'}}
+   const {id}=(await h.command('envelope.prepare',{title:`Conditional ${role}`,filename:'delivery.pdf',pdfBase64,signers:[recipient,final],fields:[signature,route]})).result
+   await h.command('envelope.approve',{id,eligible:true})
+   let record=(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
+   assert.equal(record.signers[0].routeResult.state,'skipped');assert.equal(record.signers[0].completedAt,undefined);assert.equal(await h.mail(recipient.email),undefined)
+   if(role==='specify_recipients'){
+    assert.equal(record.signers[1].activatedAt,undefined,'a skipped naming agent never invents a later identity')
+    await h.command('envelope.correct',{id,signers:[recipient,{name:'Mara Quinn',email:'mara.named-by-sender@harbour.example',order:3}]})
+    final.email='mara.named-by-sender@harbour.example'
+   }
+   const client=await viewRoleSession(h,final.email);await h.agree(client.path,client.cookie);await h.post(client.path+'/sign',{values:{signature:'Mara Quinn'},consent:true,commandId:crypto.randomUUID()},client.cookie)
+   record=(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
+   assert.equal(record.status,'completed');assert.equal(await h.mail(recipient.email),undefined,'a skipped role also receives no completed copy')
+   assert.equal((await h.send(`/api/inkwell/envelopes/${id}/verify`,undefined,h.owner)).value.ok,true)
+  }
+ }finally{await h.close()}
+})

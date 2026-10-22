@@ -1,7 +1,7 @@
 import { insist, object, text, type Field, type Signer, type WitnessNominee, type WitnessRule } from './model'
 
 export function recipientRole(value: unknown): NonNullable<Signer['role']> {
-  insist(value === undefined || ['signer', 'approver', 'form_filler'].includes(String(value)), 'Choose signer, approver or form filler.')
+  insist(value === undefined || ['signer', 'approver', 'form_filler', 'specify_recipients', 'editor', 'needs_to_view', 'certified_delivery'].includes(String(value)), 'Choose a supported recipient action.')
   return value === undefined ? 'signer' : value as NonNullable<Signer['role']>
 }
 
@@ -31,7 +31,7 @@ export function witnessRule(value: unknown, role: Signer['role']): WitnessRule |
 export function validateRoleFields(signers: Signer[], fields: Field[]) {
   for (const [i, s] of signers.entries()) {
     const own = fields.filter(f => f.signer === i)
-    if (s.role === 'approver') insist(own.length === 0, 'An approver approves without signing or filling fields.')
+    if (s.role && !['signer','form_filler','witness'].includes(s.role)) insist(own.length === 0, 'This recipient acts without signing or filling fields.')
     if (s.role === 'form_filler') insist(own.length > 0 && own.every(f => !['signature', 'initials', 'stamp'].includes(f.type)), 'A form filler needs business fields and cannot sign or adopt a mark.')
   }
 }

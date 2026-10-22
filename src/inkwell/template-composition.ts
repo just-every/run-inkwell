@@ -1,3 +1,4 @@
+import {validateDelegationGrants} from './delegation-grants'
 import { canonical, insist, type Field, type RoutingRule, type WitnessRule } from './model'
 import type { Role, Template } from './templates'
 import type { EnvelopeDocument } from './documents'
@@ -67,6 +68,7 @@ export function composition(templates: Template[], choices: CompositionChoices =
       continue
     }
     const merged = roles[existing]; roleIndexes[ti][ri] = existing
+    insist(Boolean(merged.unresolvedIdentity)===Boolean(original.unresolvedIdentity), `Role ${label} has incompatible open-identity requirements. Change the templates before combining.`,409)
     insist((merged.action ?? 'signer') === (original.action ?? 'signer'), `Role ${label} at order ${original.order} has incompatible actions. Change the templates before combining.`, 409)
     insist(canonical(merged.includeWhen ?? null) === canonical(includeWhen ?? null), `Role ${label} at order ${original.order} has incompatible routing conditions. Change the templates before combining.`, 409)
     if (canonical(merged.witnesses ?? null) !== canonical(original.witnesses ?? null)) conflicts.push({ kind: 'witnesses', role: key, templates: [...merged.sources.map(s => s.template), ti],
@@ -76,6 +78,11 @@ export function composition(templates: Template[], choices: CompositionChoices =
     merged.sources.push(source)
     if (original.message) merged.messages.push({ ...source, message: original.message })
   }
+  for(const r of roles) {
+    const granted=r.sources.flatMap(source=>(templates[source.template].roles[source.role].delegates??[]).map(place=>roleIndexes[source.template][place]));
+    if(granted.length)r.delegates=[...new Set(granted)];
+  }
+  validateDelegationGrants(roles.map(r=>({...r,role:r.action,name:r.role,email:''})))
   for (const key of Object.keys(choices.identity ?? {})) insist(byKey.has(key), 'An identity choice names an unknown merged role.')
   for (const r of roles) {
     const alternatives = [...new Set(methods.get(r.key)!)], proposed = alternatives.reduce((a, b) => priority[a] >= priority[b] ? a : b)

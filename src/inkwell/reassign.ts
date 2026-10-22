@@ -25,6 +25,7 @@ export async function reassignSigning(env: Env, context: SigningContext, input: 
   if (previous) { await dispatchMail(env, context.envelope.id); return previous }
   turn(context); accessGate(context)
   const before = context.envelope, index = context.recipient.signer, original = before.signers[index]
+  insist(!original.role || original.role==='signer','Only a signer can reassign signing; recipient authority stays with the sender-approved person.',403)
   insist(original.witnessFor===undefined,'A witness is replaced by the signer who nominated them.',403)
   insist(!original.group, 'A signing group’s members were fixed when the envelope was prepared, so its signing cannot be reassigned. Ask the sender instead.', 409)
   insist(!original.inPerson, 'In-person signing cannot be reassigned through a remote signing session. Ask the sender to correct the recipient.', 409)
