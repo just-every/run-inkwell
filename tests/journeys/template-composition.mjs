@@ -28,9 +28,9 @@ export async function templateComposition() {
    const revision=await app.command('template.update',{id:b.id,...w9Input,message:'Please review your taxpayer certification.'})
    await owner.goto(app.origin+'/app');await owner.getByRole('button',{name:'Templates',exact:true}).click()
    for(const title of titles){const checkbox=owner.getByRole('checkbox',{name:`Select ${title} for combination`,exact:true});await tabTo(owner,checkbox);await owner.keyboard.press('Space');await expect(checkbox).toBeChecked()}
-   await capture(owner,'selected-templates');await owner.getByRole('button',{name:'Combine selected templates',exact:true}).click()
+   await capture(owner,'selected-templates');console.log('composition selected',width);await owner.getByRole('button',{name:'Combine selected templates',exact:true}).click();console.log('composition opened',width)
    const preview=owner.getByRole('region',{name:'Composition preview',exact:true}),ready=()=>expect(owner.getByRole('button',{name:'Prepare combined envelope',exact:true})).toBeEnabled()
-   await ready();await expect(preview).toContainText('2 roles');await expect(preview).toContainText('expires after 30 days');await expect(preview).toContainText('reminders after 2, then every 3')
+   await ready();console.log('composition preview ready',width);await expect(preview).toContainText('2 roles');await expect(preview).toContainText('expires after 30 days');await expect(preview).toContainText('reminders after 2, then every 3')
    await expect(preview).toContainText('Proposed: SMS code');await expect(preview).toContainText('remains separate recipients');assert.ok((await preview.ariaSnapshot()).includes('Selected: SMS code'),'the accessibility tree exposes the stricter identity proposal')
    // Order changes re-preview and keep first-source settings as the default until the sender explicitly chooses otherwise.
    await owner.getByRole('button',{name:`Move ${titles[1]} up`,exact:true}).click();await ready();await expect(preview).toContainText('expires after 45 days')
@@ -73,6 +73,6 @@ export async function templateComposition() {
    await certificate.destroy();await first.ctx.close();await second.ctx.close();await context.close()
   }
   console.log(`Template composition passed at 1440/390: merged and distinct orders, settings and identity choices, extra PDF, complete signing, source versions, keyboard and light/dark accessibility. Screens: ${images}`)
- }catch(error){await screenshots(app.browser,'template-composition');throw error}finally{await app.close()}
+ }catch(error){console.error(error);await screenshots(app.browser,'template-composition');throw error}finally{await app.close()}
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)await templateComposition()

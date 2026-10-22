@@ -72,7 +72,7 @@ export async function smsJourney(){
    assert.equal(app.smsMessages().at(-1).to,'+12025550103')
    await page.getByLabel('SMS verification code',{exact:true}).fill(code);await page.keyboard.press('Enter')
    await page.getByRole('checkbox',{name:/I have read the/}).check();await page.getByRole('button',{name:'Agree and continue',exact:true}).click()
-   await page.locator('.iw-sign-fields').waitFor();await page.getByLabel('Signature',{exact:true}).fill(name)
+   await page.locator('.iw-sign-fields').waitFor();await page.locator('.iw-sign-fields').getByRole('textbox',{name:/Signature/}).fill(name)
    await page.getByRole('checkbox',{name:/consent to electronic signatures/}).check();await page.getByRole('button',{name:'Sign document',exact:true}).click()
    await page.getByRole('heading',{name:'All signatures are complete.',exact:true}).waitFor();await capture(page,'completed')
    const completed=await record();assert.equal(completed.status,'completed');assert.ok(completed.events.some(e=>e.action==='signer.sms_verified'&&e.detail.maskedPhone.includes('0103')))
