@@ -15,6 +15,7 @@ export async function axe(page, label) {
 /** Press Tab (or Shift+Tab with `backwards`) until `target` has focus (at most 80 presses), checking that each control
  * reached shows its focus. */
 export async function tabTo(page, target, { backwards = false } = {}) {
+  await target.waitFor({ state: 'visible' })
   for (let presses = 0; presses < 80; presses++) {
     await page.keyboard.press(backwards ? 'Shift+Tab' : 'Tab')
     // Focus styles fade in (a 0.15 s transition): read them at their end state. A date field's own calendar button is
