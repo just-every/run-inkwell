@@ -23,12 +23,16 @@ export async function smsJourney(){
     for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await page.evaluate(()=>{document.documentElement.getBoundingClientRect();for(const animation of document.getAnimations())if(animation.effect?.getTiming().iterations!==Infinity)animation.finish()});await axe(page,`SMS ${state} ${width} ${theme}`)}
     await page.emulateMedia({colorScheme:'light'});await page.screenshot({path:join(images,`${width}-${state}.png`),fullPage:true})
    }
+   const templateTitle=`Harbour SMS client template ${width}`,template=await app.command('template.save',{title:templateTitle,filename:'workshop.pdf',pdfBase64,roles:[{role:'Client',order:1,sms:true}],fields:[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.4,height:.07}],expiryDays:30})
+   await owner.goto(app.origin+'/app');await owner.getByRole('button',{name:'Templates',exact:true}).click();await owner.getByRole('button',{name:`Use ${templateTitle}`,exact:true}).click()
+   await owner.getByLabel('Client name',{exact:true}).fill(name);await owner.getByLabel('Client email',{exact:true}).fill(`template.${email}`);await owner.getByLabel('Client mobile number',{exact:true}).fill('+12025550102');await capture(owner,'template-recipient')
+   const prepared=owner.waitForResponse(r=>r.url().endsWith('/api/inkwell/commands')&&r.request().postDataJSON()?.command==='template.use');await owner.getByRole('button',{name:'Prepare to send',exact:true}).click();const response=await prepared;assert.equal(response.status(),200);const fromTemplate=(await app.call('/api/inkwell/envelopes/'+(await response.json()).result.id,{cookie:app.owner})).value.envelope;assert.equal(fromTemplate.template.id,template.id);assert.equal(fromTemplate.signers[0].sms,true);assert.equal(fromTemplate.signers[0].phone,'+12025550102')
    const record=async()=>(await app.call('/api/inkwell/envelopes/'+id,{cookie:app.owner})).value.envelope
    await owner.goto(app.origin+'/app');await owner.getByRole('row',{name:new RegExp(title)}).click()
    await owner.getByRole('region',{name:title}).getByRole('button',{name:'Edit draft',exact:true}).click()
    await owner.getByLabel('Recipient 1 name',{exact:true}).waitFor()
    const authentication=owner.getByLabel('Recipient 1 authentication',{exact:true})
-   await authentication.selectOption('sms');await owner.getByLabel('Recipient 1 mobile number',{exact:true}).waitFor();await authentication.focus();await owner.keyboard.press('Tab')
+   await authentication.selectOption('sms');await owner.getByLabel('Recipient 1 mobile number',{exact:true}).waitFor();await tabTo(owner,owner.getByLabel('Recipient 1 mobile number',{exact:true}))
    assert.equal(await owner.getByLabel('Recipient 1 mobile number',{exact:true}).evaluate(el=>el===document.activeElement),true,'SMS selection leads by keyboard to its mobile input: '+await owner.evaluate(()=>document.activeElement.outerHTML))
    await owner.getByLabel('Recipient 1 mobile number',{exact:true}).fill('+12025550102');await capture(owner,'prepare')
    await owner.getByRole('button',{name:'Save draft',exact:true}).click()

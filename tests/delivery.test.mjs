@@ -597,6 +597,12 @@ test('SMS recipient verifies only an SMS code, corrects phone with audited rotat
   const stored=await smsTestDetail(h,id);assert.equal((await h.send('/api/inkwell/envelopes/'+id+'/verify',undefined,h.owner)).value.ok,true);assert.equal(stored.status,'completed');assert.equal(stored.events.filter(e=>e.action==='signer.sms_verified').length,2)
   assert.ok(stored.messages.some(m=>m.subject==='SMS invitation'&&m.status==='sent'))
   assert.ok(!h.logs().some(log=>JSON.stringify(log).includes('+12025550103')),'operational logs omit numbers')
+  const source=(await h.send('/api/inkwell/envelopes/'+id+'/artifacts/original',undefined,h.owner)).bytes,template=(await h.command('template.save',{title:'Harbour SMS with access code',filename:'agreement.pdf',pdfBase64:Buffer.from(source).toString('base64'),roles:[{role:'Client',order:1,sms:true,accessCode:true}],fields:stored.fields,expiryDays:30})).result.id
+  const second=(await h.command('template.use',{id:template,recipients:[{name:person.name,email:'sms-access@harbour.example',phone:'+12025550104',accessCode:'harbour-2468'}]})).result.id
+  await h.command('envelope.approve',{id:second,eligible:true});const invite=await h.mail('sms-access@harbour.example','Please sign:'),accessPath='/api'+new URL(invite.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+  await h.post(accessPath+'/code',{},'',403);await h.post(accessPath+'/access',{accessCode:'harbour-wrong'},'',401);await h.post(accessPath+'/access',{accessCode:'harbour-2468'},'')
+  await h.post(accessPath+'/code',{},'');assert.equal(texts.at(-1).to,'+12025550104');const secondSession=(await h.post(accessPath+'/verify',{code:smsTestCode(texts)},'')).cookie;await h.agree(accessPath,secondSession);await h.post(accessPath+'/sign',{values:{signature:person.name},consent:true,commandId:crypto.randomUUID()},secondSession)
+  assert.equal((await smsTestDetail(h,second)).status,'completed')
  }finally{await h.close()}
 })
 

@@ -54,7 +54,7 @@ export function EnvelopeFollowup({ envelope, editable, refresh }: { envelope: En
       {grant && <p>Up to {grant.maxContacts} contacts per recipient, including ordinary reminders while active. {grant.days.map(day => weekdays[day - 1]).join(', ')}, {hour(grant.startHour)}–{hour(grant.endHour)} ({envelope.timeZone ?? 'America/New_York'}). Escalation owner: {data.people.find(person => person.id === grant.escalationOwner)?.name ?? 'Recorded member'}.</p>}
       {grant?.state === 'suspended' && <p>The granting member lost authority. This grant stays suspended; an eligible editor must give a fresh grant to continue.</p>}
       <p>Replies to messages sent before follow-up was turned on are not read.</p>
-      {!data.readiness.inbound && <p className="iw-muted" role="status">Inbound email is not ready. Replies cannot be read until the installation’s inbound mail is configured.</p>}
+      {!data.readiness.inbound && <p className="iw-muted" role="status">Inbound email is not ready. Email replies cannot be read until the installation’s inbound mail is configured.</p>}
       {editable && open && <details className="iw-stack"><summary>{active ? 'Change follow-up settings' : 'Turn on follow-up'}</summary>
         <form className="iw-stack iw-callout" onSubmit={event => { event.preventDefault(); void action.run(() => act('envelope.followup', { enabled: true, maxContacts, days, startHour, endHour, escalationOwner, channels })) }}>
           <p>Authorize Inkwell to read this envelope’s delivery and signing events and authenticated replies, send fixed follow-ups using the selected channels during each recipient’s turn, and propose actions for a person. Each save creates a new grant version.</p>
