@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f9fccaf45b19086d5301b278ab47b8ba8c550801aec3115c51e65cfbbcea6f45",
+      "sha256": "2ca3d87c87498cbe7b42e982f99ee80c024b846eeb325161e6322f0ad7b429fe",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "a62bf28cfbd73d6b8711168d22661d4dbd26aafedb2b766ab7cb69cfdb2cc65f",
+      "sha256": "0d6cb368fbd94774ba168bb1693cad4bb8824a805b64b9972c9bc21a7262b5e2",
       "executable": false
     },
     "DEMO.md": {
@@ -3583,7 +3583,7 @@
       "executable": false
     },
     "tests/journeys/recipient-freeform-actions.mjs": {
-      "sha256": "aed0c2fc8b716a7a825413c8538ede33dcbcdaffce2abbed80f0af99c89b8595",
+      "sha256": "cf561028181ffc251f62d080bb75a5c94c68f7fad4a2c0d1cfd477e361754fd5",
       "executable": false
     },
     "tests/journeys/recipient-roles.mjs": {
