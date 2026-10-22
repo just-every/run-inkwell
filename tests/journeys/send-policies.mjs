@@ -102,6 +102,7 @@ try {
     await web.getByRole('button', { name: /^Save / }).click()
     await expect(web.getByRole('alert')).toBeVisible()
     assert.equal((await current('web_form')).version, webBefore.version, 'an empty list cannot enable a web form')
+    await expect(web.getByRole('checkbox',{name:'Use all templates',exact:true})).toBeFocused()
     await capture(page, web, width, 'web-form-needs-template')
     await tabTo(page, web.getByRole('checkbox', { name: templates[0].title, exact: true })); await page.keyboard.press('Space')
     await save(page, web)

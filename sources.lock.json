@@ -3235,7 +3235,7 @@
       "executable": false
     },
     "src/ui/send-policies.tsx": {
-      "sha256": "535ece59a9a29b4d6a6dc450d46a9c81b0a24df541e5bf5d9a7f5619e1b90b4f",
+      "sha256": "a84508518c36fd0fea920c9c0b7cbfeea30fbb22386b8d7c0b382b6b654d6426",
       "executable": false
     },
     "src/ui/shell.tsx": {
@@ -3459,7 +3459,7 @@
       "executable": false
     },
     "tests/journeys/send-policies.mjs": {
-      "sha256": "2262a4f34d22e18648bf3185765f7c65555a14f7b7267d4a8aab946450f81534",
+      "sha256": "8d7631f428baf2a6867ef308faacdd14078a069f05ab1fb55ceea4ca654d67f8",
       "executable": false
     },
     "tests/journeys/signing-groups.mjs": {
