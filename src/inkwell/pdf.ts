@@ -13,10 +13,10 @@ export async function parsePdf(bytes: Uint8Array, maxPages = 100) { try { const 
 export function encodable(font: PDFFont, value: string) { try { font.encodeText(value) } catch { throw new Refusal('PDF text must use characters supported by the standard Latin PDF font.') } }
 export async function validatePdfText(values: string[]) { const pdf = await PDFDocument.create(), font = await pdf.embedFont(StandardFonts.Helvetica); for (const value of values) encodable(font,value) }
 export async function validatePrefilledFields(fields: Field[]) { await validatePdfText(fields.filter(field => field.type !== 'stamp').flatMap(field => field.prefill ? [field.prefill.value] : [])); for (const field of fields) if (field.type === 'stamp' && field.prefill) await parseStamp(field.prefill.value, field.label) }
-export function validateFields(value: unknown, signers: number, pages: number, removed: number[] = []): Field[] {
-  const fields = normalizeFieldSchema(value)
+export function validateFields(value: unknown, signers: number, pages: number, removed: number[] = [], noSignature: number[] = []): Field[] {
+  const fields = Array.isArray(value)&&value.length===0&&noSignature.length===signers ? [] : normalizeFieldSchema(value)
   for (const field of fields) insist(field.signer < signers && !removed.includes(field.signer) && field.page < pages, 'Each field must name an existing signer and PDF page.')
-  for (let i = 0; i < signers; i++) insist(removed.includes(i) || fields.some(f => f.signer === i && f.type === 'signature'), `Place a signature field for signer ${i + 1}.`)
+  for (let i = 0; i < signers; i++) insist(removed.includes(i) || noSignature.includes(i) || fields.some(f => f.signer === i && f.type === 'signature'), `Place a signature field for signer ${i + 1}.`)
   return fields
 }
 /** SIGNX-002: a mark's image, read once per signer, and each typed style's font, embedded once. */

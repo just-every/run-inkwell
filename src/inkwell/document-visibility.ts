@@ -15,6 +15,7 @@ export function readDocumentAudience(value: unknown): DocumentAudience | undefin
 export function canSeeDocument(e:Pick<Envelope,'documents'|'signers'>, index:number, party:number) {
  const d=e.documents?.[index]
  if(!d)return false
+ if(party<e.signers.length && e.signers[party].witnessFor!==undefined)return Boolean(e.signers[party].witnessDocuments?.includes(index))
  return !d.visibleTo || (party<e.signers.length?d.visibleTo.signers.includes(party):d.visibleTo.copies.includes(party-e.signers.length))
 }
 export const visibleDocumentIndexes=(e:Envelope,party:number)=>(e.documents??[]).flatMap((_,i)=>canSeeDocument(e,i,party)?[i]:[])
@@ -48,13 +49,15 @@ export function permittedScanPages(e:Envelope,allowed:number[]) {
  }
  return pages
 }
-export async function recipientPdf(env:Env,e:Envelope,party:number,executed=false) {
+export async function recipientPdf(env:Env,e:Envelope,party:number,executed=false, rendered?:{bytes:Uint8Array;component?:number;withScans?:boolean}) {
  const kind=executed?'signed':'original',hash=executed?e.signedSha256:e.originalSha256
- const bytes=await readBlob(env.DB,e.id,kind,hash)
+ const bytes=rendered?.bytes??await readBlob(env.DB,e.id,kind,hash)
  if(!e.documents)return bytes
- if(visibleDocumentIndexes(e,party).length===e.documents.length)return bytes
- const pages=recipientPages(e,party);insist(pages.length,'No documents are visible to this recipient.',404)
- if(executed)pages.push(...permittedScanPages(e,visibleDocumentIndexes(e,party)))
+ if(rendered?.component===undefined&&visibleDocumentIndexes(e,party).length===e.documents.length)return bytes
+ const allowed=rendered?.component===undefined?visibleDocumentIndexes(e,party):[rendered.component]
+ insist(allowed.every(i=>canSeeDocument(e,i,party)),'Document not found.',404)
+ const pages=allowed.flatMap(i=>Array.from({length:e.documents![i].pages},(_,n)=>e.documents![i].pageStart+n));insist(pages.length,'No documents are visible to this recipient.',404)
+ if(executed||rendered?.withScans)pages.push(...permittedScanPages(e,allowed))
  const source=await PDFDocument.load(bytes),output=await PDFDocument.create({updateMetadata:false})
  for(const page of await output.copyPages(source,pages))output.addPage(page)
  return new Uint8Array(await output.save())

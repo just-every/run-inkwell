@@ -23,6 +23,7 @@ export async function reassignSigning(env: Env, context: SigningContext, input: 
   if (previous) { await dispatchMail(env, context.envelope.id); return previous }
   turn(context); accessGate(context)
   const before = context.envelope, index = context.recipient.signer, original = before.signers[index]
+  insist(original.witnessFor===undefined,'A witness is replaced by the signer who nominated them.',403)
   insist(!original.group, 'A signing group’s members were fixed when the envelope was prepared, so its signing cannot be reassigned. Ask the sender instead.', 409)
   insist(!original.inPerson, 'In-person signing cannot be reassigned through a remote signing session. Ask the sender to correct the recipient.', 409)
   insist(before.allowReassign, 'The sender does not allow reassigning this envelope. Ask them to correct the recipient instead.', 403)
@@ -33,7 +34,7 @@ export async function reassignSigning(env: Env, context: SigningContext, input: 
   insist(![...before.signers.filter(s => !s.removedAt).map(s => s.email), ...(before.copies ?? []).map(c => c.email)].includes(email), 'That email already belongs to a recipient of this envelope.', 409)
   await validatePdfText([name, email, reason])
   const after = structuredClone(before), token = secret()
-  after.signers[index] = { name, email, ...(original.order === undefined ? {} : { order: original.order }), ...(original.message ? { message: original.message } : {}), ...(original.accessCode ? { accessCode: true } : {}) }
+  after.signers[index] = { name, email, ...(original.role?{role:original.role}:{}), ...(original.witnesses?{witnesses:structuredClone(original.witnesses)}:{}), ...(original.order === undefined ? {} : { order: original.order }), ...(original.message ? { message: original.message } : {}), ...(original.accessCode ? { accessCode: true } : {}) }
   await appendEvent(after, 'signer.reassigned', `signer:${index + 1}`, { signer: index, before: { name: original.name, email: original.email }, after: { name, email }, reason, ...context.client })
   const result = { id: after.id, reassignedTo: email }
   await commitEnvelope(env, before, after, null, [

@@ -1,3 +1,4 @@
+import { recipientRoles } from './recipient-roles.mjs'
 // ROUTE-003: configure a conditional recipient and a conditional copy recipient, inspect the preview, then sign both locked-value routes and correct an unresolved answer.
 import assert from 'node:assert/strict'
 import {expect} from '@playwright/test'
@@ -60,3 +61,5 @@ try{
  }
  console.log('ROUTE-003 passed at 1440/390: template/draft/send/approval previews, skipped/included completed routes and copy recipients, unresolved correction, keyboard and accessibility')
 }catch(error){await screenshots(app.browser,'route-003');throw error}finally{await app.close()}
+
+await recipientRoles()

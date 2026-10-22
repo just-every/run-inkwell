@@ -2,6 +2,7 @@ import { validateDocumentAudience, remapSignerAudience } from './document-visibi
 import { consumedUploadWrites, readDocuments, documentFields, documentInputFields, documentWrites, stagedBlobWrites, type EnvelopeDocument } from './documents'
 import { verifyTemplateDocument, templateOriginal, templateDocumentWrites } from './template-documents'
 import { envelopeDefaults } from './envelope-defaults'
+import { recipientRole, witnessRule, validateRoleFields, validateRecipientCount } from './recipient-roles'
 import { normalizeRoutingRule, validateRouting } from './routing'
 // TMPL-001: a template keeps one fixed PDF with its roles in routing order, fields, messages, reminders, expiry and
 // identity settings; sending from it asks only for each role's person (and the access code a role needs), and the new
@@ -21,7 +22,7 @@ import { accessContext, folderAccess, sharesOf, visibleSql, type TemplateAccess,
 import { supplementDefinition, supplementsFromEnvelope, supplementsFromTemplate, templateSupplementWrites, type TemplateSupplementArtifact } from './template-supplements'
 
 /** A role is a place in the routing order with no person yet; `accessCode` says the sender gives that person a code. */
-export interface Role { includeWhen?: import('./model').RoutingRule; role: string; order: number; accessCode?: boolean; linkOnly?: boolean; message?: string }
+export interface Role { action?: 'signer' | 'approver' | 'form_filler'; witnesses?: import('./model').WitnessRule; includeWhen?: import('./model').RoutingRule; role: string; order: number; accessCode?: boolean; linkOnly?: boolean; message?: string }
 export interface Template { part11?: Envelope['part11']; documents?: EnvelopeDocument[]; supplements?: Supplement[]; maintenance?: { proposalId: string; by: string; at: string; examples: { id: string; eventHash: string }[] }; approval?: import('./model').ApprovalRule; id: string; title: string; filename: string; originalSha256: string; pageSizes: { width: number; height: number }[]; roles: Role[]; fields: Field[]; expiryDays: number; reminders?: { afterDays: number; everyDays: number }; allowPaper?: boolean; allowReassign?: boolean; subject?: string; message?: string; createdBy: string; createdAt: string; version?: number; updatedAt?: string; tags?: string[] }
 /** TMPL-003: a template stored before versions is version 1. */
 const versionOf = (template: Template) => template.version ?? 1
@@ -81,22 +82,25 @@ async function readTemplate(env: Env, input: Record<string, unknown>, actor:Acto
   insist(!/[\x00-\x1f/\\]/.test(filename) && filename.toLowerCase().endsWith('.pdf'), 'Choose a PDF filename.')
   insist(!/[\r\n\t]/.test(title), 'Use a single line for the template name.')
   const multiple=await readDocuments(env,input,actor,undefined,retained),bytes=multiple?.bytes??fromBase64(input.pdfBase64),{pageSizes}=multiple??await parsePdf(bytes)
-  insist(Array.isArray(input.roles) && input.roles.length >= 1 && input.roles.length <= 5, 'Add 1–5 roles in routing order.')
+  insist(Array.isArray(input.roles) && input.roles.length >= 1 && input.roles.length <= 100, 'Add 1–100 roles in routing order.')
   const roles: Role[] = input.roles.map((value, i) => {
-    const r = object(value), order = r.order === undefined ? i + 1 : r.order, message = optional(r.message, 'the private message', 1000)
+    const r = object(value), action = recipientRole(r.action), witnesses = witnessRule(r.witnesses, action), order = r.order === undefined ? i + 1 : r.order, message = optional(r.message, 'the private message', 1000)
     insist(Number.isInteger(order) && (order as number) >= 1 && (order as number) <= 100, 'Give each role a whole-number routing order from 1 to 100.')
     insist(r.accessCode === undefined || typeof r.accessCode === 'boolean', 'Choose whether each role needs an access code.')
     insist(r.linkOnly === undefined || typeof r.linkOnly === 'boolean', 'Choose email code or link only for each role.')
-    return { ...(r.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(r.includeWhen)}), role: text(r.role, 'the role name', 100), order: order as number, ...(r.accessCode ? { accessCode: true } : {}), ...(r.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
+    return { ...(action === 'signer' ? {} : { action: action as Role['action'] }), ...(witnesses ? { witnesses } : {}), ...(r.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(r.includeWhen)}), role: text(r.role, 'the role name', 100), order: order as number, ...(r.accessCode ? { accessCode: true } : {}), ...(r.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
   })
   insist(new Set(roles.map(r => r.role.toLowerCase())).size === roles.length, 'Give each role a different name.')
-  const fields = validateFields(documentInputFields(input.fields,multiple?.documents), roles.length, pageSizes.length)
+  const people = roles.map(r => ({ ...r, role: r.action, name: r.role, email: '' })), noSignature = roles.flatMap((r, i) => r.action && r.action !== 'signer' ? [i] : [])
+  validateRecipientCount(people, 0)
+  const fields = validateFields(documentInputFields(input.fields,multiple?.documents), roles.length, pageSizes.length, [], noSignature)
+  validateRoleFields(people, fields)
   validateDocumentAudience(multiple?.documents,roles.length,0,fields,defaults.hideDocumentsWithoutFields===true)
-  documentFields(fields,multiple?.documents,roles.length)
+  documentFields(fields,multiple?.documents,roles.length,false,noSignature,people)
   validateRouting(roles, fields)
   await validatePdfText(roles.flatMap(person=>person.includeWhen?[person.includeWhen.value]:[]))
   await validatePrefilledFields(fields)
-  insist(roles.every((_, i) => fields.some(f => f.signer === i && f.type === 'signature')), 'Place at least one signature field for every role.')
+  insist(roles.every((r, i) => (r.action && r.action !== 'signer') || fields.some(f => f.signer === i && f.type === 'signature')), 'Place at least one signature field for every role.')
   const expiryDays = input.expiryDays === undefined ? defaults.expiryDays : input.expiryDays
   insist(Number.isInteger(expiryDays) && (expiryDays as number) >= 1 && (expiryDays as number) <= maxExpiryDays, `Set the expiry from 1 to ${maxExpiryDays} whole days.`)
   for (const key of ['allowPaperSigning', 'allowReassignment']) insist(input[key] === undefined || typeof input[key] === 'boolean', 'Choose each option with true or false.')
@@ -144,10 +148,10 @@ export async function templateFromEnvelope(env: Env, context: CommandContext, in
   const envelope: Envelope = await getEnvelope(env.DB, text(input.id, 'an envelope ID'))
   await insistAccess(env, context.actor, envelope, 'view')
   insist(!envelope.imported, 'Only a native envelope can be saved as a template.', 409)
-  const [bytes, artifacts] = await Promise.all([readBlob(env.DB, envelope.id, 'original', envelope.originalSha256), supplementsFromEnvelope(env, envelope)]), kept = envelope.signers.flatMap((s, i) => s.removedAt ? [] : [i])
+  const [bytes, artifacts] = await Promise.all([readBlob(env.DB, envelope.id, 'original', envelope.originalSha256), supplementsFromEnvelope(env, envelope)]), kept = envelope.signers.flatMap((s, i) => s.removedAt || s.witnessFor !== undefined ? [] : [i])
   const names = (envelope.events.find(e => e.action === 'envelope.prepared')?.detail.template as { roles?: string[] } | undefined)?.roles ?? []
   const days = Math.min(maxExpiryDays, Math.max(1, Math.round((Date.parse(envelope.expiresAt) - Date.parse(envelope.createdAt)) / day)))
-  return insertTemplate(env, context, { ...(envelope.documents?{documents:remapSignerAudience(envelope.documents,kept)!.map((d,i)=>({existing:i,mode:d.mode,...(d.visibleTo?{visibleTo:{...d.visibleTo,copies:[]}}:{})}))}:{}), title: input.title === undefined ? envelope.title : input.title, filename: envelope.filename, pdfBase64: base64(bytes), roles: kept.map((i, k) => ({ ...(envelope.signers[i].includeWhen?{includeWhen:envelope.signers[i].includeWhen}:{}), role: names[i] ?? `Signer ${k + 1}`, order: envelope.signers[i].order ?? i + 1, ...(envelope.signers[i].accessCode ? { accessCode: true } : {}), ...(envelope.signers[i].linkOnly ? { linkOnly: true } : {}), ...(envelope.signers[i].message ? { message: envelope.signers[i].message } : {}) })), fields: envelope.fields.filter(f => kept.includes(f.signer)).map(f => ({ ...f, signer: kept.indexOf(f.signer) })), expiryDays: days, reminders: envelope.reminders ?? null, ...(envelope.allowPaper ? { allowPaperSigning: true } : {}), ...(envelope.allowReassign ? { allowReassignment: true } : {}), ...(envelope.subject ? { subject: envelope.subject } : {}), ...(envelope.message ? { message: envelope.message } : {}), ...(envelope.approvalRule ? { approval: envelope.approvalRule } : {}) }, { fromEnvelope: envelope.id }, { artifacts, source:envelope, guard: { sql: 'EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=?)', values: [envelope.id, envelope.version] } })
+  return insertTemplate(env, context, { ...(envelope.documents?{documents:remapSignerAudience(envelope.documents,kept)!.map((d,i)=>({existing:i,mode:d.mode,...(d.visibleTo?{visibleTo:{...d.visibleTo,copies:[]}}:{})}))}:{}), title: input.title === undefined ? envelope.title : input.title, filename: envelope.filename, pdfBase64: base64(bytes), roles: kept.map((i, k) => ({ ...(envelope.signers[i].role && envelope.signers[i].role !== 'signer' ? { action: envelope.signers[i].role } : {}), ...(envelope.signers[i].witnesses ? { witnesses: structuredClone(envelope.signers[i].witnesses) } : {}), ...(envelope.signers[i].includeWhen?{includeWhen:envelope.signers[i].includeWhen}:{}), role: names[i] ?? `Signer ${k + 1}`, order: envelope.signers[i].order ?? i + 1, ...(envelope.signers[i].accessCode ? { accessCode: true } : {}), ...(envelope.signers[i].linkOnly ? { linkOnly: true } : {}), ...(envelope.signers[i].message ? { message: envelope.signers[i].message } : {}) })), fields: envelope.fields.filter(f => kept.includes(f.signer)).map(f => ({ ...f, signer: kept.indexOf(f.signer) })), expiryDays: days, reminders: envelope.reminders ?? null, ...(envelope.allowPaper ? { allowPaperSigning: true } : {}), ...(envelope.allowReassign ? { allowReassignment: true } : {}), ...(envelope.subject ? { subject: envelope.subject } : {}), ...(envelope.message ? { message: envelope.message } : {}), ...(envelope.approvalRule ? { approval: envelope.approvalRule } : {}) }, { fromEnvelope: envelope.id }, { artifacts, source:envelope, guard: { sql: 'EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=?)', values: [envelope.id, envelope.version] } })
 }
 
 /** The template's current PDF, for its edit screen. */
@@ -172,7 +176,7 @@ export async function useTemplate(env: Env, context: CommandContext, input: Reco
     insist(!role.accessCode || code !== undefined, `Enter the access code for the ${role.role} role.`)
     insist(role.accessCode || code === undefined, `The ${role.role} role does not use an access code.`)
     // ROUTE-005: a role may be filled by a signing group instead of a person.
-    return { ...(role.includeWhen?{includeWhen:role.includeWhen}:{}), ...(person.group === undefined ? { name: person.name, email: person.email } : { group: person.group }), order: role.order, ...(role.linkOnly ? { linkOnly: true } : {}), ...(code === undefined ? {} : { accessCode: code }), ...(role.message ? { message: role.message } : {}) }
+    return { ...(role.action ? { role: role.action } : {}), ...(role.witnesses ? { witnesses: structuredClone(role.witnesses) } : {}), ...(role.includeWhen?{includeWhen:role.includeWhen}:{}), ...(person.group === undefined ? { name: person.name, email: person.email } : { group: person.group }), order: role.order, ...(role.linkOnly ? { linkOnly: true } : {}), ...(code === undefined ? {} : { accessCode: code }), ...(role.message ? { message: role.message } : {}) }
   })
   const createdAt = now()
   for(const [i] of (template.documents??[]).entries())await verifyTemplateDocument(env,template,i)

@@ -1,3 +1,4 @@
+import { recipientRole, witnessRule, validateRoleFields, validateRecipientCount } from './recipient-roles'
 import { validateDocumentAudience } from './document-visibility'
 import { consumedUploadWrites, readDocuments, documentInputFields, documentFields as mapDocumentFields, documentWrites, stagedBlobWrites } from './documents'
 import { envelopeDefaults } from './envelope-defaults'
@@ -29,11 +30,11 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   insist(!/[\x00-\x1f/\\]/.test(filename) && filename.toLowerCase().endsWith('.pdf'), 'Choose a PDF filename.')
   insist(!/[\r\n\t]/.test(title), 'Use a single line for the envelope title.')
   const multiple = prepared?{...await parsePdf(prepared.bytes,2000),bytes:prepared.bytes,documents:structuredClone(prepared.documents),originals:undefined}:await readDocuments(env,input,actor,previous), bytes = multiple?.bytes ?? fromBase64(input.pdfBase64), { document, pageSizes } = multiple ?? await parsePdf(bytes)
-  insist(Array.isArray(input.signers) && input.signers.length >= 1 && input.signers.length <= 5, 'Add 1–5 ordered signers.')
+  insist(Array.isArray(input.signers) && input.signers.length >= 1 && input.signers.length <= 100, 'Add 1–100 ordered recipients.')
   const accessCodes: (string | 'keep' | undefined)[] = []
   const groups = await Promise.all(input.signers.map(value => object(value).group === undefined ? undefined : snapshotGroup(env, object(value).group)))
   const signers: Signer[] = input.signers.map((value, i) => {
-    const s = object(value), group = groups[i], order = s.order === undefined ? i + 1 : s.order
+    const s = object(value), role = recipientRole(s.role), witnesses = witnessRule(s.witnesses, role), group = groups[i], order = s.order === undefined ? i + 1 : s.order
     // ROUTE-005: a group recipient, snapshotted now; no access code, in-person signing or mail-less links in v1.
     if (group) insist(s.name === undefined && s.email === undefined, 'Name either a person or a signing group for each recipient, not both.')
     insist(!group || ((s.accessCode === undefined || s.accessCode === '') && s.keepAccessCode !== true && s.inPerson !== true), 'Signing groups cannot use access codes or in-person signing.', 409)
@@ -52,7 +53,10 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
     insist(!s.linkOnly || !mailSuppressed(env), 'Link-only signing needs mail; while mail is not set up every recipient verifies a code.', 409)
     insist(s.inPerson === undefined || typeof s.inPerson === 'boolean', 'Choose whether each recipient signs in person.')
     const inPerson = s.inPerson ?? (previous?.signers[i]?.email === email && previous.signers[i].inPerson)
-    return { ...(s.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(s.includeWhen)}), ...(group ? groupPlace(group) : { name: text(s.name, 'the signer name', 100), email }), order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
+    insist(!group || role === 'signer', 'A signing group fills a signer role.')
+    insist(!inPerson || role === 'signer', 'In-person recipients sign their own signature.')
+    insist(!witnesses?.linkOnly || !mailSuppressed(env), 'Link-only witnesses need mail.')
+    return { ...(role !== 'signer' ? { role } : {}), ...(witnesses ? { witnesses } : {}), ...(s.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(s.includeWhen)}), ...(group ? groupPlace(group) : { name: text(s.name, 'the signer name', 100), email }), order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
   })
   const addresses = signers.flatMap(s => s.group ? s.group.members.map(m => m.email) : [s.email])
   insist(new Set(addresses).size === addresses.length, 'Each ordered signer must use a different email, and nobody can sign both alone and in a group.')
@@ -65,9 +69,12 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   const carried = !freeForm && input.fields === undefined ? await documentFields(document, pageSizes, readAnchors(input.anchors)) : undefined
   for (const field of carried ?? []) insist(field.signer < signers.length, `The document places a field for recipient ${field.signer + 1} (${field.name}), but the envelope has ${signers.length}.`)
   const placed = carried ?? documentInputFields(input.fields,multiple?.documents)
-  const fields = freeForm ? [] : validateFields(Array.isArray(placed) && placed.every(field => field && typeof field === 'object') ? applyPrefillPayload(placed as Field[], input.prefill, 'this envelope') : placed, signers.length, pageSizes.length), copies = chooseCopies(input.copies, signers.flatMap(s => s.group ? s.group.members : [s]))
+  const fields = freeForm ? [] : validateFields(Array.isArray(placed) && placed.every(field => field && typeof field === 'object') ? applyPrefillPayload(placed as Field[], input.prefill, 'this envelope') : placed, signers.length, pageSizes.length, [], signers.flatMap((s,i)=>s.role==='approver'||s.role==='form_filler'?[i]:[])), copies = chooseCopies(input.copies, signers.flatMap(s => s.group ? s.group.members : [s]))
+  validateRoleFields(signers, fields)
+  validateRecipientCount(signers, copies.length)
+  for (const s of signers) for (const w of s.witnesses?.named ?? []) insist(![...addresses,...copies.map(c=>c.email)].includes(w.email), 'A witness cannot be the signer or another recipient.')
   validateDocumentAudience(multiple?.documents,signers.length,copies.length,fields,(await envelopeDefaults(env)).hideDocumentsWithoutFields===true)
-  mapDocumentFields(fields,multiple?.documents,signers.length,freeForm)
+  mapDocumentFields(fields,multiple?.documents,signers.length,freeForm,signers.flatMap((s,i)=>s.role==='approver'||s.role==='form_filler'?[i]:[]))
   if(multiple)insist(signers.every((_,i)=>multiple.documents.some(d=>!d.visibleTo||d.visibleTo.signers.includes(i))),'Every signer needs at least one visible document. Free-form drafts have no fields: turn off the hide-without-fields default before preparing one.')
   validateRouting(signers, fields)
   validateCopyRouting(copies, fields)

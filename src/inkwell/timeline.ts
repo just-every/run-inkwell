@@ -8,7 +8,7 @@ import { envelopeMessages, type Message } from './delivery'
 import { accountTimeZone } from './zone'
 import { bouncedRecipients } from './bounces'
 
-export type Step = 'sent' | 'delivered' | 'viewed' | 'authenticated' | 'signed' | 'declined' | 'bounced' | 'added' | 'corrected' | 'removed' | 'reassigned'
+export type Step = 'sent' | 'delivered' | 'viewed' | 'authenticated' | 'signed' | 'approved' | 'filled' | 'declined' | 'bounced' | 'added' | 'corrected' | 'removed' | 'reassigned'
 export type Place = 'signed' | 'declined' | 'current' | 'waiting' | 'stopped' | 'removed'
 export interface RecipientTimeline { signer: number; order: number; place: Place; waitingOn: string | null; bounced?: boolean; steps: { step: Step; at: string; detail?: string }[] }
 
@@ -38,6 +38,7 @@ function recipientTimeline(envelope: Envelope, messages: Message[], signer: numb
   // The audit trail's time for the signature (the signer record's own time can differ by a millisecond).
   const signed = envelope.events.find(e => ['signer.signed', 'signer.signed_on_paper'].includes(e.action) && e.detail.signer === signer)
   if (recipient.signedAt) steps.push({ step: 'signed', at: signed?.at ?? recipient.signedAt, ...(recipient.paper?.status === 'accepted' ? { detail: 'On paper' } : {}) })
+  if(recipient.completedAt)steps.push({step:recipient.role==='approver'?'approved':'filled',at:recipient.completedAt})
   if (recipient.declinedAt) steps.push({ step: 'declined', at: recipient.declinedAt, detail: recipient.declineReason })
   // DELIV-006: each correction of this place, with what changed.
   for (const e of envelope.events.filter(e => ['signer.added', 'signer.corrected', 'signer.removed'].includes(e.action) && e.detail.signer === signer)) {
@@ -55,7 +56,8 @@ function recipientTimeline(envelope: Envelope, messages: Message[], signer: numb
   if (recipient.routeResult?.state === 'skipped') return { ...base, place: 'stopped', waitingOn: null }
   if (recipient.routeResult?.state === 'unresolved') return { ...base, place: 'waiting', waitingOn: 'The sender to correct an unresolved routing condition' }
   if (recipient.removedAt) return { ...base, place: 'removed', waitingOn: null }
-  if (recipient.signedAt) return { ...base, place: 'signed', waitingOn: null }
+  if(recipient.witnessReturnRequired)return {...base,place:'current',waitingOn:'The signer to nominate a replacement witness'}
+  if (recipient.signedAt||recipient.completedAt) return { ...base, place: 'signed', waitingOn: null }
   if (recipient.declinedAt) return { ...base, place: 'declined', waitingOn: null }
   if (envelope.status === 'prepared') return { ...base, place: 'waiting', waitingOn: envelope.scheduled ? `The scheduled send at ${envelope.scheduled.local} (${envelope.scheduled.timeZone})` : 'The sender’s approval' }
   if (envelope.status !== 'awaiting_signature' || envelope.imported || Date.parse(envelope.expiresAt) <= Date.now()) return { ...base, place: 'stopped', waitingOn: null }
@@ -65,6 +67,6 @@ function recipientTimeline(envelope: Envelope, messages: Message[], signer: numb
   if (bouncedRecipients(envelope, messages).some(entry => entry.signer === signer)) return { ...base, place: 'current', bounced: true, waitingOn: 'The sender to correct the email address: the invitation bounced' }
   const waitingOn = recipient.paper?.status === 'pending' ? 'The sender to review the uploaded paper signature'
     : !verified && recipient.inPerson ? 'A host to confirm their identity in person' : !verified ? (manual && !sent ? 'The recipient to open the private link and enter the code' : 'The recipient to open the invitation and verify their email')
-    : !recipient.disclosure ? 'The recipient to agree to electronic records' : 'The recipient to sign'
+    : !recipient.disclosure ? 'The recipient to agree to electronic records' : recipient.role==='approver'?'The recipient to approve':recipient.role==='form_filler'?'The recipient to complete their fields':'The recipient to sign'
   return { ...base, place: 'current', waitingOn }
 }

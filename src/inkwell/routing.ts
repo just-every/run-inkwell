@@ -1,11 +1,11 @@
 import { displayReferencedValue } from './business-fields'
-import { appendEvent, canonical, currentSigners, insist, object, text, type Envelope, type Field, type RoutingRule, type RoutingResult } from './model'
+import { appendEvent, canonical, recipientSettled, currentSigners, insist, object, text, type Envelope, type Field, type RoutingRule, type RoutingResult } from './model'
 import { resolveFieldValues, visibleFields, usdCents, usdDecimal } from './field-rules'
 
-type Person = { name?: string; role?: string; order?: number; includeWhen?: RoutingRule; routeResult?: RoutingResult; activatedAt?: string; signedAt?: string; removedAt?: string; values?: Record<string,string> }
+type Person = { name?: string; role?: string; order?: number; includeWhen?: RoutingRule; routeResult?: RoutingResult; activatedAt?: string; signedAt?: string; completedAt?: string; witnessReturnRequired?: boolean; removedAt?: string; values?: Record<string,string> }
 const operators = ['equals','not_equals','greater_than','less_than','at_least','at_most']
 export const skipped = (person: Person) => person.routeResult?.state === 'skipped'
-export const routeSettled = (person: Person) => Boolean(person.signedAt || person.removedAt || skipped(person))
+export const routeSettled = (person: Person) => recipientSettled(person as import('./model').Signer)
 const order = (people: Person[], index: number) => people[index].order ?? index + 1
 
 export function normalizeRoutingRule(value: unknown): RoutingRule | undefined {
@@ -45,7 +45,7 @@ function sourceValue(people:Person[],fields:Field[],rule:RoutingRule):Source {
   if (!field) return {kind:'missing',locked:true}
   const person=people[field.signer],locked=Boolean(field.readOnly&&field.prefill)
   if (!locked&&!routeSettled(person)) return {kind:'pending'}
-  if (!locked&&(!person.signedAt||!Object.hasOwn(person.values??{},field.id))) return {kind:'missing',locked:false}
+  if (!locked&&(!(person.signedAt||person.completedAt)||!Object.hasOwn(person.values??{},field.id))) return {kind:'missing',locked:false}
   const assigned=fields.filter(f=>f.signer===field.signer),raw=locked?{}:person.values??{}
   const values=resolveFieldValues(assigned,raw)
   if (!visibleFields(assigned,raw).some(f=>f.id===field.id)||values[field.id]===undefined||values[field.id]==='') return {kind:'missing',locked}

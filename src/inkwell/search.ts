@@ -11,7 +11,7 @@ export const buckets = ['draft', 'waiting_for_me', 'waiting_for_others', 'comple
 type Bucket = typeof buckets[number]
 
 // ROUTE-002: it is my turn when I am an unsigned signer at the lowest routing order still open.
-const order = (s: string) => `COALESCE(json_extract(${s}.value,'$.order'),CAST(${s}.key AS INTEGER)+1)`, open = (s: string) => `json_extract(${s}.value,'$.signedAt') IS NULL AND json_extract(${s}.value,'$.removedAt') IS NULL AND COALESCE(json_extract(${s}.value,'$.routeResult.state'),'')!='skipped'`
+const order = (s: string) => `COALESCE(json_extract(${s}.value,'$.order'),CAST(${s}.key AS INTEGER)+1)`, open = (s: string) => `(json_extract(${s}.value,'$.signedAt') IS NULL AND json_extract(${s}.value,'$.completedAt') IS NULL OR json_extract(${s}.value,'$.witnessReturnRequired')=1) AND json_extract(${s}.value,'$.removedAt') IS NULL AND COALESCE(json_extract(${s}.value,'$.routeResult.state'),'')!='skipped'`
 const myTurn = `EXISTS(SELECT 1 FROM json_each(e.data,'$.signers') s WHERE ${open('s')} AND (json_extract(s.value,'$.includeWhen') IS NULL OR json_extract(s.value,'$.routeResult.state')='included') AND lower(json_extract(s.value,'$.email'))=?2 AND ${order('s')}=(SELECT MIN(${order('o')}) FROM json_each(e.data,'$.signers') o WHERE ${open('o')}))`
 // ROUTE-004 / MANAGE-003: a draft waiting for my internal approval is waiting for me.
 // A sender finds every envelope a request named them on (internal-approval.ts namedApprover).

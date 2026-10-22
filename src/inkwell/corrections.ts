@@ -1,3 +1,4 @@
+import { recipientRole, witnessRule, validateRoleFields, validateRecipientCount } from './recipient-roles'
 import { remapCopyAudience } from './document-visibility'
 import { documentFields, documentInputFields } from './documents'
 import { advanceAfterSigning } from './signing'
@@ -25,10 +26,10 @@ import type { CommandContext } from './envelopes'
 import { sealLink } from './links'
 import { memberLinkWrites } from './signing-groups'
 
-const maxPlaces = 10, maxActive = 5
+const maxPlaces = 999, maxActive = 100
 /** A recipient who has acted (signed, declined, or uploaded a paper scan awaiting review) or was removed: fixed for good. */
-const settled = (s: Signer) => Boolean(s.signedAt || s.declinedAt || s.paper?.status === 'pending' || s.removedAt || s.routeResult?.state === 'skipped')
-const identity = (s: Signer, place: number) => ({ ...(s.includeWhen?{includeWhen:s.includeWhen}:{}), name: s.name, email: s.email, order: s.order ?? place + 1, ...(s.inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(s.message ? { message: s.message } : {}) })
+const settled = (s: Signer) => Boolean(s.signedAt || s.completedAt || s.declinedAt || s.paper?.status === 'pending' || s.removedAt || s.routeResult?.state === 'skipped')
+const identity = (s: Signer, place: number) => ({ ...(s.role?{role:s.role}:{}), ...(s.witnesses?{witnesses:s.witnesses}:{}), ...(s.includeWhen?{includeWhen:s.includeWhen}:{}), name: s.name, email: s.email, order: s.order ?? place + 1, ...(s.inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(s.message ? { message: s.message } : {}) })
 /** An optional text: absent keeps the current value, an empty string clears it. */
 function edit(value: unknown, current: string | undefined, label: string, max: number, oneLine = false) {
   if (value === undefined) return current
@@ -41,12 +42,13 @@ function edit(value: unknown, current: string | undefined, label: string, max: n
 /** One recipient as the correction names them. A recipient whose name or email changes is a new person at that place:
  * nothing the previous person agreed to carries over. */
 function readRecipient(value: unknown, place: number, previous?: Signer): { signer: Signer; code?: string } {
-  const s = object(value), email = text(s.email, 'the signer email', 254).toLowerCase(), order = s.order === undefined ? previous?.order ?? place + 1 : s.order
+  const s = object(value), role = recipientRole(s.role ?? previous?.role), witnesses = witnessRule(s.witnesses ?? previous?.witnesses, role), email = text(s.email, 'the signer email', 254).toLowerCase(), order = s.order === undefined ? previous?.order ?? place + 1 : s.order
   insist(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), 'Provide a valid signer email.')
   insist(Number.isInteger(order) && (order as number) >= 1 && (order as number) <= 100, 'Give each signer a whole-number routing order from 1 to 100.')
   const code = s.accessCode === undefined || s.accessCode === '' ? undefined : text(s.accessCode, 'an access code', 32)
   insist(code === undefined || /^\S{4,32}$/.test(code), 'Use an access code of 4–32 characters with no spaces.')
   const name = text(s.name, 'the signer name', 100), message = edit(s.message, previous?.message, 'the private message', 1000)
+  insist(!previous || canonical(role) === canonical(previous.role ?? 'signer') && canonical(witnesses ?? null) === canonical(previous.witnesses ?? null), 'A sent recipient’s role and witness requirement cannot change.',409)
   const same = previous && previous.name === name && previous.email === email
   const { message: _, linkOnly: __, includeWhen: _rule, ...kept } = same ? previous : {} as Signer
   insist(s.linkOnly === undefined || typeof s.linkOnly === 'boolean', 'Choose email code or link only for each recipient.')
@@ -56,7 +58,7 @@ function readRecipient(value: unknown, place: number, previous?: Signer): { sign
   insist(!previous || s.inPerson === undefined || s.inPerson === Boolean(previous.inPerson), 'A sent recipient’s signing method cannot change. Prepare and approve a new envelope to change between in-person and remote signing.', 409)
   const includeWhen = s.includeWhen === undefined ? previous?.includeWhen : normalizeRoutingRule(s.includeWhen)
   const inPerson = previous ? previous.inPerson : s.inPerson === true
-  return { signer: { ...kept, ...(includeWhen?{includeWhen}:{}), name, email, order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}), ...(code || previous?.accessCode ? { accessCode: true } : {}) }, code }
+  return { signer: { ...kept, ...(role!=='signer'?{role}:{}), ...(witnesses?{witnesses}:{}), ...(includeWhen?{includeWhen}:{}), name, email, order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}), ...(code || previous?.accessCode ? { accessCode: true } : {}) }, code }
 }
 
 export async function correctEnvelope(env: Env, context: CommandContext, input: Record<string, unknown>) {
@@ -68,6 +70,10 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
     insist(Array.isArray(input.signers) && input.signers.length >= before.signers.length && input.signers.length <= maxPlaces, `Keep every recipient in their place (remove one with "remove") and add at most ${maxPlaces - before.signers.length} more.`)
     after.signers = input.signers.map((value, i) => {
       const previous = before.signers[i], entry = object(value)
+      if (previous?.witnessFor!==undefined) {
+        insist(previous.removedAt ? entry.remove===true : entry.remove!==true&&entry.name===previous.name&&entry.email===previous.email&&(entry.order??previous.order)===previous.order&&Boolean(entry.linkOnly)===Boolean(previous.linkOnly)&&!entry.inPerson&&entry.accessCode===undefined&&canonical(entry.includeWhen??null)===canonical(previous.includeWhen??null)&&(entry.message??'')===(previous.message??'')&&(entry.role??'witness')==='witness', 'Witnesses are changed only by their signer’s nomination.',409)
+        return previous
+      }
       if (previous && settled(previous)) {
         insist(previous.removedAt ? entry.remove === true : entry.remove !== true && entry.accessCode === undefined && canonical(identity(readRecipient(value, i, previous).signer, i)) === canonical(identity(previous, i)), signedFixed(i), 409)
         return previous
@@ -85,23 +91,25 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
   insist(live.length <= maxActive, `An envelope has at most ${maxActive} signers.`)
   insist(open.length, 'Keep at least one recipient who has not signed, or void the envelope instead.', 409)
   insist(new Set(live.map(i => after.signers[i].email)).size === live.length, 'Each ordered signer must use a different email.')
-  const highestSigned = Math.max(0, ...live.filter(i => after.signers[i].signedAt).map(i => routingOrder(after, i)))
+  const highestSigned = Math.max(0, ...live.filter(i => after.signers[i].signedAt||after.signers[i].completedAt).map(i => routingOrder(after, i)))
   for (const i of open) insist(routingOrder(after, i) >= highestSigned, `${after.signers[i].name} can only be placed at routing order ${highestSigned} or later: recipients there have already signed.`, 409)
 
   const removedPlaces = after.signers.flatMap((s, i) => s.removedAt ? [i] : [])
   const remainingFields = before.fields.filter(f => !removedPlaces.includes(f.signer))
   insist(!before.freeForm || input.fields === undefined || canonical(input.fields) === canonical(remainingFields), 'Corrections cannot add or change sender fields on a free-form envelope.', 409)
-  after.fields = before.freeForm ? remainingFields : validateFields(documentInputFields(input.fields === undefined ? before.fields.filter(f => !removedPlaces.includes(f.signer)) : input.fields, before.documents), after.signers.length, before.pageSizes.length, removedPlaces)
-  const fixedFields = (fields: Field[]) => canonical(fields.filter(f => settled(before.signers[f.signer] ?? {} as Signer) && !before.signers[f.signer].removedAt).sort((a, b) => a.id.localeCompare(b.id)))
+  after.fields = before.freeForm ? remainingFields : validateFields(documentInputFields(input.fields === undefined ? before.fields.filter(f => !removedPlaces.includes(f.signer)) : input.fields, before.documents), after.signers.length, before.pageSizes.length, removedPlaces,after.signers.flatMap((s,i)=>s.role==='approver'||s.role==='form_filler'?[i]:[]))
+  const fixedFields = (fields: Field[]) => canonical(fields.filter(f => before.signers[f.signer]?.witnessFor!==undefined || settled(before.signers[f.signer] ?? {} as Signer) && !before.signers[f.signer].removedAt).sort((a, b) => a.id.localeCompare(b.id)))
   insist(fixedFields(after.fields) === fixedFields(before.fields), 'A field of a recipient who has already signed cannot be changed.', 409)
 
-  documentFields(after.fields,after.documents,after.signers.length,Boolean(after.freeForm),removedPlaces)
+  documentFields(after.fields,after.documents,after.signers.length,Boolean(after.freeForm),[...removedPlaces,...after.signers.flatMap((s,i)=>s.role==='approver'||s.role==='form_filler'?[i]:[])],after.signers)
   validateRouting(after.signers,after.fields)
   guardRoutingCorrection(before,after)
 
   const copies = chooseCopies(input.copies === undefined ? before.copies : input.copies, live.map(i => after.signers[i]))
   validateCopyRouting(copies, after.fields)
   if (copies.length) after.copies = copies; else delete after.copies
+  validateRecipientCount(after.signers, after.copies?.length??0)
+  validateRoleFields(after.signers,after.fields)
   remapCopyAudience(after,before.copies??[])
   const subject = edit(input.subject, before.subject, 'the email subject', 200, true), message = edit(input.message, before.message, 'the message', 2000)
   if (subject) after.subject = subject; else delete after.subject
@@ -146,7 +154,7 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
   }
   for (const [i, code] of codes) writes.push(env.DB.prepare('DELETE FROM iw_access_codes WHERE envelope_id=? AND signer=?').bind(after.id, i), env.DB.prepare('INSERT INTO iw_access_codes(envelope_id,signer,code_hash) VALUES(?,?,?)').bind(after.id, i, await accessCodeHash(env, after.id, i, code)))
   const invited = nowCurrent.filter(i => !after.signers[i].inPerson && (!wasCurrent.includes(i) || rotated.has(i) || !before.signers[i])).map(i => after.signers[i].email)
-  if (after.signers.every(routeSettled)) writes.push(...await advanceAfterSigning(env,after,after.signers.findLastIndex(s=>s.signedAt)))
+  if (after.signers.every(routeSettled)) writes.push(...await advanceAfterSigning(env,after,after.signers.findLastIndex(s=>s.signedAt||s.completedAt)))
   const result = { id: after.id, invited, emailSent: mail && invited.length > 0 }
   await commitEnvelope(env, before, after, context.actor, [...writes, commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
   await dispatchMail(env, after.id)

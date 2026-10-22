@@ -1,3 +1,5 @@
+import { nominateWitnesses } from './witnesses'
+import { completeRecipient } from './recipient-actions'
 import { verifySignerIdentity, enrollPassword, authenticateSigner, endSignerIdentity } from './compliance/identity'
 import { complianceRecords, saveComplianceRecord, signingMeanings } from './compliance/records'
 import { uploadPdf, uploadedBytes } from './documents'
@@ -152,6 +154,8 @@ api.post('/api/sign/:token/code',async c=>{sameOrigin(c.req.raw,c.env);return c.
 // IDV-001: a link-only recipient's session from the link alone.
 api.post('/api/sign/:token/open',async c=>{sameOrigin(c.req.raw,c.env);c.header('set-cookie',await openLink(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw)));return c.json({ok:true})})
 api.post('/api/sign/:token/verify',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096),cookie=await verifyCode(c.env,context,body);c.header('set-cookie',cookie);return c.json({ok:true})})
+for (const role of ['approver','form_filler'] as const) api.post(`/api/sign/:token/${role==='approver'?'approve':'fill'}`,async c=>{sameOrigin(c.req.raw,c.env);return c.json({ok:true,result:await completeRecipient(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),await readJson(c.req.raw,128000),role)})})
+api.post('/api/sign/:token/witnesses',async c=>{sameOrigin(c.req.raw,c.env);return c.json({ok:true,result:await nominateWitnesses(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),await readJson(c.req.raw,4096))})})
 api.post('/api/sign/:token/sign',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,800_000);const result=await signEnvelope(c.env,context,body,c.req.raw);const hosted=context.envelope.signers[context.recipient.signer].inPerson;if(hosted){c.header('set-cookie',hostedCookie(c.env));c.header('set-cookie',await endSignerIdentity(c.env,c.req.raw),{append:true})}return c.json({ok:true,result,...(hosted?{returnTo:'/signin'}:{})})})
 api.post('/api/sign/:token/decline',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096);const result=await declineEnvelope(c.env,context,body,c.req.raw);const hosted=context.envelope.signers[context.recipient.signer].inPerson;if(hosted){c.header('set-cookie',hostedCookie(c.env));c.header('set-cookie',await endSignerIdentity(c.env,c.req.raw),{append:true})}return c.json({ok:true,result,...(hosted?{returnTo:'/signin'}:{})})})
 api.post('/api/sign/:token/reassign',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096);return c.json({ok:true,result:await reassignSigning(c.env,context,body)})})

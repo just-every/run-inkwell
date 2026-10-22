@@ -16,6 +16,8 @@ import type { CommandContext } from './envelopes'
 export async function uploadPaper(env: Env, context: SigningContext, request: Request) {
   insist(context.verified, 'Verify your email before uploading a paper signature.', 401)
   const before = context.envelope, index = context.recipient.signer, signer = recipientOf(context)
+  insist(!['approver','form_filler'].includes(signer.role??'signer'),'This recipient does not sign.',403)
+  insist(!signer.signedAt&&!signer.completedAt,'This recipient has already completed their action.',409)
   insist(before.allowPaper, 'The sender does not allow paper signing for this envelope.', 403)
   active(before)
   insist(currentSigners(before).includes(index), 'This invitation is waiting for an earlier signer, or you have already signed.', 409)

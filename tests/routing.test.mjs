@@ -296,3 +296,117 @@ test('SEND-001 and ADMIN-004: deferred sends hold after role, active status, edi
   }
  } finally { await h.close() }
 })
+
+test('Recipient roles: eight signers, approver, filler and completed-only copies; nominated witness isolates signed documents, blocks later orders and returns a decline for replacement',async()=>{
+ const h=await harness()
+ try {
+  const pdf=async title=>{const p=await PDFDocument.create();p.addPage([612,792]).drawText(title,{x:50,y:740});return Buffer.from(await p.save()).toString('base64')}
+  const people=Array.from({length:8},(_,i)=>({name:`Harbour signer ${i+1}`,email:`signer-${i+1}@roles.example`,order:i===0?1:2,...(i===0?{witnesses:{minimum:1,maximum:2,address:true}}:{})}))
+  people.push({name:'Finance Approver',email:'approver@roles.example',role:'approver',order:3},{name:'Accounts Filler',email:'filler@roles.example',role:'form_filler',order:4})
+  const fields=Array.from({length:8},(_,i)=>({id:`sig-${i}`,label:`Signature ${i+1}`,type:'signature',signer:i,document:i===1?1:0,documentPage:0,page:0,x:.08,y:.12+i*.08,width:.6,height:.045}))
+  fields.push({id:'reference',label:'Purchase reference',type:'text',signer:9,document:0,documentPage:0,page:0,x:.08,y:.78,width:.6,height:.045})
+  const copies=Array.from({length:3},(_,i)=>({name:`Records desk ${i+1}`,email:`copy-${i+1}@roles.example`}))
+  const id=(await h.command('envelope.prepare',{title:'Workshop service packet',documents:[{filename:'agreement.pdf',pdfBase64:await pdf('Client agreement'),mode:'sign',visibleTo:{signers:[0,2,3,4,5,6,7,8,9],copies:[0,1,2]}},{filename:'compensation.pdf',pdfBase64:await pdf('PRIVATE COMPENSATION MEMO'),mode:'sign',visibleTo:{signers:[1],copies:[0,1,2]}}],fields,signers:people,copies})).result.id
+  const read=async()=>(await h.send(`/api/inkwell/envelopes/${id}`,undefined,h.owner)).value.envelope
+  const open=async email=>{const invitation=await h.mail(email,'Please sign:'),path='/api'+new URL(invitation.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname;await h.post(path+'/code',{},'');const cookie=(await h.post(path+'/verify',{code:(await h.mail(email,'verification code')).text.match(/\b\d{6}\b/)[0]},'')).cookie;await h.agree(path,cookie);return{path,cookie}}
+  const post=(s,action,body,status=200)=>h.post(s.path+'/'+action,{...body,commandId:crypto.randomUUID()},s.cookie,status)
+  const sign=async(s,values)=>post(s,'sign',{values,consent:true,timeZone:'America/New_York'})
+  await h.command('envelope.approve',{id,eligible:true})
+  for(const p of [...people.slice(1),...copies])assert.equal(await h.mail(p.email,'Please sign:'),undefined)
+  const first=await open(people[0].email)
+  assert.equal((await h.send(first.path,undefined,first.cookie)).value.fields.length,1)
+  await post(first,'sign',{values:{'sig-0':people[0].name},consent:true},400)
+  await post(first,'witnesses',{nominees:[{name:people[0].name,email:people[0].email}]},400)
+  await post(first,'witnesses',{nominees:[{name:people[1].name,email:people[1].email}]},400)
+  await h.post(first.path+'/witnesses',{nominees:[{name:'Taylor Witness',email:'taylor@witness.example'}],commandId:crypto.randomUUID()},'',401)
+  await post(first,'witnesses',{nominees:[{name:'Taylor Witness',email:'taylor@witness.example'}]})
+  assert.equal(await h.mail('taylor@witness.example','Please sign:'),undefined,'nomination alone sends nothing')
+  await sign(first,{'sig-0':people[0].name})
+  assert.ok(await h.mail('taylor@witness.example','Please sign:'));assert.equal(await h.mail(people[1].email,'Please sign:'),undefined)
+  await post(first,'sign',{values:{'sig-0':'Changed signature'},consent:true},409)
+  const declined=await open('taylor@witness.example')
+  await post(declined,'decline',{reason:'I cannot attend this signing'})
+  assert.equal((await read()).status,'awaiting_signature');assert.equal((await read()).signers[0].witnessReturnRequired,true)
+  assert.equal((await h.send(declined.path,undefined,declined.cookie)).status,404)
+  assert.equal(await h.mail(people[1].email,'Please sign:'),undefined)
+  await post(first,'witnesses',{nominees:[{name:'Riley Witness',email:'riley@witness.example'}]})
+  const witness=await open('riley@witness.example'),view=(await h.send(witness.path,undefined,witness.cookie)).value
+  assert.equal(view.role,'witness');assert.equal(view.witnessedSigner.name,people[0].name);assert.deepEqual(view.documents.map(d=>d.filename),['agreement.pdf'])
+  assert.ok(view.fields.every(f=>f.signer===view.signerIndex));assert.deepEqual(view.fields.map(f=>f.type),['signature','full_name','date_signed','text'])
+  const preview=await pdfText((await h.send(witness.path+'/document',undefined,witness.cookie)).bytes)
+  assert.ok(preview.includes(people[0].name),'witness sees the principal’s completed mark');assert.ok(!preview.includes('PRIVATE COMPENSATION MEMO'))
+  assert.equal((await h.send(witness.path+'/documents/1',undefined,witness.cookie)).status,404)
+  await post(witness,'approve',{consent:true},403);await post(witness,'fill',{values:{},consent:true},403)
+  await post(witness,'sign',{values:{'sig-0':'Forged'},consent:true},400)
+  await sign(witness,Object.fromEntries(view.fields.filter(f=>f.type!=='date_signed').map(f=>[f.id,f.type==='text'?'18 Harbour Road':f.type==='full_name'?'Riley Witness':'Riley Witness'])))
+  assert.ok(await h.mail(people[1].email,'Please sign:'))
+  for(let i=1;i<8;i++){const s=await open(people[i].email);await post(s,'approve',{consent:true},403);await sign(s,{[`sig-${i}`]:people[i].name})}
+  const approver=await open(people[8].email),approvalView=(await h.send(approver.path,undefined,approver.cookie)).value
+  assert.equal(approvalView.role,'approver');assert.deepEqual(approvalView.fields,[])
+  await post(approver,'sign',{values:{},consent:true},403)
+  await post(approver,'fill',{values:{reference:'not yours'},consent:true},403)
+  await post(approver,'approve',{consent:false},400)
+  await post(approver,'approve',{consent:true})
+  assert.equal((await read()).signers[8].signedAt,undefined);assert.ok((await read()).signers[8].completedAt)
+  const filler=await open(people[9].email),fillerView=(await h.send(filler.path,undefined,filler.cookie)).value
+  assert.equal(fillerView.role,'form_filler');assert.deepEqual(fillerView.fields.map(f=>f.id),['reference'])
+  await post(filler,'sign',{values:{reference:'PO-2048'},consent:true},403)
+  await post(filler,'fill',{values:{'sig-0':'not yours'},consent:true},400)
+  await post(filler,'fill',{values:{},consent:true},400)
+  for(const c of copies)assert.equal(await h.mail(c.email,'Completed:'),undefined)
+  await post(filler,'fill',{values:{reference:'PO-2048'},consent:true})
+  const done=await read();assert.equal(done.status,'completed');assert.ok(done.signers[9].completedAt);assert.equal(done.signers[9].signedAt,undefined)
+  const certificate=(await pdfText((await h.send(`/api/inkwell/envelopes/${id}/artifacts/certificate`,undefined,h.owner)).bytes)).replace(/\s+/g,' ')
+  assert.ok(certificate.includes('Witness for signer 1: Harbour signer 1'));assert.ok(certificate.includes('Approved without signing at:'));assert.ok(certificate.includes('Fields completed without signing at:'));assert.ok(certificate.includes('riley@witness.example'));assert.ok(certificate.includes('Witness declined at'))
+  assert.ok((await pdfText((await h.send(`/api/inkwell/envelopes/${id}/artifacts/signed`,undefined,h.owner)).bytes)).includes('PO-2048'))
+  assert.equal((await h.send(`/api/inkwell/envelopes/${id}/verify`,undefined,h.owner)).value.ok,true)
+  for(const c of copies){const mail=await h.mail(c.email,'Completed:');assert.ok(mail);assert.ok(!mail.text.includes('/sign/'),'copies have no action link')}
+  const witnessCopy=await h.mail('riley@witness.example','Completed:'),copyPath='/api'+new URL(witnessCopy.text.match(/http:\/\/[^\s]+\/copy\/[^\s]+/)[0]).pathname
+  await h.post(copyPath+'/code',{},'');const copyCookie=(await h.post(copyPath+'/verify',{code:(await h.mail('riley@witness.example')).text.match(/\b\d{6}\b/)[0]},'')).cookie
+  assert.ok(!(await pdfText((await h.send(copyPath+'/artifacts/signed',undefined,copyCookie)).bytes)).includes('PRIVATE COMPENSATION MEMO'))
+  assert.equal((await h.send(copyPath+'/artifacts/executed-1',undefined,copyCookie)).status,404)
+  const copied=(await h.command('envelope.copy',{id})).result.id,copiedRecord=(await h.send('/api/inkwell/envelopes/'+copied,undefined,h.owner)).value.envelope
+  assert.equal(copiedRecord.signers.length,10);assert.equal(copiedRecord.signers[8].role,'approver');assert.equal(copiedRecord.signers[9].role,'form_filler');assert.deepEqual(copiedRecord.signers[0].witnesses,people[0].witnesses)
+  assert.ok(copiedRecord.signers.every(s=>!s.completedAt&&!s.signedAt&&!s.witnessNominees))
+  const template=(await h.command('template.from_envelope',{id})).result.id,reused=(await h.command('template.use',{id:template,recipients:people.map(({name,email})=>({name,email}))})).result.id,reusedRecord=(await h.send('/api/inkwell/envelopes/'+reused,undefined,h.owner)).value.envelope
+  assert.equal(reusedRecord.signers.length,10);assert.equal(reusedRecord.signers[8].role,'approver');assert.equal(reusedRecord.signers[9].role,'form_filler');assert.deepEqual(reusedRecord.signers[0].witnesses,people[0].witnesses)
+  const restored=await harness()
+  try{const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value;await restored.post('/api/inkwell/archive/restore',{archive});assert.equal((await restored.send(`/api/inkwell/envelopes/${id}/verify`,undefined,restored.owner)).value.ok,true)}finally{await restored.close()}
+ }finally{await h.close()}
+})
+
+test('Recipient include rules: approver, filler and both pre-named witnesses inherit the route, while skipped roles receive no action or completed copy',async()=>{
+ const h=await harness()
+ try{
+  const pdf=await PDFDocument.create();pdf.addPage([612,792]);const base={filename:'rules.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64')}
+  const field=(id,type,signer,y,extra={})=>({id,label:id,type,signer,page:0,x:.1,y,width:.6,height:.045,...extra}),rule={field:'amount',operator:'greater_than',value:'10000'}
+  const open=async email=>{const mail=await h.mail(email,'Please sign:'),path='/api'+new URL(mail.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname;const linkOnly=(await h.send(path)).value.linkOnly;let cookie;if(linkOnly)cookie=(await h.post(path+'/open',{},'')).cookie;else{await h.post(path+'/code',{},'');cookie=(await h.post(path+'/verify',{code:(await h.mail(email,'verification code')).text.match(/\b\d{6}\b/)[0]},'')).cookie}await h.agree(path,cookie);return{path,cookie}}
+  const act=(s,path,body,status=200)=>h.post(s.path+'/'+path,{...body,commandId:crypto.randomUUID()},s.cookie,status)
+  for(const amount of ['5000','25000']){
+   const principal={name:'Mara Quinn',email:`mara-${amount}@rules.example`,order:1,includeWhen:rule,witnesses:{minimum:2,maximum:2,linkOnly:true,named:[{name:'Witness North',email:`north-${amount}@rules.example`},{name:'Witness South',email:`south-${amount}@rules.example`}]}},approver={name:'Approver',email:`approve-${amount}@rules.example`,role:'approver',order:2,includeWhen:rule},filler={name:'Filler',email:`fill-${amount}@rules.example`,role:'form_filler',order:2,includeWhen:rule},last={name:'Jon Reed',email:`last-${amount}@rules.example`,order:3}
+   const fields=[field('first','signature',0,.1),field('amount','number',0,.2,{readOnly:true,prefill:{value:amount,source:'Confirmed amount'}}),field('reference','text',2,.3),field('last','signature',3,.4)]
+   const id=(await h.command('envelope.prepare',{...base,title:'Conditional roles '+amount,signers:[principal,approver,filler,last],fields})).result.id
+   await h.command('envelope.approve',{id,eligible:true})
+   const read=async()=>(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
+   if(amount==='5000'){
+    assert.deepEqual((await read()).signers.slice(0,3).map(s=>s.routeResult.state),['skipped','skipped','skipped'])
+    for(const s of [principal,approver,filler,...principal.witnesses.named])assert.equal(await h.mail(s.email,'Please sign:'),undefined)
+   }else{
+    const s=await open(principal.email);await act(s,'sign',{values:{first:principal.name},consent:true})
+    const active=(await read()).signers.filter(s=>s.witnessFor===0);assert.equal(active.length,2);assert.ok(active.every(w=>w.routeResult.state==='included'&&w.includeWhen.field==='amount'))
+    for(const [n,w] of active.entries()){
+     assert.equal(await h.mail(approver.email,'Please sign:'),undefined)
+     const v=await open(w.email),own=(await h.send(v.path,undefined,v.cookie)).value.fields
+     await act(v,'sign',{values:Object.fromEntries(own.filter(f=>f.type!=='date_signed').map(f=>[f.id,w.name])),consent:true,timeZone:'America/New_York'})
+     if(n===0)assert.equal(await h.mail(approver.email,'Please sign:'),undefined,'the second witness still blocks later orders')
+    }
+    const a=await open(approver.email);await act(a,'approve',{consent:true})
+    const f=await open(filler.email);await act(f,'fill',{values:{reference:'RF-300'},consent:true})
+    await h.command('envelope.correct',{id,fields:(await read()).fields.map(f=>f.id==='reference'?{...f,label:'Changed after action'}:f)},h.owner,409)
+   }
+   const s=await open(last.email);await act(s,'sign',{values:{last:last.name},consent:true})
+   assert.equal((await read()).status,'completed');assert.equal((await h.send('/api/inkwell/envelopes/'+id+'/verify',undefined,h.owner)).value.ok,true)
+   if(amount==='5000')for(const s of [principal,approver,filler])assert.equal(await h.mail(s.email,'Completed:'),undefined)
+  }
+ }finally{await h.close()}
+})

@@ -25,7 +25,7 @@ export function placedFields(envelope: Envelope, signer: number, input: unknown)
     insist(!signed.some(previous => overlaps(field, previous)), 'A placed field cannot overlap a field already signed.')
     if (field.type === 'signature') field.required = true
   }
-  documentFields(fields,envelope.documents,envelope.signers.length,true)
+  documentFields(fields,envelope.documents,envelope.signers.length,true,[],envelope.signers)
   return fields
 }
 export function overlaps(a: Field, b: Field) { return a.page === b.page && a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y }

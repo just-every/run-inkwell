@@ -51,6 +51,7 @@ export function supplementEvents(envelope: Envelope, signer: number, member?: nu
   return envelope.events.slice(boundary + 1).filter(e => e.detail.signer === signer && e.detail.member === member)
 }
 export function supplementStatus(envelope: Envelope, signer: number, member?: number) {
+  if(envelope.signers[signer].witnessFor!==undefined)return []
   const events = supplementEvents(envelope, signer, member)
   return (envelope.supplements ?? []).map(s => ({ ...s,
     viewedAt: events.find(e => e.action === 'signer.supplement_viewed' && e.detail.supplementId === s.id && e.detail.sha256 === s.sha256)?.at,
@@ -61,6 +62,7 @@ export function requireSupplements(envelope: Envelope, signer: number, member?: 
   for (const s of supplementStatus(envelope, signer, member)) insist(s.requirement === 'acknowledge' ? s.acknowledgedAt : s.viewedAt, s.requirement === 'acknowledge' ? `Acknowledge ${s.label} before signing.` : `Open ${s.label} before signing.`, 409)
 }
 function signerRead(context: SigningContext) {
+  insist(context.envelope.signers[context.recipient.signer].witnessFor===undefined,'Witnesses may read only their signer’s signed documents.',403)
   insist(context.verified, 'Verify your email before opening supplemental documents.', 401)
   notGroupSigner(context); accessGate(context)
   if (context.envelope.status !== 'completed') active(context.envelope)
