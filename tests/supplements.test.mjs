@@ -455,7 +455,7 @@ test('Document visibility: offer-only candidate cannot fetch the memo through si
  const h=await harness()
  try {
   const originals=await Promise.all(['Public offer letter','Confidential compensation memo'].map(pdf))
-  const input={title:'Hiring offer',filename:'offer.pdf',documents:originals.map((b,i)=>({filename:i?'compensation-memo.pdf':'offer.pdf',pdfBase64:base64(b),mode:'sign',...(i?{visibleTo:{signers:[1],copies:[1]}}:{})})),signers:people,fields:[{...field(0),id:'candidate',document:0,page:0},{...field(1),id:'manager-offer',document:0,page:0},{...field(1),id:'manager-memo',document:1,page:0}],copies:[{name:'Offer filing',email:'copy@visibility.example'},{name:'Manager filing',email:'manager-copy@visibility.example'}],allowPaperSigning:true}
+  const input={title:'Hiring offer',filename:'offer.pdf',documents:originals.map((b,i)=>({filename:i?'compensation-memo.pdf':'offer.pdf',pdfBase64:base64(b),mode:'sign',...(i?{visibleTo:{signers:[1],copies:[1]}}:{})})),signers:people,fields:[{...field(0),id:'candidate',document:0,page:0},{...field(1),id:'manager-offer',document:0,page:0},{...field(1),id:'manager-memo',document:1,page:0},{...field(1),id:'memo-amount',label:'Private compensation amount',type:'number',document:1,page:0,prefill:{value:'123456.78',source:'synthetic-inkwell-4'},readOnly:true}],copies:[{name:'Offer filing',email:'copy@visibility.example',includeWhen:{field:'memo-amount',operator:'greater_than',value:'123455.67'}},{name:'Manager filing',email:'manager-copy@visibility.example'}],allowPaperSigning:true}
   await h.command('envelope.prepare',{...input,documents:input.documents.map((d,i)=>i?{...d,visibleTo:{signers:[8],copies:[]}}:d)},h.owner,400)
   await h.command('envelope.prepare',{...input,fields:[...input.fields,{...field(0),id:'hidden-field',document:1,page:0}]},h.owner,400)
   const recipient=async email=>{const mail=await h.mail(email,'Please sign:'),path='/api'+new URL(mail.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname;await h.post(path+'/code',{},'');const cookie=(await h.post(path+'/verify',{code:(await h.mail(email,'verification code')).text.match(/\b\d{6}\b/)[0]},'')).cookie;await h.agree(path,cookie);return{path,cookie}}
@@ -485,7 +485,8 @@ test('Document visibility: offer-only candidate cannot fetch the memo through si
   assert.equal((await h.send(candidate.path+'/artifacts/executed-1',undefined,candidate.cookie)).status,404)
   const cert=await pdfText((await h.send(base+'/artifacts/certificate',undefined,h.owner)).bytes)
   assert.match(cert,/Visible documents: offer.pdf/);assert.match(cert,/Visible documents: offer.pdf; compensation-memo.pdf/)
-  assert.ok(!(await pdfText((await h.send(candidate.path+'/artifacts/certificate',undefined,candidate.cookie)).bytes)).includes('memo'))
+  const privateCertificate=await pdfText((await h.send(candidate.path+'/artifacts/certificate',undefined,candidate.cookie)).bytes)
+  assert.ok(!privateCertificate.includes('memo'));assert.ok(!privateCertificate.includes('123456.78')&&!privateCertificate.includes('123455.67'),'routing summaries never expose a hidden document’s amount or comparison value')
   for(const email of [people[0].email,'copy@visibility.example',people[1].email]) {
    const path='/api'+new URL((await h.mail(email,'Completed:')).text.match(/http:\/\/[^\s]+\/copy\/[^\s]+/)[0]).pathname
    assert.equal((await h.send(path+'/artifacts/signed')).status,401)

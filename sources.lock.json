@@ -799,7 +799,7 @@
       "executable": false
     },
     "src/inkwell/certificate.ts": {
-      "sha256": "b3732ec80d97bd545112d4c675f54399cc214b53b3ef2a304c8389dbd27d064c",
+      "sha256": "0c374d8222b89adffc184a3f5aeca718c44d4a436506456d449522f5631ac10a",
       "executable": false
     },
     "src/inkwell/comment-record.d.mts": {
@@ -3523,7 +3523,7 @@
       "executable": false
     },
     "tests/supplements.test.mjs": {
-      "sha256": "85ef96f9658197b3b2b217947355f4a98a4d5499bc544cc7aff3a46c56030ec8",
+      "sha256": "dc81bfc62b15441904d4d4c0bc26e809a29a36dbef47dddaca63864f1dbdc25c",
       "executable": false
     },
     "tests/template-maintenance.test.mjs": {

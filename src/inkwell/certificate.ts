@@ -16,6 +16,7 @@ import { adoptionOf, describeAdoption } from './marks'
  * lists the party indexes that got a completed-copy email. */
 export async function certificatePdf(envelope: Envelope, mailed: number[] = [], visible?:number[]) {
   if(visible)envelope={...envelope,fields:envelope.fields.filter(f=>visible.includes(f.document??0))}
+  const ruleVisible=(rule:RoutingRule|undefined)=>!visible||Boolean(rule&&envelope.fields.some(f=>f.id===rule.field))
   const declined = envelope.signers.find(s => s.declinedAt), withdrawn = declined?.consentWithdrawn
   const disclosures = [...new Map(envelope.signers.flatMap(s => s.disclosure ? [[s.disclosure.version, s.disclosure.sha256]] : [])).entries()]
   const stamps = await Promise.all(envelope.signers.map((s, i) => s.signedAt ? stampEvidence(envelope.fields.filter(f => f.signer === i), s.values ?? {}) : []))
@@ -44,7 +45,7 @@ export async function certificatePdf(envelope: Envelope, mailed: number[] = [], 
       ...(s.part11?[`Signing reason: ${s.part11.reason}`,`${s.part11.identity?'Verified':'Recorded'} printed name: ${s.part11.name}`,...(s.part11.identity?[`Identity component: ${s.part11.identity.component}`,`Identity verified at ${s.part11.identity.verifiedAt} by ${s.part11.identity.verifiedBy}: ${s.part11.identity.method}`]:[]),`Signature re-authenticated at ${stamp(s.part11.reauthenticatedAt)}: ${s.part11.method}`]:[]),
       ...adoptionLines(envelope, i), ...placedLines(envelope, i), ...stamps[i].map(stampLine),
       ...(s.paper?.status === 'accepted' ? [`Scan SHA-256: ${s.paper.sha256}`, `Scan: ${s.paper.pages} page(s) appended to the executed PDF; accepted at ${stamp(s.paper.reviewedAt!)}`] : []),
-      s.routeResult?.state === 'skipped' ? `Skipped at ${stamp(s.routeResult.at)}: ${s.includeWhen?.field} ${s.includeWhen?.operator} ${s.includeWhen?.value}; result false (source ${s.routeResult.value})` : s.removedAt ? `Not signed: removed by a correction at ${stamp(s.removedAt)}`
+      s.routeResult?.state === 'skipped' ? !ruleVisible(s.includeWhen)?`Skipped at ${stamp(s.routeResult.at)}: rule source is on a hidden document`:`Skipped at ${stamp(s.routeResult.at)}: ${s.includeWhen?.field} ${s.includeWhen?.operator} ${s.includeWhen?.value}; result false (source ${s.routeResult.value})` : s.removedAt ? `Not signed: removed by a correction at ${stamp(s.removedAt)}`
         : s.signedAt ? `Signed at: ${stamp(s.signedAt)}${network(envelope, i, ['signer.signed', 'signer.paper_uploaded'])}`
         : s.declinedAt ? `${s.consentWithdrawn ? 'Consent withdrawn' : 'Declined'} at: ${stamp(s.declinedAt)} · Reason: ${s.declineReason}${network(envelope, i, ['signer.declined', 'signer.consent_withdrawn'])}`
         : routingOrder(envelope, i) === routingOrder(envelope, envelope.signers.indexOf(declined!)) ? `Not signed: invited, but the envelope stopped at the ${withdrawn ? 'withdrawal' : 'decline'}`
@@ -52,7 +53,7 @@ export async function certificatePdf(envelope: Envelope, mailed: number[] = [], 
       '',
     ]),
     ...(envelope.copies??[]).flatMap((c,k)=>envelope.documents?[`Copy recipient ${k+1}: ${c.name} <${c.email}>`,`Visible documents: ${envelope.documents.flatMap((d,i)=>(!visible||visible.includes(i))&&(!d.visibleTo||d.visibleTo.copies.includes(k))?[d.filename]:[]).join('; ')||'none'}`]:[]),
-    ...(envelope.copies ?? []).flatMap((c, k) => c.includeWhen && c.routeResult ? [`Copy recipient ${k + 1}: ${c.name} <${c.email}>`, copyRouteLine(c.includeWhen, c.routeResult, mailed.includes(envelope.signers.length + k)), ''] : []),
+    ...(envelope.copies ?? []).flatMap((c, k) => c.includeWhen && c.routeResult ? [`Copy recipient ${k + 1}: ${c.name} <${c.email}>`, ruleVisible(c.includeWhen)?copyRouteLine(c.includeWhen, c.routeResult, mailed.includes(envelope.signers.length + k)):`Copy routing: ${c.routeResult.state}; rule source is on a hidden document`, ''] : []),
     ...envelope.events.flatMap(e => [`${stamp(e.at)} ${e.action}`, `Actor: ${e.actor}`, `Event hash: ${e.hash}`]),
   ]
   const document = await PDFDocument.create(), font = await document.embedFont(StandardFonts.Helvetica)
