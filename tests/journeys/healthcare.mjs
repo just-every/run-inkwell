@@ -110,6 +110,7 @@ try {
     await activate(signer,reauth.getByRole('button',{name:'Email a fresh signature code',exact:true}))
     await reauth.getByRole('status').filter({hasText:'Signature code sent.'}).waitFor()
     await tab(signer,reauth.getByLabel('Signature code',{exact:true}));await signer.keyboard.type(app.mail(email,'Your Inkwell signature code').text.match(/\b\d{6}\b/)[0])
+    assert.ok(await reauth.getByLabel('Signature code',{exact:true}).evaluate(el=>{const box=el.getBoundingClientRect(),guide=document.querySelector('.iw-guide')?.getBoundingClientRect();return box.top>=0&&box.bottom<=innerHeight&&(!guide||box.bottom<=guide.top)&&document.elementFromPoint(box.x+box.width/2,box.y+box.height/2)===el}),`${width}: the focused code entry is fully visible above the guide`)
     assert.ok((await reauth.ariaSnapshot()).includes('Signature code'))
     for(const theme of ['light','dark']){await signer.emulateMedia({colorScheme:theme});await axe(signer,`Signature re-authentication ${width} ${theme}`)}
     await signer.emulateMedia({colorScheme:'light'});assert.ok(await signer.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await reauth.screenshot({path:join(evidence,`signature-reauthentication-${width}.png`)})
