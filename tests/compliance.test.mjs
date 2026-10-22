@@ -273,6 +273,13 @@ test('Verified signer credentials: private one-use enrollment, separate continuo
   await h.post(one.path+'/sign',{values:{s:'Verified Morgan River'},consent:true,signingReason:'Responsibility',signatureCode:code,commandId:crypto.randomUUID()},strong)
   const signed=(await h.send('/api/inkwell/envelopes/'+one.id,undefined,h.owner)).value.envelope
   assert.equal(signed.signers[0].part11.name,'Verified Morgan River','manifestation uses the admin-verified name, not sender-supplied name')
+  const again=await make('Later signature in continuous session'),sameIdentity=again.cookie+'; '+start.cookie
+  const later={values:{s:'Verified Morgan River'},consent:true,signingReason:'Review',commandId:crypto.randomUUID()}
+  await h.post(again.path+'/sign',{...later,signatureCode:code},sameIdentity,401)
+  await h.post(again.path+'/signature-code',{},sameIdentity)
+  await h.post(again.path+'/sign',later,sameIdentity,400)
+  await h.post(again.path+'/sign',{...later,signatureCode:(await h.mail('credential@harbour.example','signature code')).text.match(/\b\d{6}\b/)[0]},sameIdentity)
+  assert.equal((await h.send('/api/inkwell/envelopes/'+again.id,undefined,h.owner)).value.envelope.status,'completed','a later signature succeeds with fresh code and the same continuous identity session')
   const two=await make('Independent component two'),continuous=two.cookie+'; '+start.cookie
   await h.post(two.path+'/signature-code',{},continuous)
   const next=(await h.mail('credential@harbour.example','signature code')).text.match(/\b\d{6}\b/)[0],body={values:{s:'Verified Morgan River'},consent:true,signingReason:'Approval',signatureCode:next,commandId:crypto.randomUUID()}
