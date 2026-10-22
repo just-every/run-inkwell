@@ -523,6 +523,7 @@ test('Naming and editing use sender-granted later places, audit identities and f
   assert.deepEqual(copy.signers[0].delegates,[2]);assert.equal(copy.signers[2].unresolvedIdentity,true);assert.equal(copy.signers[2].email,'');assert.ok(copy.signers.every(s=>!s.completedAt&&!s.signedAt))
   const template=(await h.command('template.from_envelope',{id})).result.id,reused=(await h.command('template.use',{id:template,recipients:[{name:'Jordan Ellis',email:'jordan.reuse@harbour.example'},{name:'Priya Shah',email:'priya.reuse@harbour.example'},{}]})).result.id
   const reuse=(await h.send('/api/inkwell/envelopes/'+reused,undefined,h.owner)).value.envelope;assert.equal(reuse.signers[2].unresolvedIdentity,true);assert.deepEqual(reuse.signers[1].delegates,[2])
+  for(const probe of [copied,reused])assert.equal((await h.send(`/api/inkwell/envelopes/${probe}/verify`,undefined,h.owner)).value.ok,true,'prepared delegated custody '+probe)
   const restored=await harness();try{const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value;await restored.post('/api/inkwell/archive/restore',{archive});assert.equal((await restored.send(`/api/inkwell/envelopes/${id}/verify`,undefined,restored.owner)).value.ok,true);const restoredDraft=(await restored.send('/api/inkwell/envelopes/'+reused,undefined,restored.owner)).value.envelope;assert.equal(restoredDraft.signers[2].unresolvedIdentity,true);assert.deepEqual(restoredDraft.signers[0].delegates,[2])}finally{await restored.close()}
  }finally{await h.close()}
 })
