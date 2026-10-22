@@ -13,6 +13,7 @@ export async function saveComplianceRecord(env: Env, context: CommandContext, in
   insist(kind==='meaning'||kind==='fda-certification','Choose a compliance record type.')
   let data: Record<string,string>
   if(kind==='meaning') {
+    insist(context.actor.role==='owner','Only the owner defines custom signing meanings.',403)
     const meaning=text(input.meaning,'the custom signing meaning',120)
     insist(!/[\r\n\t]/.test(meaning),'Use one line for the signing meaning.')
     await validatePdfText([meaning]);data={meaning}

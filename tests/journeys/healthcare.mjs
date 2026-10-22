@@ -47,6 +47,42 @@ try {
     // The optional signature profile is explicitly enabled on this draft, then enforced in the signer page.
     const pdf=await PDFDocument.create();pdf.addPage([612,792]).drawText('Synthetic qualification agreement',{x:50,y:700,size:14})
     const email=`qualification-${width}@harbour.example`,title=`Qualification agreement ${width}`
+    // Admin verification, separate activation, password enrollment, meanings and certification through built controls.
+    await app.call('/auth/invite',{cookie:app.owner,body:{email,displayName:'Morgan River',role:'member'},status:202})
+    const memberToken=new URL(app.mail(email,"You're invited").text.match(/http:\/\/[^\s]+\/auth\/confirm\?token=[^\s]+/)[0]).searchParams.get('token')
+    const memberCookie=(await app.call('/auth/confirm',{body:{token:memberToken},status:303})).cookie
+    const member=(await app.call('/api/inkwell',{cookie:memberCookie})).value.actor
+    await page.goto(app.origin+'/app');await page.getByRole('button',{name:'Settings',exact:true}).click()
+    const admin=page.getByRole('region',{name:'Part 11 administration',exact:true})
+    await admin.getByLabel('Signer account',{exact:true}).selectOption(member.id)
+    await admin.getByLabel('Verified printed name',{exact:true}).fill('Morgan River')
+    await admin.getByLabel('Identity verification method',{exact:true}).fill('Synthetic supervised government photo ID review')
+    await admin.getByRole('checkbox',{name:'I verified this person’s identity outside Inkwell.'}).check()
+    await admin.getByRole('button',{name:'Record verified signer',exact:true}).click()
+    const activation=await admin.getByLabel('One-use activation token',{exact:true}).inputValue()
+    assert.ok(activation)
+    await admin.getByRole('button',{name:'Dismiss activation token',exact:true}).click()
+    await admin.getByLabel('Custom signing meaning',{exact:true}).fill('Qualified batch release')
+    await admin.getByRole('button',{name:'Add signing meaning',exact:true}).click()
+    await admin.getByLabel('FDA certification date',{exact:true}).fill('2026-10-22')
+    await admin.getByLabel('FDA certification reference',{exact:true}).fill('synthetic-inkwell-1')
+    await admin.getByRole('checkbox',{name:'This records our organization’s certification, not an Inkwell certification.'}).check()
+    await admin.getByRole('button',{name:'Record FDA certification',exact:true}).click()
+    await admin.getByText('synthetic-inkwell-1',{exact:false}).waitFor()
+    await admin.getByRole('heading',{name:'Verified signer accounts',exact:true}).waitFor()
+    for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await axe(page,`Part 11 administration ${width} ${theme}`)}
+    await page.emulateMedia({colorScheme:'light'});await admin.screenshot({path:join(evidence,`part11-administration-${width}.png`)})
+    const enrollmentContext=await app.browser.newContext({viewport:{width,height}})
+    const [cookieName,cookieValue]=memberCookie.split('=');await enrollmentContext.addCookies([{name:cookieName,value:cookieValue,url:app.origin}])
+    const enrollment=await enrollmentContext.newPage();await enrollment.goto(app.origin+'/app');await enrollment.getByRole('button',{name:'Settings',exact:true}).click()
+    const credential=enrollment.getByRole('region',{name:'Signer credential',exact:true}),password='synthetic-inkwell-'+crypto.randomUUID()
+    await credential.getByLabel('Identity activation token',{exact:true}).fill(activation)
+    await credential.getByLabel('New signer password',{exact:true}).fill(password)
+    await credential.getByRole('button',{name:'Set signer password',exact:true}).click()
+    await credential.getByRole('status').filter({hasText:'Signer password enrolled.'}).waitFor()
+    for(const theme of ['light','dark']){await enrollment.emulateMedia({colorScheme:theme});await axe(enrollment,`Signer credential ${width} ${theme}`)}
+    await enrollment.emulateMedia({colorScheme:'light'});await credential.screenshot({path:join(evidence,`part11-enrollment-${width}.png`)})
+    await enrollmentContext.close()
     const id=(await app.command('envelope.prepare',{title,filename:'qualification.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),signers:[{name:'Morgan River',email}],fields:[{id:'signature',label:'Qualification signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.5,height:.06}]})).id
     const tab=async(p,target)=>{await target.waitFor();if(await target.evaluate(el=>el===document.activeElement))return;const backwards=await target.evaluate(el=>Boolean(document.activeElement?.compareDocumentPosition(el)&Node.DOCUMENT_POSITION_PRECEDING));await tabTo(p,target,{backwards})}
     const activate=async(p,target)=>{await tab(p,target);await p.keyboard.press('Enter')}
@@ -66,8 +102,11 @@ try {
     await tab(signer,signer.getByRole('checkbox',{name:/I have read the electronic record/}));await signer.keyboard.press('Space');await activate(signer,signer.getByRole('button',{name:'Agree and continue',exact:true}))
     await tab(signer,signer.getByRole('textbox',{name:'Qualification signature Page 1 · signature',exact:true}));await signer.keyboard.type('Morgan River')
     const reauth=signer.getByRole('region',{name:'Signature re-authentication',exact:true})
-    await tab(signer,reauth.getByRole('combobox',{name:'Signing reason',exact:true}));await signer.keyboard.press('ArrowDown')
-    assert.equal(await reauth.getByRole('combobox',{name:'Signing reason',exact:true}).inputValue(),'Approval')
+    await tab(signer,reauth.getByLabel('Signer password',{exact:true}));await signer.keyboard.type(password)
+    await activate(signer,reauth.getByRole('button',{name:'Confirm signer identity',exact:true}))
+    await reauth.getByRole('status').filter({hasText:'Signer identity confirmed'}).waitFor()
+    await tab(signer,reauth.getByRole('combobox',{name:'Signing reason',exact:true}));await signer.keyboard.press('ArrowDown');await signer.keyboard.press('ArrowDown');await signer.keyboard.press('ArrowDown')
+    assert.equal(await reauth.getByRole('combobox',{name:'Signing reason',exact:true}).inputValue(),'Responsibility')
     await activate(signer,reauth.getByRole('button',{name:'Email a fresh signature code',exact:true}))
     await reauth.getByRole('status').filter({hasText:'Signature code sent.'}).waitFor()
     await tab(signer,reauth.getByLabel('Signature code',{exact:true}));await signer.keyboard.type(app.mail(email,'Your Inkwell signature code').text.match(/\b\d{6}\b/)[0])

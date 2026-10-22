@@ -2,7 +2,7 @@
 CREATE TABLE iw_part11_identities (
  operator_id TEXT PRIMARY KEY, operator_version INTEGER NOT NULL, email TEXT NOT NULL, name TEXT NOT NULL,
  method TEXT NOT NULL, verified_by TEXT NOT NULL, verified_at TEXT NOT NULL, version INTEGER NOT NULL,
- activation_hash TEXT, salt TEXT, password_hash TEXT, activated_at TEXT
+ activation_hash TEXT, activation_expires INTEGER, salt TEXT, password_hash TEXT, activated_at TEXT
 );
 CREATE TABLE iw_part11_sessions (
  token_hash TEXT PRIMARY KEY, operator_id TEXT NOT NULL, identity_version INTEGER NOT NULL,

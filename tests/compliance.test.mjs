@@ -178,7 +178,7 @@ test('Signature controls: explicit owner/admin consent, fresh per-signature emai
   await h.command('envelope.approve',{id:copy,eligible:true})
   const invitation=await h.mail(one.email,'Please sign:'),path='/api/sign/'+new URL(invitation.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)
   await h.post(path+'/code',{},'');const cookie=(await h.post(path+'/verify',{code:(await h.mail(one.email,'verification code')).text.match(/\b\d{6}\b/)[0]},'')).cookie;await h.agree(path,cookie)
-  const strong=await identify(h,path,cookie,one.email,'Morgan River')
+  const strong=cookie+'; '+one.cookie.split('; ').at(-1) // Same continuous identity session; a fresh email code is still required.
   await h.post(path+'/signature-code',{},strong)
   const lockedCode=(await h.mail(one.email,'signature code')).text.match(/\b\d{6}\b/)[0],bad=lockedCode==='000000'?'000001':'000000'
   for(let n=0;n<5;n++)await h.post(path+'/sign',{...first,commandId:crypto.randomUUID(),signatureCode:bad},strong,401)
@@ -238,5 +238,54 @@ test('Signature controls: signed-in, link-only, signing-group and hosted doors c
    if(mode==='group')assert.equal(record.signers[0].group.signedBy,1)
    assert.equal((await h.send(`/api/inkwell/envelopes/${id}/verify`,undefined,h.owner)).value.ok,true,mode)
   }
+ }finally{await h.close()}
+})
+
+test('Verified signer credentials: private one-use enrollment, separate continuous sessions, immediate revocation and no mailbox-only downgrade',async()=>{
+ const h=await harness()
+ try{
+  const person=await enrolledSigner(h,'credential@harbour.example','Verified Morgan River'),viewer=await h.invite('unverified@harbour.example','member')
+  const viewerId=(await h.send('/api/inkwell',undefined,viewer)).value.actor.id
+  await h.command('account.part11_identity',{operatorId:viewerId,name:'Unverified member',method:'Synthetic review',confirm:true},viewer,403)
+  await h.post('/api/inkwell/compliance/password',{activationToken:'synthetic-inkwell-1',password:'synthetic-inkwell-password'},viewer,403)
+  await h.post('/api/inkwell/compliance/password',{activationToken:'synthetic-inkwell-1',password:'synthetic-inkwell-password'},person.cookie,403)
+  const admin=await h.invite('security@harbour.example','admin')
+  await h.command('account.part11_record',{kind:'meaning',meaning:'Not owner defined'},admin,403)
+  await h.command('account.part11_record',{kind:'fda-certification',date:'2026-02-30',reference:'synthetic-inkwell-2',confirm:true},admin,400)
+  const pdf=await PDFDocument.create();pdf.addPage([612,792])
+  const make=async title=>{
+   const id=(await h.command('envelope.prepare',{title,filename:'agreement.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),signers:[{name:'Sender supplied name',email:'credential@harbour.example',linkOnly:true}],fields:[{id:'s',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.5,height:.05}]})).result.id
+   await h.command('envelope.part11',{id,confirm:true});await h.command('envelope.approve',{id,eligible:true})
+   const invitation=await h.mail('credential@harbour.example','Please sign:'),path='/api'+new URL(invitation.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+   const cookie=(await h.post(path+'/open',{},'')).cookie;await h.agree(path,cookie)
+   return {id,path,cookie}
+  }
+  const one=await make('Independent component one')
+  await h.post(one.path+'/signature-code',{},one.cookie+'; '+person.cookie,403)
+  const start=await h.post(one.path+'/identity',{password:person.password},one.cookie),strong=one.cookie+'; '+start.cookie
+  assert.equal((await h.send('/api/inkwell',undefined,start.cookie)).status,401,'a signer identity session grants no application access')
+  await h.post(one.path+'/signature-code',{},strong)
+  const code=(await h.mail('credential@harbour.example','signature code')).text.match(/\b\d{6}\b/)[0]
+  await h.post(one.path+'/sign',{values:{s:'Verified Morgan River'},consent:true,signingReason:'Responsibility',signatureCode:code,commandId:crypto.randomUUID()},one.cookie+'; '+person.cookie,403)
+  await h.post(one.path+'/sign',{values:{s:'Verified Morgan River'},consent:true,signingReason:'Responsibility',signatureCode:code,commandId:crypto.randomUUID()},strong)
+  const signed=(await h.send('/api/inkwell/envelopes/'+one.id,undefined,h.owner)).value.envelope
+  assert.equal(signed.signers[0].part11.name,'Verified Morgan River','manifestation uses the admin-verified name, not sender-supplied name')
+  const two=await make('Independent component two'),continuous=two.cookie+'; '+start.cookie
+  await h.post(two.path+'/signature-code',{},continuous)
+  const next=(await h.mail('credential@harbour.example','signature code')).text.match(/\b\d{6}\b/)[0],body={values:{s:'Verified Morgan River'},consent:true,signingReason:'Approval',signatureCode:next,commandId:crypto.randomUUID()}
+  await h.post(two.path+'/identity/end',{},continuous)
+  await h.post(two.path+'/sign',body,continuous,403)
+  const restarted=await h.post(two.path+'/identity',{password:person.password},two.cookie),current=two.cookie+'; '+restarted.cookie
+  const reverification=(await h.command('account.part11_identity',{operatorId:person.operatorId,name:'Verified Morgan River',method:'Synthetic identity recheck',confirm:true},admin)).result
+  await h.post(two.path+'/sign',body,current,403)
+  await h.post(two.path+'/identity',{password:person.password},two.cookie,403)
+  await h.post('/api/inkwell/compliance/password',{activationToken:reverification.activationToken,password:person.password},person.cookie)
+  const resumed=await h.post(two.path+'/identity',{password:person.password},two.cookie)
+  const data=(await h.send('/api/inkwell/compliance/part11',undefined,admin)).value
+  assert.ok(!JSON.stringify(data).includes(reverification.activationToken))
+  await h.post('/auth/operator/status',{operatorId:person.operatorId,status:'inactive'})
+  await h.post(two.path+'/sign',body,two.cookie+'; '+resumed.cookie,403)
+  await h.post('/auth/operator/status',{operatorId:person.operatorId,status:'active'})
+  await h.post(two.path+'/identity',{password:person.password},two.cookie,403)
  }finally{await h.close()}
 })
