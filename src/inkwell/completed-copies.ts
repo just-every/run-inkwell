@@ -1,3 +1,4 @@
+import { chooseVisibleDocuments, recipientArtifact } from './document-visibility'
 import { party as actingParty, appendEvent, clientEvidence, insist, now, object, randomCode, secret, sha256, text, type Client, type Envelope, type Env } from './model'
 import { atomic, commandWrite, commitEnvelope, getEnvelope, roleGuard, type Guard } from './storage'
 import { mailSuppressed } from './manual-invitations'
@@ -28,7 +29,7 @@ export function chooseCopies(value: unknown, signers: { email: string }[], rules
     const c = object(item), email = text(c.email, 'the copy recipient email', 254).toLowerCase(), includeWhen = normalizeRoutingRule(c.includeWhen)
     insist(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), 'Provide a valid copy recipient email.')
     insist(rules || !includeWhen, 'A completed copy sent after completion has no routing rule.')
-    return { name: text(c.name, 'the copy recipient name', 100), email, ...(includeWhen ? { includeWhen } : {}) }
+    return { ...(c.visibleDocuments===undefined?{}:{visibleDocuments:chooseVisibleDocuments(c.visibleDocuments,20)}), name: text(c.name, 'the copy recipient name', 100), email, ...(includeWhen ? { includeWhen } : {}) }
   })
   const emails = [...signers.map(s => s.email), ...copies.map(c => c.email)]
   insist(new Set(emails).size === emails.length, 'Each signer and copy recipient must use a different email.')
@@ -87,6 +88,7 @@ export async function sendCompletedCopy(env: Env, context: CommandContext, input
   insist(Array.isArray(input.recipients) && input.recipients.length >= 1, 'Add at least one person to send the copy to.')
   const added = chooseCopies(input.recipients, [...before.signers, ...(before.copies ?? [])], false)
   insist(added.length + (before.copies?.length ?? 0) <= copyLimit, `An envelope has at most ${copyLimit} copy recipients.`)
+  for(const c of added)if(c.visibleDocuments!==undefined)c.visibleDocuments=chooseVisibleDocuments(c.visibleDocuments,before.documents?.length??1)
   const after = structuredClone(before), start = parties(before).length
   after.copies = [...(before.copies ?? []), ...added]
   const bytes = (await readBlob(env.DB, after.id, 'signed', after.signedSha256!)).length + (await readBlob(env.DB, after.id, 'certificate', after.certificateSha256!)).length
@@ -149,5 +151,5 @@ export async function verifyCopyCode(env: Env, context: CopyContext, input: Reco
 export async function copyArtifact(env: Env, context: CopyContext, kind: string) {
   insist(context.verified, 'Confirm the code sent to your email before downloading.', 401)
   insist(['signed', 'certificate'].includes(kind)||/^executed-[0-9]+$/.test(kind), 'Choose the executed PDF or the certificate.', 404)
-  return envelopeArtifact(env, context.envelope, kind)
+  return recipientArtifact(env, context.envelope, context.link.party, kind)
 }

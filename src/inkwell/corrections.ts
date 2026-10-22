@@ -1,3 +1,4 @@
+import { chooseVisibleDocuments } from './document-visibility'
 import { documentFields, documentInputFields } from './documents'
 import { advanceAfterSigning } from './signing'
 import { guardRoutingCorrection, normalizeRoutingRule, resolveRouting, routeSettled, validateCopyRouting, validateRouting } from './routing'
@@ -55,7 +56,8 @@ function readRecipient(value: unknown, place: number, previous?: Signer): { sign
   insist(!previous || s.inPerson === undefined || s.inPerson === Boolean(previous.inPerson), 'A sent recipient’s signing method cannot change. Prepare and approve a new envelope to change between in-person and remote signing.', 409)
   const includeWhen = s.includeWhen === undefined ? previous?.includeWhen : normalizeRoutingRule(s.includeWhen)
   const inPerson = previous ? previous.inPerson : s.inPerson === true
-  return { signer: { ...kept, ...(includeWhen?{includeWhen}:{}), name, email, order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}), ...(code || previous?.accessCode ? { accessCode: true } : {}) }, code }
+  insist(s.visibleDocuments===undefined||canonical(s.visibleDocuments)===canonical(previous?.visibleDocuments),'Recipient document visibility is fixed after approval. Prepare a new envelope to change it.',409)
+  return { signer: { ...kept, ...(previous?.visibleDocuments?{visibleDocuments:previous.visibleDocuments}:{}), ...(includeWhen?{includeWhen}:{}), name, email, order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}), ...(code || previous?.accessCode ? { accessCode: true } : {}) }, code }
 }
 
 export async function correctEnvelope(env: Env, context: CommandContext, input: Record<string, unknown>) {
@@ -94,11 +96,12 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
   const fixedFields = (fields: Field[]) => canonical(fields.filter(f => settled(before.signers[f.signer] ?? {} as Signer) && !before.signers[f.signer].removedAt).sort((a, b) => a.id.localeCompare(b.id)))
   insist(fixedFields(after.fields) === fixedFields(before.fields), 'A field of a recipient who has already signed cannot be changed.', 409)
 
-  documentFields(after.fields,after.documents,after.signers.length,Boolean(after.freeForm),removedPlaces)
+  documentFields(after.fields,after.documents,after.signers.length,Boolean(after.freeForm),removedPlaces,after.signers)
   validateRouting(after.signers,after.fields)
   guardRoutingCorrection(before,after)
 
   const copies = chooseCopies(input.copies === undefined ? before.copies : input.copies, live.map(i => after.signers[i]))
+  for(const c of copies)if(c.visibleDocuments!==undefined)c.visibleDocuments=chooseVisibleDocuments(c.visibleDocuments,after.documents?.length??1)
   validateCopyRouting(copies, after.fields)
   if (copies.length) after.copies = copies; else delete after.copies
   const subject = edit(input.subject, before.subject, 'the email subject', 200, true), message = edit(input.message, before.message, 'the message', 2000)

@@ -1,3 +1,4 @@
+import { recipientArtifactBytes } from './document-visibility'
 import { followupRecipients } from './followup-recipients'
 import { mailSuppressed } from './manual-invitations'
 import { operatorMail } from '../mail.server.mjs'
@@ -42,7 +43,7 @@ export async function dispatchMail(env: Env, envelopeId: string) {
   if(!claimed){await env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE id=? AND state='pending' AND followup_version IS NOT NULL").bind(job.id).run();continue}
   let state='uncertain',messageId:string|null=null
   try{
-   const attachments=claimed.attach?await completedFiles(env,envelopeId):undefined
+   const attachments=claimed.attach?await completedFiles(env,envelopeId,claimed.signer):undefined
    const {getEnvelope}=await import('./storage'),{replyTo}=await import('./followup-store')
    const envelope=await getEnvelope(env.DB,envelopeId)
    const recipient=followupRecipients(envelope).find(p=>(p.place===claimed.signer||p.row===claimed.signer)&&p.email.toLowerCase()===claimed.recipient.toLowerCase())
@@ -56,7 +57,7 @@ export async function dispatchMail(env: Env, envelopeId: string) {
 }
 
 /** DELIV-007: the executed PDF and certificate as mail attachments. */
-async function completedFiles(env: Env, envelopeId: string) {
+async function completedFiles(env: Env, envelopeId: string, party: number) {
   const row = await env.DB.prepare('SELECT data FROM iw_envelopes WHERE id=?').bind(envelopeId).first<{ data: string }>(), envelope: Envelope = JSON.parse(row!.data), base = envelope.filename.replace(/\.pdf$/i, '')
-  return [{ filename: `${base}-executed.pdf`, contentType: 'application/pdf', content: await readBlob(env.DB, envelope.id, 'signed', envelope.signedSha256!) }, { filename: `${base}-certificate.pdf`, contentType: 'application/pdf', content: await readBlob(env.DB, envelope.id, 'certificate', envelope.certificateSha256!) }]
+  return [{ filename: `${base}-executed.pdf`, contentType: 'application/pdf', content: await recipientArtifactBytes(env,envelope,party,'signed') }, { filename: `${base}-certificate.pdf`, contentType: 'application/pdf', content: await recipientArtifactBytes(env,envelope,party,'certificate') }]
 }

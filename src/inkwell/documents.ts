@@ -1,3 +1,4 @@
+import { visibleDocumentIndexes } from './document-visibility'
 import { PDFDocument } from 'pdf-lib'
 import { active, canonical, id, insist, now, object, sha256, text, type Actor, type Envelope, type Env, type Field } from './model'
 import { blobFingerprint, fromBase64, readBlob } from './blobs'
@@ -76,10 +77,10 @@ export async function readDocuments(env:Env,input:Record<string,unknown>,actor?:
  const bytes=new Uint8Array(await combined.save()),parsed=await parsePdf(bytes,2000)
  return{bytes,...parsed,documents,originals}
 }
-export function documentFields(fields:Field[],documents:EnvelopeDocument[]|undefined,signers:number,freeForm=false,removed:number[]=[]) {
- if(!documents)return fields
- for(const f of fields){const index=documents.findIndex(d=>f.page>=d.pageStart&&f.page<d.pageStart+d.pages);insist(index>=0,'Place fields on an existing document page.');const d=documents[index];insist(d.mode!=='view','View-only documents cannot contain signing fields.');f.document=index;f.documentPage=f.page-d.pageStart;if(d.mode==='optional')f.required=false}
- if(!freeForm)for(const [i,d] of documents.entries())if(d.mode==='sign')for(let signer=0;signer<signers;signer++)if(!removed.includes(signer))insist(fields.some(f=>f.document===i&&f.signer===signer&&f.type==='signature'&&f.required!==false),`Place a required signature for signer ${signer+1} on ${d.filename}.`)
+export function documentFields(fields:Field[],documents:EnvelopeDocument[]|undefined,signers:number,freeForm=false,removed:number[]=[],recipients?:{visibleDocuments?:number[]}[]) {
+ if(!documents){for(const f of fields)insist(!recipients?.[f.signer]?.visibleDocuments||recipients[f.signer].visibleDocuments!.includes(0),'A recipient cannot have fields on a hidden document.');return fields}
+ for(const f of fields){const index=documents.findIndex(d=>f.page>=d.pageStart&&f.page<d.pageStart+d.pages);insist(index>=0,'Place fields on an existing document page.');const d=documents[index];insist(d.mode!=='view','View-only documents cannot contain signing fields.');insist(!recipients?.[f.signer]?.visibleDocuments||recipients[f.signer].visibleDocuments!.includes(index),'A recipient cannot have fields on a hidden document.');f.document=index;f.documentPage=f.page-d.pageStart;if(d.mode==='optional')f.required=false}
+ if(!freeForm)for(const [i,d] of documents.entries())if(d.mode==='sign')for(let signer=0;signer<signers;signer++)if(!removed.includes(signer)&&(!recipients?.[signer]?.visibleDocuments||recipients[signer].visibleDocuments!.includes(i)))insist(fields.some(f=>f.document===i&&f.signer===signer&&f.type==='signature'&&f.required!==false),`Place a required signature for signer ${signer+1} on ${d.filename}.`)
  return fields
 }
 export async function documentWrites(env:Env,envelopeId:string,originals:(Uint8Array|string)[]|undefined) {

@@ -1,3 +1,4 @@
+import { chooseVisibleDocuments } from './document-visibility'
 import { consumedUploadWrites, readDocuments, documentFields, documentInputFields, documentWrites, stagedBlobWrites, type EnvelopeDocument } from './documents'
 import { verifyTemplateDocument, templateOriginal, templateDocumentWrites } from './template-documents'
 import { envelopeDefaults } from './envelope-defaults'
@@ -20,7 +21,7 @@ import { accessContext, folderAccess, sharesOf, visibleSql, type TemplateAccess,
 import { supplementDefinition, supplementsFromEnvelope, supplementsFromTemplate, templateSupplementWrites, type TemplateSupplementArtifact } from './template-supplements'
 
 /** A role is a place in the routing order with no person yet; `accessCode` says the sender gives that person a code. */
-export interface Role { includeWhen?: import('./model').RoutingRule; role: string; order: number; accessCode?: boolean; linkOnly?: boolean; message?: string }
+export interface Role { visibleDocuments?: number[]; includeWhen?: import('./model').RoutingRule; role: string; order: number; accessCode?: boolean; linkOnly?: boolean; message?: string }
 export interface Template { part11?: Envelope['part11']; documents?: EnvelopeDocument[]; supplements?: Supplement[]; maintenance?: { proposalId: string; by: string; at: string; examples: { id: string; eventHash: string }[] }; approval?: import('./model').ApprovalRule; id: string; title: string; filename: string; originalSha256: string; pageSizes: { width: number; height: number }[]; roles: Role[]; fields: Field[]; expiryDays: number; reminders?: { afterDays: number; everyDays: number }; allowPaper?: boolean; allowReassign?: boolean; subject?: string; message?: string; createdBy: string; createdAt: string; version?: number; updatedAt?: string; tags?: string[] }
 /** TMPL-003: a template stored before versions is version 1. */
 const versionOf = (template: Template) => template.version ?? 1
@@ -86,11 +87,12 @@ async function readTemplate(env: Env, input: Record<string, unknown>, actor:Acto
     insist(Number.isInteger(order) && (order as number) >= 1 && (order as number) <= 100, 'Give each role a whole-number routing order from 1 to 100.')
     insist(r.accessCode === undefined || typeof r.accessCode === 'boolean', 'Choose whether each role needs an access code.')
     insist(r.linkOnly === undefined || typeof r.linkOnly === 'boolean', 'Choose email code or link only for each role.')
-    return { ...(r.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(r.includeWhen)}), role: text(r.role, 'the role name', 100), order: order as number, ...(r.accessCode ? { accessCode: true } : {}), ...(r.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
+    return { ...(r.visibleDocuments===undefined?{}:{visibleDocuments:chooseVisibleDocuments(r.visibleDocuments,multiple?.documents.length??1)}), ...(r.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(r.includeWhen)}), role: text(r.role, 'the role name', 100), order: order as number, ...(r.accessCode ? { accessCode: true } : {}), ...(r.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
   })
   insist(new Set(roles.map(r => r.role.toLowerCase())).size === roles.length, 'Give each role a different name.')
   const fields = validateFields(documentInputFields(input.fields,multiple?.documents), roles.length, pageSizes.length)
-  documentFields(fields,multiple?.documents,roles.length)
+  if(defaults.hideDocumentsWithoutFields)for(const [i,r] of roles.entries()){const assigned=[...new Set(fields.filter(f=>f.signer===i).map(f=>multiple?.documents.findIndex(d=>f.page>=d.pageStart&&f.page<d.pageStart+d.pages)??0))];r.visibleDocuments=(r.visibleDocuments??Array.from({length:multiple?.documents.length??1},(_,n)=>n)).filter(d=>assigned.includes(d))}
+  documentFields(fields,multiple?.documents,roles.length,false,[],roles)
   validateRouting(roles, fields)
   await validatePdfText(roles.flatMap(person=>person.includeWhen?[person.includeWhen.value]:[]))
   await validatePrefilledFields(fields)
@@ -145,7 +147,7 @@ export async function templateFromEnvelope(env: Env, context: CommandContext, in
   const [bytes, artifacts] = await Promise.all([readBlob(env.DB, envelope.id, 'original', envelope.originalSha256), supplementsFromEnvelope(env, envelope)]), kept = envelope.signers.flatMap((s, i) => s.removedAt ? [] : [i])
   const names = (envelope.events.find(e => e.action === 'envelope.prepared')?.detail.template as { roles?: string[] } | undefined)?.roles ?? []
   const days = Math.min(maxExpiryDays, Math.max(1, Math.round((Date.parse(envelope.expiresAt) - Date.parse(envelope.createdAt)) / day)))
-  return insertTemplate(env, context, { ...(envelope.documents?{documents:envelope.documents.map((d,i)=>({existing:i,mode:d.mode}))}:{}), title: input.title === undefined ? envelope.title : input.title, filename: envelope.filename, pdfBase64: base64(bytes), roles: kept.map((i, k) => ({ ...(envelope.signers[i].includeWhen?{includeWhen:envelope.signers[i].includeWhen}:{}), role: names[i] ?? `Signer ${k + 1}`, order: envelope.signers[i].order ?? i + 1, ...(envelope.signers[i].accessCode ? { accessCode: true } : {}), ...(envelope.signers[i].linkOnly ? { linkOnly: true } : {}), ...(envelope.signers[i].message ? { message: envelope.signers[i].message } : {}) })), fields: envelope.fields.filter(f => kept.includes(f.signer)).map(f => ({ ...f, signer: kept.indexOf(f.signer) })), expiryDays: days, reminders: envelope.reminders ?? null, ...(envelope.allowPaper ? { allowPaperSigning: true } : {}), ...(envelope.allowReassign ? { allowReassignment: true } : {}), ...(envelope.subject ? { subject: envelope.subject } : {}), ...(envelope.message ? { message: envelope.message } : {}), ...(envelope.approvalRule ? { approval: envelope.approvalRule } : {}) }, { fromEnvelope: envelope.id }, { artifacts, source:envelope, guard: { sql: 'EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=?)', values: [envelope.id, envelope.version] } })
+  return insertTemplate(env, context, { ...(envelope.documents?{documents:envelope.documents.map((d,i)=>({existing:i,mode:d.mode}))}:{}), title: input.title === undefined ? envelope.title : input.title, filename: envelope.filename, pdfBase64: base64(bytes), roles: kept.map((i, k) => ({ ...(envelope.signers[i].visibleDocuments?{visibleDocuments:envelope.signers[i].visibleDocuments}:{}), ...(envelope.signers[i].includeWhen?{includeWhen:envelope.signers[i].includeWhen}:{}), role: names[i] ?? `Signer ${k + 1}`, order: envelope.signers[i].order ?? i + 1, ...(envelope.signers[i].accessCode ? { accessCode: true } : {}), ...(envelope.signers[i].linkOnly ? { linkOnly: true } : {}), ...(envelope.signers[i].message ? { message: envelope.signers[i].message } : {}) })), fields: envelope.fields.filter(f => kept.includes(f.signer)).map(f => ({ ...f, signer: kept.indexOf(f.signer) })), expiryDays: days, reminders: envelope.reminders ?? null, ...(envelope.allowPaper ? { allowPaperSigning: true } : {}), ...(envelope.allowReassign ? { allowReassignment: true } : {}), ...(envelope.subject ? { subject: envelope.subject } : {}), ...(envelope.message ? { message: envelope.message } : {}), ...(envelope.approvalRule ? { approval: envelope.approvalRule } : {}) }, { fromEnvelope: envelope.id }, { artifacts, source:envelope, guard: { sql: 'EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=?)', values: [envelope.id, envelope.version] } })
 }
 
 /** The template's current PDF, for its edit screen. */
@@ -170,7 +172,7 @@ export async function useTemplate(env: Env, context: CommandContext, input: Reco
     insist(!role.accessCode || code !== undefined, `Enter the access code for the ${role.role} role.`)
     insist(role.accessCode || code === undefined, `The ${role.role} role does not use an access code.`)
     // ROUTE-005: a role may be filled by a signing group instead of a person.
-    return { ...(role.includeWhen?{includeWhen:role.includeWhen}:{}), ...(person.group === undefined ? { name: person.name, email: person.email } : { group: person.group }), order: role.order, ...(role.linkOnly ? { linkOnly: true } : {}), ...(code === undefined ? {} : { accessCode: code }), ...(role.message ? { message: role.message } : {}) }
+    return { ...(role.visibleDocuments?{visibleDocuments:role.visibleDocuments}:{}), ...(role.includeWhen?{includeWhen:role.includeWhen}:{}), ...(person.group === undefined ? { name: person.name, email: person.email } : { group: person.group }), order: role.order, ...(role.linkOnly ? { linkOnly: true } : {}), ...(code === undefined ? {} : { accessCode: code }), ...(role.message ? { message: role.message } : {}) }
   })
   const createdAt = now()
   for(const [i] of (template.documents??[]).entries())await verifyTemplateDocument(env,template,i)

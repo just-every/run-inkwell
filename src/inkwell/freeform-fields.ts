@@ -1,3 +1,4 @@
+import { visiblePages } from './document-visibility'
 import { documentFields } from './documents'
 import { normalizeFieldSchema } from './field-rules'
 import { insist, type Envelope, type Field } from './model'
@@ -14,7 +15,8 @@ export function placedFields(envelope: Envelope, signer: number, input: unknown)
     insist(['signature', 'initials', 'date_signed', 'full_name', 'text'].includes(field.type), 'Place only signatures, initials, dates signed, full names or single-line text.')
     insist(typeof field.label === 'string' && !/[\x00-\x1f\x7f]/.test(field.label), 'Name each placed field on one line.')
   }
-  const fields = input.length ? normalizeFieldSchema(input) : []
+  const pages=visiblePages(envelope,signer)
+  const fields = input.length ? normalizeFieldSchema(input.map(field=>{insist(Number.isInteger(field.page)&&pages[field.page]!==undefined,'Place fields only on your visible pages.');const {document:_,documentPage:__,...rest}=field;return {...rest,page:pages[field.page]}})) : []
   const signed = envelope.fields.filter(field => envelope.signers[field.signer]?.signedAt)
   insist(signed.length === envelope.fields.length, 'A free-form envelope cannot contain sender fields.', 409)
   for (const field of fields) {
@@ -23,7 +25,7 @@ export function placedFields(envelope: Envelope, signer: number, input: unknown)
     insist(!signed.some(previous => overlaps(field, previous)), 'A placed field cannot overlap a field already signed.')
     if (field.type === 'signature') field.required = true
   }
-  documentFields(fields,envelope.documents,envelope.signers.length,true)
+  documentFields(fields,envelope.documents,envelope.signers.length,true,[],envelope.signers)
   return fields
 }
 export function overlaps(a: Field, b: Field) { return a.page === b.page && a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y }

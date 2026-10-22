@@ -1,3 +1,4 @@
+import { chooseVisibleDocuments } from './document-visibility'
 import { consumedUploadWrites, readDocuments, documentInputFields, documentFields as mapDocumentFields, documentWrites, stagedBlobWrites } from './documents'
 import { envelopeDefaults } from './envelope-defaults'
 import { normalizeRoutingRule, validateCopyRouting, validateRouting } from './routing'
@@ -51,7 +52,7 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
     insist(!s.linkOnly || !mailSuppressed(env), 'Link-only signing needs mail; while mail is not set up every recipient verifies a code.', 409)
     insist(s.inPerson === undefined || typeof s.inPerson === 'boolean', 'Choose whether each recipient signs in person.')
     const inPerson = s.inPerson ?? (previous?.signers[i]?.email === email && previous.signers[i].inPerson)
-    return { ...(s.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(s.includeWhen)}), ...(group ? groupPlace(group) : { name: text(s.name, 'the signer name', 100), email }), order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
+    return { ...(s.visibleDocuments===undefined?{}:{visibleDocuments:chooseVisibleDocuments(s.visibleDocuments,multiple?.documents.length??1)}), ...(s.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(s.includeWhen)}), ...(group ? groupPlace(group) : { name: text(s.name, 'the signer name', 100), email }), order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
   })
   const addresses = signers.flatMap(s => s.group ? s.group.members.map(m => m.email) : [s.email])
   insist(new Set(addresses).size === addresses.length, 'Each ordered signer must use a different email, and nobody can sign both alone and in a group.')
@@ -65,7 +66,11 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   for (const field of carried ?? []) insist(field.signer < signers.length, `The document places a field for recipient ${field.signer + 1} (${field.name}), but the envelope has ${signers.length}.`)
   const placed = carried ?? documentInputFields(input.fields,multiple?.documents)
   const fields = freeForm ? [] : validateFields(Array.isArray(placed) && placed.every(field => field && typeof field === 'object') ? applyPrefillPayload(placed as Field[], input.prefill, 'this envelope') : placed, signers.length, pageSizes.length), copies = chooseCopies(input.copies, signers.flatMap(s => s.group ? s.group.members : [s]))
-  mapDocumentFields(fields,multiple?.documents,signers.length,freeForm)
+  // Resolve the account's narrowing policy once into the saved sending definition.
+  const visibilityDefaults=defaults??await envelopeDefaults(env)
+  if(visibilityDefaults.hideDocumentsWithoutFields && !freeForm)for(const [i,s] of signers.entries()){const assigned=[...new Set(fields.map(f=>f.signer===i?multiple?.documents.findIndex(d=>f.page>=d.pageStart&&f.page<d.pageStart+d.pages)??0:-1).filter(d=>d>=0))];s.visibleDocuments=(s.visibleDocuments??Array.from({length:multiple?.documents.length??1},(_,n)=>n)).filter(d=>assigned.includes(d))}
+  for(const c of copies){if(c.visibleDocuments!==undefined)c.visibleDocuments=chooseVisibleDocuments(c.visibleDocuments,multiple?.documents.length??1);if(visibilityDefaults.hideDocumentsWithoutFields&&!freeForm)c.visibleDocuments=[]}
+  mapDocumentFields(fields,multiple?.documents,signers.length,freeForm,[],signers)
   validateRouting(signers, fields)
   validateCopyRouting(copies, fields)
   await validatePdfText([...signers, ...copies].flatMap(person=>person.includeWhen?[person.includeWhen.value]:[]))

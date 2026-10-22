@@ -1,3 +1,4 @@
+import { visibleDocumentIndexes } from './document-visibility'
 import { displayFieldValue } from './business-fields'
 import { supplementStatus } from './supplements'
 import { stampEvidence, type StampEvidence } from './stamp-evidence.mjs'
@@ -14,16 +15,20 @@ import { adoptionOf, describeAdoption } from './marks'
  * and in the account's US time zone. An IP address shows as "not recorded" when the request carried none.
  * ROUTE-003: each copy recipient with an include rule, its outcome at completion and whether a copy was queued; `mailed`
  * lists the party indexes that got a completed-copy email. */
-export async function certificatePdf(envelope: Envelope, mailed: number[] = []) {
+export async function certificatePdf(envelope: Envelope, mailed: number[] = [], audience?: {party:number;signedSha256:string}) {
+  const allowed=audience?visibleDocumentIndexes(envelope,audience.party):undefined
+  if(audience){envelope=structuredClone(envelope);envelope.fields=envelope.fields.filter(f=>allowed!.includes(f.document??0));envelope.signedSha256=audience.signedSha256;for(const person of [...envelope.signers,...(envelope.copies??[])])if(person.includeWhen&&!envelope.fields.some(f=>f.id===person.includeWhen!.field)){person.includeWhen={...person.includeWhen,field:'restricted source',value:'restricted'};if(person.routeResult)person.routeResult={state:person.routeResult.state,at:person.routeResult.at}}}
+  const visibleNames=(party:number)=>visibleDocumentIndexes(envelope,party).filter(i=>!allowed||allowed.includes(i)).map(i=>envelope.documents?.[i]?.filename??envelope.filename).join('; ')||'none'
   const declined = envelope.signers.find(s => s.declinedAt), withdrawn = declined?.consentWithdrawn
   const disclosures = [...new Map(envelope.signers.flatMap(s => s.disclosure ? [[s.disclosure.version, s.disclosure.sha256]] : [])).entries()]
   const stamps = await Promise.all(envelope.signers.map((s, i) => s.signedAt ? stampEvidence(envelope.fields.filter(f => f.signer === i), s.values ?? {}) : []))
   const lines = [
     withdrawn ? 'Inkwell consent withdrawal certificate' : declined ? 'Inkwell decline certificate' : 'Inkwell completion certificate',
+    ...(audience?['Recipient document extract; only permitted documents are included. Original SHA-256 identifies the full envelope record.']:[]),
     envelope.title, `Envelope: ${envelope.id}`, ...(envelope.copiedFrom ? [`Copied from envelope: ${envelope.copiedFrom}`] : []),
     `Original SHA-256: ${envelope.originalSha256}`,
     ...(envelope.freeForm ? [`Free-form signing; setting version ${envelope.freeFormSetting?.version}; set by ${envelope.freeFormSetting?.actor} at ${stamp(envelope.freeFormSetting!.at)}`] : []),
-    ...(envelope.documents??[]).flatMap((d,i)=>[`Document ${i+1}: ${d.filename}; ${d.mode}; ${d.pages} page(s)`, `Original document SHA-256: ${d.sha256}`, ...(d.signedSha256?[`Executed document SHA-256: ${d.signedSha256}`]:[])]),
+    ...(envelope.documents??[]).flatMap((d,i)=>allowed&&!allowed.includes(i)?[]:[`Document ${i+1}: ${d.filename}; ${d.mode}; ${d.pages} page(s)`, `Original document SHA-256: ${d.sha256}`, ...(d.signedSha256?[`Executed document SHA-256: ${d.signedSha256}`]:[])]),
     ...(envelope.supplements ?? []).map(s => `Supplemental document: ${s.label}; ${s.pages} page(s); SHA-256 ${s.sha256}; ${s.requirement === 'acknowledge' ? 'acknowledgment required' : 'view required'}; not signed`),
     ...disclosures.map(([version, hash]) => `Electronic record and signature disclosure: version ${version} (SHA-256 ${hash})`),
     ...(declined ? [
@@ -34,14 +39,14 @@ export async function certificatePdf(envelope: Envelope, mailed: number[] = []) 
     'Evidence: each signer\'s authentication below, routing order and explicit signing consent.',
     'This certificate records the application audit trail; it is not a digital seal.', '',
     ...envelope.signers.flatMap((s, i) => [
-      ...(s.group ? groupLines(s.group).map((line, k) => k ? line : `Signer ${i + 1}: ${line}`) : [`Signer ${i + 1}: ${s.name} <${s.email}>`]), `Routing order: ${routingOrder(envelope, i)}`,
+      ...(s.group ? groupLines(s.group).map((line, k) => k ? line : `Signer ${i + 1}: ${line}`) : [`Signer ${i + 1}: ${s.name} <${s.email}>`]), `Routing order: ${routingOrder(envelope, i)}`, ...(envelope.documents?[`Visible documents: ${visibleNames(i)}`]:[]),
       ...envelope.events.filter(e => e.action === 'signer.reassigned' && e.detail.signer === i).map(e => { const from = e.detail.before as { name: string; email: string }, to = e.detail.after as { name: string; email: string }; return `Reassigned at ${stamp(e.at)}: by ${from.name} <${from.email}> to ${to.name} <${to.email}> · Reason: ${e.detail.reason}${client(e)}` }),
       ...inPersonLines(envelope, i), ...authLines(envelope, i), ...(s.accessCode ? [accessLine(envelope, i)] : []),
       ...(s.disclosure ? [`Disclosure ${s.disclosure.version} accepted at: ${stamp(s.disclosure.acceptedAt)}`] : []),
       ...supplementStatus(envelope, i, s.group?.signedBy ?? s.group?.declinedBy).flatMap(doc => [ ...(doc.viewedAt ? [`Supplement opened: ${doc.label} at ${stamp(doc.viewedAt)}`] : []), ...(doc.acknowledgedAt ? [`Supplement acknowledged: ${doc.label} at ${stamp(doc.acknowledgedAt)}; SHA-256 ${doc.sha256}`] : []) ]),
       ...(s.part11?[`Signing reason: ${s.part11.reason}`,`${s.part11.identity?'Verified':'Recorded'} printed name: ${s.part11.name}`,...(s.part11.identity?[`Identity component: ${s.part11.identity.component}`,`Identity verified at ${s.part11.identity.verifiedAt} by ${s.part11.identity.verifiedBy}: ${s.part11.identity.method}`]:[]),`Signature re-authenticated at ${stamp(s.part11.reauthenticatedAt)}: ${s.part11.method}`]:[]),
       ...adoptionLines(envelope, i), ...placedLines(envelope, i), ...stamps[i].map(stampLine),
-      ...(s.paper?.status === 'accepted' ? [`Scan SHA-256: ${s.paper.sha256}`, `Scan: ${s.paper.pages} page(s) appended to the executed PDF; accepted at ${stamp(s.paper.reviewedAt!)}`] : []),
+      ...(s.paper?.status === 'accepted' && (!allowed||visibleDocumentIndexes(envelope,i).every(d=>allowed.includes(d))) ? [`Scan SHA-256: ${s.paper.sha256}`, `Scan: ${s.paper.pages} page(s) appended to the executed PDF; accepted at ${stamp(s.paper.reviewedAt!)}`] : []),
       s.routeResult?.state === 'skipped' ? `Skipped at ${stamp(s.routeResult.at)}: ${s.includeWhen?.field} ${s.includeWhen?.operator} ${s.includeWhen?.value}; result false (source ${s.routeResult.value})` : s.removedAt ? `Not signed: removed by a correction at ${stamp(s.removedAt)}`
         : s.signedAt ? `Signed at: ${stamp(s.signedAt)}${network(envelope, i, ['signer.signed', 'signer.paper_uploaded'])}`
         : s.declinedAt ? `${s.consentWithdrawn ? 'Consent withdrawn' : 'Declined'} at: ${stamp(s.declinedAt)} · Reason: ${s.declineReason}${network(envelope, i, ['signer.declined', 'signer.consent_withdrawn'])}`
@@ -49,10 +54,11 @@ export async function certificatePdf(envelope: Envelope, mailed: number[] = []) 
         : `Not signed: never invited after the ${withdrawn ? 'withdrawal' : 'decline'}`,
       '',
     ]),
+    ...(envelope.copies ?? []).flatMap((c,k)=>envelope.documents?[`Copy recipient ${k+1}: ${c.name} <${c.email}>`, `Visible documents: ${visibleNames(envelope.signers.length+k)}`]:[]),
     ...(envelope.copies ?? []).flatMap((c, k) => c.includeWhen && c.routeResult ? [`Copy recipient ${k + 1}: ${c.name} <${c.email}>`, copyRouteLine(c.includeWhen, c.routeResult, mailed.includes(envelope.signers.length + k)), ''] : []),
     ...envelope.events.flatMap(e => [`${stamp(e.at)} ${e.action}`, `Actor: ${e.actor}`, `Event hash: ${e.hash}`]),
   ]
-  const document = await PDFDocument.create(), font = await document.embedFont(StandardFonts.Helvetica)
+  const document = await PDFDocument.create(audience?{updateMetadata:false}:{}), font = await document.embedFont(StandardFonts.Helvetica)
   let page = document.addPage([595, 842]), y = 790
   for (const line of lines) {
     encodable(font, line)

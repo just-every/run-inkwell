@@ -1,5 +1,11 @@
 /** Document definitions are fixed by the prepared/updated event; completion binds all executed fingerprints. */
 export function validDocumentRecord(e,canonical) {
+ const count=e.documents?.length??1,valid=v=>v===undefined||Array.isArray(v)&&new Set(v).size===v.length&&v.every(i=>Number.isInteger(i)&&i>=0&&i<count);
+ if([...(e.signers??[]),...(e.copies??[])].some(s=>!valid(s.visibleDocuments)))return false;
+ if((e.fields??[]).some(f=>e.signers[f.signer]?.visibleDocuments&&!e.signers[f.signer].visibleDocuments.includes(f.document??0)))return false;
+ const prepared=e.events.findLast(event=>['envelope.prepared','envelope.updated'].includes(event.action));
+ // Restrictions on existing places are fixed by approval, including identity corrections/reassignment.
+ for(const [i,s] of (prepared?.detail.orderedSigners??[]).entries())if(canonical(s.visibleDocuments??null)!==canonical(e.signers[i]?.visibleDocuments??null))return false;
  if(!e.documents)return !e.events.some(event=>event.action==='envelope.prepared'&&event.detail.documents);
  const documents=e.documents,last=e.events.findLast(event=>['envelope.prepared','envelope.updated'].includes(event.action));
  const definition=documents.map(({signedSha256,...d})=>d);
