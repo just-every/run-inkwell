@@ -19,10 +19,19 @@ export async function templateComposition() {
   const field=(id,label,type,page=0)=>({id,label,type,signer:0,page,x:.1,y:type==='signature'?.7:.55,width:.65,height:.05})
   for(const width of [1440,390]){
    const context=await app.browser.newContext({viewport:{width,height:width===390?844:1000}});await context.addCookies([app.ownerCookie()]);const owner=await context.newPage();owner.setDefaultTimeout(20000)
-   const capture=async(page,state)=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${width} ${state}: no horizontal overflow`);for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await page.evaluate(()=>{document.documentElement.getBoundingClientRect();for(const animation of document.getAnimations())if(animation.effect?.getTiming().iterations!==Infinity)animation.finish()});await axe(page,`composition ${width} ${state} ${theme}`);await page.screenshot({path:`${images}/composition-${width}-${state}-${theme}.png`})}await page.emulateMedia({colorScheme:'light'});await owner.getByRole('button',{name:'Templates',exact:true}).click()
+   const capture=async(page,state)=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${width} ${state}: no horizontal overflow`);for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await page.evaluate(()=>{document.documentElement.getBoundingClientRect();for(const animation of document.getAnimations())if(animation.effect?.getTiming().iterations!==Infinity)animation.finish()});await axe(page,`composition ${width} ${state} ${theme}`);await page.screenshot({path:`${images}/composition-${width}-${state}-${theme}.png`})}await page.emulateMedia({colorScheme:'light'})}
+   const titles=[`Harbour NDA ${width}`,`Harbour W9 ${width}`,`Harbour delivery ${width}`]
+   const source=(title,bytes,order,fields,extra={})=>({title,filename:title.replaceAll(' ','-')+'.pdf',pdfBase64:bytes.toString('base64'),roles:[{role:'Client',order}],fields,expiryDays:30,reminders:{afterDays:2,everyDays:3},...extra})
+   const ndaInput=source(titles[0],nda,1,[field('signature','NDA signature','signature'),field('contact','Confidentiality contact','text')])
+   const w9Input=source(titles[1],await w9Pdf(),1,[field('signature','W9 signature','signature',1),field('tin','Taxpayer identifier','text')],{roles:[{role:'Client',order:1,sms:true}],expiryDays:45,reminders:{afterDays:5,everyDays:7}})
+   const a=await app.command('template.save',ndaInput),b=await app.command('template.save',w9Input),c=await app.command('template.save',source(titles[2],later,2,[field('signature','Delivery signature','signature')]))
+   const revision=await app.command('template.update',{id:b.id,...w9Input,message:'Please review your taxpayer certification.'})
+   await owner.goto(app.origin+'/app');await owner.getByRole('button',{name:'Templates',exact:true}).click()
    for(const title of titles){const checkbox=owner.getByRole('checkbox',{name:`Select ${title} for combination`,exact:true});await tabTo(owner,checkbox);await owner.keyboard.press('Space');await expect(checkbox).toBeChecked()}
-   await capture(owner,'selected-templates');await owner.getByRole('button',{name:'Combine selected templates',exact:true}).click();await expect(preview).toContainText('2 roles');await expect(preview).toContainText('expires after 30 days');await expect(preview).toContainText('reminders after 2, then every 3');await expect(preview).toContainText('remains separate recipients');assert.ok((await preview.ariaSnapshot()).includes('Selected: SMS code'),'the accessibility tree exposes the stricter identity proposal')
-   
+   await capture(owner,'selected-templates');await owner.getByRole('button',{name:'Combine selected templates',exact:true}).click()
+   const preview=owner.getByRole('region',{name:'Composition preview',exact:true}),ready=()=>expect(owner.getByRole('button',{name:'Prepare combined envelope',exact:true})).toBeEnabled()
+   await ready();await expect(preview).toContainText('2 roles');await expect(preview).toContainText('expires after 30 days');await expect(preview).toContainText('reminders after 2, then every 3')
+   await expect(preview).toContainText('Proposed: SMS code');await expect(preview).toContainText('remains separate recipients');assert.ok((await preview.ariaSnapshot()).includes('Selected: SMS code'),'the accessibility tree exposes the stricter identity proposal')
    // Order changes re-preview and keep first-source settings as the default until the sender explicitly chooses otherwise.
    await owner.getByRole('button',{name:`Move ${titles[1]} up`,exact:true}).click();await ready();await expect(preview).toContainText('expires after 45 days')
    await owner.getByRole('button',{name:`Move ${titles[0]} up`,exact:true}).click();await ready();await expect(preview).toContainText('expires after 30 days')
@@ -64,6 +73,6 @@ export async function templateComposition() {
    await certificate.destroy();await first.ctx.close();await second.ctx.close();await context.close()
   }
   console.log(`Template composition passed at 1440/390: merged and distinct orders, settings and identity choices, extra PDF, complete signing, source versions, keyboard and light/dark accessibility. Screens: ${images}`)
- }catch(error){console.error(error);await screenshots(app.browser,'template-composition');throw error}finally{await app.close()}
+ }catch(error){await screenshots(app.browser,'template-composition');throw error}finally{await app.close()}
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)await templateComposition()
