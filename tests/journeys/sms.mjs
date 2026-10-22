@@ -20,7 +20,7 @@ export async function smsJourney(){
    const owner=await context.newPage();owner.setDefaultTimeout(20000)
    const capture=async(page,state)=>{
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${width} ${state}: no sideways scroll`)
-    for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await axe(page,`SMS ${state} ${width} ${theme}`)}
+    for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await page.evaluate(()=>{document.documentElement.getBoundingClientRect();for(const animation of document.getAnimations())if(animation.effect?.getTiming().iterations!==Infinity)animation.finish()});await axe(page,`SMS ${state} ${width} ${theme}`)}
     await page.emulateMedia({colorScheme:'light'});await page.screenshot({path:join(images,`${width}-${state}.png`),fullPage:true})
    }
    const record=async()=>(await app.call('/api/inkwell/envelopes/'+id,{cookie:app.owner})).value.envelope
