@@ -1143,3 +1143,23 @@ test('Composition preparation refuses inaccessible sources and a source definiti
  assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM iw_envelopes').first()).n,before,'a stale source cannot leave a partially prepared envelope')
  assert.equal(JSON.parse((await h.db.prepare('SELECT data FROM iw_templates WHERE id=?').bind(first).first()).data).title,'Synthetic changed during preparation','the competing source change happened')
 })
+
+test('Composed source custody survives copy, draft editing and archive restore; a changed pinned version refuses verification and restore',async()=>{
+ const local=await harness(),read=async(id,app=local)=>(await app.send('/api/inkwell/envelopes/'+id,undefined,app.owner)).value.envelope
+ try {
+  const ids=[];for(const title of ['Harbour source NDA','Harbour source W9'])ids.push((await local.command('template.save',compositionInput(title))).result.id)
+  const id=(await local.command('template.combine',{ids,recipients:[{name:'Mara Quinn',email:'mara.custody@harbour.example'}]})).result.id,initial=await read(id)
+  await local.command('envelope.approve',{id,eligible:true})
+  const copy=(await local.command('envelope.copy',{id})).result.id,draft=await read(copy)
+  assert.deepEqual(draft.templates,initial.templates);assert.ok(draft.signers.every(s=>!s.signedAt))
+  await local.command('envelope.update',{id:copy,title:'Harbour copied onboarding',filename:draft.filename,signers:draft.signers,fields:draft.fields,documents:draft.documents.map((d,existing)=>({existing,mode:d.mode,visibleTo:d.visibleTo})),expiresAt:draft.expiresAt})
+  const edited=await read(copy);assert.deepEqual(edited.templates,initial.templates);assert.equal(edited.originalSha256,initial.originalSha256)
+  assert.equal((await local.send('/api/inkwell/envelopes/'+copy+'/verify',undefined,local.owner)).value.ok,true)
+  const archive=(await local.send('/api/inkwell/archive',undefined,local.owner)).value,restored=await harness({mailProvider:null})
+  try{await restored.post('/api/inkwell/archive/restore',{archive});assert.deepEqual((await read(copy,restored)).templates,initial.templates);assert.equal((await restored.send('/api/inkwell/envelopes/'+copy+'/verify',undefined,restored.owner)).value.ok,true)}finally{await restored.close()}
+  edited.templates[1].version++;await local.db.prepare('UPDATE iw_envelopes SET data=? WHERE id=?').bind(JSON.stringify(edited),copy).run()
+  assert.equal((await local.send('/api/inkwell/envelopes/'+copy+'/verify',undefined,local.owner)).value.ok,false)
+  const damaged=(await local.send('/api/inkwell/archive',undefined,local.owner)).value,rejected=await harness({mailProvider:null})
+  try{await rejected.post('/api/inkwell/archive/restore',{archive:damaged},rejected.owner,400);assert.equal((await rejected.send('/api/inkwell/envelopes/'+copy,undefined,rejected.owner)).status,404)}finally{await rejected.close()}
+ }finally{await local.close()}
+})
