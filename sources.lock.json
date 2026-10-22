@@ -51,7 +51,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "a06c7d24a47e866c6ce1986aa58d1359d183fb28235cc72bcf5a9e6f2991a0a5",
+      "sha256": "7264207b3533db71b996e3a3b7108072dfa1527e6368e8acc2edea337641b81d",
       "executable": false
     },
     ".gitignore": {
