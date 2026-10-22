@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "871576cc3ad4f86176b6af3b652acc54b82130165022d6a704d53a33a23f5781",
+      "sha256": "2f84b1767fde99e60f97f26b1505046398f98313f9e56217eb5ed8eb971055d5",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "3037ab97376ca4eb968b1b5c0285272631465d33ef733d9857eb10beb99768f6",
+      "sha256": "00505e5c6c58f171abf29eccb7342ac3ab6385cd744aa3647ab7b77e9100196e",
       "executable": false
     },
     "DEMO.md": {
@@ -136,6 +136,14 @@
     },
     "docs/overview.md": {
       "sha256": "0dd92b3bb8f5e5a5281d7b4b4e9ec334c6d8e3ae8dadecc54828dd2ce952da05",
+      "executable": false
+    },
+    "docs/part11/README.md": {
+      "sha256": "466c970d70caa9ac7e53c5192c28749eb362cec2b4e4ff07bdc58cddacb53606",
+      "executable": false
+    },
+    "docs/part11/traceability.md": {
+      "sha256": "0ed996dbd1a7493f6d961be8faea502743fce27b370e69eb1419117f17ea41c9",
       "executable": false
     },
     "docs/provenance.md": {
@@ -592,6 +600,10 @@
     },
     "scripts/operations-config.mjs": {
       "sha256": "decbd8619e40c741708b49639d54282bd19edc4581a782b240d96a423ad47f01",
+      "executable": false
+    },
+    "scripts/qualify-part11.mjs": {
+      "sha256": "6c9b2b7a9d379515ee6a15994c0d3cf9f11098dc05fb753ec837aefcf7f85b1b",
       "executable": false
     },
     "SEED-COMMAND-CONTRACT.md": {
