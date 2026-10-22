@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { command, dateTime, type SendPolicy, type SendPolicyVersion } from './types'
 import { ErrorNotice, useAction } from './feedback'
 
@@ -25,11 +25,12 @@ function PolicyRow({ policy, templates, refresh }: { policy: SendPolicy; templat
   const listed = [...templates, ...(policy.templates ?? []).filter(id => !templates.some(template => template.id === id)).map(id => ({ id, title: `Unavailable template (${id})` }))]
   const templateList = allTemplates ? null : selected
   const templatesChanged = policy.source !== 'ad_hoc' && (templateList === null ? policy.templates !== null : policy.templates === null || templateList.length !== policy.templates.length || templateList.some(id => !policy.templates!.includes(id)))
-  const templatesControl=useRef<HTMLInputElement>(null)
+  const templatesControl=useRef<HTMLInputElement>(null), [recoverTemplates,setRecoverTemplates]=useState(false)
   const action = useAction(), name = names[policy.source], changed = mode !== policy.mode || approval !== policy.requireInternalApproval || deferred !== policy.deferredRelease || templatesChanged || Boolean(reason.trim())
+  useEffect(()=>{if(recoverTemplates&&!action.busy){templatesControl.current?.focus();setRecoverTemplates(false)}},[recoverTemplates,action.busy])
   return <form className="iw-stack" aria-label={name} onSubmit={event => { event.preventDefault(); void action.run(async () => {
     if (policy.source === 'web_form' && mode !== 'off' && (templateList === null || templateList.length === 0)) {
-      templatesControl.current?.focus()
+      setRecoverTemplates(true)
       throw new Error('Choose at least one selected template before enabling web form sends.')
     }
     await command('account.send_policy', { source: policy.source, mode, requireInternalApproval: approval, deferredRelease: deferred, ...(templatesChanged ? { templates: templateList } : {}), reason: reason.trim() || null, expectedVersion: policy.version }); await refresh()

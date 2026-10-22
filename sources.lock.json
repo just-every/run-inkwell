@@ -3235,7 +3235,7 @@
       "executable": false
     },
     "src/ui/send-policies.tsx": {
-      "sha256": "a84508518c36fd0fea920c9c0b7cbfeea30fbb22386b8d7c0b382b6b654d6426",
+      "sha256": "e6d609537b9ae2219aea3cf95d03e83a255db722f99dca6776f42e1f0bd7bf33",
       "executable": false
     },
     "src/ui/shell.tsx": {
