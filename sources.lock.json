@@ -1059,7 +1059,7 @@
       "executable": false
     },
     "src/inkwell/part11-record.mjs": {
-      "sha256": "078376f37615d6a180726d70c839fad667d424d853e627c9a8692bd7e5c5d391",
+      "sha256": "012ab7b98f2026815f9b11f3ba1f393b0352a25ffc4b31563f8a1152a73560ca",
       "executable": false
     },
     "src/inkwell/pdf-layout.ts": {
@@ -3199,7 +3199,7 @@
       "executable": false
     },
     "src/ui/part11-settings.tsx": {
-      "sha256": "e3cfadf25021f54c272d42b46b07c2a239444c4c7e82fc28c2e5515482cd9d68",
+      "sha256": "b18071e623a271094e765444e1868c13175cd376f15cfc365fb11863b3b2eecb",
       "executable": false
     },
     "src/ui/part11.tsx": {
