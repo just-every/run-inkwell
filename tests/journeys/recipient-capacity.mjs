@@ -17,7 +17,7 @@ try {
   await h.post(path+'/sign',{values:{[`sig-${i}`]:signers[i].name},consent:true,commandId:crypto.randomUUID()},cookie)
  }
  const e=(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
- assert.equal(e.status,'completed');assert.equal(e.signers.filter(s=>s.signedAt).length,100);assert.equal(h.sent(),0);assert.equal((await h.send('/api/inkwell/envelopes/'+id+'/verify',undefined,h.owner)).value.ok,true)
+ assert.equal(e.status,'completed');assert.equal(e.signers.filter(s=>s.signedAt).length,100);assert.equal(h.sent(),0);const verification=(await h.send('/api/inkwell/envelopes/'+id+'/verify',undefined,h.owner)).value;assert.equal(verification.ok,true,JSON.stringify(verification))
  const executed=await h.send('/api/inkwell/envelopes/'+id+'/artifacts/signed',undefined,h.owner);assert.equal(executed.status,200);assert.equal((await PDFDocument.load(executed.bytes)).getPageCount(),5)
  console.log('PASS: 100 recipients completed through authenticated HTTP doors, exactly 100 own-field sessions; 101st recipient and over-cap copy refused; executed five-page PDF and custody verified.')
 }finally{await h.close()}
