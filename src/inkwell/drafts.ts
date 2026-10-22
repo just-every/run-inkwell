@@ -1,3 +1,4 @@
+import { smsIdentity, smsReady } from './sms'
 import { recipientRole, witnessRule, validateRoleFields, validateRecipientCount } from './recipient-roles'
 import { validateDocumentAudience } from './document-visibility'
 import { consumedUploadWrites, readDocuments, documentInputFields, documentFields as mapDocumentFields, documentWrites, stagedBlobWrites } from './documents'
@@ -24,7 +25,7 @@ export type Draft = Pick<Envelope, 'part11' | 'documents' | 'freeForm' | 'title'
 const optional = (value: unknown, label: string, max: number, oneLine = false) => { if (value === undefined || value === '') return undefined; const result = text(value, label, max); insist(!oneLine || !/[\r\n\t]/.test(result), `Use a single line for ${label}.`); return result }
 /** `previous` is the draft being saved again: a recipient at the same place with the same email may keep their access
  * code (`keepAccessCode`), which is bound to that place. */
-export async function readDraft(env: Env, input: Record<string, unknown>, base: string, previous?: Envelope, actor?: Actor, prepared?:{bytes:Uint8Array;documents:NonNullable<Envelope['documents']>}) {
+export async function readDraft(env: Env, input: Record<string, unknown>, base: string, previous?: Envelope, actor?: Actor, prepared?:{bytes:Uint8Array;documents:NonNullable<Envelope['documents']>;composition?:true}) {
   const defaults = previous ? undefined : await envelopeDefaults(env)
   const title = text(input.title, 'a title'), filename = text(input.filename ?? (input.documents ? 'combined.pdf' : undefined), 'a filename', 240)
   insist(!/[\x00-\x1f/\\]/.test(filename) && filename.toLowerCase().endsWith('.pdf'), 'Choose a PDF filename.')
@@ -56,10 +57,13 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
     insist(!group || role === 'signer', 'A signing group fills a signer role.')
     insist(!inPerson || role === 'signer', 'In-person recipients sign their own signature.')
     insist(!witnesses?.linkOnly || !mailSuppressed(env), 'Link-only witnesses need mail.')
-    return { ...(role !== 'signer' ? { role } : {}), ...(witnesses ? { witnesses } : {}), ...(s.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(s.includeWhen)}), ...(group ? groupPlace(group) : { name: text(s.name, 'the signer name', 100), email }), order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
+    const sms = smsIdentity({sms:s.sms,phone:s.phone,linkOnly:s.linkOnly,inPerson,group:s.group},previous?.signers[i])
+    insist(!sms.sms || smsReady(env), 'SMS delivery is not configured. Ask the owner to configure Twilio.',503)
+    return { ...sms, ...(role !== 'signer' ? { role } : {}), ...(witnesses ? { witnesses } : {}), ...(s.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(s.includeWhen)}), ...(group ? groupPlace(group) : { name: text(s.name, 'the signer name', 100), email }), order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
   })
   const addresses = signers.flatMap(s => s.group ? s.group.members.map(m => m.email) : [s.email])
-  insist(new Set(addresses).size === addresses.length, 'Each ordered signer must use a different email, and nobody can sign both alone and in a group.')
+  const places = signers.flatMap(s => s.group ? s.group.members.map(m => m.email) : [prepared?.composition || previous?.templates ? `${s.email}:${s.order}` : s.email])
+  insist(new Set(places).size === places.length && !signers.some(s=>s.group?.members.some(m=>signers.some(other=>other!==s&&!other.group&&other.email===m.email))), 'Each ordered signer must use a different email, and nobody can sign both alone and in a group.')
   // PREP-007: with no fields given, the document's own text tags, the caller's anchors and its form fields are the fields;
   // a prefill map fills them by field ID or by the document's own field name.
   insist(input.fields === undefined || input.anchors === undefined, 'Give either fields or anchors to place them, not both.')
@@ -105,7 +109,7 @@ export async function updateDraft(env: Env, context: CommandContext, input: Reco
   // ROUTE-004: a draft waiting for internal approval is locked; a rejected one keeps its rejection until it is sent again.
   insist(before.internalApproval?.state !== 'pending', 'This envelope is waiting for internal approval and cannot be edited.', 409)
   const { draft, bytes, accessCodes, originals } = await readDraft(env, input, now(), before, context.actor)
-  const after: Envelope = { id: before.id, version: before.version, status: 'prepared', createdAt: before.createdAt, createdBy: before.createdBy, ...(before.sendHold ? { sendHold: before.sendHold } : {}), ...(before.template ? { template: before.template } : {}), ...(before.copiedFrom ? { copiedFrom: before.copiedFrom } : {}), ...(before.approvalRule ? { approvalRule: before.approvalRule } : {}), ...(before.internalApproval ? { internalApproval: before.internalApproval } : {}), events: structuredClone(before.events), ...(before.supplements ? { supplements: structuredClone(before.supplements) } : {}), ...draft }
+  const after: Envelope = { id: before.id, version: before.version, status: 'prepared', createdAt: before.createdAt, createdBy: before.createdBy, ...(before.sendHold ? { sendHold: before.sendHold } : {}), ...(before.template ? { template: before.template } : {}), ...(before.templates ? { templates: structuredClone(before.templates) } : {}), ...(before.approvalRules ? { approvalRules: structuredClone(before.approvalRules) } : {}), ...(before.copiedFrom ? { copiedFrom: before.copiedFrom } : {}), ...(before.approvalRule ? { approvalRule: before.approvalRule } : {}), ...(before.internalApproval ? { internalApproval: before.internalApproval } : {}), events: structuredClone(before.events), ...(before.supplements ? { supplements: structuredClone(before.supplements) } : {}), ...draft }
   await appendEvent(after, 'envelope.updated', context.actor.id, draftDetail(draft))
   const result = { id: after.id }
   await commitEnvelope(env, before, after, context.actor, [

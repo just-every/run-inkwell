@@ -1078,3 +1078,65 @@ test('PREP-004: conditional required fields disappear without printing; USD calc
   const template=(await h.command('template.from_envelope',{id})).result.id,fromTemplate=(await h.command('template.use',{id:template,recipients:[{name:'New client',email:'new@clients.example'}]})).result.id;assert.deepEqual((await stored(fromTemplate)).fields,e.fields,'template keeps every rule')
  }
 })
+
+// TMPL-004: these fixtures enter through template and composition commands; all signing uses recipient HTTP sessions.
+const compositionInput = (title, order = 1, identity = 'email') => ({
+ title, filename: title.replace(/ /g,'-')+'.pdf', pdfBase64: Buffer.from(original).toString('base64'),
+ roles: [{ role: 'Client', order, ...(identity === 'sms' ? { sms: true } : identity === 'link' ? { linkOnly: true } : {}) }],
+ fields: [{...fields[0],id:'signature',signer:0},{id:'reference',label:'Client reference',type:'text',signer:0,page:0,x:.1,y:.4,width:.6,height:.05}],expiryDays:30,
+})
+test('Combined NDA and W9 merge one Client session, retain both document fields and record every pinned source version',async()=>{
+ const ndaInput=compositionInput('Synthetic NDA'),w9Input=compositionInput('Synthetic W9')
+ const nda=(await h.command('template.save',ndaInput)).result,w9=(await h.command('template.save',w9Input)).result
+ const revised=(await h.command('template.update',{id:w9.id,...w9Input,message:'Updated W9 invitation'})).result
+ const ids=[nda.id,w9.id],preview=(await h.post('/api/inkwell/templates/compose-preview',{ids},h.owner)).value
+ assert.equal(preview.roles.length,1);assert.equal(preview.roles[0].sources.length,2);assert.equal(preview.documents.length,2)
+ const person={name:'Synthetic Client',email:'synthetic-composition-client@clients.example'}
+ const id=(await h.command('template.combine',{ids,recipients:[person]})).result.id,e=await stored(id)
+ assert.equal(e.signers.length,1);assert.equal(e.documents.length,2)
+ assert.deepEqual(e.templates,[{id:nda.id,title:ndaInput.title,version:nda.version},{id:w9.id,title:w9Input.title,version:revised.version}])
+ assert.equal(new Set(e.fields.map(f=>f.id)).size,e.fields.length,'source field IDs are namespaced rather than overwritten')
+ for(let document=0;document<2;document++)assert.ok(e.fields.some(f=>f.document===document&&f.type==='signature'&&f.signer===0),'the one recipient owns both signatures')
+ await h.command('envelope.approve',{id,eligible:true})
+ const session=await verified(person.email),view=(await h.send(session.path,undefined,session.cookie)).value
+ assert.equal(view.documents.length,2);assert.equal(view.fields.length,e.fields.length)
+ const values=Object.fromEntries(view.fields.map(f=>[f.id,f.type==='signature'?person.name:`Reference for document ${f.document+1}`]))
+ await h.post(session.path+'/sign',{values,consent:true,commandId:crypto.randomUUID()},session.cookie)
+ const completed=await stored(id);assert.equal(completed.status,'completed');assert.ok(completed.documents.every(d=>d.signedSha256))
+ const cert=await pdfText((await h.send(`/api/inkwell/envelopes/${id}/artifacts/certificate`,undefined,h.owner)).bytes)
+ for(const source of e.templates){assert.ok(cert.includes(source.title),'certificate names each source');assert.match(cert,new RegExp(source.title+'[^\\n]*'+source.version),'certificate associates the pinned version with its source')}
+ assert.equal((await h.send(`/api/inkwell/envelopes/${id}/verify`,undefined,h.owner)).value.ok,true)
+})
+
+test('Composition previews preserve Client at distinct orders and propose the stricter identity before an explicit email choice',async()=>{
+ const a=(await h.command('template.save',compositionInput('Synthetic email source'))).result.id
+ const b=(await h.command('template.save',compositionInput('Synthetic SMS source',1,'sms'))).result.id
+ const later=(await h.command('template.save',compositionInput('Synthetic later source',2))).result.id
+ const ids=[a,b,later],preview=(await h.post('/api/inkwell/templates/compose-preview',{ids},h.owner)).value
+ const first=preview.roles.find(r=>r.order===1),second=preview.roles.find(r=>r.order===2)
+ assert.equal(preview.roles.length,2);assert.equal(first.role,second.role);assert.notEqual(first.key,second.key)
+ assert.equal(first.sources.length,2);assert.equal(second.sources.length,1);assert.equal(first.identity,'sms')
+ assert.ok(preview.conflicts.some(c=>c.kind==='order'));assert.ok(preview.conflicts.some(c=>c.kind==='identity'&&c.proposed==='sms'&&c.selected==='sms'))
+ const choices={identity:{[first.key]:'email'}},chosen=(await h.post('/api/inkwell/templates/compose-preview',{ids,choices},h.owner)).value
+ assert.equal(chosen.roles.find(r=>r.key===first.key).identity,'email')
+ const person={name:'Synthetic repeat client',email:'synthetic-composition-orders@clients.example'}
+ const id=(await h.command('template.combine',{ids,choices,recipients:[person,person]})).result.id,prepared=await stored(id)
+ assert.equal(prepared.signers.length,2);assert.deepEqual(prepared.signers.map(s=>s.order),chosen.roles.map(r=>r.order));assert.ok(prepared.signers.every(s=>!s.sms))
+ assert.equal(prepared.documents.length,3)
+})
+
+test('Composition preparation refuses inaccessible sources and a source definition changed while document bytes are staged',async()=>{
+ const first=(await h.command('template.save',compositionInput('Synthetic guarded source'))).result.id
+ const second=(await h.command('template.save',compositionInput('Synthetic private source'))).result.id
+ const outsider=await sender('synthetic-composition-outsider@harbour.example'),ids=[first,second]
+ await h.command('template.share',{id:first,email:'synthetic-composition-outsider@harbour.example',access:'use'})
+ await h.post('/api/inkwell/templates/compose-preview',{ids},outsider.cookie,404)
+ const recipients=[{name:'Synthetic guarded client',email:'synthetic-guarded-client@clients.example'}]
+ await h.command('template.combine',{ids,recipients},outsider.cookie,404)
+ const before=(await h.db.prepare('SELECT COUNT(*) AS n FROM iw_envelopes').first()).n
+ // A real D1 trigger schedules the competing definition change during the command's staging writes, before its insert batch.
+ await h.db.exec(`CREATE TRIGGER synthetic_composition_race AFTER INSERT ON iw_blob_staging BEGIN UPDATE iw_templates SET data=json_set(data,'$.title','Synthetic changed during preparation') WHERE id='${first}'; END`)
+ try{await h.command('template.combine',{ids,recipients},h.owner,409)}finally{await h.db.exec('DROP TRIGGER synthetic_composition_race')}
+ assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM iw_envelopes').first()).n,before,'a stale source cannot leave a partially prepared envelope')
+ assert.equal(JSON.parse((await h.db.prepare('SELECT data FROM iw_templates WHERE id=?').bind(first).first()).data).title,'Synthetic changed during preparation','the competing source change happened')
+})

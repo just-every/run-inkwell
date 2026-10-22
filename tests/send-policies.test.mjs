@@ -329,3 +329,32 @@ test('SEND-001: template edits, deletion and policy revisions hold deferred send
     assert.ok(await h.mail('scheduled.template@clients.example', 'Please sign:'))
   } finally { await h.close() }
 })
+
+test('Combined templates: every source approval, allowlist entry and live revision fences the frozen sending definition', async () => {
+ const h=await harness()
+ try {
+  const ada=await h.invite('ada.composition@harbour.example','admin'), ben=await h.invite('ben.composition@harbour.example','admin')
+  const actor=async cookie=>(await h.send('/api/inkwell',undefined,cookie)).value.actor.id
+  const definition=async(title,approver)=>({title,filename:'agreement.pdf',pdfBase64:await pdfBase64(),roles:[{role:'Client',order:1}],fields:[field],expiryDays:30,approval:{approver}})
+  const first=await definition('Harbour NDA',await actor(ada)),second=await definition('Harbour W-9',await actor(ben))
+  const a=(await h.command('template.save',first)).result.id,b=(await h.command('template.save',second)).result.id
+  const combine=async()=> (await h.command('template.combine',{ids:[a,b],recipients:[{name:'Mara Quinn',email:'mara.composition@harbour.example'}]})).result.id
+  const id=await combine(),frozen=await read(h,id)
+  await set(h,'template',{templates:[a]})
+  await h.command('envelope.approve',{id,eligible:true},h.owner,403)
+  await set(h,'template',{templates:[a,b]})
+  await h.command('envelope.approve',{id,eligible:true})
+  const pending=await read(h,id);assert.equal(pending.internalApproval.steps.length,2);assert.equal(h.attempted().filter(m=>m.to.includes('mara.composition@harbour.example')).length,0)
+  await h.command('envelope.internal_decide',{id,decision:'approve'},ada)
+  await h.command('template.update',{id:b,...second,title:'Harbour W-9 revised'})
+  await h.command('envelope.internal_decide',{id,decision:'approve'},ben)
+  const held=await read(h,id);assert.ok(heldBy(held));assert.equal(held.status,'prepared');assert.equal(held.originalSha256,frozen.originalSha256);assert.deepEqual(held.templates,frozen.templates);assert.deepEqual(held.approvalRules,frozen.approvalRules)
+  await h.command('envelope.approve',{id,eligible:true})
+  await h.command('envelope.internal_decide',{id,decision:'approve'},ada)
+  await h.command('envelope.internal_decide',{id,decision:'approve'},ben)
+  assert.equal((await read(h,id)).status,'awaiting_signature');assert.equal((await read(h,id)).originalSha256,frozen.originalSha256)
+  const scheduled=await combine();await h.command('envelope.approve',{id:scheduled,eligible:true,sendAt:schedule()});await h.command('envelope.internal_decide',{id:scheduled,decision:'approve'},ada);await h.command('envelope.internal_decide',{id:scheduled,decision:'approve'},ben)
+  const before=await read(h,scheduled);await h.command('template.remove',{id:b});await h.scheduled(new Date(Date.parse(before.scheduled.at)+1000))
+  const stopped=await read(h,scheduled);assert.ok(heldBy(stopped));assert.equal(stopped.status,'prepared');assert.deepEqual(stopped.templates,before.templates);assert.equal(stopped.originalSha256,before.originalSha256)
+ }finally{await h.close()}
+})

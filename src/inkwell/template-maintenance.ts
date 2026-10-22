@@ -37,7 +37,7 @@ async function candidates(env: Env, actor: Actor, templateId: string) {
   const before: Definition = { fields: [...template.fields].sort((a, b) => a.id.localeCompare(b.id)), roles: template.roles, originalSha256: template.originalSha256 }
   for (const row of rows) {
     const envelope = JSON.parse(row.data) as Envelope, prepared = envelope.events[0]
-    if (envelope.imported || (prepared.detail.template as { version?: number })?.version !== versionOf(template) || await envelopeAccess(env, actor, envelope) === 'none') continue
+    if (envelope.imported || envelope.templates || (prepared.detail.template as { version?: number })?.version !== versionOf(template) || await envelopeAccess(env, actor, envelope) === 'none') continue
     const correction = envelope.events.findLast(event => ['envelope.updated', 'envelope.corrected', 'signer.corrected', 'signer.added', 'signer.removed'].includes(event.action))
     if (!correction) continue
     const initial = prepared.detail.fields as Field[], initialSigners = prepared.detail.orderedSigners as Signer[]

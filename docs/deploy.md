@@ -49,3 +49,23 @@ three bindings are present; this is configuration readiness, not DNS verificatio
 or a claim of mailbox delivery. Replies to invitations sent before follow-up was
 enabled cannot be read. Sender-approved follow-up uses fixed messages and the
 installation's ordinary outbound mail adapter; no model processes reply text.
+
+### SMS verification
+
+For SMS codes and sender-selected SMS resends, configure `TWILIO_ACCOUNT_SID`,
+`TWILIO_AUTH_TOKEN` and `TWILIO_FROM` in the installation's Worker secrets. Use the
+buyer's Twilio account and a registered sender with permission to message the
+recipient's US mobile number. These settings are installation state and stay out
+of archives. Choose **SMS code** per recipient or template role and enter the
+recipient's mobile number when preparing the envelope. Codes expire after ten
+minutes, allow five attempts, and requests are spaced by a minute.
+
+To accept replies to explicitly granted SMS follow-up, configure the sender's
+incoming-message webhook to POST form data to
+`https://<your-installation>/api/inkwell/sms/replies`. Inkwell verifies Twilio's
+signature against its configured origin, account and sender, rejects replays,
+and requires the reply code included in the follow-up message. Replies remain
+private envelope custody. Selecting SMS in a follow-up grant binds the current
+saved numbers; correcting a number requires a new grant. Provider acceptance is
+shown separately from delivery confirmation; an uncertain send is never retried
+automatically.

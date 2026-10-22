@@ -1,3 +1,5 @@
+import { smsWrite, dispatchSms, smsReady } from './sms'
+import { smsReplyCapability } from './sms-replies'
 import { followupPlace, followupRecipient, currentFollowupRecipients } from './followup-recipients'
 import { appendEvent, currentSigners, identityEvents, now, id, type Envelope, type Env } from './model'
 import { commitEnvelope } from './storage'
@@ -18,7 +20,7 @@ export async function mayRemindUnderGrant(env:Env,e:Envelope,i:number,at:number)
  const group=e.signers[i]?.group
  if(group){for(const person of currentFollowupRecipients(e).filter(p=>p.place===i))if(!await mayRemindUnderGrant(env,e,person.row,at))return false;return true}
  const g=await followupGrant(env,e.id);if(!g)return true
- if(g.state!=='active'||!await liveGrant(env,e,g)||!insideWindow(g,at))return false
+ if(!g.channels.includes('email')||g.state!=='active'||!await liveGrant(env,e,g)||!insideWindow(g,at))return false
  const s=await followupState(env,e,i),contacts=contactsSinceGrant(e,g,i)
  return !s.paused&&(!s.waitUntil||localDate(at)>=s.waitUntil)&&contacts.length<g.maxContacts&&!contacts.some(c=>localDate(Date.parse(String(c.detail.passAt??c.at)))===localDate(at))
 }
@@ -46,21 +48,26 @@ async function chaseEnvelope(env:Env,before:Envelope,g:FollowupGrant,at:number) 
   else if(s.paused){}
   else if(s.waitUntil&&s.waitUntil>localDate(Date.parse(before.expiresAt))){await tell('return date is after expiry')}
   else if(!s.waitUntil||s.waitUntil<=today){
-   const views=events.filter(e=>e.action==='signer.viewed'&&e.detail.signer===place&&e.detail.member===person.member),verified=events.filter(e=>['signer.email_verified','signer.session_verified','signer.link_opened'].includes(e.action)&&e.detail.signer===place&&e.detail.member===person.member)
+   const views=events.filter(e=>e.action==='signer.viewed'&&e.detail.signer===place&&e.detail.member===person.member),verified=events.filter(e=>['signer.sms_verified','signer.email_verified','signer.session_verified','signer.link_opened'].includes(e.action)&&e.detail.signer===place&&e.detail.member===person.member)
    const lastViewedAt=s.lastViewedAt??views.at(-1)?.at,invited=events.findLast(e=>['signer.invited','signer.resent','envelope.approved','envelope.sent_scheduled'].includes(e.action)&&(e.detail.signer===undefined||e.detail.signer===place))?.at??before.createdAt
    let cause=s.cause==='unavailable'?'unavailable':verified.length>=3?'repeated views':lastViewedAt?'opened and left':!verified.length?'not opened':undefined
    const due=cause==='unavailable'?true:cause==='repeated views'?true:cause==='opened and left'?today>=addBusinessDays(localDate(Date.parse(lastViewedAt!)),1):today>=addBusinessDays(localDate(Date.parse(invited)),before.reminders?.afterDays??2)
    if(cause){s.cause=cause;if(cause==='repeated views')await tell('repeated views')}
    const last=contacts.at(-1),lastDay=last?localDate(Date.parse(String(last.detail.passAt??last.at))):null
    const cadence=lastDay?today>=addBusinessDays(lastDay,before.reminders?.everyDays??3):true
-   if(cause&&due&&cadence&&insideWindow(g,at)&&lastDay!==today&&!mailSuppressed(env)){
+   const mobile=before.signers[place].phone, sms=g.channels.includes('sms') && person.member===undefined && mobile && g.smsRecipients?.[String(place)]===mobile && smsReady(env), email=g.channels.includes('email')&&!mailSuppressed(env)
+   if(g.channels.includes('sms')&&!sms&&!email)await tell('SMS number changed or unavailable; renew the follow-up grant')
+   if(cause&&due&&cadence&&insideWindow(g,at)&&lastDay!==today&&(sms||email)){
     const signer=await env.DB.prepare('SELECT link_sealed FROM iw_signers WHERE envelope_id=? AND signer=?').bind(before.id,i).first<{link_sealed:string|null}>(),token=signer?await openLink(env,before.id,i,signer.link_sealed):undefined
     if(token){
      const owner=await env.DB.prepare('SELECT display_name,email FROM oa_operators WHERE id=?').bind(before.createdBy).first<{display_name:string;email:string}>()
      const causeText:Record<string,string>={'not opened':'Your signing request is waiting for review.','opened and left':'You opened this signing request; it is still waiting for your signature.','repeated views':'If you need help after reviewing this request, contact the sender.','unavailable':'Following up after your stated availability.'}
      const body=`${person.name},\n\n${causeText[cause]}\n${before.title}\n${new URL('/sign/'+token,env.AUTH_ORIGIN).href}\n\nSender: ${owner?.display_name??'Sender'} <${owner?.email??''}>\nThis reminder was sent automatically under ${owner?.display_name??'the sender'}'s follow-up settings.`
-     writes.push(env.DB.prepare("INSERT INTO iw_mail(id,envelope_id,signer,kind,recipient,subject,body,created_at,followup_version,followup_envelope_version) VALUES(?,?,?,'notice',?,?,?,?,?,?)").bind(id(),before.id,i,person.email,`Reminder to sign: ${before.title}`,body,passAt,g.version,before.version+1))
-     await appendEvent(after,'followup.sent','inkwell-followup',{signer:i,cause,version:g.version,member:g.memberId,passAt},passAt);s.contacts++
+     if(sms){
+      const capability=await smsReplyCapability(env,before,i)
+      writes.push(smsWrite(env,after,i,mobile!,'followup',`Inkwell: ${causeText[cause]}\n${before.title}\n${new URL('/sign/'+token,env.AUTH_ORIGIN).href}\nSender: ${owner?.display_name??'Sender'} <${owner?.email??''}>\nAutomatic follow-up under the sender’s settings. Reply ${capability} followed by your message to contact the sender.`))
+     }else writes.push(env.DB.prepare("INSERT INTO iw_mail(id,envelope_id,signer,kind,recipient,subject,body,created_at,followup_version,followup_envelope_version) VALUES(?,?,?,'notice',?,?,?,?,?,?)").bind(id(),before.id,i,person.email,`Reminder to sign: ${before.title}`,body,passAt,g.version,before.version+1))
+     await appendEvent(after,'followup.sent','inkwell-followup',{signer:i,cause,version:g.version,member:g.memberId,passAt,channel:sms?'sms':'email'},passAt);s.contacts++
      if(s.contacts>=g.maxContacts)await tell('contact limit reached')
     }else await tell('invitation link unavailable')
    }
@@ -70,4 +77,5 @@ async function chaseEnvelope(env:Env,before:Envelope,g:FollowupGrant,at:number) 
  if(after.events.length===before.events.length&&!states.length)return
  await commitEnvelope(env,before,after,null,[...writes,...states.map(s=>stateWrite(env,before,s))],[grantGuard(before,g)])
  await dispatchMail(env,before.id)
+ await dispatchSms(env,before.id)
 }

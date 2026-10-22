@@ -1,3 +1,4 @@
+import { dispatchSms, smsInvitation, smsReady } from './sms'
 // DELIV-005: the sender (or anyone who may change the envelope, ADMIN-001) resends the invitation to a recipient whose
 // turn it is, from the envelope detail page (MANAGE-005). Resend sends the same link again (the old link keeps
 // working); Resend with a new link rotates it, so the previous link, code, session and access-code pass stop working.
@@ -19,9 +20,12 @@ import { openLink, sealLink } from './links'
 export async function resendInvitation(env: Env, context: CommandContext, input: Record<string, unknown>) {
   const before = await getEnvelope(env.DB, text(input.id, 'an envelope ID'))
   active(before)
-  insist(!mailSuppressed(env), 'Mail is not set up, so no invitation can be emailed. Create a new signing link instead.', 409)
+  const sms = input.channel === 'sms'
+  insist(input.channel === undefined || input.channel === 'email' || sms, 'Choose email or SMS for this resend.')
+  insist(sms ? smsReady(env) : !mailSuppressed(env), 'Mail is not set up, so no invitation can be emailed. Create a new signing link instead.', 409)
   const signer = input.signer as number, current = currentSigners(before)
   insist(Number.isInteger(signer) && current.includes(signer), 'Choose a recipient whose turn it is to sign.', 409)
+  insist(!sms || before.signers[signer].phone && !before.signers[signer].group, 'SMS resend needs an individual recipient’s US mobile number.', 409)
   insist(!before.signers[signer].inPerson, 'In-person signers do not receive signing invitations. Start a hosted session instead.', 409)
   insist(before.signers[signer].paper?.status !== 'pending', 'This recipient’s paper signature is waiting for your review.', 409)
   insist(!bouncedRecipients(before, await envelopeMessages(env, before.id)).some(entry => entry.signer === signer), 'This recipient’s invitation bounced: correct their email address instead.', 409)
@@ -37,13 +41,13 @@ export async function resendInvitation(env: Env, context: CommandContext, input:
   }
   const rotated = links.some(l => l.rotated), forced = rotated && input.newLink !== true
   const after = structuredClone(before)
-  await appendEvent(after, 'signer.resent', context.actor.id, { signer, email: after.signers[signer].email, newLink: rotated, ...(forced ? { reason: 'The previous link could not be reopened, so a new link was sent.' } : {}) })
+  await appendEvent(after, 'signer.resent', context.actor.id, { signer, ...(sms ? { channel: 'sms', phone: after.signers[signer].phone } : {}), email: after.signers[signer].email, newLink: rotated, ...(forced ? { reason: 'The previous link could not be reopened, so a new link was sent.' } : {}) })
   const result = { id: after.id, signer, email: after.signers[signer].email, newLink: rotated, ...(forced ? { reason: 'This link was issued before Inkwell kept links for resending, so a new link was sent and the previous one no longer works.' } : {}) }
   const writes: D1PreparedStatement[] = rotated ? [env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND signer=? AND kind='invitation' AND state='pending'").bind(after.id, signer)] : []
   for (const link of links) writes.push(...(link.rotated ? [env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=?,code_hash=NULL,code_expires=NULL,code_attempts=0,code_sent_at=NULL,session_hash=NULL,session_expires=NULL WHERE envelope_id=? AND signer=?').bind(await sha256(link.token), await sealLink(env, after.id, link.row, link.token), after.id, link.row),
 ] : []),
-    invitationWrite(env, after, signer, link.token, link.member))
+    sms ? smsInvitation(env, after, signer, link.token) : invitationWrite(env, after, signer, link.token, link.member))
   await commitEnvelope(env, before, after, context.actor, [...writes, commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
-  await dispatchMail(env, after.id)
+  if (sms) await dispatchSms(env, after.id); else await dispatchMail(env, after.id)
   return result
 }

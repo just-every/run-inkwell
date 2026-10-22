@@ -11,21 +11,21 @@ import { Miniflare, convertV4MiniflareOptions } from 'miniflare'
 import { unstable_splitSqlQuery } from 'wrangler'
 import { chromium } from '@playwright/test'
 
-export async function startInkwellWithMail({ inbound = false } = {}) {
+export async function startInkwellWithMail({ inbound = false, sms = false } = {}) {
   const socket = createServer()
   await new Promise(resolve => socket.listen(0, '127.0.0.1', resolve))
   const port = socket.address().port
   await new Promise(resolve => socket.close(resolve))
   const origin = `http://127.0.0.1:${port}`, setupToken = randomBytes(32).toString('hex'), secret = randomBytes(24)
   const inboundMessages = new Map(), inboundSecret = Buffer.from('synthetic-inkwell-4').toString('base64')
-  const persist = await mkdtemp(join(tmpdir(), 'inkwell-mail-journey-')), captured = []
+  const persist = await mkdtemp(join(tmpdir(), 'inkwell-mail-journey-')), captured = [], smsCaptured = []
   // The entry module first; Miniflare loads the emitted chunks it imports from the same folder.
   const modules = (await readdir('dist/server', { recursive: true })).filter(file => /\.m?js$/.test(file)).sort((a, b) => (b === 'index.js') - (a === 'index.js')).map(file => ({ type: 'ESModule', path: 'dist/server/' + file }))
   const mf = new Miniflare(convertV4MiniflareOptions({
     host: '127.0.0.1', port, modules, modulesRoot: 'dist/server', assets: { directory: 'dist/client', binding: 'ASSETS', routerConfig: { has_user_worker: true } },
     compatibilityDate: '2026-09-08', compatibilityFlags: ['nodejs_compat'], d1Databases: { DB: 'inkwell' }, d1Persist: persist,
-    bindings: { AUTH_ORIGIN: origin, AUTH_LOCAL: 'true', OWNER_EMAIL: 'owner@harbour.example', SESSION_SECRET: randomBytes(32).toString('hex'), SETUP_TOKEN: setupToken, MAIL_PROVIDER: 'resend', MAIL_API_KEY: 'journey-mail-edge', MAIL_FROM: 'Inkwell <inkwell@harbour.example>', MAIL_WEBHOOK_KEY: 'whsec_' + secret.toString('base64'), ...(inbound ? { MAIL_INBOUND_DOMAIN: 'replies.harbour.example', MAIL_INBOUND_SECRET: 'whsec_' + inboundSecret, MAIL_INBOUND_API_KEY: 'synthetic-inkwell-5' } : {}) },
-    outboundService: async request => { if (new URL(request.url).hostname !== 'api.resend.com') throw new Error('Unexpected journey network request'); if (request.method === 'GET') { const message = inboundMessages.get(new URL(request.url).pathname.split('/')[3]); return message ? Response.json(message) : new Response(null, { status: 404 }) } const id = crypto.randomUUID(); captured.push({ ...await request.json(), id }); return Response.json({ id }) },
+    bindings: { AUTH_ORIGIN: origin, AUTH_LOCAL: 'true', OWNER_EMAIL: 'owner@harbour.example', SESSION_SECRET: randomBytes(32).toString('hex'), SETUP_TOKEN: setupToken, MAIL_PROVIDER: 'resend', MAIL_API_KEY: 'journey-mail-edge', MAIL_FROM: 'Inkwell <inkwell@harbour.example>', ...(sms ? { TWILIO_ACCOUNT_SID:'synthetic-inkwell-1', TWILIO_AUTH_TOKEN:'synthetic-inkwell-2', TWILIO_FROM:'+12025550101' } : {}), MAIL_WEBHOOK_KEY: 'whsec_' + secret.toString('base64'), ...(inbound ? { MAIL_INBOUND_DOMAIN: 'replies.harbour.example', MAIL_INBOUND_SECRET: 'whsec_' + inboundSecret, MAIL_INBOUND_API_KEY: 'synthetic-inkwell-5' } : {}) },
+    outboundService: async request => { if (sms && new URL(request.url).hostname === 'api.twilio.com') { const form=new URLSearchParams(await request.text()); smsCaptured.push({to:form.get('To'),body:form.get('Body')}); return Response.json({sid:'synthetic-inkwell-'+(smsCaptured.length+2),status:'queued'},{status:201}) } if (new URL(request.url).hostname !== 'api.resend.com') throw new Error('Unexpected journey network request'); if (request.method === 'GET') { const message = inboundMessages.get(new URL(request.url).pathname.split('/')[3]); return message ? Response.json(message) : new Response(null, { status: 404 }) } const id = crypto.randomUUID(); captured.push({ ...await request.json(), id }); return Response.json({ id }) },
   }))
   let browser
   async function close() { await browser?.close(); await mf.dispose(); await rm(persist, { recursive: true, force: true }) }
@@ -66,6 +66,6 @@ export async function startInkwellWithMail({ inbound = false } = {}) {
       const body = JSON.stringify({ type: 'email.received', data: { email_id: messageId } })
       return call('/api/inkwell/mail/replies', { body, headers: { 'svix-id': eventId, 'svix-timestamp': timestamp, 'svix-signature': 'v1,' + createHmac('sha256', Buffer.from(inboundSecret, 'base64')).update(`${eventId}.${timestamp}.${body}`).digest('base64') } })
     }
-    return { origin, owner, ownerCookie, reply, call, command, mail, sent: () => [...captured], deliver, verify, scheduled, browser, close }
+    return { smsMessages:()=>[...smsCaptured], origin, owner, ownerCookie, reply, call, command, mail, sent: () => [...captured], deliver, verify, scheduled, browser, close }
   } catch (error) { await close(); throw error }
 }

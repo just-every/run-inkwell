@@ -94,3 +94,20 @@ it. If an invitation expires or the envelope is voided, the page says so and the
 recipient should ask the sender for a new one.
 
 Next: [Verify and download the record](/docs/verify-and-download).
+
+### Combining templates
+
+Under **Templates**, select at least two templates and choose **Combine selected
+templates**. Put them in document order, inspect the merged recipient list, and
+choose envelope settings and authentication where needed. Roles merge only when
+their name and routing order both match. A role at another order remains a
+separate invitation, even when the same person fills both places. Each source's
+fields remain on its own documents. Additional PDFs can be included for review;
+the prepared draft can be edited before approval.
+
+The first template supplies envelope defaults unless you choose another. The
+preview proposes SMS over email, and email over link-only authentication, when
+sources disagree. Every source approval rule still applies. Preparation freezes
+all source versions and bytes; changing any source before a deferred release
+holds the send until a current editor confirms again. The record and completion
+certificate list every source template and version.

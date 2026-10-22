@@ -12,7 +12,7 @@ export type Step = 'sent' | 'delivered' | 'viewed' | 'authenticated' | 'signed' 
 export type Place = 'signed' | 'declined' | 'current' | 'waiting' | 'stopped' | 'removed'
 export interface RecipientTimeline { signer: number; order: number; place: Place; waitingOn: string | null; bounced?: boolean; steps: { step: Step; at: string; detail?: string }[] }
 
-const verifications: Record<string, string> = { 'signer.in_person_hosted': 'identity attested in person by the host, not verified by Inkwell', 'signer.email_verified': 'emailed code', 'signer.code_verified': 'sender-provided code', 'signer.session_verified': 'signed-in session', 'signer.link_opened': 'link only, no code' }
+const verifications: Record<string, string> = { 'signer.sms_verified': 'SMS one-time code', 'signer.in_person_hosted': 'identity attested in person by the host, not verified by Inkwell', 'signer.email_verified': 'emailed code', 'signer.code_verified': 'sender-provided code', 'signer.session_verified': 'signed-in session', 'signer.link_opened': 'link only, no code' }
 
 export async function envelopeTimeline(env: Env, envelope: Envelope) {
   const messages = await envelopeMessages(env, envelope.id)
@@ -34,7 +34,7 @@ function recipientTimeline(envelope: Envelope, messages: Message[], signer: numb
   const viewed = mine('signer.viewed')[0]
   if (viewed) steps.push({ step: 'viewed', at: viewed.at })
   const verified = theirs.find(e => e.action in verifications && e.detail.signer === signer)
-  if (verified) steps.push({ step: 'authenticated', at: verified.at, detail: verifications[verified.action] })
+  if (verified) steps.push({ step: 'authenticated', at: verified.at, detail: verifications[verified.action]+(verified.action==='signer.sms_verified'?` to ${verified.detail.maskedPhone}`:'') })
   // The audit trail's time for the signature (the signer record's own time can differ by a millisecond).
   const signed = envelope.events.find(e => ['signer.signed', 'signer.signed_on_paper'].includes(e.action) && e.detail.signer === signer)
   if (recipient.signedAt) steps.push({ step: 'signed', at: signed?.at ?? recipient.signedAt, ...(recipient.paper?.status === 'accepted' ? { detail: 'On paper' } : {}) })
@@ -66,7 +66,7 @@ function recipientTimeline(envelope: Envelope, messages: Message[], signer: numb
   if (!current.includes(signer)) return { ...base, place: 'waiting', waitingOn: `Routing order ${routingOrder(envelope, current[0])} to finish: ${current.map(i => envelope.signers[i].name).join(', ')}` }
   if (bouncedRecipients(envelope, messages).some(entry => entry.signer === signer)) return { ...base, place: 'current', bounced: true, waitingOn: 'The sender to correct the email address: the invitation bounced' }
   const waitingOn = recipient.paper?.status === 'pending' ? 'The sender to review the uploaded paper signature'
-    : !verified && recipient.inPerson ? 'A host to confirm their identity in person' : !verified ? (manual && !sent ? 'The recipient to open the private link and enter the code' : 'The recipient to open the invitation and verify their email')
+    : !verified && recipient.inPerson ? 'A host to confirm their identity in person' : !verified ? (manual && !sent ? 'The recipient to open the private link and enter the code' : recipient.sms ? 'The recipient to open the invitation and verify their mobile number' : 'The recipient to open the invitation and verify their email')
     : !recipient.disclosure ? 'The recipient to agree to electronic records' : recipient.role==='approver'?'The recipient to approve':recipient.role==='form_filler'?'The recipient to complete their fields':'The recipient to sign'
   return { ...base, place: 'current', waitingOn }
 }

@@ -80,7 +80,7 @@ export async function approvalSteps(env: Env, envelope: Envelope, actor: Pick<Ac
   const steps: ApprovalStep[] = [], at = now()
   // ADMIN-004: a send policy that requires an internal approval makes the account rule's approver decide, whatever its threshold.
   insist(!policyRequires || (await accountApprovalRule(env)), 'The send policy for this source requires an internal approval, but the account names no approver. Ask an owner or admin to set one.', 409)
-  for (const [source, rule] of [['account', (await accountApprovalRule(env))?.rule], ['template', envelope.approvalRule]] as const) {
+  for (const [source, rule] of [['account', (await accountApprovalRule(env))?.rule], ...(envelope.approvalRules ?? (envelope.approvalRule ? [envelope.approvalRule] : [])).map(rule => ['template', rule] as const)] as const) {
     const why = rule && (policyRequires && source === 'account' ? 'the send policy requires an internal approval' : ruleCovers(rule, envelope.fields))
     if (!rule || !why) continue
     let step = steps.find(s => s.approver === rule.approver)
@@ -90,7 +90,7 @@ export async function approvalSteps(env: Env, envelope: Envelope, actor: Pick<Ac
       step = { approver: approver.id, name: approver.name, email: approver.email.toLowerCase(), rules: [], why: [] }
       steps.push(step)
     }
-    step.rules.push(source); step.why.push(why)
+    if (!step.rules.includes(source)) step.rules.push(source); if (!step.why.includes(why)) step.why.push(why)
   }
   for (const step of steps) if (step.approver === actor.id) Object.assign(step, { decision: 'approved', decidedAt: at, bySender: true })
   return steps

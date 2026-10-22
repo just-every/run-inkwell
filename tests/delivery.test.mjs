@@ -542,3 +542,110 @@ test('Follow-up: session causes and separate group-member replies',async()=>{
   await h.command('envelope.followup',{id,enabled:false})
  }finally{await h.close()}
 })
+
+
+const smsTestBindings={TWILIO_ACCOUNT_SID:'synthetic-inkwell-1',TWILIO_AUTH_TOKEN:'synthetic-inkwell-2',TWILIO_FROM:'+12025550101'}
+async function smsHarness(){
+ const texts=[];let failed=false
+ const h=await harness({now:Date.parse('2026-10-26T15:00:00Z'),bindings:smsTestBindings,networkEdge:async request=>{
+  if(new URL(request.url).hostname!=='api.twilio.com')return
+  assert.equal(request.method,'POST');assert.equal(new URL(request.url).pathname,'/2010-04-01/Accounts/synthetic-inkwell-1/Messages.json')
+  assert.equal(request.headers.get('authorization'),'Basic '+Buffer.from('synthetic-inkwell-1:synthetic-inkwell-2').toString('base64'))
+  const form=new URLSearchParams(await request.text());assert.equal(form.get('From'),smsTestBindings.TWILIO_FROM)
+  texts.push({to:form.get('To'),body:form.get('Body')})
+  return failed?new Response('',{status:503}):Response.json({sid:'synthetic-inkwell-'+(texts.length+2),status:'queued'},{status:201})
+ }})
+ return {h,texts,fail:()=>{failed=true}}
+}
+async function prepareSmsEnvelope(h,{sms=true,reminders,allowReassignment}={}){
+ const pdf=await PDFDocument.create();pdf.addPage([612,792])
+ const person={name:'SMS Client',email:'sms-client@example.test',phone:'+12025550102',...(sms?{sms:true}:{})}
+ const {id}=(await h.command('envelope.prepare',{title:'Synthetic SMS agreement',filename:'agreement.pdf',...(allowReassignment?{allowReassignment:true}:{}),...(reminders?{reminders}:{}),pdfBase64:Buffer.from(await pdf.save()).toString('base64'),signers:[person],fields:[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.4,height:.07}]})).result
+ await h.command('envelope.approve',{id,eligible:true})
+ const mail=await h.mail(person.email,'Please sign:');return {id,person,path:'/api'+new URL(mail.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname}
+}
+const smsTestCode=texts=>texts.at(-1).body.match(/\b\d{6}\b/)[0]
+const smsTestDetail=async(h,id)=>(await h.post('/api/inkwell/envelopes/'+id,undefined)).value.envelope
+async function smsTestPdfText(bytes){const {getDocument}=await import('pdfjs-dist/legacy/build/pdf.mjs');const doc=await getDocument({data:new Uint8Array(bytes),standardFontDataUrl:new URL('../node_modules/pdfjs-dist/standard_fonts/',import.meta.url).pathname}).promise;let text='';for(let n=1;n<=doc.numPages;n++)text+=(await(await doc.getPage(n)).getTextContent()).items.map(i=>i.str).join(' ');return text}
+
+test('SMS recipient verifies only an SMS code, corrects phone with audited rotation, resends same and new SMS links, signs and receives masked certificate evidence',async()=>{
+ const {h,texts}=await smsHarness()
+ try{
+  const {id,person,path}=await prepareSmsEnvelope(h)
+  await h.post(path+'/code',{},'');const expiredCode=smsTestCode(texts)
+  assert.equal(texts[0].to,person.phone);assert.equal((await h.send(path)).value.sms,true)
+  await h.post(path+'/code',{},'',429)
+  await h.post(path+'/verify',{code:expiredCode==='000000'?'111111':'000000'},'',401)
+  h.advanceTo(Date.parse('2026-10-26T15:11:00Z'));await h.post(path+'/verify',{code:expiredCode},'',401)
+  await h.post(path+'/code',{},'');const session=(await h.post(path+'/verify',{code:smsTestCode(texts)},'')).cookie
+  await h.command('envelope.correct',{id,signers:[{...person,phone:'+12025550103'}]})
+  assert.equal((await h.send(path,undefined,session)).status,404,'the prior phone’s link and session refuse')
+  const changed=await smsTestDetail(h,id),event=changed.events.find(e=>e.action==='signer.corrected')
+  assert.equal(event.detail.before.phone,person.phone);assert.equal(event.detail.after.phone,'+12025550103')
+  await h.command('envelope.resend',{id,signer:0,channel:'sms'})
+  const oldPath='/api'+new URL(texts.at(-1).body.match(/http:\/\/\S+\/sign\/\S+/)[0]).pathname
+  await h.command('envelope.resend',{id,signer:0,channel:'sms'})
+  assert.equal('/api'+new URL(texts.at(-1).body.match(/http:\/\/\S+\/sign\/\S+/)[0]).pathname,oldPath,'same-link resend keeps the link')
+  await h.command('envelope.resend',{id,signer:0,channel:'sms',newLink:true})
+  assert.equal((await h.send(oldPath)).status,404,'rotated SMS link refuses')
+  const newPath='/api'+new URL(texts.at(-1).body.match(/http:\/\/\S+\/sign\/\S+/)[0]).pathname
+  await h.post(newPath+'/code',{},'');const verified=(await h.post(newPath+'/verify',{code:smsTestCode(texts)},'')).cookie
+  await h.agree(newPath,verified)
+  await h.post(newPath+'/sign',{values:{signature:person.name},consent:true,commandId:crypto.randomUUID()},verified)
+  const certificate=await h.send(newPath+'/artifacts/certificate',undefined,verified);assert.equal(certificate.status,200)
+  const text=await smsTestPdfText(certificate.bytes);assert.match(text,/SMS.*verified/i);assert.ok(text.includes('0103'));assert.ok(!text.includes('+12025550103'))
+  const stored=await smsTestDetail(h,id);assert.equal(stored.status,'completed');assert.equal(stored.events.filter(e=>e.action==='signer.sms_verified').length,2)
+  assert.ok(stored.messages.some(m=>m.subject==='SMS invitation'&&m.status==='sent'))
+  assert.ok(!h.logs().some(log=>JSON.stringify(log).includes('+12025550103')),'operational logs omit numbers')
+ }finally{await h.close()}
+})
+
+test('SMS follow-up inherits grant channels, phone authority, limits, windows, private authenticated reply custody and immediate revocation',async()=>{
+ const {h,texts}=await smsHarness()
+ try{
+  const {id,person}=await prepareSmsEnvelope(h,{reminders:{afterDays:1,everyDays:1}})
+  await h.command('envelope.followup',{id,enabled:true,channels:['sms'],maxContacts:2,days:[1,2,3,4,5],startHour:9,endHour:17,escalationOwner:(await smsTestDetail(h,id)).createdBy})
+  h.advanceTo(Date.parse('2026-10-28T02:00:00Z'));await smsTestDetail(h,id);await h.scheduled('2026-10-28T02:00:00Z');assert.equal(texts.length,0,'quiet hours send nothing')
+  h.advanceTo(Date.parse('2026-10-28T15:00:00Z'));await smsTestDetail(h,id);await h.scheduled('2026-10-28T15:00:00Z');assert.equal(texts.length,1)
+  await h.scheduled('2026-10-28T16:00:00Z');assert.equal(texts.length,1,'one contact per business day')
+  const capability=texts[0].body.match(/Reply ([A-Za-z0-9_-]{43})/)[1]
+  async function reply(messageId,from,text,{tamper=false}={}){
+   const url=h.origin+'/api/inkwell/sms/replies',fields={AccountSid:smsTestBindings.TWILIO_ACCOUNT_SID,MessageSid:messageId,From:from,To:smsTestBindings.TWILIO_FROM,Body:capability+' '+text,NumMedia:'0'}
+   const canonical=url+Object.keys(fields).sort().map(k=>k+fields[k]).join(''),signature=createHmac('sha1',smsTestBindings.TWILIO_AUTH_TOKEN).update(canonical).digest('base64')
+   return h.mf.dispatchFetch(url,{method:'POST',headers:{origin:h.origin,'content-type':'application/x-www-form-urlencoded','x-twilio-signature':tamper?'invalid':signature,'x-inkwell-test-time':String(Date.parse('2026-10-28T15:00:00Z'))},body:new URLSearchParams(fields).toString()})
+  }
+  assert.equal((await reply('synthetic-inkwell-6',person.phone,'Private objection',{tamper:true})).status,401)
+  assert.equal((await reply('synthetic-inkwell-7','+12025550104','Unverified objection')).status,200)
+  let state=(await h.post('/api/inkwell/envelopes/'+id+'/followup',undefined)).value
+  assert.equal(state.states[0].paused,false,'mismatched phone never pauses or acts')
+  const received=await reply('synthetic-inkwell-8',person.phone,'Private objection to section four');assert.equal(received.status,200);assert.match(received.headers.get('content-type'),/xml/);assert.equal(await received.text(),'<Response/>')
+  assert.equal((await reply('synthetic-inkwell-8',person.phone,'Private objection to section four')).status,409)
+  state=(await h.post('/api/inkwell/envelopes/'+id+'/followup',undefined)).value
+  assert.equal(state.states[0].paused,true);assert.ok(state.replies.some(r=>r.text==='Private objection to section four'&&r.verified))
+  assert.ok(!JSON.stringify((await smsTestDetail(h,id)).events).includes('Private objection'))
+  await h.command('envelope.followup_resume',{id,signer:0})
+  h.advanceTo(Date.parse('2026-10-29T15:00:00Z'));await smsTestDetail(h,id);await h.scheduled('2026-10-29T15:00:00Z');assert.equal(texts.length,2)
+  h.advanceTo(Date.parse('2026-10-30T15:00:00Z'));await smsTestDetail(h,id);await h.scheduled('2026-10-30T15:00:00Z');assert.equal(texts.length,2,'contact cap includes all follow-ups')
+  await h.command('envelope.followup',{id,enabled:false})
+  h.advanceTo(Date.parse('2026-11-02T15:00:00Z'));await h.send('/not-a-route');await h.scheduled('2026-11-02T15:00:00Z');assert.equal(texts.length,2,'revocation stops the next action')
+  assert.ok(!h.logs().some(log=>JSON.stringify(log).includes('Private objection')))
+ }finally{await h.close()}
+})
+
+
+test('SMS reassignment requires the new person’s number, preserves SMS authentication and invalidates the previous invitation',async()=>{
+ const {h,texts}=await smsHarness()
+ try{
+  const {id,path}=await prepareSmsEnvelope(h,{allowReassignment:true})
+  await h.post(path+'/code',{},'');const cookie=(await h.post(path+'/verify',{code:smsTestCode(texts)},'')).cookie
+  await h.post(path+'/reassign',{name:'Delegate',email:'delegate@example.test',reason:'Delegate owns this agreement',commandId:crypto.randomUUID()},cookie,400)
+  await h.post(path+'/reassign',{name:'Delegate',email:'delegate@example.test',phone:'+12025550104',reason:'Delegate owns this agreement',commandId:crypto.randomUUID()},cookie)
+  assert.equal((await h.send(path,undefined,cookie)).status,404)
+  const record=await smsTestDetail(h,id);assert.equal(record.signers[0].phone,'+12025550104');assert.equal(record.signers[0].sms,true)
+  const mail=await h.mail('delegate@example.test','Please sign:'),next='/api'+new URL(mail.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+  await h.post(next+'/code',{},'');assert.equal(texts.at(-1).to,'+12025550104')
+  const verified=(await h.post(next+'/verify',{code:smsTestCode(texts)},'')).cookie;await h.agree(next,verified)
+  await h.post(next+'/sign',{values:{signature:'Delegate'},consent:true,commandId:crypto.randomUUID()},verified)
+  assert.equal((await smsTestDetail(h,id)).status,'completed')
+ }finally{await h.close()}
+})

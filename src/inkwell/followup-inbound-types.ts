@@ -2,7 +2,7 @@
 export interface FollowupReply {
   id: string
   receivedAt: string
-  provider: 'resend'
+  provider: 'resend' | 'twilio'
   providerMessageId: string
   automatic?: boolean
   verified: boolean

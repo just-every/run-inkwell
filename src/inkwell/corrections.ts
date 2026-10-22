@@ -1,3 +1,4 @@
+import { smsIdentity } from './sms'
 import { recipientRole, witnessRule, validateRoleFields, validateRecipientCount } from './recipient-roles'
 import { remapCopyAudience } from './document-visibility'
 import { documentFields, documentInputFields } from './documents'
@@ -29,7 +30,7 @@ import { memberLinkWrites } from './signing-groups'
 const maxPlaces = 999, maxActive = 100
 /** A recipient who has acted (signed, declined, or uploaded a paper scan awaiting review) or was removed: fixed for good. */
 const settled = (s: Signer) => Boolean(s.signedAt || s.completedAt || s.declinedAt || s.paper?.status === 'pending' || s.removedAt || s.routeResult?.state === 'skipped')
-const identity = (s: Signer, place: number) => ({ ...(s.role?{role:s.role}:{}), ...(s.witnesses?{witnesses:s.witnesses}:{}), ...(s.includeWhen?{includeWhen:s.includeWhen}:{}), name: s.name, email: s.email, order: s.order ?? place + 1, ...(s.inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(s.message ? { message: s.message } : {}) })
+const identity = (s: Signer, place: number) => ({ ...(s.role?{role:s.role}:{}), ...(s.witnesses?{witnesses:s.witnesses}:{}), ...(s.includeWhen?{includeWhen:s.includeWhen}:{}), name: s.name, email: s.email, ...(s.phone ? { phone: s.phone } : {}), ...(s.sms ? { sms: true } : {}), order: s.order ?? place + 1, ...(s.inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(s.message ? { message: s.message } : {}) })
 /** An optional text: absent keeps the current value, an empty string clears it. */
 function edit(value: unknown, current: string | undefined, label: string, max: number, oneLine = false) {
   if (value === undefined) return current
@@ -49,7 +50,8 @@ function readRecipient(value: unknown, place: number, previous?: Signer): { sign
   insist(code === undefined || /^\S{4,32}$/.test(code), 'Use an access code of 4–32 characters with no spaces.')
   const name = text(s.name, 'the signer name', 100), message = edit(s.message, previous?.message, 'the private message', 1000)
   insist(!previous || canonical(role) === canonical(previous.role ?? 'signer') && canonical(witnesses ?? null) === canonical(previous.witnesses ?? null), 'A sent recipient’s role and witness requirement cannot change.',409)
-  const same = previous && previous.name === name && previous.email === email
+  const mobile = smsIdentity({ ...s, inPerson: previous?.inPerson ?? s.inPerson }, previous)
+  const same = previous && previous.name === name && previous.email === email && previous.phone === mobile.phone && Boolean(previous.sms) === Boolean(mobile.sms)
   const { message: _, linkOnly: __, includeWhen: _rule, ...kept } = same ? previous : {} as Signer
   insist(s.linkOnly === undefined || typeof s.linkOnly === 'boolean', 'Choose email code or link only for each recipient.')
   insist(s.inPerson === undefined || typeof s.inPerson === 'boolean', 'Choose whether each recipient signs in person.')
@@ -58,7 +60,7 @@ function readRecipient(value: unknown, place: number, previous?: Signer): { sign
   insist(!previous || s.inPerson === undefined || s.inPerson === Boolean(previous.inPerson), 'A sent recipient’s signing method cannot change. Prepare and approve a new envelope to change between in-person and remote signing.', 409)
   const includeWhen = s.includeWhen === undefined ? previous?.includeWhen : normalizeRoutingRule(s.includeWhen)
   const inPerson = previous ? previous.inPerson : s.inPerson === true
-  return { signer: { ...kept, ...(role!=='signer'?{role}:{}), ...(witnesses?{witnesses}:{}), ...(includeWhen?{includeWhen}:{}), name, email, order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}), ...(code || previous?.accessCode ? { accessCode: true } : {}) }, code }
+  return { signer: { ...kept, ...mobile, ...(role!=='signer'?{role}:{}), ...(witnesses?{witnesses}:{}), ...(includeWhen?{includeWhen}:{}), name, email, order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}), ...(code || previous?.accessCode ? { accessCode: true } : {}) }, code }
 }
 
 export async function correctEnvelope(env: Env, context: CommandContext, input: Record<string, unknown>) {
@@ -90,7 +92,7 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
   const live = after.signers.flatMap((s, i) => s.removedAt ? [] : [i]), open = live.filter(i => !routeSettled(after.signers[i]))
   insist(live.length <= maxActive, `An envelope has at most ${maxActive} signers.`)
   insist(open.length, 'Keep at least one recipient who has not signed, or void the envelope instead.', 409)
-  insist(new Set(live.map(i => after.signers[i].email)).size === live.length, 'Each ordered signer must use a different email.')
+  insist(new Set(live.map(i => after.templates ? `${after.signers[i].email}:${routingOrder(after,i)}` : after.signers[i].email)).size === live.length, 'Each ordered signer must use a different email.')
   const highestSigned = Math.max(0, ...live.filter(i => after.signers[i].signedAt||after.signers[i].completedAt).map(i => routingOrder(after, i)))
   for (const i of open) insist(routingOrder(after, i) >= highestSigned, `${after.signers[i].name} can only be placed at routing order ${highestSigned} or later: recipients there have already signed.`, 409)
 
@@ -126,7 +128,7 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
     if (canonical(identity(s, i)) !== canonical(identity(previous, i)) || codes.has(i)) {
       await appendEvent(after, 'signer.corrected', context.actor.id, { signer: i, before: identity(previous, i), after: identity(s, i), ...(codes.has(i) ? { accessCodeReplaced: true } : {}) })
       // IDV-001: a changed authentication method is a new link, like a new access code.
-      if (s.name !== previous.name || s.email !== previous.email || codes.has(i) || Boolean(s.linkOnly) !== Boolean(previous.linkOnly)) rotated.add(i)
+      if (s.name !== previous.name || s.email !== previous.email || codes.has(i) || Boolean(s.linkOnly) !== Boolean(previous.linkOnly) || s.phone !== previous.phone || Boolean(s.sms) !== Boolean(previous.sms)) rotated.add(i)
     }
   }
   if(canonical(before.documents??null)!==canonical(after.documents??null))await appendEvent(after,'document.audience_updated',context.actor.id,{before:before.documents,after:after.documents})

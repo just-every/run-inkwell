@@ -89,7 +89,7 @@ export async function evaluateSendPolicy(env: Env, envelope: Envelope, principal
   const source = envelopeSource(envelope), policy = await sendPolicy(env, source), label = sourceLabel[source]
   let code: string | undefined, reason: string | undefined
   if (policy.mode === 'off') [code, reason] = ['send_policy_off', `The account’s send policy for ${label} sends is off. Ask an owner or admin to turn it on.`]
-  else if (policy.templates && !(envelope.template && policy.templates.includes(envelope.template.id))) [code, reason] = ['send_policy_template', `The account’s send policy for ${label} sends does not include this template.`]
+  else if (policy.templates && !((envelope.templates ?? (envelope.template ? [envelope.template] : [])).length && (envelope.templates ?? [envelope.template!]).every(t=>policy.templates!.includes(t.id)))) [code, reason] = ['send_policy_template', `The account’s send policy for ${label} sends does not include this template.`]
   else if (options.deferred && !policy.deferredRelease) [code, reason] = ['send_policy_deferred', `The account’s send policy for ${label} sends does not allow scheduling.`]
   else if (options.stage === 'release' && policy.requireInternalApproval && !options.approved) [code, reason] = ['send_policy_approval', `The account’s send policy for ${label} sends now requires an internal approval first.`]
   const effective = { source, mode: policy.mode, principal, credential: null, policies: [{ scope: 'account' as const, version: policy.version }], templates: policy.templates, requireInternalApproval: policy.requireInternalApproval, deferredRelease: policy.deferredRelease }

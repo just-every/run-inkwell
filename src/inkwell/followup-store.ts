@@ -1,3 +1,4 @@
+import { smsReady } from './sms'
 import { followupRecipient, followupRecipients, currentFollowupRecipients, followupPlace } from './followup-recipients'
 import { active, appendEvent, currentSigners, id, identityEvents, insist, now, secret, sha256, text, type Actor, type Envelope, type Env } from './model'
 import { commandWrite, commitEnvelope, getEnvelope, memberRoleSql, roleGuard, type Guard } from './storage'
@@ -20,7 +21,7 @@ export async function liveGrant(env:Env,e:Envelope,g:FollowupGrant) {
  const guard=grantGuard(e,g)
  return Boolean(await env.DB.prepare(`SELECT 1 AS ok WHERE ${guard.sql}`).bind(...guard.values).first())
 }
-export const identity=(e:Envelope,i:number)=>followupRecipient(e,i).email+':'+(e.events.findLast(event=>['signer.corrected','signer.reassigned'].includes(event.action)&&event.detail.signer===followupPlace(i))?.hash??'original')
+export const identity=(e:Envelope,i:number)=>followupRecipient(e,i).email+(e.signers[followupPlace(i)]?.phone?':'+e.signers[followupPlace(i)].phone:'')+':'+(e.events.findLast(event=>['signer.corrected','signer.reassigned'].includes(event.action)&&event.detail.signer===followupPlace(i))?.hash??'original')
 export async function followupState(env:Env,e:Envelope,i:number):Promise<FollowupState> {
  const key=identity(e,i),row=await env.DB.prepare('SELECT identity,data FROM iw_followup_states WHERE envelope_id=? AND signer=?').bind(e.id,i).first<{identity:string;data:string}>()
  return row?.identity===key?JSON.parse(row.data):{signer:i,identity:key,paused:false,contacts:0}
@@ -40,11 +41,16 @@ export async function setFollowup(env:Env,c:CommandContext,input:Record<string,u
   insist(Number.isInteger(maxContacts)&&Number(maxContacts)>=1&&Number(maxContacts)<=10,'Choose 1–10 contacts per recipient.')
   insist(Array.isArray(days)&&days.length>0&&days.length<=5&&days.every(d=>Number.isInteger(d)&&d>=1&&d<=5)&&new Set(days).size===days.length,'Choose allowed business days.')
   insist(Number.isInteger(startHour)&&Number.isInteger(endHour)&&Number(startHour)>=0&&Number(endHour)<=24&&Number(startHour)<Number(endHour),'Choose whole allowed hours between 0 and 24.')
-  insist(input.channels===undefined||JSON.stringify(input.channels)==='["email"]','Only email follow-up is available.')
+  const channels = input.channels ?? ['email']
+  insist(Array.isArray(channels) && channels.length >= 1 && channels.length <= 2 && new Set(channels).size === channels.length && channels.every(c => c === 'email' || c === 'sms'), 'Choose email, SMS, or both follow-up channels.')
+  if (channels.includes('sms')) {
+   insist(smsReady(env), 'Configure Twilio before granting SMS follow-up.', 409)
+   insist(before.signers.filter(s => !s.removedAt && !s.inPerson).every(s => !s.group && s.phone), 'Add a US mobile number for every remote recipient before granting SMS follow-up.', 409)
+  }
   const people=await listPeople(env),p=people.find(p=>p.id===escalationOwner);insist(p,'Choose an active escalation owner.')
   const member=await env.DB.prepare('SELECT version FROM oa_operators WHERE id=?').bind(p.id).first<{version:number}>()
   await insistAccess(env,{...p,role:p.role as Actor['role'],version:member!.version},before,'view')
-  const grant:FollowupGrant={version:(old?.version??0)+1,state:'active',memberId:c.actor.id,memberVersion:c.actor.version,memberRole:c.actor.role,maxContacts:Number(maxContacts),days,startHour:Number(startHour),endHour:Number(endHour),escalationOwner,channels:['email'],at,startedAt:old?.state==='active'?(old.startedAt??old.at):at}
+  const grant:FollowupGrant={version:(old?.version??0)+1,state:'active',memberId:c.actor.id,memberVersion:c.actor.version,memberRole:c.actor.role,maxContacts:Number(maxContacts),days,startHour:Number(startHour),endHour:Number(endHour),escalationOwner,channels,...(channels.includes('sms')?{smsRecipients:Object.fromEntries(before.signers.flatMap((s,i)=>s.phone&&!s.removedAt?[[String(i),s.phone]]:[]))}:{}),at,startedAt:old?.state==='active'?(old.startedAt??old.at):at}
   writes.push(env.DB.prepare("UPDATE iw_followup_grants SET state='revoked' WHERE envelope_id=? AND state='active'").bind(before.id),env.DB.prepare('INSERT INTO iw_followup_grants(envelope_id,version,state,member_id,member_version,member_role,data) VALUES(?,?,?,?,?,?,?)').bind(before.id,grant.version,'active',c.actor.id,c.actor.version,c.actor.role,JSON.stringify(grant)))
   await appendEvent(after,'followup.granted',c.actor.id,{version:grant.version,agent:'deterministic v1',member:c.actor.id})
  }
@@ -66,7 +72,7 @@ export async function followupView(env:Env,actor:Actor,e:Envelope) {
  const {contactsSinceGrant}=await import('./followup-engine')
  const states=await Promise.all(followupRecipients(e).map(async p=>({...await followupState(env,e,p.row),...(g?{contacts:contactsSinceGrant(e,g,p.row).length}:{}),recipientName:p.name})))
  const replies=canRead?(await env.DB.prepare('SELECT signer,data FROM iw_followup_replies WHERE envelope_id=? ORDER BY rowid').bind(e.id).all<{signer:number;data:string}>()).results.map(r=>{const p:FollowupReply=JSON.parse(r.data);return{id:p.id,signer:r.signer,from:p.headers.from,subject:p.headers.subject,text:p.body,at:p.receivedAt,verified:p.verified,tooLarge:p.bodyStatus!=='kept',attachments:p.attachments}}):undefined
- return {grant:g,states:canRead?states:states.map(({signer,cause,paused,waitUntil,contacts,recipientName})=>({signer,cause,paused,waitUntil,contacts,recipientName})),replies,people:access==='edit'?await listPeople(env):[],defaultEscalationOwner:e.createdBy,readiness:{inbound:Boolean(env.MAIL_INBOUND_DOMAIN&&env.MAIL_INBOUND_SECRET&&env.MAIL_INBOUND_API_KEY)}}
+ return {grant:g,states:canRead?states:states.map(({signer,cause,paused,waitUntil,contacts,recipientName})=>({signer,cause,paused,waitUntil,contacts,recipientName})),replies,people:access==='edit'?await listPeople(env):[],defaultEscalationOwner:e.createdBy,readiness:{sms:smsReady(env),inbound:Boolean(env.MAIL_INBOUND_DOMAIN&&env.MAIL_INBOUND_SECRET&&env.MAIL_INBOUND_API_KEY)}}
 }
 export async function replyTo(env:Env,e:Envelope,i:number) {
  const g=await followupGrant(env,e.id);if(!g||g.state!=='active'||!env.MAIL_INBOUND_DOMAIN||!await liveGrant(env,e,g))return undefined

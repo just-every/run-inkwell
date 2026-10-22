@@ -220,3 +220,5 @@ try {
 } finally {
   await inkwell.close()
 }
+
+await (await import('./template-composition.mjs')).templateComposition()

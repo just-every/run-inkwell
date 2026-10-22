@@ -40,6 +40,9 @@ export interface Bindings {
  MAIL_PROVIDER?: 'development' | 'resend' | 'sendgrid' | 'cloudflare'
  MAIL_FROM?: string
  MAIL_API_KEY?: string
+ TWILIO_ACCOUNT_SID?: string
+ TWILIO_AUTH_TOKEN?: string
+ TWILIO_FROM?: string
  MAIL_ACCOUNT_ID?: string
  /** DELIV-001: the provider's webhook signing key (Resend whsec_…, SendGrid's public key); optional. */
  MAIL_INBOUND_DOMAIN?: string

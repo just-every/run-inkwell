@@ -35,7 +35,7 @@ export async function searchEnvelopes(env: Env, actor: Actor, params: URLSearchP
   if (q) { where.push(`(lower(json_extract(e.data,'$.title')) LIKE ?${values.length + 1} ESCAPE '\\' OR EXISTS(SELECT 1 FROM json_each(e.data,'$.signers') s WHERE lower(json_extract(s.value,'$.email')) LIKE ?${values.length + 1} ESCAPE '\\' OR lower(json_extract(s.value,'$.name')) LIKE ?${values.length + 1} ESCAPE '\\'))`); values.push(like(q)) }
   if (preparedBy) where.push(byAgent)
   // TMPL-001: envelopes sent from one template, by the template ID the envelope records.
-  if (template) { where.push(`json_extract(e.data,'$.template.id')=?${values.length + 1}`); values.push(template) }
+  if (template) { where.push(`(json_extract(e.data,'$.template.id')=?${values.length + 1} OR EXISTS(SELECT 1 FROM json_each(e.data,'$.templates') t WHERE json_extract(t.value,'$.id')=?${values.length + 1}))`); values.push(template) }
   if (sender) { where.push(`json_extract(e.data,'$.createdBy')=?${values.length + 1}`); values.push(sender) }
   // ACCESS-001 / ADMIN-001: a sender finds the envelopes they created, those shared with them and (ROUTE-004) those they were asked to approve.
   if (actor.role === 'sender') where.push(`(json_extract(e.data,'$.createdBy')=?3 OR EXISTS(SELECT 1 FROM iw_shares x WHERE x.envelope_id=e.id AND x.operator_id=?3) OR ${namedMe})`)
