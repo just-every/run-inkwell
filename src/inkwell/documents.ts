@@ -74,7 +74,9 @@ export async function readDocuments(env:Env,input:Record<string,unknown>,actor?:
   for(const page of await combined.copyPages(document,document.getPageIndices()))combined.addPage(page)
   documents.push({filename,sha256:await sha256(bytes),bytes:bytes.length,pageStart,pages:pageSizes.length,mode:mode as EnvelopeDocument['mode'],...(d.visibleTo===undefined?{}:{visibleTo:readDocumentAudience(d.visibleTo)})});originals.push(await stageBytes(env,bytes))
  }
- const bytes=new Uint8Array(await combined.save()),parsed=await parsePdf(bytes,2000)
+ // Editing messages or recipients does not regenerate the frozen PDF when its component order is unchanged.
+ const keepsPages=previous&&!retained&&previous.documents?.length===documents.length&&input.documents.every((value,index)=>object(value).existing===index)
+ const bytes=keepsPages?await readBlob(env.DB,previous.id,'original',previous.originalSha256):new Uint8Array(await combined.save()),parsed=await parsePdf(bytes,2000)
  return{bytes,...parsed,documents,originals}
 }
 export function documentFields(fields:Field[],documents:EnvelopeDocument[]|undefined,signers:number,freeForm=false,removed:number[]=[],people?:Envelope['signers']) {
