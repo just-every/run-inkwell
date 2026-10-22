@@ -28,7 +28,7 @@ try {
     await review.getByText('records@harbour.example', { exact: true }).waitFor()
     await review.getByRole('listitem').filter({ hasText: 'No recorded access' }).waitFor()
     await review.getByText('owner@harbour.example', { exact: true }).waitFor()
-    assert.equal(await review.locator('time').count(), 1, 'COMPLY-002: the app page records owner access while the invited member has none')
+    assert.equal(await review.locator('time').count(), width===1440?1:2, 'COMPLY-002: owner and the prior-width enrolled signer have access; the unused invitation has none')
     assert.ok(await review.locator('time').getAttribute('datetime'))
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}: no sideways scroll`)
     await axe(page, `COMPLY-002 healthcare review ${width}`)
