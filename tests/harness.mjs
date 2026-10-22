@@ -19,7 +19,7 @@ const edges = {
 // DELIV-008: the chat edges, faked by host: each accepted post is captured as {channel, path, body}. Nook's stands in for
 // a Nook installation's Slack-compatible incoming webhook (NOOK-063), which answers like Slack's.
 const hooks = { 'hooks.slack.com': 'slack', 'harbour.webhook.office.com': 'teams', 'nook.harbour.example': 'nook' }
-export async function harness({ mailProvider = 'resend', bindings = {}, networkEdge } = {}) {
+export async function harness({ mailProvider = 'resend', bindings = {}, networkEdge, now } = {}) {
  const socket = createServer(); await new Promise(r => socket.listen(0,'127.0.0.1',r)); const port = socket.address().port; await new Promise(r => socket.close(r))
  const origin = `http://127.0.0.1:${port}`, directory = await mkdtemp(join(tmpdir(),'inkwell-test-'))
  const bundle = await build({entryPoints:['tests/api-worker.ts'],bundle:true,write:false,format:'esm',platform:'neutral',mainFields:['module','main'],conditions:['workerd','worker','browser'],external:['node:*','cloudflare:*'],target:'es2023'})
@@ -32,7 +32,7 @@ export async function harness({ mailProvider = 'resend', bindings = {}, networkE
   const db = await mf.getD1Database('DB')
   for(const file of (await readdir('migrations/core')).filter(f=>f.endsWith('.sql')).sort()) await db.batch(unstable_splitSqlQuery(await readFile('migrations/core/'+file,'utf8')).map(sql=>db.prepare(sql)))
   const send = async (path,body,cookie='',headers={}) => {
-   const response = await mf.dispatchFetch(origin+path,{method:body===undefined?'GET':'POST',headers:{host:new URL(origin).host,origin,'content-type':'application/json',cookie,...headers},...(body===undefined?{}:{body:JSON.stringify(body)}),redirect:'manual'})
+   const response = await mf.dispatchFetch(origin+path,{method:body===undefined?'GET':'POST',headers:{host:new URL(origin).host,origin,'content-type':'application/json',cookie,...(now===undefined?{}:{'x-inkwell-test-time':String(now)}),...headers},...(body===undefined?{}:{body:JSON.stringify(body)}),redirect:'manual'})
    const bytes = new Uint8Array(await response.arrayBuffer()), text = new TextDecoder().decode(bytes)
    let value; try{value=JSON.parse(text)}catch{value=text}
    return {status:response.status,value,bytes,headers:response.headers,cookie:response.headers.get('set-cookie')?.split(';')[0]}
@@ -58,6 +58,6 @@ export async function harness({ mailProvider = 'resend', bindings = {}, networkE
   const sent=()=>capturedMail.length
   // DELIV-001: every request the mail edge received, including ones it failed, and failing the next n.
   const attempted=()=>[...attempts],failSends=n=>{failing=n}
-  return {mf,db,origin,owner,attachment:(id,item)=>inboundAttachments.set(id,item),inbound:message=>inbound.set(message.id,message),logs:()=>[...logs],send,post,command,mail,invite,agree,scheduled,sent,attempted,failSends,posts:()=>[...posts],async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
+  return {mf,db,origin,owner,advanceTo:at=>{assert.ok(Number.isSafeInteger(at)&&at>=now,'test clock only advances');now=at},attachment:(id,item)=>inboundAttachments.set(id,item),inbound:message=>inbound.set(message.id,message),logs:()=>[...logs],send,post,command,mail,invite,agree,scheduled,sent,attempted,failSends,posts:()=>[...posts],async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
  }catch(e){await mf.dispose();await rm(directory,{recursive:true,force:true});throw e}
 }

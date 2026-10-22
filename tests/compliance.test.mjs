@@ -300,6 +300,84 @@ test('Verified signer credentials: private one-use enrollment, separate continuo
  }finally{await h.close()}
 })
 
+test('Verified signer credentials: enrollment bounds, activation reuse and expiry, identity-session expiry and fixed-window total-attempt limits',async()=>{
+ const epoch=Date.UTC(2027,0,1),day=86_400_000,window=600_000,h=await harness({now:epoch})
+ try{
+  const register=async(email)=>{
+   const cookie=await h.invite(email,'member'),operatorId=(await h.send('/api/inkwell',undefined,cookie)).value.actor.id
+   const verify=async()=>(await h.command('account.part11_identity',{operatorId,name:'Verified Morgan River',method:'Synthetic supervised identity review',confirm:true})).result.activationToken
+   return {email,cookie,verify}
+  }
+  const enroll=(person,activationToken,password,status=200)=>h.post('/api/inkwell/compliance/password',{activationToken,password},person.cookie,status)
+  const person=await register('bounds@harbour.example'),token=await person.verify(),password='synthetic-inkwell-1'.slice(0,15)
+  await enroll(person,token,password.slice(0,14),400)
+  await enroll(person,token,'synthetic-inkwell-'.padEnd(129,'1'),400)
+  await enroll(person,token,password)
+  await enroll(person,token,password,403) // The successful enrollment consumes the token.
+  const long=await register('upper-bound@harbour.example'),unused=await long.verify(),replacement=await long.verify(),longPassword='synthetic-inkwell-'.padEnd(128,'2')
+  await enroll(long,unused,longPassword,403) // Reverification also invalidates an unused token.
+  await enroll(long,replacement,longPassword)
+  const pdf=await PDFDocument.create();pdf.addPage([612,792])
+  const open=async(person,title)=>{
+   const id=(await h.command('envelope.prepare',{title,filename:'agreement.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),signers:[{name:'Sender supplied name',email:person.email,linkOnly:true}],fields:[{id:'s',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.5,height:.05}]})).result.id
+   await h.command('envelope.part11',{id,confirm:true});await h.command('envelope.approve',{id,eligible:true})
+   const invitation=await h.mail(person.email,'Please sign:'),path='/api'+new URL(invitation.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+   const cookie=(await h.post(path+'/open',{},'')).cookie;await h.agree(path,cookie)
+   return {id,path,cookie}
+  }
+  const upper=await open(long,'128-character credential')
+  assert.ok((await h.post(upper.path+'/identity',{password:longPassword},upper.cookie)).cookie,'the 128-character credential authenticates')
+  const one=await open(person,'Total-attempt bucket'),other=await open(person,'Same account on another envelope')
+  const attempt=(door,value,status=200)=>h.post(door.path+'/identity',{password:value},door.cookie,status)
+  const alerts=async id=>(await h.send('/api/inkwell/compliance/part11',undefined,h.owner)).value.alerts.filter(a=>a.envelopeId===id&&a.cause==='signer-password-attempts')
+  h.advanceTo(epoch+window-1)
+  const identity=(await attempt(one,password)).cookie // Success is attempt one, not a reset.
+  for(let n=2;n<=4;n++)await attempt(one,'synthetic-inkwell-wrong',401)
+  assert.equal((await alerts(one.id)).length,0,'no alert before the fifth total attempt')
+  const mailBefore=h.sent()
+  await attempt(one,'synthetic-inkwell-wrong',401)
+  assert.equal((await alerts(one.id)).length,1,'four failures plus one success exhaust the bucket and alert')
+  assert.equal(h.sent(),mailBefore+1,'the active owner receives mandatory security mail')
+  const alert=await h.mail('owner@harbour.example','Inkwell security alert:')
+  assert.ok(alert.text.includes('Cause: signer-password-attempts')&&alert.text.includes(one.id))
+  assert.ok(!alert.text.includes(password),'security mail contains no password')
+  await attempt(other,password,429) // The account bucket applies across envelopes, even to a correct password.
+  assert.equal((await alerts(other.id)).length,1,'an exhausted correct attempt is also alerted')
+
+  h.advanceTo(epoch+window)
+  const next=await open(person,'Fixed-window boundary')
+  await attempt(next,'synthetic-inkwell-wrong',401) // Fifth failure across the boundary is only attempt one here.
+  for(let n=2;n<=5;n++)assert.ok((await attempt(next,password)).cookie,'successful attempts through five remain allowed')
+  assert.equal((await alerts(next.id)).length,0,'a correct fifth attempt does not alert')
+  await attempt(next,password,429)
+  assert.equal((await alerts(next.id)).length,1,'attempt six refuses a correct password and alerts')
+
+  // Refresh invitation authority independently so its 24-hour expiry cannot mask identity expiry.
+  const identityExpires=epoch+window-1+day
+  h.advanceTo(identityExpires-1)
+  const expiry=await open(person,'Identity session expiry'),strong=expiry.cookie+'; '+identity
+  await h.post(expiry.path+'/signature-code',{},strong)
+  const code=(await h.mail(person.email,'signature code')).text.match(/\b\d{6}\b/)[0]
+  const body={values:{s:'Verified Morgan River'},consent:true,signingReason:'Approval',signatureCode:code,commandId:crypto.randomUUID()}
+  h.advanceTo(identityExpires)
+  await h.post(expiry.path+'/sign',body,strong,403)
+  await h.post(expiry.path+'/signature-code',{},strong,403)
+  const fresh=(await attempt(expiry,password)).cookie
+  await h.post(expiry.path+'/sign',body,expiry.cookie+'; '+fresh)
+  assert.equal((await h.send('/api/inkwell/envelopes/'+expiry.id,undefined,h.owner)).value.envelope.status,'completed','the same fresh code and invitation work after identity re-authentication')
+
+  const before=await register('before-expiry@harbour.example'),expired=await register('expired@harbour.example')
+  const beforeToken=await before.verify(),expiredToken=await expired.verify()
+  h.advanceTo(identityExpires+day-1)
+  await enroll(before,beforeToken,password) // An unused token works one millisecond before 24 hours.
+  h.advanceTo(identityExpires+day)
+  await enroll(expired,expiredToken,password,403)
+  h.advanceTo(identityExpires+day+1)
+  await enroll(expired,expiredToken,password,403)
+  await enroll(expired,await expired.verify(),password) // Supervised recovery restores enrollment.
+ }finally{await h.close()}
+})
+
 test('Verified OIDC signer: public provider linking and sign-in require fresh signature code; provider-off immediately refuses the next signature',async()=>{
  const issuer='https://identity.harbour.example',clientId='synthetic-inkwell-oidc-client',email='oidc@harbour.example'
  const pair=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']),jwk={...await crypto.subtle.exportKey('jwk',pair.publicKey),kid:'synthetic-inkwell-1',alg:'ES256',use:'sig'}

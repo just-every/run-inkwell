@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "0d915b5b36d799346e38b495bdf1fa93feceaf01194511c908ea7221d39a14ce",
+      "sha256": "a414ce04d8b61e32f2462651830a7c9cd309ccca1387aa29abf734d5b0e40bb2",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "5738c3c5b0d952b0d2674a79301713c224b7359006fd48a94e17e3193173618f",
+      "sha256": "1d49d965e557efb668ec2ef382883c04199e22ea7631f0ecfae1a846e166c0c8",
       "executable": false
     },
     "DEMO.md": {
@@ -139,11 +139,11 @@
       "executable": false
     },
     "docs/part11/README.md": {
-      "sha256": "e8f6101fbdd93d1e0e38d95b17f9807629a9cbf90c0677b98e5ccfb967b8d1f2",
+      "sha256": "327c53103519b444d20c0f9542e68df3c30bf33b4390f62d41ebdfce80c5ec2d",
       "executable": false
     },
     "docs/part11/traceability.md": {
-      "sha256": "cea3bfb0d48573e8d39b28c27cf3ffeb8253be8e3c1f4b035202f725249eae28",
+      "sha256": "ec682fd1ed257defc42ae3d389061e40abad3072348ba98196004b8d0bde2276",
       "executable": false
     },
     "docs/provenance.md": {
@@ -3299,7 +3299,7 @@
       "executable": false
     },
     "tests/api-worker.ts": {
-      "sha256": "4a529480ab38ef80f7d83ce1007616be5c71122064b16633e501b70fabe8c315",
+      "sha256": "e2819176d3ed022e7662c39db7e2eb4cce8145e6d1f43aada3285461d48f0b95",
       "executable": false
     },
     "tests/api.test.mjs": {
@@ -3307,7 +3307,7 @@
       "executable": false
     },
     "tests/compliance.test.mjs": {
-      "sha256": "2e67b9b775f9e3051024ff96c409fa9d423f18ef1335469194904c1cc1875ac8",
+      "sha256": "39ee03662135381336d2b3399f0fe89d91dfce82fbd1051beb3a063fcbce4308",
       "executable": false
     },
     "tests/delivery.test.mjs": {
@@ -3359,7 +3359,7 @@
       "executable": false
     },
     "tests/harness.mjs": {
-      "sha256": "2f5143bcdb51599b62f895f9309931dda28786893376f8276dc1186faa79822c",
+      "sha256": "2967cc177cc6d4cae678a1f82e3df154bab42df03279e3e8bbca943239d31f02",
       "executable": false
     },
     "tests/import-retention.test.mjs": {
