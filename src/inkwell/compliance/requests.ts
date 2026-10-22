@@ -18,8 +18,10 @@ const door = (request: Request) => {
 export async function complianceRequest(request: Request, original: Bindings, handle: () => Promise<Response>): Promise<Response> {
   const env = runtimeBindings(original)
   // Public documents and health work before auth is configured. Only a request carrying a cookie needs session lookup.
-  const session = request.headers.get('cookie') ? await operatorAuth(env).getSession(request) : null
-  const enabled = await healthcareProfile(env)
+  const [session, enabled] = await Promise.all([
+    request.headers.get('cookie') ? operatorAuth(env).getSession(request) : Promise.resolve(null),
+    healthcareProfile(env),
+  ])
   let response: Response
   try { response = await handle() }
   catch { response = Response.json({ error: 'The request could not be completed. Please try again.' }, { status: 500, headers: { 'cache-control': 'no-store' } }) }

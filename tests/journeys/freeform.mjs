@@ -145,6 +145,8 @@ try {
     await capture(second, width, 'reassigned-ready')
     await consent(second); await activate(second, second.getByRole('button', { name: 'Sign document', exact: true }))
     await second.getByRole('heading', { name: 'All signatures are complete.', exact: true }).waitFor()
+    // The completed viewer is newly mounted and draws only near the viewport. Read it as a recipient would.
+    await second.locator('.iw-pdf-page').first().scrollIntoViewIfNeeded()
     await second.locator('.iw-pdf-page[data-rendered]').first().waitFor(); await capture(second, width, 'completed')
     const executed = await second.request.get(path(second) + '/artifacts/signed'); assert.equal(executed.status(), 200)
     const bytes = await executed.body(); await writeFile(`${proof}/${width}-executed.pdf`, bytes)

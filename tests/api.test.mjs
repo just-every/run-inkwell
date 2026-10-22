@@ -732,7 +732,8 @@ test('ROUTE-008: a sender imports 200 contacts from CSV, finds a recipient by co
  assert.equal((await h.mf.dispatchFetch(h.origin+'/api/inkwell/contacts/import',{...csv('name,email\nA,a@b.example'),headers:{...csv('').headers,cookie:viewer}})).status,403)
  assert.equal((await find('kestrel','')).status,401)
 })
-test('MANAGE-001: with 5,000 envelopes, search by recipient email answers in under a second and each status filter shows the right count',async()=>{
+test('MANAGE-001: with 5,000 envelopes, search by recipient email answers in under a second and each status filter shows the right count',async t=>{
+ t.after(()=>h.db.prepare("DELETE FROM iw_envelopes WHERE id LIKE 'bulk-%'").run())
  const day=86_400_000,now=Date.now(),kinds=['prepared','awaiting_signature','completed','declined','voided','expired','mine'],expected={draft:0,waiting_for_me:0,waiting_for_others:0,completed:0,declined:0,voided:0,expired:0,imported:0}
  const rows=Array.from({length:5000},(_,i)=>{const kind=kinds[i%kinds.length],createdAt=new Date(now-(i+1)*60_000).toISOString(),id=`bulk-${String(i).padStart(4,'0')}`
   const status=kind==='expired'?'awaiting_signature':kind==='mine'?'awaiting_signature':kind
@@ -756,10 +757,10 @@ test('MANAGE-001: with 5,000 envelopes, search by recipient email answers in und
  assert.equal((await stored('bulk-0005')).status,'expired','one envelope reads as expired past its expiry');assert.equal((await h.send('/api/inkwell/envelopes/bulk-none',undefined,h.owner)).status,404)
  assert.equal((await h.send('/api/inkwell/envelopes?status=unknown',undefined,h.owner)).status,400)
  assert.equal((await h.send('/api/inkwell/envelopes')).status,401)
- await h.db.batch(['iw_envelopes'].map(()=>h.db.prepare("DELETE FROM iw_envelopes WHERE id LIKE 'bulk-%'")))
 })
 // MANAGE-004: counts and turnaround over whole days in the account's zone (America/New_York), both days included.
-test('MANAGE-004: a fixture of 300 envelopes produces the expected counts and median turnaround, per sender and in total, and the CSV matches the report',async()=>{
+test('MANAGE-004: a fixture of 300 envelopes produces the expected counts and median turnaround, per sender and in total, and the CSV matches the report',async t=>{
+ t.after(()=>h.db.prepare("DELETE FROM iw_envelopes WHERE id LIKE 'report-%'").run())
  const sam=await sender('report.sender@harbour.example'),ownerId=(await h.send('/api/inkwell',undefined,h.owner)).value.actor.id,hour=3_600_000,start=Date.UTC(2026,1,25,14)
  const rows=Array.from({length:300},(_,i)=>{const sent=start+i*4*hour,kind=i%5,createdBy=[ownerId,sam.id,'sender-gone'][i%3],done=sent+((i%7)+1)*5*hour,iso=t=>new Date(t).toISOString()
   const events=[{action:'envelope.prepared',at:iso(sent-hour)},{action:'envelope.approved',at:iso(sent)},...(kind<3?[{action:'envelope.completed',at:iso(done)}]:[])].map(e=>({...e,actor:'fixture',detail:{},previousHash:'',hash:'1'.repeat(64)}))
@@ -781,7 +782,6 @@ test('MANAGE-004: a fixture of 300 envelopes produces the expected counts and me
  const asCsv=(name,email,s)=>[name,email,s.sent,s.completed,s.declined,s.expired,s.medianHoursToComplete??'',s.averageHoursToComplete??''].map(String)
  assert.deepEqual(lines.slice(1),[...all.senders.map(s=>asCsv(s.name,s.email,s)),asCsv('All senders','',all.totals)],'the CSV matches the report')
  assert.equal((await report(h.owner,{from:'2026-03-31',to:'2026-03-01'})).status,400);assert.equal((await report(h.owner,{from:'March',to:'2026-03-01'})).status,400);assert.equal((await report('')).status,401)
- await h.db.prepare("DELETE FROM iw_envelopes WHERE id LIKE 'report-%'").run()
 })
 test('DocuSeal dry run, explicit fingerprint, journal, downloads and undo preserve custody',async()=>{
  const archive=await readFile('tests/fixtures/docuseal/archive.json','utf8')
