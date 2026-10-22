@@ -603,7 +603,7 @@
       "executable": false
     },
     "scripts/qualify-part11.mjs": {
-      "sha256": "6c9b2b7a9d379515ee6a15994c0d3cf9f11098dc05fb753ec837aefcf7f85b1b",
+      "sha256": "8f3af3b124d55d379c9ed1dd319ce8bcf6060b29907a18e1c6ef78210bf05ff9",
       "executable": false
     },
     "SEED-COMMAND-CONTRACT.md": {
@@ -3307,7 +3307,7 @@
       "executable": false
     },
     "tests/compliance.test.mjs": {
-      "sha256": "42844cb8785c711f629b58a291de1e83d30991b55cc02a6070594fe1f7dafa30",
+      "sha256": "ed76736c02593fe5a8bc989b36c58f6019144ceef90e536429918daa3c10b777",
       "executable": false
     },
     "tests/delivery.test.mjs": {

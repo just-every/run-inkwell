@@ -37,6 +37,7 @@ if(phase==='iq'||phase==='all'){
  for(const name of (await readdir('migrations/core')).filter(n=>n.endsWith('.sql')).sort()){const bytes=await readFile('migrations/core/'+name);migrations.push({name,sha256:createHash('sha256').update(bytes).digest('hex')})}
  await writeFile(resolve(directory,'installation.json'),JSON.stringify({head,node:process.versions.node,packageManager:pkg.packageManager,migrations},null,2)+'\n')
 }
+if(git('rev-parse','HEAD')!==head||git('status','--porcelain','--untracked-files=no')){failed=true;receipt.candidateChanged=true}
 receipt.ended=new Date().toISOString();receipt.technicalResult=failed?'fail':'pass'
 await writeFile(resolve(directory,'receipt.json'),JSON.stringify(receipt,null,2)+'\n')
 await writeFile(resolve(directory,'traceability.md'),await readFile('docs/part11/traceability.md'))

@@ -328,7 +328,8 @@ test('Verified OIDC signer: public provider linking and sign-in require fresh si
   nonce=authorization.searchParams.get('nonce')
   const callback=await h.send('/auth/oidc/auth/callback?'+new URLSearchParams({code:'synthetic-inkwell-2',state:authorization.searchParams.get('state'),iss:issuer}),undefined,started.cookie)
   assert.equal(callback.status,303)
-  const oidcCookie=callback.cookie
+  assert.equal(new URL(callback.headers.get('location'),h.origin).pathname,'/app','the complete OIDC protocol admits the existing signer')
+  const oidcCookie=callback.headers.getSetCookie().map(c=>c.split(';')[0]).join('; ')
   assert.equal((await h.send('/api/inkwell',undefined,oidcCookie)).value.actor.id,person.operatorId)
   const pdf=await PDFDocument.create();pdf.addPage([612,792])
   const open=async title=>{
