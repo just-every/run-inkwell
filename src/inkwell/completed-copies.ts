@@ -1,3 +1,4 @@
+import { recipientArtifact, recipientDocuments, remapCopyAudience } from './document-visibility'
 import { party as actingParty, appendEvent, clientEvidence, insist, now, object, randomCode, secret, sha256, text, type Client, type Envelope, type Env } from './model'
 import { atomic, commandWrite, commitEnvelope, getEnvelope, roleGuard, type Guard } from './storage'
 import { mailSuppressed } from './manual-invitations'
@@ -89,6 +90,15 @@ export async function sendCompletedCopy(env: Env, context: CommandContext, input
   insist(added.length + (before.copies?.length ?? 0) <= copyLimit, `An envelope has at most ${copyLimit} copy recipients.`)
   const after = structuredClone(before), start = parties(before).length
   after.copies = [...(before.copies ?? []), ...added]
+  remapCopyAudience(after,before.copies??[],true)
+  if(input.documents!==undefined){
+    insist(Array.isArray(input.documents)&&new Set(input.documents).size===input.documents.length&&input.documents.every(n=>Number.isInteger(n)&&after.documents?.[n]),'Choose existing documents for this completed copy.')
+    for(const [i,d] of (after.documents??[]).entries()){
+      const audience=d.visibleTo??{signers:after.signers.map((_,n)=>n),copies:after.copies.map((_,n)=>n)}
+      d.visibleTo={signers:audience.signers,copies:audience.copies.filter(n=>n<(before.copies?.length??0)||(input.documents as number[]).includes(i))}
+    }
+  }
+  if(JSON.stringify(before.documents)!==JSON.stringify(after.documents))await appendEvent(after,'document.audience_updated',context.actor.id,{before:before.documents,after:after.documents})
   const bytes = (await readBlob(env.DB, after.id, 'signed', after.signedSha256!)).length + (await readBlob(env.DB, after.id, 'certificate', after.certificateSha256!)).length
   const writes = await copyWrites(env, after, bytes, added.map((_, i) => start + i), 'envelope.copy_sent', context.actor.id)
   const result = { id: after.id, sent: added.map(c => c.email) }
@@ -112,7 +122,7 @@ export async function copyContext(env: Env, token: string, request: Request): Pr
 }
 export function copyView(context: CopyContext) {
   const party = parties(context.envelope)[context.link.party]
-  return { title: context.envelope.title, completedAt: context.envelope.events.find(e => e.action === 'envelope.completed')?.at, recipient: { name: party.name, email: party.email, role: party.role }, verified: context.verified }
+  return { title: context.envelope.title, completedAt: context.envelope.events.find(e => e.action === 'envelope.completed')?.at, recipient: { name: party.name, email: party.email, role: party.role }, verified: context.verified, ...(context.verified&&context.envelope.documents?{documents:recipientDocuments(context.envelope,context.link.party)}:{}) }
 }
 const linkGuard = (context: CopyContext, extra: string, values: unknown[]): Guard => ({ sql: `EXISTS(SELECT 1 FROM iw_copy_links WHERE token_hash=? AND ${extra})`, values: [context.link.token_hash, ...values] })
 /** A six-digit code to the recipient's own mailbox: one a minute, ten per link, each valid for 10 minutes. */
@@ -149,5 +159,5 @@ export async function verifyCopyCode(env: Env, context: CopyContext, input: Reco
 export async function copyArtifact(env: Env, context: CopyContext, kind: string) {
   insist(context.verified, 'Confirm the code sent to your email before downloading.', 401)
   insist(['signed', 'certificate'].includes(kind)||/^executed-[0-9]+$/.test(kind), 'Choose the executed PDF or the certificate.', 404)
-  return envelopeArtifact(env, context.envelope, kind)
+  return recipientArtifact(env, context.envelope, context.link.party, kind)
 }

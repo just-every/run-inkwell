@@ -1,3 +1,4 @@
+import { canSeeDocument, recipientPages } from './document-visibility'
 import { active, appendEvent, canonical, id, insist, now, sha256, text, type Actor, type Envelope, type Env } from './model'
 import { commandWrite, commitEnvelope, previousCommand } from './storage'
 import { accessGate, disclosureGate, liveGuard, notGroupSigner, recipientOf, sessionGuard, type SigningContext } from './signing'
@@ -28,8 +29,8 @@ export async function commentRows(env:Env,e:Envelope) {
 export async function commentView(env:Env,e:Envelope,p:Participant|null) {
  const rows=await commentRows(env,e)
  insist(await validCommentRecords(e,rows,canonical,sha256),'The stored comment transcript failed its integrity check.',503)
- const threads=p?rows.map(row=>JSON.parse(row.data) as Thread).filter(t=>t.audience.some(a=>equal(a,p.identity))).map(t=>({...t,canShare:equal(t.author,p.identity)})):[]
- return {threads,parties:p?commentParties(e).map(({key,name,identity})=>({key,name,self:equal(identity,p.identity)})):[],canWrite:Boolean(p&&e.status==='awaiting_signature'&&!e.scheduled&&Date.parse(e.expiresAt)>Date.now()),pages:e.pageSizes.length}
+ const threads=p?rows.map(row=>JSON.parse(row.data) as Thread).filter(t=>t.audience.some(a=>equal(a,p.identity))&&(!p.signing||!e.documents||canSeeDocument(e,t.document,p.signing.recipient.signer))).map(t=>({...t,...(p.signing?{page:recipientPages(e,p.signing.recipient.signer).indexOf(t.page)}:{}),canShare:equal(t.author,p.identity)})):[]
+ return {threads,parties:p?commentParties(e).map(({key,name,identity})=>({key,name,self:equal(identity,p.identity)})):[],canWrite:Boolean(p&&e.status==='awaiting_signature'&&!e.scheduled&&Date.parse(e.expiresAt)>Date.now()),pages:p?.signing?recipientPages(e,p.signing.recipient.signer).length:e.pageSizes.length}
 }
 /** Public comment reads always enforce the chosen audience. Raw transcripts are confined to explicit record custody. */
 export async function commentCustody(env:Env,e:Envelope) {
@@ -43,6 +44,7 @@ export async function writeComment(env:Env,e:Envelope,p:Participant|null,input:R
  const previous=await previousCommand(env.DB,key,commandId,fingerprint);if(previous)return previous
  insist(['create','reply','audience'].includes(String(action)),'Choose create, reply or audience.')
  let thread:Thread
+ if(action==='create'&&p.signing){const pages=recipientPages(e,p.signing.recipient.signer);insist(Number.isInteger(input.page)&&pages[Number(input.page)]!==undefined,'Choose a visible document page.');input={...input,page:pages[Number(input.page)]}}
  if(action==='create') {
   insist(Number.isInteger(input.page)&&Number(input.page)>=0&&Number(input.page)<e.pageSizes.length,'Choose a page in this document.')
   const documentIndex=e.documents?.findIndex(d=>Number(input.page)>=d.pageStart&&Number(input.page)<d.pageStart+d.pages)??0
@@ -53,11 +55,12 @@ export async function writeComment(env:Env,e:Envelope,p:Participant|null,input:R
   insist(row,'Comment thread not found.',404);thread=JSON.parse(row.data)
   insist(thread.audience.some(a=>equal(a,p.identity)),'Comment thread not found.',404)
  }
+ if(p.signing&&e.documents)insist(canSeeDocument(e,thread.document,p.signing.recipient.signer),'Comment thread not found.',404)
  if(action==='create'||action==='audience') {
   insist(equal(thread.author,p.identity),'Only the thread author can change its audience.',403)
   const parties=commentParties(e)
   insist(Array.isArray(input.audience)&&input.audience.length>0&&new Set(input.audience).size===input.audience.length,'Explicitly select the parties who may read this thread.')
-  thread.audience=input.audience.map(k=>{const party=parties.find(a=>a.key===k);insist(party,'Choose a current sender or recipient identity.');return party.identity})
+  thread.audience=input.audience.map(k=>{const party=parties.find(a=>a.key===k);insist(party,'Choose a current sender or recipient identity.');insist(party.identity.kind==='sender'||!e.documents||canSeeDocument(e,thread.document,party.identity.signer),'A thread can be shared only with recipients who can see its document.');return party.identity})
  }else insist(input.audience===undefined,'Replies inherit the thread audience.')
  if(action!=='audience') thread.messages.push({author:p.identity,name:p.name,at:now(),text:text(input.text,'a comment',4000)})
  const rows=await commentRows(env,e)

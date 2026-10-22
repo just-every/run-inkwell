@@ -1,3 +1,4 @@
+import { readDocumentAudience, permittedScanPages } from './document-visibility'
 import { PDFDocument } from 'pdf-lib'
 import { active, canonical, id, insist, now, object, sha256, text, type Actor, type Envelope, type Env, type Field } from './model'
 import { blobFingerprint, fromBase64, readBlob } from './blobs'
@@ -5,7 +6,7 @@ import { parsePdf, validatePdfText } from './pdf'
 import { atomic, roleGuard } from './storage'
 import { readBytes } from './body'
 export const MAX_ENVELOPE_BYTES=100*1024*1024
-export type EnvelopeDocument={filename:string;sha256:string;bytes:number;pageStart:number;pages:number;mode:'sign'|'optional'|'view';signedSha256?:string}
+export type EnvelopeDocument={filename:string;sha256:string;bytes:number;pageStart:number;pages:number;mode:'sign'|'optional'|'view';visibleTo?:import('./document-visibility').DocumentAudience;signedSha256?:string}
 export const documentKind=(index:number,signed=false)=>`${signed?'executed':'document'}-${index}`
 const chunkBytes=64*1024
 /** Large artifact bytes are staged in bounded RPCs; only INSERT SELECT enters the atomic product transaction. */
@@ -71,15 +72,15 @@ export async function readDocuments(env:Env,input:Record<string,unknown>,actor?:
   await validatePdfText([filename])
   const {document,pageSizes}=await parsePdf(bytes),pageStart=combined.getPageCount()
   for(const page of await combined.copyPages(document,document.getPageIndices()))combined.addPage(page)
-  documents.push({filename,sha256:await sha256(bytes),bytes:bytes.length,pageStart,pages:pageSizes.length,mode:mode as EnvelopeDocument['mode']});originals.push(await stageBytes(env,bytes))
+  documents.push({filename,sha256:await sha256(bytes),bytes:bytes.length,pageStart,pages:pageSizes.length,mode:mode as EnvelopeDocument['mode'],...(d.visibleTo===undefined?{}:{visibleTo:readDocumentAudience(d.visibleTo)})});originals.push(await stageBytes(env,bytes))
  }
  const bytes=new Uint8Array(await combined.save()),parsed=await parsePdf(bytes,2000)
  return{bytes,...parsed,documents,originals}
 }
 export function documentFields(fields:Field[],documents:EnvelopeDocument[]|undefined,signers:number,freeForm=false,removed:number[]=[]) {
  if(!documents)return fields
- for(const f of fields){const index=documents.findIndex(d=>f.page>=d.pageStart&&f.page<d.pageStart+d.pages);insist(index>=0,'Place fields on an existing document page.');const d=documents[index];insist(d.mode!=='view','View-only documents cannot contain signing fields.');f.document=index;f.documentPage=f.page-d.pageStart;if(d.mode==='optional')f.required=false}
- if(!freeForm)for(const [i,d] of documents.entries())if(d.mode==='sign')for(let signer=0;signer<signers;signer++)if(!removed.includes(signer))insist(fields.some(f=>f.document===i&&f.signer===signer&&f.type==='signature'&&f.required!==false),`Place a required signature for signer ${signer+1} on ${d.filename}.`)
+ for(const f of fields){const index=documents.findIndex(d=>f.page>=d.pageStart&&f.page<d.pageStart+d.pages);insist(index>=0,'Place fields on an existing document page.');const d=documents[index];insist(d.mode!=='view','View-only documents cannot contain signing fields.');insist(!d.visibleTo||d.visibleTo.signers.includes(f.signer),'A hidden document cannot contain fields for this signer.');f.document=index;f.documentPage=f.page-d.pageStart;if(d.mode==='optional')f.required=false}
+ if(!freeForm)for(const [i,d] of documents.entries())if(d.mode==='sign')for(let signer=0;signer<signers;signer++)if(!removed.includes(signer)&&(!d.visibleTo||d.visibleTo.signers.includes(signer)))insist(fields.some(f=>f.document===i&&f.signer===signer&&f.type==='signature'&&f.required!==false),`Place a required signature for signer ${signer+1} on ${d.filename}.`)
  return fields
 }
 export async function documentWrites(env:Env,envelopeId:string,originals:(Uint8Array|string)[]|undefined) {
@@ -95,7 +96,7 @@ export async function executedDocuments(env:Env,e:Envelope,combined:Uint8Array) 
  if(!e.documents)return writes
  const pdf=await PDFDocument.load(combined)
  for(const [i,d] of e.documents.entries()){
-  const output=await PDFDocument.create();for(const page of await output.copyPages(pdf,[...Array.from({length:d.pages},(_,n)=>d.pageStart+n),...Array.from({length:pdf.getPageCount()-e.pageSizes.length},(_,n)=>e.pageSizes.length+n)]))output.addPage(page)
+  const output=await PDFDocument.create();for(const page of await output.copyPages(pdf,[...Array.from({length:d.pages},(_,n)=>d.pageStart+n),...permittedScanPages(e,[i])]))output.addPage(page)
   const bytes=new Uint8Array(await output.save());d.signedSha256=await sha256(bytes);writes.push(...await stagedBlobWrites(env,e.id,documentKind(i,true),bytes))
  }
  return writes

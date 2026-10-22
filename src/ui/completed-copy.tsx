@@ -7,7 +7,7 @@ import { ErrorNotice, useAction } from './feedback'
 import { Check } from './marks'
 import { Brand } from './shell'
 
-type CopyView = { title: string; completedAt?: string; recipient: { name: string; email: string; role: 'signer' | 'copy' }; verified: boolean }
+type CopyView = { documents?:{index:number;filename:string}[]; title: string; completedAt?: string; recipient: { name: string; email: string; role: 'signer' | 'copy' }; verified: boolean }
 export function CompletedCopy({ token }: { token: string }) {
   const [view, setView] = useState<CopyView>()
   const [codeSent, setCodeSent] = useState(false)
@@ -22,7 +22,7 @@ export function CompletedCopy({ token }: { token: string }) {
         <button className="iw-primary iw-fit" disabled={action.busy} onClick={() => void action.run(async () => { await request(`${base}/code`, {}); setCodeSent(true) })}>{action.busy ? 'Working…' : codeSent ? 'Send a new code' : 'Email me a code'}</button>
         {codeSent && <form className="iw-stack" onSubmit={event => { event.preventDefault(); void action.run(async () => { await request(`${base}/verify`, { code }); setCode(''); await refresh() }) }}><p role="status">Code sent. Check your email.</p><label>Email code<input required inputMode="numeric" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value)} /></label><button className="iw-primary iw-fit" disabled={action.busy}>{action.busy ? 'Checking…' : 'Open my copy'}</button></form>}
       </div>}
-      {view?.verified && <div className="iw-callout iw-stack iw-done"><h2><Check />All signatures are complete.</h2><p>Keep the executed PDF and certificate for your records.</p><div className="iw-actions"><a className="iw-button iw-primary" href={`${base}/artifacts/signed`} download>Download executed PDF</a><a className="iw-button" href={`${base}/artifacts/certificate`} download>Download certificate</a></div></div>}
+      {view?.verified && <div className="iw-callout iw-stack iw-done"><h2><Check />All signatures are complete.</h2><p>Keep the executed PDF and certificate for your records.</p><div className="iw-actions">{(!view.documents||view.documents.length>0)&&<a className="iw-button iw-primary" href={`${base}/artifacts/signed`} download>Download executed PDF</a>}<a className="iw-button" href={`${base}/artifacts/certificate`} download>Download certificate</a></div>{view.documents&&<ul>{view.documents.map(d=><li key={d.index}><a href={`${base}/artifacts/executed-${d.index}`} download>Download {d.filename}</a></li>)}</ul>}</div>}
     </section></HydrationUnit>
   </main></div>
 }

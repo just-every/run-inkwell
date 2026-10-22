@@ -449,3 +449,120 @@ test('Whole archive transfers: durable build cursor, range resume and idempotent
   assert.equal((await h.send(`${base}/exports/${job}/download`,undefined,h.owner)).status,404,'erasure removes all transfer snapshots and download capabilities')
  }finally{await h.close();await destination.close()}
 })
+
+// ROUTE-012 exercises the same recipient session that powers the page and API view; no record-holder session leaks in.
+test('Document visibility: offer-only candidate cannot fetch the memo through signing, PDFs, comments, completed links or attached copies; manager signs both and the certificate names each scope',async()=>{
+ const h=await harness()
+ try {
+  const originals=await Promise.all(['Public offer letter','Confidential compensation memo'].map(pdf))
+  const input={title:'Hiring offer',filename:'offer.pdf',documents:originals.map((b,i)=>({filename:i?'compensation-memo.pdf':'offer.pdf',pdfBase64:base64(b),mode:'sign',...(i?{visibleTo:{signers:[1],copies:[]}}:{})})),signers:people,fields:[{...field(0),id:'candidate',document:0,page:0},{...field(1),id:'manager-offer',document:0,page:0},{...field(1),id:'manager-memo',document:1,page:0}],copies:[{name:'Offer filing',email:'copy@visibility.example'}],allowPaperSigning:true}
+  await h.command('envelope.prepare',{...input,documents:input.documents.map((d,i)=>i?{...d,visibleTo:{signers:[8],copies:[]}}:d)},h.owner,400)
+  await h.command('envelope.prepare',{...input,fields:[...input.fields,{...field(0),id:'hidden-field',document:1,page:0}]},h.owner,400)
+  const recipient=async email=>{const mail=await h.mail(email,'Please sign:'),path='/api'+new URL(mail.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname;await h.post(path+'/code',{},'');const cookie=(await h.post(path+'/verify',{code:(await h.mail(email,'verification code')).text.match(/\b\d{6}\b/)[0]},'')).cookie;await h.agree(path,cookie);return{path,cookie}}
+  const checkPdf=async(bytes,count,hidden)=>{assert.equal((await PDFDocument.load(bytes)).getPageCount(),count);const text=await pdfText(bytes);assert.ok(text.includes('Public offer letter'));assert.equal(text.includes('Confidential compensation memo'),hidden)}
+  const id=(await h.command('envelope.prepare',input)).result.id,base=`/api/inkwell/envelopes/${id}`
+  await h.command('envelope.approve',{id,eligible:true})
+  const candidate=await recipient(people[0].email)
+  const state=(await h.send(candidate.path,undefined,candidate.cookie)).value
+  assert.deepEqual(state.documents.map(d=>[d.index,d.filename]),[[0,'offer.pdf']]);assert.equal(state.pageSizes.length,1);assert.ok(!JSON.stringify(state).includes('memo'))
+  assert.equal((await h.send(candidate.path+'/documents/1',undefined,candidate.cookie)).status,404)
+  assert.equal((await h.send(base+'/artifacts/original',undefined,candidate.cookie)).status,401,'a signing session never borrows record-holder access')
+  await checkPdf((await h.send(candidate.path+'/document',undefined,candidate.cookie)).bytes,1,false)
+  await h.post(base+'/comments',{action:'create',page:1,text:'synthetic-inkwell-1',audience:['sender','recipient:0'],commandId:crypto.randomUUID()},h.owner,400)
+  await h.post(base+'/comments',{action:'create',page:1,text:'synthetic-inkwell-2',audience:['sender','recipient:1'],commandId:crypto.randomUUID()},h.owner)
+  assert.deepEqual((await h.send(candidate.path+'/comments',undefined,candidate.cookie)).value.threads,[])
+  await h.post(candidate.path+'/comments',{action:'create',page:1,text:'synthetic-inkwell-3',audience:['recipient:0'],commandId:crypto.randomUUID()},candidate.cookie,400)
+  await h.post(candidate.path+'/sign',{values:{candidate:people[0].name,'manager-memo':people[0].name},consent:true,commandId:crypto.randomUUID()},candidate.cookie,400)
+  await h.post(candidate.path+'/sign',{values:{candidate:people[0].name},consent:true,commandId:crypto.randomUUID()},candidate.cookie)
+  const manager=await recipient(people[1].email)
+  assert.equal((await h.send(manager.path,undefined,manager.cookie)).value.documents.length,2)
+  await checkPdf((await h.send(manager.path+'/document',undefined,manager.cookie)).bytes,2,true)
+  await h.post(manager.path+'/sign',{values:{'manager-offer':people[1].name},consent:true,commandId:crypto.randomUUID()},manager.cookie,400)
+  await h.post(manager.path+'/sign',{values:{'manager-offer':people[1].name,'manager-memo':people[1].name},consent:true,commandId:crypto.randomUUID()},manager.cookie)
+  await checkPdf((await h.send(candidate.path+'/artifacts/signed',undefined,candidate.cookie)).bytes,1,false)
+  assert.equal((await h.send(candidate.path+'/artifacts/executed-1',undefined,candidate.cookie)).status,404)
+  const cert=await pdfText((await h.send(base+'/artifacts/certificate',undefined,h.owner)).bytes)
+  assert.match(cert,/Visible documents: offer.pdf/);assert.match(cert,/Visible documents: offer.pdf; compensation-memo.pdf/)
+  assert.ok(!(await pdfText((await h.send(candidate.path+'/artifacts/certificate',undefined,candidate.cookie)).bytes)).includes('memo'))
+  for(const email of [people[0].email,'copy@visibility.example',people[1].email]) {
+   const path='/api'+new URL((await h.mail(email,'Completed:')).text.match(/http:\/\/[^\s]+\/copy\/[^\s]+/)[0]).pathname
+   assert.equal((await h.send(path+'/artifacts/signed')).status,401)
+   await h.post(path+'/code',{},'');const cookie=(await h.post(path+'/verify',{code:(await h.mail(email,'Your Inkwell code for a completed copy')).text.match(/\b\d{6}\b/)[0]},'')).cookie
+   const manager=email===people[1].email
+   await checkPdf((await h.send(path+'/artifacts/signed',undefined,cookie)).bytes,manager?2:1,manager)
+   assert.equal((await h.send(path+'/artifacts/executed-1',undefined,cookie)).status,manager?200:404)
+   assert.equal((await h.send(path,undefined,cookie)).value.documents.length,manager?2:1)
+  }
+  assert.equal((await h.send(base+'/verify',undefined,h.owner)).value.ok,true)
+  // The attachment delivery path must use the same per-party scope, including paper scan appendices.
+  await h.command('account.completed_copies',{delivery:'attachment'})
+  const second=(await h.command('envelope.prepare',{...input,title:'Attached hiring offer',signers:people.map((p,i)=>({...p,email:`attached-${i}@visibility.example`}))})).result.id
+  await h.command('envelope.approve',{id:second,eligible:true})
+  const a=await recipient('attached-0@visibility.example');await h.post(a.path+'/sign',{values:{candidate:people[0].name},consent:true,commandId:crypto.randomUUID()},a.cookie)
+  const b=await recipient('attached-1@visibility.example'),scan=await PDFDocument.create();scan.addPage([612,792]).drawText('Confidential compensation memo scan');scan.addPage([612,792]).drawText('Manager wet signature')
+  await paper(h,b,new Uint8Array(await scan.save()),200);await h.command('envelope.paper_review',{id:second,signer:1,accept:true})
+  const attached=await h.mail('attached-0@visibility.example','Completed:'),managerMail=await h.mail('attached-1@visibility.example','Completed:')
+  await checkPdf(Buffer.from(attached.attachments[0].content,'base64'),1,false)
+  await checkPdf(Buffer.from(managerMail.attachments[0].content,'base64'),4,true)
+  assert.ok(!(await pdfText(Buffer.from(attached.attachments[1].content,'base64'))).includes('memo'))
+  const component=(await h.send(a.path+'/artifacts/executed-0',undefined,a.cookie)).bytes
+  await checkPdf(component,1,false)
+ }finally{await h.close()}
+})
+
+test('Document visibility custody: draft reordering, copy, template use/edit, corrections, archive restore and tamper refusal preserve recipient grants',async()=>{
+ const h=await harness({mailProvider:null})
+ try {
+  const originals=await Promise.all(['Private manager memo','Public offer letter'].map(pdf)),documents=originals.map((b,i)=>({filename:i?'offer.pdf':'memo.pdf',pdfBase64:base64(b),mode:'sign',...(i?{}:{visibleTo:{signers:[1],copies:[]}})}))
+  const fields=[{...field(0),id:'candidate',document:1,page:0},{...field(1),id:'manager-offer',document:1,page:0},{...field(1),id:'manager-memo',document:0,page:0}]
+  const input={title:'Scoped custody',filename:'combined.pdf',documents,signers:people,fields},id=(await h.command('envelope.prepare',input)).result.id
+  const first=await verify(h,(await h.command('envelope.approve',{id,eligible:true})).result.invitations[0]);await h.agree(first.path,first.cookie)
+  let view=(await h.send(first.path,undefined,first.cookie)).value
+  assert.equal(view.fields[0].page,0);assert.equal(view.documents[0].index,1,'a leading hidden document does not leave a blank page')
+  await h.command('envelope.correct',{id,signers:[{...people[0],email:'replacement@visibility.example'},people[1]]})
+  assert.equal((await h.send(first.path,undefined,first.cookie)).status,404)
+  const replaced=await verify(h,(await h.command('envelope.invite',{id})).result.invitations[0]);await h.agree(replaced.path,replaced.cookie)
+  assert.equal((await h.send(replaced.path+'/documents/0',undefined,replaced.cookie)).status,404)
+  await h.command('envelope.void',{id,reason:'Preserve scoped custody without executing'})
+  const copy=(await h.command('envelope.copy',{id})).result.id,template=(await h.command('template.from_envelope',{id})).result.id
+  let definition=(await h.send('/api/inkwell/templates',undefined,h.owner)).value.templates.find(t=>t.id===template)
+  await h.command('template.update',{...definition,supplements:undefined,documents:definition.documents.map((d,i)=>({existing:i,mode:d.mode,visibleTo:d.visibleTo})),pdfBase64:base64((await h.send(`/api/inkwell/envelopes/${id}/artifacts/original`,undefined,h.owner)).bytes)})
+  const use=(await h.command('template.use',{id:template,recipients:people})).result.id
+  for(const fresh of [copy,use])assert.deepEqual((await envelope(h,fresh)).documents.map(d=>d.visibleTo),[{signers:[1],copies:[]},undefined])
+  const copyRecord=await envelope(h,copy)
+  await h.command('envelope.update',{...input,id:copy,documents:[{existing:1,mode:'sign'},{existing:0,mode:'sign',visibleTo:{signers:[1],copies:[]}}],fields:copyRecord.fields.map(f=>({...f,document:1-f.document,documentPage:0}))})
+  assert.deepEqual((await envelope(h,copy)).documents.map(d=>d.visibleTo),[undefined,{signers:[1],copies:[]}])
+  const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value,destination=await harness({mailProvider:null})
+  try {await destination.post('/api/inkwell/archive/restore',{archive});for(const fresh of [id,copy,use]){assert.equal((await destination.send(`/api/inkwell/envelopes/${fresh}/verify`,undefined,destination.owner)).value.ok,true);assert.deepEqual((await envelope(destination,fresh)).documents,(await envelope(h,fresh)).documents)}}finally{await destination.close()}
+  const stored=await envelope(h,id);stored.documents[0].visibleTo.signers.push(0)
+  await h.db.prepare('UPDATE iw_envelopes SET data=? WHERE id=?').bind(JSON.stringify(stored),id).run()
+  const damaged=(await h.send('/api/inkwell/archive',undefined,h.owner)).value,refused=await harness({mailProvider:null})
+  try{const result=await refused.send('/api/inkwell/archive/restore',{archive:damaged},refused.owner);assert.ok([400,409].includes(result.status),'a valid-checksum archive cannot widen a recipient audience');assert.equal((await refused.send(`/api/inkwell/envelopes/${id}`,undefined,refused.owner)).status,404)}finally{await refused.close()}
+ }finally{await h.close()}
+})
+
+test('Document visibility policy: owner-only hide-without-fields narrows defaults and free-form placements use only visible pages',async()=>{
+ const h=await harness()
+ try {
+  const docs=await Promise.all(['Confidential memo','Public offer letter'].map(pdf)),documents=docs.map((b,i)=>({filename:i?'offer.pdf':'memo.pdf',pdfBase64:base64(b),mode:'optional'})),fields=[{...field(0),document:1,page:0},{...field(1),document:0,page:0}],input={title:'Policy visibility',filename:'combined.pdf',documents,signers:people,fields,copies:[{name:'Filing copy',email:'filing@visibility.example'}]}
+  const initial=(await h.command('envelope.prepare',input)).result.id
+  assert.ok((await envelope(h,initial)).documents.every(d=>!d.visibleTo),'default recipients see every document')
+  const viewer=await h.invite('viewer@visibility.example','member')
+  await h.command('account.envelope_defaults',{expiryDays:120,reminders:null,expectedVersion:0,hideDocumentsWithoutFields:true},viewer,403)
+  await h.command('account.envelope_defaults',{expiryDays:120,reminders:null,expectedVersion:0,hideDocumentsWithoutFields:true})
+  const id=(await h.command('envelope.prepare',input)).result.id
+  assert.deepEqual((await envelope(h,id)).documents.map(d=>d.visibleTo),[{signers:[1],copies:[]},{signers:[0],copies:[]}])
+  assert.ok((await envelope(h,initial)).documents.every(d=>!d.visibleTo),'changing policy never rewrites earlier approvals or drafts')
+  await h.command('account.envelope_defaults',{expiryDays:120,reminders:null,expectedVersion:1,hideDocumentsWithoutFields:false})
+  await h.command('account.freeform',{enabled:true,expectedVersion:0})
+  const free=(await h.command('envelope.prepare',{...input,freeForm:true,fields:[],documents:documents.map((d,i)=>({...d,mode:'sign',visibleTo:{signers:i?[0]:[1],copies:[]}}))})).result.id
+  await h.command('envelope.approve',{id:free,eligible:true})
+  const mail=await h.mail(people[0].email,'Please sign:'),path='/api'+new URL(mail.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname;await h.post(path+'/code',{},'');const first={path,cookie:(await h.post(path+'/verify',{code:(await h.mail(people[0].email,'verification code')).text.match(/\b\d{6}\b/)[0]},'')).cookie};await h.agree(first.path,first.cookie)
+  const own=[{...field(0),id:'placed',page:0}]
+  await h.post(first.path+'/progress',{fields:own.map(f=>({...f,page:1})),values:{placed:people[0].name}},first.cookie,400)
+  await h.post(first.path+'/progress',{fields:own,values:{placed:people[0].name}},first.cookie)
+  assert.equal((await h.send(first.path,undefined,first.cookie)).value.fields[0].page,0)
+  await h.post(first.path+'/sign',{fields:own,values:{placed:people[0].name},consent:true,commandId:crypto.randomUUID()},first.cookie)
+  assert.equal((await envelope(h,free)).fields[0].page,1,'visible placement maps back to the canonical document')
+ }finally{await h.close()}
+})

@@ -1,3 +1,4 @@
+import { validateDocumentAudience } from './document-visibility'
 import { consumedUploadWrites, readDocuments, documentInputFields, documentFields as mapDocumentFields, documentWrites, stagedBlobWrites } from './documents'
 import { envelopeDefaults } from './envelope-defaults'
 import { normalizeRoutingRule, validateCopyRouting, validateRouting } from './routing'
@@ -27,7 +28,7 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   const title = text(input.title, 'a title'), filename = text(input.filename ?? (input.documents ? 'combined.pdf' : undefined), 'a filename', 240)
   insist(!/[\x00-\x1f/\\]/.test(filename) && filename.toLowerCase().endsWith('.pdf'), 'Choose a PDF filename.')
   insist(!/[\r\n\t]/.test(title), 'Use a single line for the envelope title.')
-  const multiple = prepared?{...await parsePdf(prepared.bytes,2000),bytes:prepared.bytes,documents:prepared.documents,originals:undefined}:await readDocuments(env,input,actor,previous), bytes = multiple?.bytes ?? fromBase64(input.pdfBase64), { document, pageSizes } = multiple ?? await parsePdf(bytes)
+  const multiple = prepared?{...await parsePdf(prepared.bytes,2000),bytes:prepared.bytes,documents:structuredClone(prepared.documents),originals:undefined}:await readDocuments(env,input,actor,previous), bytes = multiple?.bytes ?? fromBase64(input.pdfBase64), { document, pageSizes } = multiple ?? await parsePdf(bytes)
   insist(Array.isArray(input.signers) && input.signers.length >= 1 && input.signers.length <= 5, 'Add 1–5 ordered signers.')
   const accessCodes: (string | 'keep' | undefined)[] = []
   const groups = await Promise.all(input.signers.map(value => object(value).group === undefined ? undefined : snapshotGroup(env, object(value).group)))
@@ -65,6 +66,7 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   for (const field of carried ?? []) insist(field.signer < signers.length, `The document places a field for recipient ${field.signer + 1} (${field.name}), but the envelope has ${signers.length}.`)
   const placed = carried ?? documentInputFields(input.fields,multiple?.documents)
   const fields = freeForm ? [] : validateFields(Array.isArray(placed) && placed.every(field => field && typeof field === 'object') ? applyPrefillPayload(placed as Field[], input.prefill, 'this envelope') : placed, signers.length, pageSizes.length), copies = chooseCopies(input.copies, signers.flatMap(s => s.group ? s.group.members : [s]))
+  validateDocumentAudience(multiple?.documents,signers.length,copies.length,fields,(await envelopeDefaults(env)).hideDocumentsWithoutFields===true)
   mapDocumentFields(fields,multiple?.documents,signers.length,freeForm)
   validateRouting(signers, fields)
   validateCopyRouting(copies, fields)

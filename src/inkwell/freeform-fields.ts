@@ -1,3 +1,4 @@
+import { recipientPages } from './document-visibility'
 import { documentFields } from './documents'
 import { normalizeFieldSchema } from './field-rules'
 import { insist, type Envelope, type Field } from './model'
@@ -14,7 +15,8 @@ export function placedFields(envelope: Envelope, signer: number, input: unknown)
     insist(['signature', 'initials', 'date_signed', 'full_name', 'text'].includes(field.type), 'Place only signatures, initials, dates signed, full names or single-line text.')
     insist(typeof field.label === 'string' && !/[\x00-\x1f\x7f]/.test(field.label), 'Name each placed field on one line.')
   }
-  const fields = input.length ? normalizeFieldSchema(input) : []
+  const pages=recipientPages(envelope,signer)
+  const fields = input.length ? normalizeFieldSchema(input.map(f=>{insist(Number.isInteger(f.page)&&pages[f.page]!==undefined,'Place fields on a visible document page.');return {...f,page:pages[f.page]}})) : []
   const signed = envelope.fields.filter(field => envelope.signers[field.signer]?.signedAt)
   insist(signed.length === envelope.fields.length, 'A free-form envelope cannot contain sender fields.', 409)
   for (const field of fields) {

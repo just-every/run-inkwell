@@ -16,6 +16,8 @@ const handbookBytes = Buffer.from(await handbook.save())
 const tab = async (page, control) => { await control.waitFor(); if (await control.evaluate(el => el === document.activeElement)) return; const backwards = await control.evaluate(el => Boolean(document.activeElement?.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_PRECEDING)); await tabTo(page, control, { backwards }) }
 const activate = async (page, control) => { await tab(page, control); await page.keyboard.press('Enter') }
 try {
+  await documentVisibilityJourney(proof)
+  if(!process.env.INKWELL_VISIBILITY_ONLY){
   for (const width of [1440, 390]) {
     const title = `Harbour supplier agreement ${width}`, context = await app.browser.newContext({ viewport: { width, height: width === 390 ? 844 : 1000 } })
     await context.addCookies([app.ownerCookie()]); const page = await context.newPage()
@@ -191,4 +193,58 @@ try {
   console.log('PORT-002: selected export, durable interrupted build and restore, fingerprint-verified publication, owner/admin boundaries and accessible Archive screens at 1440/390 passed')
   console.log('PREP-002: ordered three-document preparation, W-9 template application, view-only policy, two single-session signers, separate/combined records; light/dark accessibility proof at 1440 and 390 passed')
   console.log('SIGNX-009: supplemental PDF authoring, opening and acknowledgment, keyboard and accessibility-tree completion; SIGNX-003 light/dark scans at 1440 and 390 passed')
+  }
 } catch (error) { await screenshots(app.browser, 'supplements-failure'); throw error } finally { await app.close() }
+
+async function documentVisibilityJourney(proof) {
+ const app=await startInkwellWithMail()
+ try {
+  const pdf=async text=>{const d=await PDFDocument.create();d.addPage([612,792]).drawText(text,{x:54,y:720,size:18});return Buffer.from(await d.save())}
+  const memo=await pdf('Private compensation memo'),offer=await pdf('Public offer letter')
+  for(const width of [1440,390]) {
+   const height=width===390?844:1000,context=await app.browser.newContext({viewport:{width,height}})
+   await context.addCookies([app.ownerCookie()]);const page=await context.newPage()
+   const capture=async(p,state)=>{assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${width} ${state}: no horizontal overflow`);await p.screenshot({path:`${proof}/${width}-visibility-${state}.png`})}
+   const scan=async(p,state)=>{for(const theme of ['light','dark']){await p.emulateMedia({colorScheme:theme});await axe(p,`ROUTE-012 ${state} ${width} ${theme}`)}await p.emulateMedia({colorScheme:'light'});await capture(p,state)}
+   await page.goto(app.origin+'/app');await page.getByRole('button',{name:'Settings',exact:true}).click()
+   const defaults=page.getByRole('region',{name:'Envelope defaults',exact:true}),policy=defaults.getByRole('checkbox',{name:/Hide documents without/})
+   await tab(page,policy);await page.keyboard.press('Space');await activate(page,defaults.getByRole('button',{name:'Save envelope defaults',exact:true}))
+   await expect.poll(async()=>(await app.call('/api/inkwell/envelope-defaults',{cookie:app.owner})).value.defaults.hideDocumentsWithoutFields).toBe(true)
+   await scan(page,'settings');await tab(page,policy);await page.keyboard.press('Space');await activate(page,defaults.getByRole('button',{name:'Save envelope defaults',exact:true}))
+   await expect.poll(async()=>(await app.call('/api/inkwell/envelope-defaults',{cookie:app.owner})).value.defaults.hideDocumentsWithoutFields).toBe(false)
+   const title=`Hiring offer visibility ${width}`,signers=[{name:'Candidate Quinn',email:`candidate-${width}@visibility.example`},{name:'Manager Haddad',email:`manager-${width}@visibility.example`}]
+   // The leading memo ensures recipient page renumbering is exercised by the real PDF viewer and field navigation.
+   const id=(await app.command('envelope.prepare',{title,filename:'combined.pdf',documents:[{filename:'compensation-memo.pdf',pdfBase64:memo.toString('base64'),mode:'sign',visibleTo:{signers:[1],copies:[]}},{filename:'offer.pdf',pdfBase64:offer.toString('base64'),mode:'sign'}],signers,fields:[{id:'candidate',type:'signature',label:'Candidate signature',signer:0,document:1,page:0,x:.1,y:.5,width:.5,height:.06},{id:'manager-offer',type:'signature',label:'Manager offer signature',signer:1,document:1,page:0,x:.1,y:.65,width:.5,height:.06},{id:'manager-memo',type:'signature',label:'Manager memo signature',signer:1,document:0,page:0,x:.1,y:.5,width:.5,height:.06}]})).id
+   await page.getByRole('button',{name:'Envelopes',exact:true}).click();await page.getByRole('row',{name:new RegExp(title)}).click();await page.getByRole('button',{name:'Edit draft',exact:true}).click()
+   const docs=page.getByRole('region',{name:'Envelope documents',exact:true}),memoScope=docs.getByRole('group',{name:'Document 1 visible to',exact:true}),candidate=memoScope.getByRole('checkbox',{name:'Recipient 1: Candidate Quinn',exact:true})
+   await expect(candidate).not.toBeChecked();await tab(page,candidate);await page.keyboard.press('Space');await expect(candidate).toBeChecked();await page.keyboard.press('Space');await expect(candidate).not.toBeChecked()
+   await docs.scrollIntoViewIfNeeded();assert.ok((await docs.ariaSnapshot()).includes('Recipient 2: Manager Haddad'));await scan(page,'prepare')
+   await activate(page,page.getByRole('button',{name:'Save draft',exact:true}));await page.getByRole('button',{name:'Edit draft',exact:true}).waitFor()
+   const record=(await app.call(`/api/inkwell/envelopes/${id}`,{cookie:app.owner})).value.envelope;assert.deepEqual(record.documents[0].visibleTo,{signers:[1],copies:[]})
+   await app.command('envelope.approve',{id,eligible:true})
+   const sessions=[]
+   for(const [index,person] of signers.entries()) {
+    const invite=app.mail(person.email,'Please sign:'),url=invite.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0],sc=await app.browser.newContext({viewport:{width,height}}),p=await sc.newPage()
+    await p.goto(url);await activate(p,p.getByRole('button',{name:'Email me a code',exact:true}));await p.getByLabel('Email verification code',{exact:true}).fill(app.mail(person.email,'Your Inkwell verification code').text.match(/\b\d{6}\b/)[0]);await activate(p,p.getByRole('button',{name:'Verify code',exact:true}));await tab(p,p.getByRole('checkbox',{name:/I have read the electronic record/}));await p.keyboard.press('Space');await activate(p,p.getByRole('button',{name:'Agree and continue',exact:true}))
+    const visible=p.getByRole('region',{name:'Envelope documents',exact:true});await visible.getByRole('link',{name:'Download offer.pdf',exact:true}).waitFor()
+    const base='/api'+new URL(url).pathname
+    if(index===0){assert.equal(await visible.getByText('compensation-memo.pdf',{exact:true}).count(),0);assert.equal((await p.request.get(app.origin+base+'/documents/0')).status(),404);assert.equal((await PDFDocument.load(await(await p.request.get(app.origin+base+'/document')).body())).getPageCount(),1);assert.equal((await p.request.get(app.origin+base)).ok(),true)}
+    else await visible.getByRole('link',{name:'Download compensation-memo.pdf',exact:true}).waitFor()
+    const labels=index===0?['Candidate signature Page 1 · signature']:['Manager memo signature Page 1 · signature','Manager offer signature Page 2 · signature']
+    for(const label of labels){await tab(p,p.getByRole('textbox',{name:label,exact:true}));await p.keyboard.type(person.name)}
+    await scan(p,index===0?'candidate':'manager');assert.ok((await visible.ariaSnapshot()).includes('offer.pdf'))
+    await tab(p,p.getByRole('checkbox',{name:/I have reviewed this document and consent/}));await p.keyboard.press('Space');await activate(p,p.getByRole('button',{name:'Sign document',exact:true}));await p.getByRole('heading',{name:index===0?'Your signature has been recorded.':'All signatures are complete.',exact:true}).waitFor();sessions.push({context:sc,page:p,base})
+   }
+   const candidateSession=sessions[0];await candidateSession.page.reload();await candidateSession.page.getByRole('heading',{name:'All signatures are complete.',exact:true}).waitFor();assert.equal((await candidateSession.page.request.get(app.origin+candidateSession.base+'/artifacts/executed-0')).status(),404);await scan(candidateSession.page,'candidate-completed')
+   for(const [index,person] of signers.entries()) {
+    const url=app.mail(person.email,'Completed:').text.match(/http:\/\/[^\s]+\/copy\/[^\s]+/)[0],copyContext=await app.browser.newContext({viewport:{width,height}}),copyPage=await copyContext.newPage();await copyPage.goto(url)
+    await activate(copyPage,copyPage.getByRole('button',{name:'Email me a code',exact:true}));await copyPage.getByLabel('Email code',{exact:true}).fill(app.mail(person.email,'Your Inkwell code for a completed copy').text.match(/\b\d{6}\b/)[0]);await activate(copyPage,copyPage.getByRole('button',{name:'Open my copy',exact:true}));await copyPage.getByRole('link',{name:'Download offer.pdf',exact:true}).waitFor();assert.equal(await copyPage.getByRole('link',{name:'Download compensation-memo.pdf',exact:true}).count(),index===0?0:1);await scan(copyPage,index===0?'candidate-copy':'manager-copy');await copyContext.close()
+   }
+   await page.reload();await page.getByRole('row',{name:new RegExp(title)}).click();await activate(page,page.getByRole('button',{name:'Send the completed copy…',exact:true}))
+   const selection=page.getByRole('group',{name:'Documents in this completed copy',exact:true});await tab(page,selection.getByRole('checkbox',{name:'compensation-memo.pdf',exact:true}));await page.keyboard.press('Space');await page.getByLabel('Name',{exact:true}).fill('Offer filing');await page.getByLabel('Email',{exact:true}).fill(`filing-${width}@visibility.example`);await scan(page,'send-copy');await activate(page,page.getByRole('button',{name:'Send copy',exact:true}));await page.getByRole('status').filter({hasText:'Completed copy queued for'}).waitFor()
+   await expect.poll(()=>Boolean(app.mail(`filing-${width}@visibility.example`,'Completed:'))).toBe(true)
+   for(const s of sessions)await s.context.close();await context.close()
+  }
+  console.log('ROUTE-012 browser proof: account policy, preparation visibility, candidate/manager signing, local page navigation, completed artifacts and copies, new-copy selection; keyboard/accessibility-tree and light/dark axe at 1440/390 PASS')
+ } finally {await app.close()}
+}

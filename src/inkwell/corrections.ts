@@ -1,3 +1,4 @@
+import { remapCopyAudience } from './document-visibility'
 import { documentFields, documentInputFields } from './documents'
 import { advanceAfterSigning } from './signing'
 import { guardRoutingCorrection, normalizeRoutingRule, resolveRouting, routeSettled, validateCopyRouting, validateRouting } from './routing'
@@ -101,6 +102,7 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
   const copies = chooseCopies(input.copies === undefined ? before.copies : input.copies, live.map(i => after.signers[i]))
   validateCopyRouting(copies, after.fields)
   if (copies.length) after.copies = copies; else delete after.copies
+  remapCopyAudience(after,before.copies??[])
   const subject = edit(input.subject, before.subject, 'the email subject', 200, true), message = edit(input.message, before.message, 'the message', 2000)
   if (subject) after.subject = subject; else delete after.subject
   if (message) after.message = message; else delete after.message
@@ -119,6 +121,7 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
       if (s.name !== previous.name || s.email !== previous.email || codes.has(i) || Boolean(s.linkOnly) !== Boolean(previous.linkOnly)) rotated.add(i)
     }
   }
+  if(canonical(before.documents??null)!==canonical(after.documents??null))await appendEvent(after,'document.audience_updated',context.actor.id,{before:before.documents,after:after.documents})
   const changes: Record<string, { before: unknown; after: unknown }> = {}
   for (const key of ['subject', 'message', 'expiresAt', 'copies', 'fields'] as const) if (canonical(before[key] ?? null) !== canonical(after[key] ?? null)) changes[key] = { before: before[key] ?? null, after: after[key] ?? null }
   if (Object.keys(changes).length) await appendEvent(after, 'envelope.corrected', context.actor.id, { changes })
