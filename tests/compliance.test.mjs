@@ -251,7 +251,8 @@ test('Verified signer credentials: private one-use enrollment, separate continuo
   await h.post('/api/inkwell/compliance/password',{activationToken:'synthetic-inkwell-1',password:'synthetic-inkwell-password'},viewer,403)
   await h.post('/api/inkwell/compliance/password',{activationToken:'synthetic-inkwell-1',password:'synthetic-inkwell-password'},person.cookie,403)
   const admin=await h.invite('security@harbour.example','admin')
-  await h.command('account.part11_identity',{operatorId:person.operatorId,name:'Self verification refused',method:'Synthetic review',confirm:true},person.cookie,403)
+  const adminId=(await h.send('/api/inkwell',undefined,admin)).value.actor.id
+  await h.command('account.part11_identity',{operatorId:adminId,name:'Self verification refused',method:'Synthetic review',confirm:true},admin,403)
   await h.command('account.part11_record',{kind:'meaning',meaning:'Not owner defined'},admin,403)
   await h.command('account.part11_record',{kind:'fda-certification',date:'2026-02-30',reference:'synthetic-inkwell-2',confirm:true},admin,400)
   const pdf=await PDFDocument.create();pdf.addPage([612,792])
@@ -289,5 +290,65 @@ test('Verified signer credentials: private one-use enrollment, separate continuo
   await h.post(two.path+'/sign',body,two.cookie+'; '+resumed.cookie,403)
   await h.post('/auth/operator/status',{operatorId:person.operatorId,status:'active'})
   await h.post(two.path+'/identity',{password:person.password},two.cookie,403)
+ }finally{await h.close()}
+})
+
+test('Verified OIDC signer: public provider linking and sign-in require fresh signature code; provider-off immediately refuses the next signature',async()=>{
+ const issuer='https://identity.harbour.example',clientId='synthetic-inkwell-oidc-client',email='oidc@harbour.example'
+ const pair=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']),jwk={...await crypto.subtle.exportKey('jwk',pair.publicKey),kid:'synthetic-inkwell-1',alg:'ES256',use:'sig'}
+ const encode=value=>Buffer.from(JSON.stringify(value)).toString('base64url')
+ let nonce
+ const networkEdge=async request=>{
+  const url=new URL(request.url);if(url.origin!==issuer)return
+  if(url.pathname==='/.well-known/openid-configuration')return Response.json({issuer,authorization_endpoint:issuer+'/authorize',token_endpoint:issuer+'/token',jwks_uri:issuer+'/jwks',response_types_supported:['code'],id_token_signing_alg_values_supported:['ES256'],token_endpoint_auth_methods_supported:['private_key_jwt'],token_endpoint_auth_signing_alg_values_supported:['ES256'],code_challenge_methods_supported:['S256'],authorization_response_iss_parameter_supported:true,rer_interfaces:['oidc-provider@1.0.0']})
+  if(url.pathname==='/.well-known/rer-provider')return Response.json({issuer,interface:'oidc-provider@1',version:1,initiate:issuer+'/link/initiate',redeem:issuer+'/link/redeem',deregister:issuer+'/link/deregister'})
+  if(url.pathname==='/link/redeem'){
+   const body=await request.json(),proof=JSON.parse(Buffer.from(body.client_assertion.split('.')[1],'base64url').toString())
+   return Response.json({issuer,interface:body.interface,sector_id:proof.sector_id,origin:body.origin,callback:body.callback,client_id:clientId})
+  }
+  if(url.pathname==='/jwks')return Response.json({keys:[jwk]})
+  if(url.pathname==='/token'){
+   const form=new URLSearchParams(await request.text());assert.equal(form.get('client_id'),clientId);assert.ok(form.get('code_verifier'));assert.ok(form.get('client_assertion'))
+   const at=Math.floor(Date.now()/1000),message=encode({alg:'ES256',kid:jwk.kid,typ:'JWT'})+'.'+encode({iss:issuer,sub:'synthetic-inkwell-oidc-user',aud:clientId,iat:at,exp:at+600,nonce,email,email_verified:true,email_verified_at:at,amr:['pwd']})
+   const signature=Buffer.from(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},pair.privateKey,new TextEncoder().encode(message))).toString('base64url')
+   return Response.json({id_token:message+'.'+signature})
+  }
+  throw new Error('Unexpected synthetic identity-provider request')
+ }
+ const h=await harness({networkEdge})
+ try{
+  const person=await enrolledSigner(h,email,'Verified OIDC Signer')
+  await h.post('/auth/step-up',{action:'providers:relink'},h.owner,202)
+  const step=await h.mail('owner@harbour.example',"Confirm it's you"),token=new URL(step.text.match(/http:\/\/[^\s]+\/auth\/confirm\?token=[^\s]+/)[0]).searchParams.get('token')
+  await h.post('/auth/confirm',{token},h.owner,303)
+  await h.post('/auth/dependencies/relink',{issuer},h.owner)
+  await h.post('/.well-known/rer-link/callback',{issuer,code:'synthetic-inkwell-1'},h.owner)
+  await h.post('/auth/settings/identity',{idpSignIn:true},h.owner)
+  const started=await h.post('/auth/oidc/auth/start',{returnTo:'/app'},'',303),authorization=new URL(started.headers.get('location'))
+  nonce=authorization.searchParams.get('nonce')
+  const callback=await h.send('/auth/oidc/auth/callback?'+new URLSearchParams({code:'synthetic-inkwell-2',state:authorization.searchParams.get('state'),iss:issuer}),undefined,started.cookie)
+  assert.equal(callback.status,303)
+  const oidcCookie=callback.cookie
+  assert.equal((await h.send('/api/inkwell',undefined,oidcCookie)).value.actor.id,person.operatorId)
+  const pdf=await PDFDocument.create();pdf.addPage([612,792])
+  const open=async title=>{
+   const id=(await h.command('envelope.prepare',{title,filename:'agreement.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),signers:[{name:'Sender supplied',email}],fields:[{id:'s',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.5,height:.05}]})).result.id
+   await h.command('envelope.part11',{id,confirm:true});await h.command('envelope.approve',{id,eligible:true})
+   const invitation=await h.mail(email,'Please sign:'),path='/api'+new URL(invitation.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+   await h.post(path+'/code',{},'');const verified=await h.post(path+'/verify',{code:(await h.mail(email,'verification code')).text.match(/\b\d{6}\b/)[0]},'')
+   const cookie=verified.cookie+'; '+oidcCookie;await h.agree(path,cookie)
+   return {id,path,cookie}
+  }
+  const first=await open('OIDC qualified signature'),body={values:{s:'Verified OIDC Signer'},consent:true,signingReason:'Approval',commandId:crypto.randomUUID()}
+  await h.post(first.path+'/sign',body,first.cookie,400)
+  await h.post(first.path+'/signature-code',{},first.cookie)
+  await h.post(first.path+'/sign',{...body,signatureCode:(await h.mail(email,'signature code')).text.match(/\b\d{6}\b/)[0]},first.cookie)
+  const signed=(await h.send('/api/inkwell/envelopes/'+first.id,undefined,h.owner)).value.envelope
+  assert.equal(signed.signers[0].part11.identity.component,'OIDC')
+  assert.equal(signed.signers[0].part11.name,'Verified OIDC Signer')
+  const next=await open('OIDC authority revoked');await h.post(next.path+'/signature-code',{},next.cookie)
+  const code=(await h.mail(email,'signature code')).text.match(/\b\d{6}\b/)[0]
+  await h.post('/auth/settings/identity',{idpSignIn:false},h.owner)
+  await h.post(next.path+'/sign',{...body,commandId:crypto.randomUUID(),signatureCode:code},next.cookie,403)
  }finally{await h.close()}
 })

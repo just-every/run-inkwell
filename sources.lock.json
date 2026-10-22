@@ -3307,7 +3307,7 @@
       "executable": false
     },
     "tests/compliance.test.mjs": {
-      "sha256": "55dacaa99c11e61f053e76b9d5ca5f69be97dd46d12888b10e3eb706af50f0c9",
+      "sha256": "42844cb8785c711f629b58a291de1e83d30991b55cc02a6070594fe1f7dafa30",
       "executable": false
     },
     "tests/delivery.test.mjs": {
@@ -3359,7 +3359,7 @@
       "executable": false
     },
     "tests/harness.mjs": {
-      "sha256": "64d9cc04b056011c0bebddd28a41cb4f2d41a677e413a602a07be9a3b89f1cb9",
+      "sha256": "2f5143bcdb51599b62f895f9309931dda28786893376f8276dc1186faa79822c",
       "executable": false
     },
     "tests/import-retention.test.mjs": {
