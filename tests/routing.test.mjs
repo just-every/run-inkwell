@@ -488,6 +488,7 @@ test('Naming and editing use sender-granted later places, audit identities and f
   const sender=await h.invite('sender.delegation@harbour.example','member'),people=(await h.send('/api/inkwell',undefined,h.owner)).value.people
   await h.command('member.role',{operatorId:people.find(p=>p.email==='sender.delegation@harbour.example').id,role:'sender'})
   await h.command('envelope.prepare',input,sender,403)
+  const admin=await h.invite('admin.delegation@harbour.example','admin');await h.command('envelope.prepare',{...input,title:'Admin-granted contractor services'},admin)
   const {id}=(await h.command('envelope.prepare',input)).result;await h.command('envelope.approve',{id,eligible:true})
   const read=async()=>(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
   assert.ok((await read()).signers.slice(0,2).every(s=>s.routeResult?.state==='included'));assert.equal((await read()).signers[2].email,'');assert.equal((await read()).signers[2].activatedAt,undefined)
