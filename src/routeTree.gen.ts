@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as CopyTokenRouteImport } from './routes/copy.$token'
+import { Route as FormIdRouteImport } from './routes/form.$id'
 import { Route as SignTokenRouteImport } from './routes/sign.$token'
 
 const AppRoute = AppRouteImport.update({
@@ -29,6 +30,11 @@ const CopyTokenRoute = CopyTokenRouteImport.update({
   path: '/copy/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FormIdRoute = FormIdRouteImport.update({
+  id: '/form/$id',
+  path: '/form/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignTokenRoute = SignTokenRouteImport.update({
   id: '/sign/$token',
   path: '/sign/$token',
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRoute
   '/verify': typeof VerifyRoute
   '/copy/$token': typeof CopyTokenRoute
+  '/form/$id': typeof FormIdRoute
   '/sign/$token': typeof SignTokenRoute
 }
 export interface FileRoutesByTo {
   '/app': typeof AppRoute
   '/verify': typeof VerifyRoute
   '/copy/$token': typeof CopyTokenRoute
+  '/form/$id': typeof FormIdRoute
   '/sign/$token': typeof SignTokenRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,28 @@ export interface FileRoutesById {
   '/app': typeof AppRoute
   '/verify': typeof VerifyRoute
   '/copy/$token': typeof CopyTokenRoute
+  '/form/$id': typeof FormIdRoute
   '/sign/$token': typeof SignTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/app' | '/verify' | '/copy/$token' | '/sign/$token'
+  fullPaths: '/app' | '/verify' | '/copy/$token' | '/form/$id' | '/sign/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/app' | '/verify' | '/copy/$token' | '/sign/$token'
-  id: '__root__' | '/app' | '/verify' | '/copy/$token' | '/sign/$token'
+  to: '/app' | '/verify' | '/copy/$token' | '/form/$id' | '/sign/$token'
+  id:
+    | '__root__'
+    | '/app'
+    | '/verify'
+    | '/copy/$token'
+    | '/form/$id'
+    | '/sign/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRoute
   VerifyRoute: typeof VerifyRoute
   CopyTokenRoute: typeof CopyTokenRoute
+  FormIdRoute: typeof FormIdRoute
   SignTokenRoute: typeof SignTokenRoute
 }
 
@@ -92,6 +108,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CopyTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/form/$id': {
+      id: '/form/$id'
+      path: '/form/$id'
+      fullPath: '/form/$id'
+      preLoaderRoute: typeof FormIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sign/$token': {
       id: '/sign/$token'
       path: '/sign/$token'
@@ -106,6 +129,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRoute,
   VerifyRoute: VerifyRoute,
   CopyTokenRoute: CopyTokenRoute,
+  FormIdRoute: FormIdRoute,
   SignTokenRoute: SignTokenRoute,
 }
 export const routeTree = rootRouteImport

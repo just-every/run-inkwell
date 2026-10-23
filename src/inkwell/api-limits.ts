@@ -15,12 +15,12 @@ export async function admitApiRequest(env: Env, keyId: string) {
 }
 /** Admission for actual invitation release, in the same transaction as its mail and envelope record. */
 export async function policySendQuota(env: Env, envelope: Envelope) {
- const origin=envelope.sendOrigin
+ const origin=envelope.sendOrigin??(envelope.formSubmission?{source:'web_form',credential:{id:envelope.formSubmission.id}}:undefined)
  if(!origin)return {guards:[] as Guard[],writes:[] as D1PreparedStatement[]}
  const at=Date.now(),key=origin.credential.id
  const account=await env.DB.prepare('SELECT COUNT(*) AS n,MIN(at) AS first FROM iw_policy_send_usage WHERE at>?').bind(at-hour).first<{n:number;first:number}>()
  const credential=await env.DB.prepare('SELECT COUNT(*) AS n,MIN(at) AS first FROM iw_policy_send_usage WHERE credential_id=? AND at>?').bind(key,at-minute).first<{n:number;first:number}>()
  if(account!.n>=3000)throw new ApiRateLimit(retry(account!.first,hour,at))
- if(credential!.n>=60)throw new ApiRateLimit(retry(credential!.first,minute,at))
- return {guards:[{sql:'(SELECT COUNT(*) FROM iw_policy_send_usage WHERE at>?)<3000',values:[at-hour]},{sql:'(SELECT COUNT(*) FROM iw_policy_send_usage WHERE credential_id=? AND at>?)<60',values:[key,at-minute]}],writes:[env.DB.prepare('DELETE FROM iw_policy_send_usage WHERE at<=?').bind(at-24*hour),env.DB.prepare('INSERT INTO iw_policy_send_usage(envelope_id,source,credential_id,at) VALUES(?,?,?,?)').bind(envelope.id,origin.source,key,at)]}
+ if(origin.source==='api'&&credential!.n>=60)throw new ApiRateLimit(retry(credential!.first,minute,at))
+ return {guards:[{sql:'(SELECT COUNT(*) FROM iw_policy_send_usage WHERE at>?)<3000',values:[at-hour]},...(origin.source==='api'?[{sql:'(SELECT COUNT(*) FROM iw_policy_send_usage WHERE credential_id=? AND at>?)<60',values:[key,at-minute]}]:[])],writes:[env.DB.prepare('DELETE FROM iw_policy_send_usage WHERE at<=?').bind(at-24*hour),env.DB.prepare('INSERT INTO iw_policy_send_usage(envelope_id,source,credential_id,at) VALUES(?,?,?,?)').bind(envelope.id,origin.source,key,at)]}
 }

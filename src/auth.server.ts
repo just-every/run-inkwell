@@ -44,6 +44,7 @@ export interface Bindings {
  TWILIO_ACCOUNT_SID?: string
  TWILIO_AUTH_TOKEN?: string
  TWILIO_FROM?: string
+ TURNSTILE_SITE_KEY?: string
  TURNSTILE_SECRET_KEY?: string
  MAIL_ACCOUNT_ID?: string
  /** DELIV-001: the provider's webhook signing key (Resend whsec_…, SendGrid's public key); optional. */

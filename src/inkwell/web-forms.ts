@@ -1,3 +1,4 @@
+import QRCode from 'qrcode/lib/browser.js'
 import { operatorMail } from '../mail.server.mjs'
 import { htmlBody } from './mail'
 import { canonical, id, insist, now, object, randomCode, Refusal, secret, sha256, text, type Actor, type Env } from './model'
@@ -35,11 +36,13 @@ const templateGuard=(owner:Actor,template:{id:string})=>{
  const visible=visibleSql(owner),copies=visible.sql.match(/\?1/g)?.length??0
  return {sql:`EXISTS(SELECT 1 FROM iw_templates t WHERE t.id=? AND t.data=? AND ${visible.sql.replaceAll('?1','?')})`,values:[template.id,JSON.stringify(template),...(copies?Array.from({length:copies},()=>owner.id):visible.values)]} as Guard
 }
-const metadata=(row:FormRow)=>({id:row.id,ownerId:row.owner_id,templateId:row.template_id,templateVersion:row.template_version,...JSON.parse(row.data) as FormDefinition,createdAt:row.created_at,disabledAt:row.disabled_at,suspendedAt:row.suspended_at,admissionOnly:true})
+const shareForm=(env:Env,formId:string)=>{const publicUrl=new URL('/form/'+formId,env.AUTH_ORIGIN).href;return {publicUrl,qrUrl:new URL(`/api/forms/${formId}/qr.svg`,env.AUTH_ORIGIN).href,embedSnippet:`<iframe src="${publicUrl}" title="Inkwell signing form" width="100%" height="800" style="border:0;max-width:100%" referrerpolicy="no-referrer"></iframe>`}}
+const metadata=(row:FormRow)=>({id:row.id,ownerId:row.owner_id,templateId:row.template_id,templateVersion:row.template_version,...JSON.parse(row.data) as FormDefinition,createdAt:row.created_at,disabledAt:row.disabled_at,suspendedAt:row.suspended_at,submissionAvailable:true})
 export async function listForms(env:Env,actor:Actor){
  await publisherGuard(env,actor)
  const rows=(await env.DB.prepare(`SELECT * FROM iw_forms ${actor.role==='sender'?'WHERE owner_id=?':''} ORDER BY created_at,id`).bind(...(actor.role==='sender'?[actor.id]:[])).all<FormRow>()).results
- return {forms:rows.map(metadata)}
+ const date=new Date().toISOString().slice(0,10)
+ return {forms:await Promise.all(rows.map(async row=>({...metadata(row),...shareForm(env,row.id),statistics:{total:Number((await env.DB.prepare('SELECT total_count FROM iw_forms WHERE id=?').bind(row.id).first<{total_count:number}>())?.total_count??0),today:Number((await env.DB.prepare('SELECT count FROM iw_form_daily_counts WHERE form_id=? AND day=?').bind(row.id,date).first<{count:number}>())?.count??0)}})))}
 }
 /** A publication is an immutable pinned definition. Republish creates a new ID and never transfers ownership. */
 export async function publishForm(env:Env,context:CommandContext,input:Record<string,unknown>){
@@ -59,7 +62,7 @@ export async function publishForm(env:Env,context:CommandContext,input:Record<st
  const limit=(value:unknown,fallback:number,max:number,label:string)=>{const n=value??fallback;insist(Number.isInteger(n)&&Number(n)>=1&&Number(n)<=max,`${label} must be 1–${max}.`);return Number(n)}
  const totalLimit=limit(input.totalLimit,100,10_000,'Total submissions'),dailyLimit=limit(input.dailyLimit,50,10_000,'Daily submissions'),expiryDays=limit(input.expiryDays,90,365,'Expiry days')
  const definition:FormDefinition={title:text(input.title??template.title,'a form title',200),publicRole,fixedRecipients,totalLimit,dailyLimit,expiresAt:new Date(Date.now()+expiryDays*day).toISOString()}
- const formId=id(),at=now(),hash=await sha256(canonical(template)),result={form:{id:formId,ownerId:actor.id,templateId:template.id,templateVersion:template.version??1,...definition,createdAt:at,disabledAt:null,suspendedAt:null,admissionOnly:true}}
+ const formId=id(),at=now(),hash=await sha256(canonical(template)),result={form:{...shareForm(env,formId),id:formId,ownerId:actor.id,templateId:template.id,templateVersion:template.version??1,...definition,createdAt:at,disabledAt:null,suspendedAt:null,submissionAvailable:true}}
  await atomic(env.DB,[roleGuard(actor),...permissions,templateGuard(actor,template)],[env.DB.prepare('INSERT INTO iw_forms(id,owner_id,owner_version,owner_role,template_id,template_version,template_hash,data,created_at) VALUES(?,?,?,?,?,?,?,?,?)').bind(formId,actor.id,actor.version,actor.role,template.id,template.version??1,hash,JSON.stringify(definition),at),env.DB.prepare('INSERT INTO iw_form_versions(id,actor,at,data) VALUES(?,?,?,?)').bind(formId,actor.id,at,JSON.stringify(result.form)),commandWrite(env.DB,actor.id,context.commandId,context.fingerprint,result)])
  return result
 }
@@ -71,7 +74,7 @@ export async function disableForm(env:Env,context:CommandContext,formId:string){
  return {disabled:formId}
 }
 /** Recheck owner, permission, template version and use access; no public door exposes fixed recipients. */
-async function liveForm(env:Env,formId:string){
+export async function liveForm(env:Env,formId:string){
  const row=await env.DB.prepare('SELECT * FROM iw_forms WHERE id=?').bind(formId).first<FormRow>()
  insist(row&&!row.disabled_at&&!row.suspended_at,'This web form is unavailable.',404)
  const definition=JSON.parse(row.data) as FormDefinition
@@ -86,8 +89,8 @@ async function liveForm(env:Env,formId:string){
  guards.push(templateGuard(owner,template))
  return {row,definition,template,guards}
 }
-export async function publicForm(env:Env,formId:string){const {definition,template}=await liveForm(env,formId);return {title:definition.title,role:template.roles[definition.publicRole].role,expiresAt:definition.expiresAt,admissionOnly:true}}
-async function turnstile(env:Env,request:Request,token:unknown,action:string){
+export async function publicForm(env:Env,formId:string){const {definition,template}=await liveForm(env,formId);return {title:definition.title,role:template.roles[definition.publicRole].role,expiresAt:definition.expiresAt,submissionAvailable:true,...(env.TURNSTILE_SITE_KEY?{turnstileSiteKey:env.TURNSTILE_SITE_KEY}:{})}}
+export async function formTurnstile(env:Env,request:Request,token:unknown,action:string){
  insist(typeof token==='string'&&token.length>0&&token.length<=2048,'Complete the bot check.',403)
  insist(env.TURNSTILE_SECRET_KEY,'Web-form bot protection is not configured.',503)
  const response=await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({secret:env.TURNSTILE_SECRET_KEY,response:token,...(request.headers.get('cf-connecting-ip')?{remoteip:request.headers.get('cf-connecting-ip')!}:{})})})
@@ -95,11 +98,11 @@ async function turnstile(env:Env,request:Request,token:unknown,action:string){
  const verified=await response.json() as {success?:boolean;hostname?:string;action?:string}
  insist(verified.success===true&&verified.hostname===new URL(env.AUTH_ORIGIN).hostname&&verified.action===action,'The bot check was refused.',403)
 }
-export async function purgeFormAttempts(env:Env,at:number){await env.DB.prepare('DELETE FROM iw_form_challenges WHERE created_at<=?').bind(at-day).run()}
+export async function purgeFormAttempts(env:Env,at:number){await env.DB.batch([env.DB.prepare('DELETE FROM iw_form_challenges WHERE created_at<=?').bind(at-day),env.DB.prepare('UPDATE iw_form_submissions SET ip_hash=NULL WHERE at<=?').bind(at-hour),env.DB.prepare('DELETE FROM iw_form_submissions WHERE at<=?').bind(at-day)])}
 /** A code request never creates an envelope and is counted even if mail delivery fails or becomes uncertain. */
 export async function requestFormCode(env:Env,request:Request,formId:string,input:Record<string,unknown>){
  const form=await liveForm(env,formId),email=address(input.email)
- await turnstile(env,request,input.turnstileToken,'inkwell_form_code')
+ await formTurnstile(env,request,input.turnstileToken,'inkwell_form_code')
  const sender=operatorMail(env);insist(sender&&env.MAIL_FROM,'Web-form verification mail is not configured.',503)
  const at=Date.now();await purgeFormAttempts(env,at)
  const emailHash=await sha256(`${env.SESSION_SECRET}:${formId}:${email}`),challenge=id(),code=randomCode(),hash=await sha256(`${env.SESSION_SECRET}:${challenge}:${code}`)
@@ -113,7 +116,7 @@ export async function requestFormCode(env:Env,request:Request,formId:string,inpu
 }
 /** Verified admission is a short-lived, once-visible token. It grants no signing or send authority on its own. */
 export async function verifyFormEmail(env:Env,request:Request,formId:string,input:Record<string,unknown>){
- const form=await liveForm(env,formId);await turnstile(env,request,input.turnstileToken,'inkwell_form_verify')
+ const form=await liveForm(env,formId);await formTurnstile(env,request,input.turnstileToken,'inkwell_form_verify')
  insist(Object.keys(input).every(k=>['challengeId','code','turnstileToken'].includes(k)),'Email verification cannot change recipients, fields or the form definition.')
  const challenge=text(input.challengeId,'a verification challenge',100),code=text(input.code,'the six-digit email code',6)
  insist(/^\d{6}$/.test(code),'Enter the six-digit email code.')
@@ -123,5 +126,24 @@ export async function verifyFormEmail(env:Env,request:Request,formId:string,inpu
  const guard:Guard={sql:'EXISTS(SELECT 1 FROM iw_form_challenges WHERE id=? AND form_id=? AND attempts=? AND attempts<5 AND code_hash=? AND expires_at>? AND verified_at IS NULL)',values:[challenge,formId,row.attempts,row.code_hash,at]}
  await atomic(env.DB,[...form.guards,guard],[correct?env.DB.prepare('UPDATE iw_form_challenges SET attempts=attempts+1,verified_at=?,code_hash=NULL,grant_hash=?,grant_expires=? WHERE id=?').bind(at,await sha256(token!),at+10*minute,challenge):env.DB.prepare('UPDATE iw_form_challenges SET attempts=attempts+1 WHERE id=?').bind(challenge)])
  insist(correct,'The email verification code is incorrect.',401)
- return {verified:true,admissionToken:token,expiresInSeconds:600,admissionOnly:true}
+ return {verified:true,admissionToken:token,expiresInSeconds:600,submissionAvailable:true}
 }
+
+/** The form credential is checked again at internal-approval and deferred releases. */
+export async function formCredential(env:Env,formId:string,principal:string){
+ try{const form=await liveForm(env,formId),same=form.row.owner_id===principal
+ const guard:Guard={sql:form.guards.map(g=>`(${g.sql})`).join(' AND ')+' AND ?=1',values:[...form.guards.flatMap(g=>g.values),same?1:0]}
+ return {record:{kind:'web_form' as const,id:formId,version:1,memberVersion:form.row.owner_version},active:same,guard}
+ }catch(error){if(!(error instanceof Refusal))throw error;return {record:null,active:false,guard:{sql:'0=1',values:[]} as Guard}}
+}
+/** A held form draft belongs to its still-qualified publisher; only owner/admin succeeds that reviewer after owner loss. */
+export async function formReviewGuard(env:Env,submission:import('./model').FormSubmission,actor:Actor):Promise<Guard>{
+ insist(actor.sessionId&&!actor.apiKeyId&&!actor.agentId,'Held form drafts require a person’s eligibility confirmation.',403)
+ const form=await env.DB.prepare('SELECT * FROM iw_forms WHERE id=?').bind(submission.id).first<FormRow>()
+ const qualified:Guard={sql:`EXISTS(SELECT 1 FROM iw_forms f JOIN oa_operators o ON o.id=f.owner_id AND o.version=f.owner_version WHERE f.id=? AND f.suspended_at IS NULL AND o.status='active' AND (o.role IN ('owner','admin') OR (o.role='member' AND ${memberRoleSql('o.id')}='sender' AND EXISTS(SELECT 1 FROM iw_form_permissions p WHERE p.member_id=o.id AND p.enabled=1))))`,values:[submission.id]}
+ const ownerStillQualifies=Boolean(form&&await env.DB.prepare(`SELECT 1 WHERE ${qualified.sql}`).bind(...qualified.values).first())
+ insist(ownerStillQualifies?actor.id===form!.owner_id:['owner','admin'].includes(actor.role),'Only the form owner, or an owner/admin after that publisher loses authority, can release this held submission.',403)
+ return ownerStillQualifies?qualified:{sql:`NOT (${qualified.sql})`,values:qualified.values}
+}
+
+export async function formQr(env:Env,formId:string){await liveForm(env,formId);return new Response(await QRCode.toString(shareForm(env,formId).publicUrl,{type:'svg',errorCorrectionLevel:'M',margin:4}),{headers:{'content-type':'image/svg+xml','content-disposition':'attachment; filename="inkwell-form-qr.svg"','content-security-policy':"default-src 'none'; sandbox"}})}

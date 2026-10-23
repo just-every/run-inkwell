@@ -1,4 +1,5 @@
-import { formPermissions, setFormPermission, listForms, publishForm, disableForm, publicForm, requestFormCode, verifyFormEmail } from './web-forms'
+import { submitForm } from './form-submissions'
+import { formPermissions, setFormPermission, listForms, publishForm, disableForm, publicForm, formQr, requestFormCode, verifyFormEmail } from './web-forms'
 import { apiKeyPermissions,setApiKeyPermission } from './api-key-permissions'
 import { smsMessages, dispatchSms } from './sms'
 import { receiveSmsReply } from './sms-replies'
@@ -195,8 +196,10 @@ api.post('/api/inkwell/web-form-permissions',async c=>{sameOrigin(c.req.raw,c.en
 api.get('/api/inkwell/forms',async c=>c.json(await listForms(c.env,await requireActor(c.req.raw,c.env,['owner','admin','sender']))))
 api.post('/api/inkwell/forms',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']),body=await readJson(c.req.raw,32768);return c.json(await publishForm(c.env,await apiKeyContext(c.req.raw,actor,body),body))})
 api.post('/api/inkwell/forms/:id/disable',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']),body=await readJson(c.req.raw,4096);return c.json(await disableForm(c.env,await apiKeyContext(c.req.raw,actor,body),c.req.param('id')))})
+api.get('/api/forms/:id/qr.svg',async c=>formQr(c.env,c.req.param('id')))
 api.get('/api/forms/:id',async c=>{insist(!c.req.header('authorization'),'Credentials cannot use public web-form admission.',403);return c.json(await publicForm(c.env,c.req.param('id')))})
 for(const step of ['code','verify'] as const)api.post(`/api/forms/:id/${step}`,async c=>{sameOrigin(c.req.raw,c.env);insist(!c.req.header('authorization'),'Credentials cannot use public web-form admission.',403);return c.json(await (step==='code'?requestFormCode:verifyFormEmail)(c.env,c.req.raw,c.req.param('id'),await readJson(c.req.raw,4096)))})
+api.post('/api/forms/:id/submit',async c=>{sameOrigin(c.req.raw,c.env);const {result,cookie}=await submitForm(c.env,c.req.raw,c.req.param('id'),await readJson(c.req.raw,4096));if(cookie)c.header('set-cookie',cookie);return c.json({result})})
 api.get('/api/v1/openapi.json', c => c.json(apiOpenApi))
 // API-001: key management is a member-session door; bearer credentials never borrow a browser session.
 async function keyManager(request: Request, env: Bindings) {
