@@ -109,6 +109,26 @@ try {
     await expect(web.getByRole('alert')).toHaveCount(0)
     assert.ok((await current('web_form')).version > webBefore.version, 'a nonempty selected list allows saving the enabled web form')
     await capture(page, web, width, 'web-form-selected')
+    // ADMIN-004 A4: select a member-group scope in Settings and prove it narrows this principal's next send.
+    const principal=(await app.call('/api/inkwell',{cookie:app.owner})).value.actor.id
+    const scope=(await app.call('/api/inkwell/send-policy-scopes',{cookie:app.owner,body:{kind:'group',name:`Field ${width}`,members:[principal],expectedVersion:0,commandId:crypto.randomUUID()}})).value.scope
+    await page.reload();await page.getByRole('button',{name:'Settings',exact:true}).click()
+    const selector=panel.getByLabel('Policy scope',{exact:true})
+    await selector.selectOption(`group:${scope.id}`)
+    const adHoc=panel.getByRole('form',{name:'Ad hoc sends',exact:true})
+    await adHoc.getByRole('combobox').selectOption('off');await save(page,adHoc)
+    await page.reload();await page.getByRole('button',{name:'Settings',exact:true}).click();await selector.selectOption(`group:${scope.id}`)
+    await expect(adHoc.getByRole('combobox')).toHaveValue('off');await capture(page,adHoc,width,'group-policy-off')
+    const email=`group.${width}@clients.example`
+    const envelope=(await app.command('envelope.prepare',{title:`Field group letter ${width}`,filename:'group.pdf',pdfBase64,signers:[{name:'Mara Quinn',email}],fields:[{id:'group-sign',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.3,width:.4,height:.05}]})).id
+    await app.call('/api/inkwell/commands',{cookie:app.owner,body:{command:'envelope.approve',commandId:crypto.randomUUID(),input:{id:envelope,eligible:true}},status:403})
+    assert.equal(app.mail(email,'Please sign:'),undefined)
+    await adHoc.getByRole('combobox').selectOption('person');await save(page,adHoc)
+    await app.command('envelope.approve',{id:envelope,eligible:true});assert.ok(app.mail(email,'Please sign:'))
+    const record=(await app.call('/api/inkwell/envelopes/'+envelope,{cookie:app.owner})).value.envelope
+    assert.ok(record.events.findLast(e=>e.action==='envelope.approved').detail.sendPolicy.policies.some(p=>p.scopeId===scope.id&&p.version===2))
+    await capture(page,adHoc,width,'group-policy-person')
+    await app.call('/api/inkwell/send-policy-scopes',{cookie:app.owner,body:{id:scope.id,kind:'group',name:scope.name,members:[],expectedVersion:scope.version,commandId:crypto.randomUUID()}})
     await context.close()
   }
   console.log('ADMIN-004: keyboard template selection, reason, persisted Settings, excluded/allowed sends, widening to all and web form validation passed at 1440/390')

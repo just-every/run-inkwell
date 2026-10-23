@@ -425,3 +425,68 @@ test('Combined templates: every source approval, allowlist entry and live revisi
   const stopped=await read(h,scheduled);assert.ok(heldBy(stopped));assert.equal(stopped.status,'prepared');assert.deepEqual(stopped.templates,before.templates);assert.equal(stopped.originalSha256,before.originalSha256)
  }finally{await h.close()}
 })
+
+
+test('ADMIN-004: every group and profile narrows the account policy, with live membership and version fences on deferred release', async () => {
+ const h=await harness()
+ try {
+  const fieldSender=await h.invite('field.policy@harbour.example','member'),officeSender=await h.invite('office.policy@harbour.example','member'),admin=await h.invite('review.policy@harbour.example','admin')
+  const memberId=async cookie=>(await h.send('/api/inkwell',undefined,cookie)).value.actor.id
+  const fieldId=await memberId(fieldSender),officeId=await memberId(officeSender)
+  for(const operatorId of [fieldId,officeId])await h.command('member.role',{operatorId,role:'sender'})
+  const create=async(kind,name,members)=>(await h.post('/api/inkwell/send-policy-scopes',{kind,name,members,expectedVersion:0,commandId:crypto.randomUUID()},h.owner)).value.scope
+  const group=await create('group','Field',[fieldId]),office=await create('group','Office',[officeId]),profile=await create('profile','Restricted field profile',[fieldId])
+  const scopeState=async scope=>(await h.send('/api/inkwell/send-policy-scopes',undefined,h.owner)).value.scopes.find(s=>s.id===scope.id)
+  const scoped=async(scope,source,change)=>h.command('account.send_policy',{scope:scope.kind,scopeId:scope.id,source,expectedVersion:(await scopeState(scope)).policies.find(p=>p.source===source).version,...change})
+  assert.equal((await h.send('/api/inkwell/send-policy-scopes',undefined,fieldSender)).status,403)
+  await h.post('/api/inkwell/send-policy-scopes',{kind:'group',name:'Unprivileged',members:[fieldId],expectedVersion:0,commandId:crypto.randomUUID()},fieldSender,403)
+  const make=async(cookie,title)=>(await h.command('envelope.prepare',await draft(title,`${title.toLowerCase().replaceAll(' ','.')}@clients.example`),cookie)).result.id
+  const field=await make(fieldSender,'Field upload'),other=await make(officeSender,'Office upload')
+  await scoped(group,'ad_hoc',{mode:'off'})
+  assert.equal((await h.command('envelope.approve',{id:field,eligible:true},fieldSender,403)).code,'send_policy_off')
+  await h.command('envelope.approve',{id:other,eligible:true},officeSender)
+  assert.equal((await read(h,other)).status,'awaiting_signature')
+  await scoped(group,'ad_hoc',{mode:'person'})
+  await set(h,'ad_hoc',{mode:'off'})
+  await h.command('envelope.approve',{id:field,eligible:true},fieldSender,403)
+  await set(h,'ad_hoc',{mode:'person'})
+  const a=await template(h),b=await template(h)
+  await h.command('template.share',{kind:'template',id:a,email:'field.policy@harbour.example',access:'use'})
+  await h.command('template.share',{kind:'template',id:b,email:'field.policy@harbour.example',access:'use'})
+  await set(h,'template',{templates:[a]})
+  await scoped(group,'template',{mode:'autonomous',templates:[b]})
+  const from=async id=>(await h.command('template.use',{id,recipients:[{name:'Mara Quinn',email:'field.template@clients.example'}]},fieldSender)).result.id
+  const fromA=await from(a),fromB=await from(b)
+  await h.command('envelope.approve',{id:fromA,eligible:true},fieldSender,403)
+  await h.command('envelope.approve',{id:fromB,eligible:true},fieldSender,403)
+  await scoped(group,'template',{templates:null})
+  await scoped(profile,'template',{templates:[a]})
+  await h.command('envelope.approve',{id:fromA,eligible:true},fieldSender)
+  const policy=(await read(h,fromA)).events.findLast(e=>e.action==='envelope.approved').detail.sendPolicy
+  assert.equal(policy.mode,'person','an autonomous group cannot widen account person mode')
+  assert.deepEqual(policy.templates,[a])
+  assert.deepEqual(policy.policies.map(p=>[p.scope,p.scopeId??'',p.version]).sort(),[['account','',1],['group',group.id,2],['profile',profile.id,1]].sort())
+  // A new group requirement is checked at actual release and a held draft never auto-releases.
+  const later=await make(fieldSender,'Field deferred')
+  await h.command('envelope.approve',{id:later,eligible:true,sendAt:schedule()},fieldSender)
+  const due=Date.parse((await read(h,later)).scheduled.at)+1000
+  await scoped(group,'ad_hoc',{mode:'off'})
+  await h.scheduled(due);assert.ok((await read(h,later)).sendHold)
+  await scoped(group,'ad_hoc',{mode:'person'})
+  await h.scheduled(due+3600000);assert.ok((await read(h,later)).sendHold)
+  await h.command('envelope.approve',{id:later,eligible:true},fieldSender);assert.equal((await read(h,later)).status,'awaiting_signature')
+  await h.command('account.internal_approval',{rule:{approverEmail:'review.policy@harbour.example'}})
+  await scoped(profile,'ad_hoc',{requireInternalApproval:true,deferredRelease:false})
+  const approval=await make(fieldSender,'Profile approval')
+  await h.command('envelope.approve',{id:approval,eligible:true,sendAt:schedule()},fieldSender,403)
+  assert.ok((await h.command('envelope.approve',{id:approval,eligible:true},fieldSender)).result.waitingForApproval.length)
+  await h.command('envelope.internal_decide',{id:approval,decision:'approve'},admin);assert.equal((await read(h,approval)).status,'awaiting_signature')
+  // A member newly assigned to an off group is constrained on the very next send.
+  await scoped(group,'ad_hoc',{mode:'off'})
+  await h.post('/api/inkwell/send-policy-scopes',{id:group.id,kind:'group',name:'Field',members:[fieldId,officeId],expectedVersion:group.version,commandId:crypto.randomUUID()},h.owner)
+  const newlyAssigned=await make(officeSender,'New group assignment')
+  await h.command('envelope.approve',{id:newlyAssigned,eligible:true},officeSender,403)
+  await h.post('/api/inkwell/send-policy-scopes',{id:group.id,kind:'group',name:'Field',members:[],expectedVersion:group.version,commandId:crypto.randomUUID()},h.owner,409)
+  assert.equal((await scopeState(office)).members.length,1)
+ } finally {await h.close()}
+})

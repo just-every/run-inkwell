@@ -15,9 +15,10 @@ import { setFollowup, resumeFollowup, followupView } from './followup-store'
 import { receiveFollowupReply } from './followup-inbound'
 import { apiOpenApi } from './api-openapi'
 import { apiCommandActor, apiKeyContext, authenticateApiKey, changeApiKey, listApiKeys, type ApiScope } from './api-keys'
+import { saveSendPolicyScope, sendPolicyScopes, encodedScope } from './send-policy-scopes'
 import { envelopeDefaultHistory, envelopeDefaults, setEnvelopeDefaults } from './envelope-defaults'
 import { freeFormPolicy, freeFormHistory, setFreeFormPolicy } from './freeform-policy'
-import { sendPolicies, sendPolicyHistory, setSendPolicy } from './send-policies'
+import { sendPolicy, sendSources, sendPolicies, sendPolicyHistory, setSendPolicy } from './send-policies'
 import { addSupplement, removeSupplement, supplementDocument, acknowledgeSupplement } from './supplements'
 import { enablePart11, requestSignatureCode } from './compliance/part11'
 import { healthcareProfile, accessReview, setHealthcareProfile } from './compliance/profile'
@@ -118,6 +119,8 @@ api.get('/api/inkwell/envelope-defaults/history',async c=>{await requireActor(c.
 api.get('/api/inkwell/envelope-defaults',async c=>{await requireActor(c.req.raw,c.env,['owner','admin','sender']);return c.json({defaults:await envelopeDefaults(c.env)})})
 api.get('/api/inkwell/freeform-policy',async c=>{await requireActor(c.req.raw,c.env);return c.json({policy:await freeFormPolicy(c.env)})})
 // ADMIN-004: the per-source send policies, current versions and every saved version, for owners and admins.
+api.get('/api/inkwell/send-policy-scopes',async c=>{await requireActor(c.req.raw,c.env,['owner','admin']);return c.json({scopes:await Promise.all((await sendPolicyScopes(c.env)).map(async scope=>({...scope,policies:await Promise.all(sendSources.map(source=>sendPolicy(c.env,source,encodedScope(scope))))})))})})
+api.post('/api/inkwell/send-policy-scopes',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner','admin']),body=await readJson(c.req.raw,131072);return c.json(await saveSendPolicyScope(c.env,await apiKeyContext(c.req.raw,actor,body),body))})
 api.get('/api/inkwell/send-policies',async c=>{await requireActor(c.req.raw,c.env,['owner','admin']);return c.json({policies:await sendPolicies(c.env),history:await sendPolicyHistory(c.env)})})
 api.get('/api/inkwell/freeform-policy/history',async c=>{await requireActor(c.req.raw,c.env,['owner','admin']);return c.json({history:await freeFormHistory(c.env)})})
 api.get('/api/inkwell/notices/settings',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json(await noticeSettings(c.env,actor))})

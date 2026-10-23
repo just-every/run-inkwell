@@ -43,6 +43,8 @@ try {
   await saveDefaults.focus(); await Promise.all([page.waitForResponse(response => response.url().endsWith('/api/inkwell') && response.request().method() === 'GET'), page.keyboard.press('Enter')])
   assert.equal((await app.call('/api/inkwell/envelope-defaults', { cookie: app.owner })).value.defaults.expiryDays, 21)
   await defaults.scrollIntoViewIfNeeded(); await axe(page, `ADMIN-004 defaults settings ${width}`); await capture('envelope-defaults', page)
+  await defaults.getByLabel('Additional consumer disclosure',{exact:true}).scrollIntoViewIfNeeded();await capture('default-disclosure-setting',page)
+  await defaults.getByLabel('Uploaded signature',{exact:true}).scrollIntoViewIfNeeded();await capture('default-adoption-setting',page)
   await page.emulateMedia({ colorScheme: 'dark' }); await axe(page, `ADMIN-004 defaults dark ${width}`); await capture('envelope-defaults-dark', page)
   await page.emulateMedia({ colorScheme: 'light' })
   await page.getByRole('button', { name: 'Envelopes', exact: true }).click()
@@ -258,4 +260,4 @@ try {
   await owner.close()
  }
  console.log('SEND-001 held/reconfirmed scheduled and internal-approval sends; ROUTE-004 passed at 1440/390: account and template rules, waiting draft, reject with reason, approve and send, accessibility')
-} catch (error) { for(const context of app.browser.contexts())for(const page of context.pages())console.error('Default proof diagnostic',JSON.stringify({headings:await page.getByRole('heading').allTextContents(),defaultRegions:await page.getByRole('region',{name:'Envelope defaults',exact:true}).count(),textareaCount:await page.locator('textarea').count()})); await screenshots(app.browser, 'route-004'); throw error } finally { await app.close() }
+} catch (error) { await screenshots(app.browser, 'route-004'); throw error } finally { await app.close() }
