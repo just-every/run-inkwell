@@ -89,3 +89,32 @@ Codes expire in 10 minutes, permit five attempts, and are capped at three mail r
 Configure `TURNSTILE_SITE_KEY` and Worker secret `TURNSTILE_SECRET_KEY` before use. Siteverify must return success, this installation’s hostname, and action `inkwell_form_code`, `inkwell_form_verify` or `inkwell_form_submit`. Missing configuration fails closed. Tests fake the Turnstile widget/siteverify and mail network edges; no credential values belong in source or arguments.
 
 Owner/role/permission loss permanently suspends old forms; restoration permits a new publication, never revival or transfer. Changed/deleted/inaccessible templates refuse admission. Form settings, permission and transient admission/rate state stay outside document archives; envelope provenance travels with document custody. Admission PII is purged after 24 hours and hashed IP rate identifiers after one hour. Raw IP/UA are retained only in RECORD-002 envelope evidence. Management statistics contain counts only. ADMIN-008 future profiles narrow these grants and ADMIN-005 adopts their history before claiming a complete account audit.
+
+
+Envelope organization uses the ordinary envelope access checks. Search accepts
+`folder` (folder ID), `tag` (exact tag), `customField` (field name) and
+`customValue` (exact value). Text search also matches tags and custom values.
+Names and values use the dashboard's case-insensitive matching. The signed-in
+`GET /api/inkwell/envelopes.csv` door exports every matching page, with IDs,
+titles, statuses, folder IDs, tags and custom fields. Spreadsheet formulas are
+escaped. A sender's export never includes envelopes outside their current access.
+
+Preparation and template inputs accept `tags` (up to ten strings) and
+`customFields` (up to twenty objects with `name`, `value` and `required`). Names
+are unique ignoring case, up to 80 characters; values are up to 500 characters.
+Templates may leave a required default blank; using that template must supply a
+nonblank value. Required fields cannot be removed or made optional by a draft
+edit. Template combination combines requirements and asks for a value when
+defaults conflict. Public forms require complete defaults before publication.
+Custom values are business metadata; they are not signer fields on the PDF.
+
+The dashboard's Folders control creates folders, grants view or edit shares and
+sets retention. Editors cannot reshare or move records. Viewers remain readers.
+Only the original sender, an owner or an admin moves an envelope, and they must
+manage the destination folder. Retention changes require an owner or admin;
+blank means inherit the account rule. A folder rule replaces account years and
+uses the same 30-day warning, legal hold and fenced erasure as account retention.
+Folder settings and shares stay out of document archives. A restored folder ID
+is inert unless that folder still exists in the destination installation.
+This conservative placement and restore default awaits ct approval. HubSpot
+handoff of custom envelope fields is not available until INTEG-001 ships.

@@ -33,15 +33,20 @@ export async function searchEnvelopes(env: Env, actor: Actor, params: URLSearchP
   for (const [value, label] of [[from, 'from'], [to, 'to']]) insist(!value || !Number.isNaN(Date.parse(value)), `Provide ${label} as a date.`)
   const where: string[] = [], values: unknown[] = [new Date().toISOString(), actor.email.toLowerCase(), actor.id]
   if (q) { where.push(`(lower(json_extract(e.data,'$.title')) LIKE ?${values.length + 1} ESCAPE '\\' OR EXISTS(SELECT 1 FROM json_each(e.data,'$.signers') s WHERE lower(json_extract(s.value,'$.email')) LIKE ?${values.length + 1} ESCAPE '\\' OR lower(json_extract(s.value,'$.name')) LIKE ?${values.length + 1} ESCAPE '\\'))`); values.push(like(q)) }
+  if (params.get('folder')) { where.push(`json_extract(e.data,'$.folderId')=?${values.length+1}`); values.push(params.get('folder')) }
+  const field=params.get('customField'),value=params.get('customValue'),tag=params.get('tag')
+  if(field){where.push(`EXISTS(SELECT 1 FROM json_each(e.data,'$.customFields') c WHERE lower(json_extract(c.value,'$.name'))=?${values.length+1}${value!==null?` AND lower(json_extract(c.value,'$.value'))=?${values.length+2}`:''})`);values.push(field.toLowerCase());if(value!==null)values.push(value.toLowerCase())}
+  if(tag){where.push(`EXISTS(SELECT 1 FROM json_each(e.data,'$.tags') t WHERE lower(t.value)=?${values.length+1})`);values.push(tag.toLowerCase())}
+  if(q){where[0]=where[0].slice(0,-1)+` OR EXISTS(SELECT 1 FROM json_each(e.data,'$.customFields') c WHERE lower(json_extract(c.value,'$.value')) LIKE ?4 ESCAPE '\\') OR EXISTS(SELECT 1 FROM json_each(e.data,'$.tags') t WHERE lower(t.value) LIKE ?4 ESCAPE '\\'))`}
   if (preparedBy) where.push(byAgent)
   // TMPL-001: envelopes sent from one template, by the template ID the envelope records.
   if (template) { where.push(`(json_extract(e.data,'$.template.id')=?${values.length + 1} OR EXISTS(SELECT 1 FROM json_each(e.data,'$.templates') t WHERE json_extract(t.value,'$.id')=?${values.length + 1}))`); values.push(template) }
   if (sender) { where.push(`json_extract(e.data,'$.createdBy')=?${values.length + 1}`); values.push(sender) }
   // ACCESS-001 / ADMIN-001: a sender finds the envelopes they created, those shared with them and (ROUTE-004) those they were asked to approve.
-  if (actor.role === 'sender') where.push(`(json_extract(e.data,'$.createdBy')=?3 OR EXISTS(SELECT 1 FROM iw_shares x WHERE x.envelope_id=e.id AND x.operator_id=?3) OR ${namedMe})`)
+  if (actor.role === 'sender') where.push(`(json_extract(e.data,'$.createdBy')=?3 OR EXISTS(SELECT 1 FROM iw_effective_shares x WHERE x.envelope_id=e.id AND x.operator_id=?3) OR ${namedMe})`)
   if (from) { where.push(`json_extract(e.data,'$.createdAt')>=?${values.length + 1}`); values.push(new Date(from).toISOString()) }
   if (to) { where.push(`json_extract(e.data,'$.createdAt')<?${values.length + 1}`); values.push(new Date(to).toISOString()) }
-  const filtered = `SELECT e.id, e.data, json_extract(e.data,'$.createdAt') AS created, ${bucket} AS bucket, (SELECT access FROM iw_shares x WHERE x.envelope_id=e.id AND x.operator_id=?3) AS share FROM iw_envelopes e${where.length ? ' WHERE ' + where.join(' AND ') : ''}`
+  const filtered = `SELECT e.id, e.data, json_extract(e.data,'$.createdAt') AS created, ${bucket} AS bucket, (SELECT access FROM iw_effective_shares x WHERE x.envelope_id=e.id AND x.operator_id=?3) AS share FROM iw_envelopes e${where.length ? ' WHERE ' + where.join(' AND ') : ''}`
   const counts = Object.fromEntries(buckets.map(b => [b, 0])) as Record<Bucket, number>
   const page: string[] = [], pageValues = [...values]
   if (status !== 'all') { page.push(`bucket=?${pageValues.length + 1}`); pageValues.push(status) }

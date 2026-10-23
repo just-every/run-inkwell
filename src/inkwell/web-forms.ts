@@ -1,3 +1,4 @@
+import { customEnvelopeFields } from './envelope-metadata'
 import QRCode from 'qrcode/lib/browser.js'
 import { operatorMail } from '../mail.server.mjs'
 import { htmlBody } from './mail'
@@ -49,6 +50,7 @@ export async function publishForm(env:Env,context:CommandContext,input:Record<st
  const {actor}=context,permissions=await publisherGuard(env,actor)
  const previous=await previousCommand(env.DB,actor.id,context.commandId,context.fingerprint);if(previous)return previous
  const {template}=await loadTemplate(env,actor,text(input.templateId,'a template ID',100),'use')
+ customEnvelopeFields(template.customFields)
  insist(input.templateVersion===(template.version??1),'Choose the current pinned template version.',409)
  insist(Number.isInteger(input.publicRole)&&Number(input.publicRole)>=0&&Number(input.publicRole)<template.roles.length,'Choose one public template role.')
  const publicRole=Number(input.publicRole),role=template.roles[publicRole]

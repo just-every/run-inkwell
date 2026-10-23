@@ -6,6 +6,7 @@ import { commitEnvelope, memberRoleSql, type Guard } from './storage'
 
 /** Fingerprint only the prepared sending definition, excluding decisions derived from it and approval history. */
 export const sendingFingerprint = (e: Envelope) => sha256(canonical({
+  ...(e.customFields?.length?{customFields:e.customFields}:{}), ...(e.tags?.length?{tags:e.tags}:{}),
   ...(e.freeForm ? { freeForm: true } : {}), ...(e.part11?{part11:e.part11}:{}),
   template: e.template ?? null, ...(e.templates?{templates:e.templates,approvalRules:e.approvalRules??[]}:{}), ...(e.documents?{documents:e.documents}:{}),
   sendOrigin: e.sendOrigin ?? null, ...(e.formSubmission?{formSubmission:e.formSubmission}:{}), consumerDisclosure: e.consumerDisclosure ?? null, adoptionMethods: e.adoptionMethods ?? null, title: e.title, filename: e.filename, originalSha256: e.originalSha256, expiresAt: e.expiresAt,
@@ -26,7 +27,7 @@ export async function confirmedSendGuard(envelope: Envelope, operator: string, a
  * and the envelope version are fenced in the batch that releases invitations or returns a held draft. */
 export function sendAuthorityGuard(envelope: Envelope, operator: string): Guard {
   return {
-    sql: `EXISTS(SELECT 1 FROM oa_operators o WHERE o.id=? AND o.status='active' AND (o.role IN ('owner','admin') OR (o.role='member' AND ${memberRoleSql('o.id')}='sender' AND (o.id=? OR EXISTS(SELECT 1 FROM iw_shares s WHERE s.envelope_id=? AND s.operator_id=o.id AND s.access='edit')))))`,
+    sql: `EXISTS(SELECT 1 FROM oa_operators o WHERE o.id=? AND o.status='active' AND (o.role IN ('owner','admin') OR (o.role='member' AND ${memberRoleSql('o.id')}='sender' AND (o.id=? OR EXISTS(SELECT 1 FROM iw_effective_shares s WHERE s.envelope_id=? AND s.operator_id=o.id AND s.access='edit')))))`,
     values: [operator, envelope.createdBy, envelope.id],
   }
 }

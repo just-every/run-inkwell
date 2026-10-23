@@ -97,44 +97,56 @@ function standingWarning(envelope: Envelope, due: string) {
 /** The hourly pass at `at`: warn for envelopes within 30 days of falling due, purge those whose warning has run out. */
 export async function applyRetention(env: Env, at: number) {
   const rule = await retentionRule(env)
-  if (!rule) return { checked: 0 }
+
   const rows = (await env.DB.prepare("SELECT data FROM iw_envelopes WHERE json_extract(data,'$.legalHold') IS NULL AND (json_extract(data,'$.status') IN ('completed','declined','voided','imported') OR json_extract(data,'$.imported')=1 OR (json_extract(data,'$.status') IN ('prepared','awaiting_signature','expired') AND json_extract(data,'$.expiresAt')<=?))").bind(new Date(at).toISOString()).all<{ data: string }>()).results
   const failures: unknown[] = []
   for (const row of rows) {
     const envelope: Envelope = JSON.parse(row.data), end = ending(envelope, at)
     if (!end) continue
-    const due = retentionDue(end.at, rule.years), warning = standingWarning(envelope, due)
+    const effective=await envelopeRetentionRule(env,envelope,rule)
+    if (!effective) continue
+    const due = retentionDue(end.at, effective.years), warning = standingWarning(envelope, due)
     try {
-      if (!warning) { if (Date.parse(due) - retentionWarningDays * day <= at) await warn(env, envelope, rule, end, due, at) }
-      else if (at >= Date.parse(String(warning.detail.purgeAt))) await purge(env, envelope, rule, end, String(warning.detail.warnedAt), at)
+      if (!warning) { if (Date.parse(due) - retentionWarningDays * day <= at) await warn(env, envelope, effective, end, due, at) }
+      else if (at >= Date.parse(String(warning.detail.purgeAt))) await purge(env, envelope, effective, end, String(warning.detail.warnedAt), at)
     } catch (error) { failures.push(error) }
   }
-  try { await applyArchiveRetention(env, rule, at, retentionDue) } catch (error) { failures.push(error) }
+  try { if(rule) await applyArchiveRetention(env, rule, at, retentionDue) } catch (error) { failures.push(error) }
   if (failures.length) throw new AggregateError(failures, `${failures.length} retention step(s) failed.`)
   return { checked: rows.length }
 }
 
-async function warn(env: Env, before: Envelope, rule: {years:number;updatedAt:string;updatedBy:string}, end: { ended: string; at: string; basis?: string }, due: string, at: number) {
+async function warn(env: Env, before: Envelope, rule: EnvelopeRetention, end: { ended: string; at: string; basis?: string }, due: string, at: number) {
   const years = rule.years
   const warnedAt = new Date(at).toISOString(), purgeAt = new Date(Math.max(Date.parse(due), at + retentionWarningDays * day)).toISOString()
   const admins = (await env.DB.prepare("SELECT id, email, display_name AS name FROM oa_operators WHERE status='active' AND role IN ('owner','admin') ORDER BY created_at, id").all<{ id: string; email: string; name: string }>()).results
   const after = structuredClone(before), emailSent = !mailSuppressed(env)
   const writes = admins.flatMap(admin => [
     env.DB.prepare('INSERT INTO iw_notices(id,operator_id,envelope_id,event,at,title,recipient) VALUES(?,?,?,?,?,?,?)').bind(id(), admin.id, after.id, 'retention', warnedAt, after.title, ''),
-    ...(emailSent && !before.imported && before.status !== 'imported' ? [noticeWrite(env.DB, after, 0, admin.email, `Will be purged: ${after.title}`, `${admin.name},\n\n${after.title}, ${end.ended} ${end.at}${end.basis ? ` (${end.basis})` : ''}, will be permanently erased on ${purgeAt} under the account's ${years}-year retention rule.\nTo keep it, place a legal hold on it in Inkwell before then.\n${new URL('/app', env.AUTH_ORIGIN).href}`)] : [])])
-  if (emailSent && (before.imported || before.status === 'imported')) for (const admin of admins) writes.push(env.DB.prepare('INSERT INTO iw_import_retention_mail(id,group_id,recipient,subject,body) VALUES(?,?,?,?,?)').bind(id(),`envelope:${before.id}`,admin.email,`Will be purged: ${after.title}`,`${admin.name},\n\n${after.title}, ${end.ended} ${end.at}${end.basis ? ` (${end.basis})` : ''}, will be permanently erased on ${purgeAt} under the account's ${years}-year retention rule.\nPlace a legal hold on it in Inkwell to keep it.\n${new URL('/app', env.AUTH_ORIGIN).href}`))
-  await appendEvent(after, 'envelope.retention_warned', 'inkwell', { years, ended: end.ended, endedAt: end.at, ...(end.basis ? {basis:end.basis} : {}), due, warnedAt, purgeAt, recipients: admins.map(a => a.email), emailSent })
-  await commitEnvelope(env, before, after, null, writes, [retentionAuthority(rule)])
+    ...(emailSent && !before.imported && before.status !== 'imported' ? [noticeWrite(env.DB, after, 0, admin.email, `Will be purged: ${after.title}`, `${admin.name},\n\n${after.title}, ${end.ended} ${end.at}${end.basis ? ` (${end.basis})` : ''}, will be permanently erased on ${purgeAt} under the ${rule.folderId?'folder':'account'}'s ${years}-year retention rule.\nTo keep it, place a legal hold on it in Inkwell before then.\n${new URL('/app', env.AUTH_ORIGIN).href}`)] : [])])
+  if (emailSent && (before.imported || before.status === 'imported')) for (const admin of admins) writes.push(env.DB.prepare('INSERT INTO iw_import_retention_mail(id,group_id,recipient,subject,body) VALUES(?,?,?,?,?)').bind(id(),`envelope:${before.id}`,admin.email,`Will be purged: ${after.title}`,`${admin.name},\n\n${after.title}, ${end.ended} ${end.at}${end.basis ? ` (${end.basis})` : ''}, will be permanently erased on ${purgeAt} under the ${rule.folderId?'folder':'account'}'s ${years}-year retention rule.\nPlace a legal hold on it in Inkwell to keep it.\n${new URL('/app', env.AUTH_ORIGIN).href}`))
+  await appendEvent(after, 'envelope.retention_warned', 'inkwell', { years, folderId:rule.folderId??null, ended: end.ended, endedAt: end.at, ...(end.basis ? {basis:end.basis} : {}), due, warnedAt, purgeAt, recipients: admins.map(a => a.email), emailSent })
+  await commitEnvelope(env, before, after, null, writes, [rule.guard])
   if (before.imported || before.status === 'imported') await dispatchArchiveRetentionMail(env)
   else await dispatchMail(env, after.id)
 }
 
-async function purge(env: Env, before: Envelope, rule: {years:number;updatedAt:string;updatedBy:string}, end: { ended: string; at: string }, warnedAt: string, at: number) {
+async function purge(env: Env, before: Envelope, rule: EnvelopeRetention, end: { ended: string; at: string }, warnedAt: string, at: number) {
   const years = rule.years
   const service = await createPortability({ db: env.DB, policy })
-  await atomic(env.DB, [retentionAuthority(rule), { sql: "EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=? AND json_extract(data,'$.legalHold') IS NULL)", values: [before.id, before.version] }], [
+  await atomic(env.DB, [rule.guard, { sql: "EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=? AND json_extract(data,'$.legalHold') IS NULL)", values: [before.id, before.version] }], [
     ...await erasureWrites(env.DB, service, before.id),
     env.DB.prepare('INSERT INTO iw_retention_purges(envelope_id,ended,years,ended_at,warned_at,purged_at) VALUES(?,?,?,?,?,?)').bind(before.id, end.ended, years, end.at, warnedAt, new Date(at).toISOString())])
 }
 
 function retentionAuthority(rule:{years:number;updatedAt:string;updatedBy:string}) { return {sql:"EXISTS(SELECT 1 FROM iw_settings WHERE key='retention_years' AND value=? AND updated_at=? AND updated_by=?)",values:[String(rule.years),rule.updatedAt,rule.updatedBy]} }
+
+interface EnvelopeRetention { years:number; updatedAt:string; updatedBy:string; folderId?:string; guard:import('./storage').Guard }
+async function envelopeRetentionRule(env:Env,envelope:Envelope,account:Awaited<ReturnType<typeof retentionRule>>):Promise<EnvelopeRetention|null> {
+ const folder=envelope.folderId?await env.DB.prepare('SELECT retention_years,version,updated_at,updated_by FROM iw_envelope_folders WHERE id=?').bind(envelope.folderId).first<{retention_years:number|null;version:number;updated_at:string;updated_by:string}>():null
+ const folderGuard=folder?{sql:'EXISTS(SELECT 1 FROM iw_envelope_folders WHERE id=? AND version=?)',values:[envelope.folderId!,folder.version]}:{sql:'NOT EXISTS(SELECT 1 FROM iw_envelope_folders WHERE id=?)',values:[envelope.folderId??'']}
+ if(folder?.retention_years)return {years:folder.retention_years,updatedAt:folder.updated_at,updatedBy:folder.updated_by,folderId:envelope.folderId,guard:folderGuard}
+ if(!account)return null
+ const guard=retentionAuthority(account)
+ return {...account,guard:{sql:`(${guard.sql}) AND (${folderGuard.sql})`,values:[...guard.values,...folderGuard.values]}}
+}

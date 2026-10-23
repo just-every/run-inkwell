@@ -1,3 +1,5 @@
+import { CustomEnvelopeFields } from './envelope-metadata'
+import type { CustomEnvelopeField } from '../inkwell/envelope-metadata'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { Template } from './templates'
 import { command, request } from './types'
@@ -31,6 +33,8 @@ function resolution(value: unknown): string {
 
 /** Combines the selected templates in their displayed order; the resulting draft still needs sending approval. */
 export function TemplateComposition({ templates, onSent, onCancel }: { templates: Template[]; onSent: (id: string) => Promise<void>; onCancel: () => void }) {
+  const combined=new Map<string,CustomEnvelopeField>();for(const f of templates.flatMap(t=>t.customFields??[])){const old=combined.get(f.name.toLowerCase());combined.set(f.name.toLowerCase(),{...f,required:f.required||Boolean(old?.required),value:old&&old.value!==f.value?'':f.value})}
+  const [customFields,setCustomFields]=useState([...combined.values()])
   const [ordered, setOrdered] = useState(templates)
   const [choices, setChoices] = useState<Choices>({})
   const [preview, setPreview] = useState<{ key: string; data: Preview }>()
@@ -84,7 +88,7 @@ export function TemplateComposition({ templates, onSent, onCancel }: { templates
           const person = people[role.key] ?? emptyPerson()
           return { name: person.name, email: person.email, ...(role.identity === 'sms' ? { phone: person.phone } : {}), ...(role.accessCode ? { accessCode: person.accessCode } : {}) }
         })
-        const { id } = await command<{ id: string }>('template.combine', { ids, choices, recipients, ...(documents.length ? { documents } : {}) })
+        const { id } = await command<{ id: string }>('template.combine', { ids, choices, recipients, customFields, ...(documents.length ? { documents } : {}) })
         await onSent(id)
       })
     } finally { submitting.current = false }
@@ -124,7 +128,7 @@ export function TemplateComposition({ templates, onSent, onCancel }: { templates
         {files.length > 0 && <><p className="iw-muted">Additional PDFs are view only. You can edit the prepared draft to add fields.</p><ul className="iw-stack">{files.map(item => <li key={item.key}>{item.file.name} · View only <button type="button" disabled={busy} onClick={() => setFiles(previous => previous.filter(file => file.key !== item.key))} aria-label={`Remove ${item.file.name}`}>Remove</button></li>)}</ul></>}
       </section>
       {!fits && <p className="iw-error" role="alert">Use at most 20 documents and 100 recipient places, including reserved witnesses.</p>}
-      <ErrorNotice error={action.error} /><div className="iw-actions iw-submit"><button type="submit" className="iw-primary" disabled={busy || !fits}>{action.busy ? 'Preparing…' : 'Prepare combined envelope'}</button><p className="iw-muted">Review and approve the prepared draft before any invitations are sent.</p></div>
+      <CustomEnvelopeFields fields={customFields} onChange={setCustomFields} fixed/><ErrorNotice error={action.error} /><div className="iw-actions iw-submit"><button type="submit" className="iw-primary" disabled={busy || !fits}>{action.busy ? 'Preparing…' : 'Prepare combined envelope'}</button><p className="iw-muted">Review and approve the prepared draft before any invitations are sent.</p></div>
     </form>}
   </section>
 }

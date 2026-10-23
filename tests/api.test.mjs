@@ -987,6 +987,120 @@ test('TMPL-005: a fresh copy of a template W-9 is offered that template with its
  await match(fresh,viewer,403)
  assert.deepEqual((await h.send('/api/inkwell/envelopes',undefined,xena.cookie)).value.total,0,'matching places and stores nothing')
 })
+test('MANAGE-002: folder shares grant live envelope access, cap viewers, forbid resharing and suspend keys and deferred sends when removed',async()=>{
+ const h=await harness()
+ try {
+  const makeSender=async email=>{const cookie=await h.invite(email,'member'),actor=(await h.send('/api/inkwell',undefined,cookie)).value.actor;await h.command('member.role',{operatorId:actor.id,role:'sender'});return {...actor,cookie}}
+  const maker=await makeSender('maker.folders@harbour.example'),editor=await makeSender('editor.folders@harbour.example'),viewer=await h.invite('viewer.folders@harbour.example','member')
+  let folder=(await h.command('folder.change',{action:'create',name:'Supplier agreements'},maker.cookie)).result
+  const change=async(input,cookie=maker.cookie,status=200)=>{const r=await h.command('folder.change',{id:folder.id,expectedVersion:folder.version,...input},cookie,status);if(status===200)folder=r.result;return r}
+  const id=(await h.command('envelope.prepare',preparation(),maker.cookie)).result.id
+  const read=async(cookie)=>(await h.send('/api/inkwell/envelopes/'+id,undefined,cookie))
+  assert.equal((await read(editor.cookie)).status,403)
+  await h.command('envelope.folder',{id,expectedVersion:1,folderId:folder.id},maker.cookie)
+  await change({action:'share',email:editor.email,access:'view'})
+  assert.equal((await read(editor.cookie)).value.envelope.access,'view')
+  assert.equal((await h.send('/api/inkwell/envelopes?folder='+folder.id,undefined,editor.cookie)).value.total,1)
+  await h.command('envelope.void',{id,reason:'View cannot change'},editor.cookie,403)
+  await change({action:'share',email:editor.email,access:'edit'})
+  assert.equal((await read(editor.cookie)).value.envelope.access,'edit')
+  await change({action:'share',email:'viewer.folders@harbour.example',access:'edit'})
+  await h.command('envelope.void',{id,reason:'Viewer still cannot change'},viewer,403)
+  await change({action:'share',email:'viewer.folders@harbour.example',access:'view'},editor.cookie,403)
+  await h.command('envelope.share',{id,email:maker.email,access:'view'},editor.cookie,403)
+  await h.command('envelope.folder',{id,expectedVersion:(await read(editor.cookie)).value.envelope.version,folderId:null},editor.cookie,403)
+  await change({action:'retention',years:3},maker.cookie,403)
+  const key=(await h.post('/api/inkwell/api-keys',{memberId:editor.id,scopes:['envelopes:read'],name:'synthetic-inkwell-1',commandId:crypto.randomUUID()})).value
+  assert.equal((await h.send('/api/v1/envelopes/'+id,undefined,'',{authorization:'Bearer '+key.token})).status,200)
+  const at=Date.now()+3600000
+  await h.command('envelope.approve',{id,eligible:true,sendAt:{at:new Date(at).toISOString().slice(0,16),timeZone:'America/New_York'}},editor.cookie)
+  await change({action:'unshare',email:editor.email})
+  assert.equal((await read(editor.cookie)).status,403)
+  assert.equal((await h.send('/api/inkwell/envelopes?folder='+folder.id,undefined,editor.cookie)).value.total,0)
+  await h.scheduled(at+86400000)
+  assert.ok((await read(maker.cookie)).value.envelope.sendHold,'removed folder authority holds scheduled sends')
+  await change({action:'share',email:editor.email,access:'edit'})
+  assert.equal((await h.send('/api/v1/envelopes/'+id,undefined,'',{authorization:'Bearer '+key.token})).status,401,'restoring the share never revives a suspended key')
+  await h.command('envelope.void',{id,reason:'Editor closes recovered held draft'},editor.cookie)
+  assert.equal((await read(editor.cookie)).value.envelope.status,'voided')
+  await h.command('folder.change',{action:'retention',id:folder.id,expectedVersion:0,years:3},h.owner,409)
+ } finally {await h.close()}
+})
+
+test('MANAGE-002: folder retention replaces the account rule, warns before purge and honors legal holds and rule changes',async()=>{
+ const h=await harness()
+ try {
+  const read=async id=>(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner))
+  const complete=async title=>{
+   const p={name:'Harbour Owner',email:'owner@harbour.example'},id=(await h.command('envelope.prepare',{...preparation(),title,signers:[p],fields:[fields[0]]})).result.id
+   await h.command('envelope.approve',{id,eligible:true})
+   const opened=await h.post('/api/inkwell/commands',{command:'envelope.open_signing',commandId:crypto.randomUUID(),input:{id}})
+   const path=new URL(opened.value.result.signing.url).pathname.replace('/sign/','/api/sign/')
+   await h.agree(path,opened.cookie)
+   await h.post(path+'/sign',{values:{'signature-0':p.name},consent:true,commandId:crypto.randomUUID()},opened.cookie)
+   assert.equal((await read(id)).value.envelope.status,'completed');return id
+  }
+  let folder=(await h.command('folder.change',{action:'create',name:'Three year records'})).result
+  const rule=async years=>folder=(await h.command('folder.change',{action:'retention',id:folder.id,expectedVersion:folder.version,years})).result
+  await rule(3);await h.command('account.retention',{years:7})
+  const inside=await complete('Folder record'),outside=await complete('Account record'),held=await complete('Held folder record')
+  for(const id of [inside,held])await h.command('envelope.folder',{id,expectedVersion:(await read(id)).value.envelope.version,folderId:folder.id})
+  await h.command('envelope.hold',{id:held,reason:'Pending litigation'})
+  const ended=(await read(inside)).value.envelope.events.find(e=>e.action==='envelope.completed').at,due=new Date(ended);due.setUTCFullYear(due.getUTCFullYear()+3)
+  const day=86400000
+  await h.scheduled(+due-30*day)
+  const warned=(await read(inside)).value.envelope.events.find(e=>e.action==='envelope.retention_warned')
+  assert.equal(warned.detail.years,3);assert.equal(warned.detail.folderId,folder.id)
+  assert.ok((await h.mail('owner@harbour.example','Will be purged: Folder record')).text.includes("folder's 3-year"))
+  assert.ok(!(await read(outside)).value.envelope.events.some(e=>e.action==='envelope.retention_warned'))
+  await rule(4);await h.scheduled(+due+1000)
+  assert.equal((await read(inside)).status,200,'a longer rule invalidates the old warning')
+  await rule(3);await h.command('account.retention',{years:null});await h.scheduled(+due+2000)
+  assert.equal((await read(inside)).status,404,'folder rule still applies with no account rule')
+  assert.equal((await read(outside)).status,200);assert.equal((await read(held)).status,200)
+  await h.post('/api/inkwell/erase',{id:held,confirmation:'ERASE'},h.owner,409)
+  await h.command('envelope.lift_hold',{id:held});await h.scheduled(+due+3000)
+  assert.equal((await read(held)).status,200,'lifting a hold restarts a full warning')
+  await h.scheduled(+due+30*day+4000);assert.equal((await read(held)).status,404)
+ } finally {await h.close()}
+})
+
+test('MANAGE-002: required template metadata survives edits, copies and combined templates and filters the authorized CSV export',async()=>{
+ const h=await harness()
+ try {
+  const p=preparation(),customFields=[{name:'Cost center',required:true,value:''}],template=(await h.command('template.save',{...p,roles:recipients.map((r,i)=>({role:'Signer '+i,order:i+1})),customFields,tags:['renewal']})).result
+  const use={id:template.id,recipients}
+  await h.command('template.use',use,h.owner,400)
+  await h.command('template.use',{...use,customFields:[]},h.owner,400)
+  const id=(await h.command('template.use',{...use,customFields:[{name:'Cost center',value:'Finance 42',required:false}]})).result.id
+  const read=async id=>(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
+  let e=await read(id);assert.deepEqual(e.customFields,[{name:'Cost center',value:'Finance 42',required:true}]);assert.deepEqual(e.tags,['renewal'])
+  await h.command('envelope.update',{...p,id,customFields:[]},h.owner,400)
+  await h.command('envelope.update',{...p,id,customFields:[{name:'Cost center',value:'Finance 43'}]})
+  e=await read(id);assert.equal(e.customFields[0].required,true)
+  const query=new URLSearchParams({customField:'Cost center',customValue:'finance 43',tag:'renewal'})
+  assert.deepEqual((await h.send('/api/inkwell/envelopes?'+query,undefined,h.owner)).value.envelopes.map(e=>e.id),[id])
+  assert.equal((await h.send('/api/inkwell/envelopes?q=finance%2043',undefined,h.owner)).value.total,1)
+  assert.equal((await h.send('/api/inkwell/envelopes?q=renewal',undefined,h.owner)).value.total,1)
+  assert.equal((await h.send('/api/inkwell/envelopes?customField=Cost%20center&customValue=missing',undefined,h.owner)).value.total,0)
+  const csv=await h.send('/api/inkwell/envelopes.csv?'+query,undefined,h.owner);assert.equal(csv.status,200);assert.ok(csv.value.includes(id)&&csv.value.includes('Finance 43')&&csv.value.includes('renewal'))
+  assert.equal((await h.send('/api/inkwell/envelopes.csv',undefined,'')).status,401)
+  const outsider=await h.invite('outsider.metadata@harbour.example','member'),me=(await h.send('/api/inkwell',undefined,outsider)).value.actor
+  await h.command('member.role',{operatorId:me.id,role:'sender'})
+  assert.ok(!(await h.send('/api/inkwell/envelopes.csv?'+query,undefined,outsider)).value.includes(id),'export uses the same live access as search')
+  await h.command('envelope.void',{id,reason:'Replace this draft'})
+  const copy=(await h.command('envelope.copy',{id})).result.id
+  assert.deepEqual((await read(copy)).customFields,e.customFields);assert.equal((await read(copy)).folderId,undefined)
+  const saved=(await h.command('template.from_envelope',{id})).result.id
+  assert.deepEqual((await h.send('/api/inkwell/templates',undefined,h.owner)).value.templates.find(t=>t.id===saved).customFields,e.customFields)
+  await h.command('template.combine',{ids:[template.id,saved],recipients},h.owner,400)
+  const combined=(await h.command('template.combine',{ids:[template.id,saved],recipients,customFields:[{name:'Cost center',value:'Finance 44'}]})).result.id
+  assert.equal((await read(combined)).customFields[0].required,true)
+  const exportRecord=await h.send('/api/inkwell/envelopes/'+id+'/artifacts/custody',undefined,h.owner)
+  assert.equal(exportRecord.status,200);assert.ok(JSON.stringify(exportRecord.value).includes('Finance 43'))
+ } finally {await h.close()}
+})
+
 // RECORD-005 runs last: its seven-year clock purges every completed envelope earlier tests left behind.
 test('RECORD-005: with the clock advanced, a seven-year rule purges an envelope after its warning, and a held envelope survives both the rule and an erase request; voided and expired envelopes fall under it, open ones never',async()=>{
  const day=86_400_000,admin=await h.invite('keeper@harbour.example','admin'),viewer=await h.invite('ledger@harbour.example','member'),field=[{...fields[0],signer:0}]

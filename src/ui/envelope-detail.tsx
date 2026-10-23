@@ -1,3 +1,4 @@
+import { EnvelopeFiling } from './envelope-folders'
 import { TooltipButton } from './tooltip-button'
 import { Part11Profile } from './part11'
 import { Comments } from './comments'
@@ -148,12 +149,15 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
     </div>}
 
     <div className="iw-detail-records"><h3>Document</h3>
+    {envelope.tags?.length?<p>Tags: {envelope.tags.join(", ")}</p>:null}
+    {envelope.customFields?.length?<section aria-label="Custom envelope fields"><h3>Custom envelope fields</h3><dl>{envelope.customFields.map(f=><div key={f.name}><dt>{f.name}</dt><dd>{f.value||"Not set"}</dd></div>)}</dl></section>:null}
     {envelope.signers.some(s => s.values) && <section aria-label="Entered field values"><h3>Entered fields</h3><dl>{envelope.fields.flatMap(field => { const value = envelope.signers[field.signer]?.values?.[field.id]; return value ? [<div key={field.id}><dt>{field.label}</dt><dd>{displayFieldValue(field, value)}</dd></div>] : [] })}</dl></section>}
     {envelope.documents&&<section className="iw-stack" aria-label="Envelope documents"><h3>Documents</h3><ol className="iw-stack">{envelope.documents.map((d,i)=><li key={i}><strong>{d.filename}</strong><p>{d.pages} page(s) · {d.mode==='view'?'View only':d.mode==='optional'?'Optional to sign':'Required to sign'}</p><a href={`${base}/artifacts/document-${i}`} download>Original {d.filename}</a>{d.signedSha256&&<> · <a href={`${base}/artifacts/executed-${i}`} download>Executed {d.filename}</a></>}</li>)}</ol></section>}
     <div className="iw-artifacts"><button onClick={() => setShowPdf(value => !value)}>{showPdf ? 'Hide document' : 'View document and fields'}</button><a className="iw-button" href={`${base}/artifacts/original`} download>Original PDF</a>{envelope.status === 'completed' && <><a className="iw-button" href={`${base}/artifacts/signed`} download>Executed PDF</a><a className="iw-button" href={`${base}/artifacts/certificate`} download>Certificate</a><a className="iw-button" href={`${base}/artifacts/handoff`} download>Handoff manifest</a></>}{envelope.status === 'declined' && envelope.certificateSha256 && <a className="iw-button" href={`${base}/artifacts/certificate`} download>Decline certificate</a>}<a className="iw-button" href={`${base}/artifacts/audit`} download>Audit JSON</a><a className="iw-button" href={`${base}/artifacts/custody`} download>Record custody export</a></div>
     {showPdf && <PdfViewer source={`${base}/artifacts/${envelope.status === 'completed' ? 'signed' : 'original'}`} fields={envelope.status === 'completed' ? [] : envelope.fields} />}
 
     {envelope.status === 'completed' && mayEdit && <SendCopy documents={envelope.documents} id={envelope.id} refresh={refresh} />}
+    {envelope.mayShare && <EnvelopeFiling envelope={envelope} refresh={refresh} />}
     {envelope.mayShare && <EnvelopeShares envelope={envelope} refresh={refresh} />}
     <ArtifactIntegrity envelope={envelope} base={base} />
     {envelope.messages?.length ? <details className="iw-audit-trail"><summary>Messages ({envelope.messages.length})</summary><ol className="iw-audit">{envelope.messages.map(message => <li key={message.id}><strong>{messageKinds[message.kind] ?? message.kind} to {message.recipient}</strong> <span>{message.label}</span><p>{[['Queued', message.createdAt], ['Sent', message.sentAt], ['Delivered', message.deliveredAt], ['Opened', message.openedAt], ['Bounced', message.bouncedAt], ['Failed', message.failedAt]].filter(([, at]) => at).map(([what, at]) => `${what} ${dateTime(at!)}`).join(' · ')}</p></li>)}</ol></details> : null}

@@ -1,3 +1,4 @@
+import { customEnvelopeFields, mergeCustomFields } from './envelope-metadata'
 import { composition, type CompositionChoices } from './template-composition'
 import { loadTemplate, templateBytes } from './templates'
 import { templateOriginal } from './template-documents'
@@ -77,7 +78,7 @@ export async function combineTemplates(env: Env, context: CommandContext, input:
   const strictProfile = sources.find(source => source.template.part11)?.template.part11
   insist(!strictProfile || !plan.settings.allowPaper, 'Choose settings without paper signing when any source template uses the electronic compliance profile.', 409)
   const createdAt = now(), prepared = { bytes: multiple.bytes, documents: multiple.documents, composition: true as const }
-  const { draft, accessCodes } = await readDraft(env, { title: plan.settings.title, filename: 'combined.pdf', signers, fields: plan.fields,
+  const { draft, accessCodes } = await readDraft(env, { customFields:customEnvelopeFields(input.customFields,mergeCustomFields(sources.map(s=>s.template.customFields??[]))),tags:[...new Set(sources.flatMap(s=>s.template.tags??[]))].slice(0,10),title: plan.settings.title, filename: 'combined.pdf', signers, fields: plan.fields,
     expiresAt: new Date(Date.parse(createdAt) + plan.settings.expiryDays * 86_400_000).toISOString(), reminders: plan.settings.reminders ?? null,
     ...(plan.settings.allowPaper ? { allowPaperSigning: true } : {}), allowReassignment: Boolean(plan.settings.allowReassign),
     ...(plan.settings.subject ? { subject: plan.settings.subject } : {}), ...(plan.settings.message ? { message: plan.settings.message } : {}) }, createdAt, undefined, context.actor, prepared, plan.settings.adoptionMethods, plan.settings.consumerDisclosure)

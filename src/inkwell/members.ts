@@ -22,7 +22,7 @@ export function accessFrom(actor: Actor, envelope: Envelope, share?: string | nu
   return share === 'edit' ? 'edit' : share === 'view' || namedApprover(envelope, actor.id) ? 'view' : 'none'
 }
 export async function envelopeAccess(env: Env, actor: Actor, envelope: Envelope) {
-  return accessFrom(actor, envelope, (await env.DB.prepare('SELECT access FROM iw_shares WHERE envelope_id=? AND operator_id=?').bind(envelope.id, actor.id).first<{ access: string }>())?.access)
+  return accessFrom(actor, envelope, (await env.DB.prepare('SELECT access FROM iw_effective_shares WHERE envelope_id=? AND operator_id=?').bind(envelope.id, actor.id).first<{ access: string }>())?.access)
 }
 export async function insistAccess(env: Env, actor: Actor, envelope: Envelope, needed: 'view' | 'edit') {
   const access = await envelopeAccess(env, actor, envelope)

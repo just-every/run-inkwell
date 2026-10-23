@@ -1,3 +1,4 @@
+import { EnvelopeFolders, type EnvelopeFolder } from './envelope-folders'
 import { Part11Administration, SignerPassword } from './part11-settings'
 import { FreeFormSettings } from './freeform-settings'
 import { SendPolicies } from './send-policies'
@@ -52,18 +53,21 @@ export function OperatorApp() {
   const [envelope, setEnvelope] = useState<Envelope>()
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
+  const [customField,setCustomField]=useState(''),[customValue,setCustomValue]=useState(''),[tag,setTag]=useState('')
+  const [folder,setFolder]=useState(''),[folders,setFolders]=useState<EnvelopeFolder[]>([])
   const [narrow, setNarrow] = useState<Narrow>({ from: '', to: '', sender: '', template: '' })
   // TMPL-001: the templates this person may use, for the template filter.
   const [templates, setTemplates] = useState<{ id: string; title: string }[]>([])
   const opened = useRef(false), shownFor = useRef(0), selectedRef = useRef('')
   const action = useAction(), paging = useAction()
   const words = query.trim()
-  const params = { q: words, status: filter === 'all' ? '' : filter, from: narrow.from && localDay(narrow.from), to: narrow.to && localDay(narrow.to, 1), sender: narrow.sender, template: narrow.template }
+  const params = { customField,customValue,tag,folder, q: words, status: filter === 'all' ? '' : filter, from: narrow.from && localDay(narrow.from), to: narrow.to && localDay(narrow.to, 1), sender: narrow.sender, template: narrow.template }
   // Only the newest search's answer is shown, so a slow earlier page never replaces a later one.
   async function loadPage() { const ticket = ++shownFor.current, next = await search(params); if (ticket === shownFor.current) setPage(next) }
   async function loadEnvelope(id: string) { const next = id ? (await request<{ envelope: Envelope }>(`/api/inkwell/envelopes/${encodeURIComponent(id)}`)).envelope : undefined; if (selectedRef.current === id) setEnvelope(next) }
   async function refresh() {
     const [workspace, drafts, agents] = await Promise.all([request<Workspace>('/api/inkwell'), search({ status: 'draft', limit: '1' }), search({ preparedBy: 'agent', status: 'draft', limit: '1' })])
+    setFolders((await request<{folders:EnvelopeFolder[]}>('/api/inkwell/folders')).folders)
     setData(workspace); setSummary(drafts); setAgentPage(agents)
     setTemplates(canEdit(workspace.actor) ? (await request<{ templates: { id: string; title: string }[] }>('/api/inkwell/templates')).templates : [])
     await Promise.all([loadPage(), loadEnvelope(selectedRef.current)])
@@ -72,7 +76,7 @@ export function OperatorApp() {
   useEffect(() => { void action.run(refresh) }, [])
   // A new search, status or narrowing asks the server again; typing settles for a moment first.
   const asked = useRef(false)
-  useEffect(() => { if (!asked.current) { asked.current = true; return } const timer = setTimeout(() => void action.run(loadPage), words ? 250 : 0); return () => clearTimeout(timer) }, [words, filter, narrow.from, narrow.to, narrow.sender, narrow.template])
+  useEffect(() => { if (!asked.current) { asked.current = true; return } const timer = setTimeout(() => void action.run(loadPage), words ? 250 : 0); return () => clearTimeout(timer) }, [customField,customValue,tag,folder, words, filter, narrow.from, narrow.to, narrow.sender, narrow.template])
   // With room for both, the screen opens on the first draft waiting for this person's approval.
   useEffect(() => {
     if (!data || !summary || opened.current) return
@@ -87,7 +91,7 @@ export function OperatorApp() {
     if (place === 'envelopes' || place === 'me') { setTab('envelopes'); setFilter(place === 'me' ? 'waiting_for_me' : 'all'); void action.run(refresh) } else setTab(place)
   }
   const place: Place = tab === 'envelopes' ? filter === 'waiting_for_me' ? 'me' : 'envelopes' : tab
-  const filtered = Boolean(words || narrow.from || narrow.to || narrow.sender || narrow.template)
+  const filtered = Boolean(customField || tag || folder || words || narrow.from || narrow.to || narrow.sender || narrow.template)
   const panel = tab === 'envelopes' && !preparing && envelope?.id === selected && envelope
   return <div className={`iw-app iw-operator${panel ? ' iw-has-panel' : ''}`}>
     <HydrationUnit><Sidebar place={place} actor={data?.actor} waiting={summary?.counts.waiting_for_me ?? 0} onGo={go} /></HydrationUnit>
@@ -99,8 +103,10 @@ export function OperatorApp() {
           {data && tab === 'envelopes' && (preparing ? <PrepareEnvelope key={(correcting ? 'correct-' : '') + (correcting?.id ?? editing?.id ?? 'new')} draft={editing} correcting={correcting} onCancel={() => { setPreparing(false); setEditing(undefined); setCorrecting(undefined) }} onSaved={async id => { setPreparing(false); setEditing(undefined); setCorrecting(undefined); choose(id); await refresh() }} /> : <>
             {summary && <EnvelopesHeading counts={summary.counts} actor={data.actor} />}
             {agentPage && <AgentStrip prepared={agentPage} actor={data.actor} agents={data.agents ?? []} onReview={choose} onAccess={owner ? () => go('agents') : undefined} />}
+            <EnvelopeFolders actor={data.actor} folders={folders} selected={folder} onSelect={setFolder} refresh={refresh} />
             {summary?.total === 0 ? <div className="iw-card"><EmptyEnvelopes actor={data.actor} onPrepare={() => setPreparing(true)} /></div> : page && <>
               <FilterChips page={page} filter={filter} onFilter={setFilter} />
+              <div className="iw-actions" role="group" aria-label="Envelope metadata filters"><label>Custom field name<input value={customField} onChange={e=>setCustomField(e.target.value)} maxLength={80}/></label><label>Custom field value<input value={customValue} onChange={e=>setCustomValue(e.target.value)} maxLength={500}/></label><label>Envelope tag<input value={tag} onChange={e=>setTag(e.target.value)} maxLength={40}/></label><a className="iw-button" href={"/api/inkwell/envelopes.csv?"+new URLSearchParams(Object.entries(params).filter(([,value])=>value))} download>Export matching envelopes</a></div>
               <NarrowFilters narrow={narrow} people={data.people ?? []} templates={templates} onNarrow={setNarrow} />
               <div className="iw-card iw-table-card">{page.envelopes.length ? <EnvelopeTable envelopes={page.envelopes} actor={data.actor} selected={selected} onSelect={choose} /> : <EmptyEnvelopes actor={data.actor} filtered={filtered ? 'No envelopes match your search.' : 'No envelopes with this status.'} onPrepare={() => setPreparing(true)} />}</div>
               {page.envelopes.length > 0 && <MoreEnvelopes page={page} filter={filter} busy={paging.busy} onMore={() => void paging.run(more)} />}<ErrorNotice error={paging.error} />

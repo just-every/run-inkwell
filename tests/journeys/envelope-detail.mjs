@@ -127,6 +127,60 @@ try {
     await inkwell.call('/api/inkwell/contacts/remove',{cookie:inkwell.owner,body:{email:`correct${width}@clients.example`}})
     await context.close()
   }
+  // MANAGE-002: the existing management journey also covers template metadata, filing and exports.
+  const organizationImages=process.env.INKWELL_ORGANIZATION_IMAGES??'/tmp/inkwell-organization-screens'
+  await mkdir(organizationImages,{recursive:true})
+  const shareEmail='folder.reader@harbour.example'
+  await inkwell.call('/auth/invite',{cookie:inkwell.owner,body:{email:shareEmail,displayName:'Folder Reader',role:'member'},status:202})
+  const inviteMail=inkwell.mail(shareEmail),inviteToken=new URL(inviteMail.text.match(/http:\/\/[^\s]+\/auth\/confirm\?token=[^\s]+/)[0]).searchParams.get('token')
+  await inkwell.call('/auth/confirm',{body:{token:inviteToken},status:303})
+  for(const width of [1440,390]){
+    const title=`Cost center agreement ${width}`,folderName=`Finance records ${width}`
+    const definition={title,filename:'agreement.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),roles:[{role:'Client',order:1}],fields:[{id:'sig',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.4,width:.4,height:.05}]}
+    await inkwell.command('template.save',definition)
+    const second=await inkwell.command('template.save',{...definition,title:`Companion ${width}`})
+    const context=await inkwell.browser.newContext({viewport:{width,height:width===390?844:1000}});await context.addCookies([inkwell.ownerCookie()])
+    const page=await context.newPage();page.setDefaultTimeout(20000)
+    const capture=async name=>{assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${width}: organization has no sideways scroll`);await axe(page,`${width}: ${name}`);await page.screenshot({path:`${organizationImages}/${width}-${name}.png`,fullPage:true})}
+    await page.goto(inkwell.origin+'/app');await page.getByRole('button',{name:'Templates',exact:true}).click()
+    await page.getByRole('button',{name:`Edit ${title}`,exact:true}).click()
+    await page.getByLabel('Template name').waitFor();await page.getByRole('button',{name:'Add custom field',exact:true}).click()
+    await page.getByLabel('Custom field 1 name',{exact:true}).fill('Cost center')
+    await page.getByLabel('Required before preparing an envelope',{exact:true}).check();await page.getByLabel('Tags',{exact:true}).fill('finance')
+    await page.getByLabel('Custom field 1 name',{exact:true}).scrollIntoViewIfNeeded();await capture('template-metadata')
+    await page.getByRole('button',{name:'Save new version',exact:true}).click()
+    await page.getByRole('button',{name:`Use ${title}`,exact:true}).click()
+    await page.getByLabel('Client name',{exact:true}).fill('Finance Client');await page.getByLabel('Client email',{exact:true}).fill(`finance${width}@clients.example`)
+    assert.equal(await page.getByLabel('Cost center',{exact:true}).getAttribute('required'),'')
+    await page.getByLabel('Cost center',{exact:true}).fill(`Finance ${width}`);await capture('template-use')
+    await page.getByRole('button',{name:'Prepare to send',exact:true}).click()
+    let detail=page.getByRole('region',{name:title,exact:true});await detail.waitFor()
+    await detail.getByRole('button',{name:'Edit draft',exact:true}).click()
+    await page.getByLabel('Custom field 1 value',{exact:true}).waitFor();assert.equal(await page.getByLabel('Custom field 1 value',{exact:true}).inputValue(),`Finance ${width}`)
+    await capture('draft-metadata');await page.getByRole('button',{name:'Save draft',exact:true}).click();await detail.waitFor()
+    const close=detail.getByRole('button',{name:'Close',exact:true});await close.focus();await page.getByRole('tooltip',{name:'Close details'}).waitFor();await close.blur();await close.hover();await page.getByRole('tooltip',{name:'Close details'}).waitFor();await close.click()
+    await page.locator('summary').filter({hasText:/^Folders$/}).click()
+    await page.getByLabel('New envelope folder',{exact:true}).fill(folderName);await page.getByRole('button',{name:'Create envelope folder',exact:true}).click()
+    await page.locator('summary').filter({hasText:`${folderName} settings`}).click()
+    await page.getByLabel('Folder retention years',{exact:true}).fill('3');await page.getByRole('button',{name:'Save folder retention',exact:true}).click()
+    await page.locator('summary').filter({hasText:`${folderName} settings`}).click()
+    await page.getByLabel('Share folder with email',{exact:true}).fill(shareEmail);await page.getByRole('button',{name:'Share folder',exact:true}).click()
+    await page.locator('summary').filter({hasText:`${folderName} settings`}).click();await page.getByText(shareEmail+' · view',{exact:false}).waitFor();await capture('folder-settings')
+    await page.getByRole('row',{name:new RegExp(title)}).click();detail=page.getByRole('region',{name:title,exact:true})
+    await detail.getByLabel('Move to folder',{exact:true}).selectOption({label:folderName});await detail.getByRole('button',{name:'Save envelope folder',exact:true}).click()
+    await detail.getByRole('heading',{name:'Custom envelope fields',exact:true}).scrollIntoViewIfNeeded();await capture('filed-envelope');await detail.getByRole('button',{name:'Close',exact:true}).click()
+    await page.getByLabel('Custom field name',{exact:true}).fill('Cost center');await page.getByLabel('Custom field value',{exact:true}).fill(`Finance ${width}`);await page.getByLabel('Envelope tag',{exact:true}).fill('finance')
+    await page.getByRole('row',{name:new RegExp(title)}).waitFor();await page.getByText('Showing 1 of 1',{exact:true}).waitFor()
+    const downloadPromise=page.waitForEvent('download');await page.getByRole('link',{name:'Export matching envelopes',exact:true}).click();const download=await downloadPromise
+    const {readFile}=await import('node:fs/promises');const csv=await readFile(await download.path(),'utf8');assert.ok(csv.includes(`Finance ${width}`)&&csv.includes('Cost center'))
+    await capture('filtered-export')
+    await page.getByRole('button',{name:'Templates',exact:true}).click()
+    await page.getByLabel(`Select ${title} for combination`,{exact:true}).check();await page.getByLabel(`Select Companion ${width} for combination`,{exact:true}).check()
+    await page.getByRole('button',{name:'Combine selected templates',exact:true}).click();await page.getByLabel('Cost center',{exact:true}).fill(`Finance ${width}`)
+    await page.getByLabel('Cost center',{exact:true}).scrollIntoViewIfNeeded();await capture('combined-metadata')
+    await context.close()
+  }
+  console.log('MANAGE-002 built management screens passed at 1440 and 390: required metadata, folders, retention, shares, scoped export, keyboard and tooltips')
   console.log('AGENT-003 built controls passed at 1440/390: explicit grant, three causes, private reply, human correction, resume and revoke')
   console.log('MANAGE-005 passed at 1440 and 390 pixels: sent, delivered, viewed and signed times match the provider events and audit trail; Remind reached only the current signer')
 } catch (error) {
