@@ -374,3 +374,42 @@ test('API-001: scoped invitation resends preserve or revoke links explicitly and
   assert.equal((await h.send('/api/inkwell/envelopes/'+id+'/verify',undefined,h.owner)).value.ok,true)
  }finally{await h.close()}
 })
+
+test('API-001: explicit self-service permission lets a sender mint only self-bound keys and permission loss permanently suspends them',async()=>{
+ const h=await harness()
+ try {
+  const owner=await actor(h),sam=await sender(h,'self.keys@harbour.example'),other=await sender(h,'other.self.keys@harbour.example'),viewer=await h.invite('viewer.self.keys@harbour.example','member')
+  const grant=async(memberId,enabled,expectedVersion,cookie=h.owner,status=200)=>(await h.post('/api/inkwell/api-key-permissions',{memberId,enabled,expectedVersion,commandId:crypto.randomUUID()},cookie,status)).value
+  await mint(h,sam.id,['envelopes:read'],{},sam.cookie,403)
+  for(const cookie of [sam.cookie,viewer])await grant(sam.id,true,0,cookie,403)
+  await grant(owner.id,true,0,h.owner,409)
+  const permission=await grant(sam.id,true,0);assert.equal(permission.version,1);assert.equal(permission.enabled,true)
+  await grant(sam.id,false,0,h.owner,409)
+  const issued=await mint(h,sam.id,['envelopes:read','envelopes:prepare'],{},sam.cookie)
+  assert.equal(issued.key.memberId,sam.id);assert.ok(issued.token)
+  await mint(h,other.id,['envelopes:read'],{},sam.cookie,403)
+  await mint(h,sam.id,['webhooks:manage'],{},sam.cookie,400)
+  const foreign=await mint(h,other.id,['envelopes:read'])
+  const own=(await h.send('/api/inkwell/api-keys',undefined,sam.cookie)).value.keys
+  assert.deepEqual(own.map(k=>k.id),[issued.key.id]);assert.ok(!JSON.stringify(own).includes(foreign.key.id))
+  await change(h,foreign.key,'scopes',{scopes:['envelopes:read']},sam.cookie,403)
+  await change(h,foreign.key,'rotate',{},sam.cookie,403)
+  await change(h,foreign.key,'revoke',{},sam.cookie,403)
+  const rotated=await change(h,issued.key,'rotate',{overlapDays:0},sam.cookie)
+  assert.equal(rotated.key.memberId,sam.id);assert.equal((await client(h,issued.token)).status,401);assert.equal((await client(h,rotated.token)).status,200)
+  await change(h,rotated.key,'scopes',{scopes:['envelopes:read']},sam.cookie)
+  await h.db.prepare('UPDATE oa_sessions SET created_at=? WHERE operator_id=?').bind(Date.now()-16*60_000,sam.id).run()
+  await mint(h,sam.id,['envelopes:read'],{},sam.cookie,403)
+  await change(h,rotated.key,'scopes',{scopes:['envelopes:read']},sam.cookie,403)
+  await change(h,rotated.key,'rotate',{},sam.cookie,403)
+  await grant(sam.id,false,1);assert.equal((await client(h,rotated.token)).status,401)
+  await grant(sam.id,true,2);assert.equal((await client(h,rotated.token)).status,401,'restoring the permission cannot revive any old key')
+  const history=(await h.db.prepare('SELECT before_value,after_value FROM iw_api_key_permission_versions WHERE member_id=? ORDER BY version').bind(sam.id).all()).results
+  assert.equal(history.length,3);assert.equal(JSON.parse(history[1].before_value).enabled,true);assert.equal(JSON.parse(history[1].after_value).enabled,false)
+  const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
+  const restored=await harness()
+  try{await restored.post('/api/inkwell/archive/restore',{archive},restored.owner);assert.deepEqual((await restored.send('/api/inkwell/api-key-permissions',undefined,restored.owner)).value.permissions,[],'installation permission grants never travel with document archives')}finally{await restored.close()}
+  const agent=(await h.command('agent.issue')).result.token
+  assert.equal((await h.send('/api/inkwell/api-key-permissions',undefined,h.owner,bearer(agent))).status,403)
+ }finally{await h.close()}
+})

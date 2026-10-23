@@ -1,8 +1,8 @@
 # API keys and envelope clients
 
-The current API can read envelopes and artifacts, list templates, prepare unsigned PDF drafts, send under an autonomous API policy, correct, resend and void envelopes with a manage scope. Its machine-readable description is `GET /api/v1/openapi.json`. API-001 remains partial: OAuth/PKCE, sender self-minting permission, API correction/resend routes and account-audit integration are not shipped. Test-mode keys and webhook management remain unavailable.
+The current API can read envelopes and artifacts, list templates, prepare unsigned PDF drafts, send under an autonomous API policy, correct, resend and void envelopes with a manage scope. Its machine-readable description is `GET /api/v1/openapi.json`. API-001 remains partial: OAuth/PKCE, API correction/resend routes and account-audit integration are not shipped. Test-mode keys and webhook management remain unavailable.
 
-An owner or admin uses their normal signed-in session and same-origin JSON requests to manage keys. `POST /api/inkwell/api-keys` takes `commandId`, `name`, the bound `memberId`, `scopes`, and optionally `expiresInDays` (365 by default, 1–730 whole 24-hour days). The member must currently be an active owner, admin or sender. A sender's own minting permission waits for ADMIN-008. Minting, scope changes and rotation require a sign-in from the last 15 minutes. Listing and revoking keys need a current owner/admin session. Bearer credentials cannot manage keys or use member-session commands, even alongside a valid browser cookie.
+An owner or admin uses their normal signed-in session and same-origin JSON requests to manage keys. `POST /api/inkwell/api-keys` takes `commandId`, `name`, the bound `memberId`, `scopes`, and optionally `expiresInDays` (365 by default, 1–730 whole 24-hour days). The member must currently be an active owner, admin or sender. A sender's own minting requires an explicit owner/admin self-service permission grant; see below. Minting, scope changes and rotation require a sign-in from the last 15 minutes. Listing and revoking keys need a current owner/admin session. Bearer credentials cannot manage keys or use member-session commands, even alongside a valid browser cookie.
 
 The successful mint response reveals the `iwk_live_` key ID and 256-bit secret once. Store it privately: retrying the same command returns the original metadata and `tokenShown: true`, without the token. Only a SHA-256 hash is stored, with the prefix and last four characters for identification. The list never reveals a secret or hash. Key credentials stay out of document archives and are never restored into another installation. Do not put tokens in URLs, query parameters or logs.
 
@@ -62,3 +62,15 @@ Resend takes a zero-based `signer`, optional `newLink` and optional `channel`
 It applies the same current-turn, bounce and paper-review rules as the dashboard.
 Both take `commandId`, write a per-key 24-hour receipt in the same transaction,
 and audit the real bound member. Retrying a receipt never sends another message.
+
+An owner/admin may use `GET/POST /api/inkwell/api-key-permissions` with their
+native session. A change takes `memberId`, `enabled`, `expectedVersion` (0 for
+an absent grant) and `commandId`. Only an active sender can receive this grant.
+Versions preserve actor, time, before and after values. Senders start without it.
+With it, a sender may mint only self-bound keys with shipped role-supported
+scopes, list only their own keys, and rotate, re-scope or revoke only those keys.
+The same 15-minute sign-in rule and live record-access boundaries apply. Losing
+this permission permanently suspends all bound keys, including owner-issued
+keys; restoring the permission does not revive them. Grants/history do not travel
+with document archives. This is the API-key permission foundation; full ADMIN-008
+profiles must narrow these gates and suspension rules before they ship.

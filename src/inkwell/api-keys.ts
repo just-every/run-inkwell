@@ -1,3 +1,4 @@
+import { selfServiceKeyGuard } from './api-key-permissions'
 import { canonical, id, insist, now, secret, sha256, text, type Actor, type Env, type Role } from './model'
 import { atomic, commandWrite, memberRoleSql, previousCommand, roleGuard, type Guard } from './storage'
 import type { CommandContext } from './envelopes'
@@ -27,7 +28,7 @@ function scopesOf(value: unknown): ApiScope[] {
   return [...new Set(value as ApiScope[])].sort()
 }
 function management(actor: Actor) {
-  insist(Boolean(actor.sessionId) && !actor.agentId && !actor.apiKeyId && ['owner', 'admin'].includes(actor.role), 'Only a signed-in owner or admin can manage API keys.', 403)
+  insist(Boolean(actor.sessionId) && !actor.agentId && !actor.apiKeyId && ['owner', 'admin','sender'].includes(actor.role), 'Use a native owner, admin or permitted sender session to manage API keys.', 403)
 }
 async function freshGuards(env: Env, actor: Actor): Promise<Guard[]> {
   const cutoff = Date.now() - 15 * 60_000
@@ -40,7 +41,7 @@ async function getKey(env: Env, keyId: string) {
   insist(row, 'API key not found.', 404); return row
 }
 const live = (r: KeyRow) => !r.revoked_at && !r.suspended_at && r.expires_at > now()
-const unchangedKey = (r: KeyRow): Guard => ({ sql: 'EXISTS(SELECT 1 FROM iw_api_keys WHERE id=? AND version=? AND revoked_at IS NULL AND suspended_at IS NULL AND expires_at>?)', values: [r.id, r.version, now()] })
+const unchangedKey = (r: KeyRow): Guard => ({ sql: "EXISTS(SELECT 1 FROM iw_api_keys WHERE id=? AND version=? AND revoked_at IS NULL AND suspended_at IS NULL AND expires_at>max(?,strftime('%Y-%m-%dT%H:%M:%fZ','now')))", values: [r.id, r.version, now()] })
 async function newKey(env: Env, actor: Actor, member: { id: string; version: number; role: Role }, name: string, scopes: ApiScope[], expiresAt: string) {
   const keyId = id(), prefix = `iwk_live_${keyId}_`, token = prefix + secret()
   const row: KeyRow = { id: keyId, name, member_id: member.id, member_version: member.version, member_role: member.role,
@@ -52,20 +53,22 @@ async function newKey(env: Env, actor: Actor, member: { id: string; version: num
   return { row, token, write }
 }
 export async function listApiKeys(env: Env, actor: Actor) {
- management(actor)
+ management(actor);await selfServiceKeyGuard(env,actor)
  const warnings=(await env.DB.prepare('SELECT key_id,expires_at,days,state,claimed_at,finished_at FROM iw_api_key_warnings ORDER BY claimed_at,id').all<{key_id:string;expires_at:string;days:number;state:string;claimed_at:string;finished_at:string|null}>()).results
- return {keys:(await env.DB.prepare(`SELECT ${columns} FROM iw_api_keys ORDER BY created_at,id`).all<KeyRow>()).results.map(row=>({...metadata(row),expiryWarnings:warnings.filter(w=>w.key_id===row.id&&w.expires_at===row.expires_at).map(({days,state,claimed_at,finished_at})=>({days,state,claimedAt:claimed_at,finishedAt:finished_at}))}))}
+ return {keys:(await env.DB.prepare(`SELECT ${columns} FROM iw_api_keys ${actor.role==='sender'?'WHERE member_id=?':''} ORDER BY created_at,id`).bind(...(actor.role==='sender'?[actor.id]:[])).all<KeyRow>()).results.map(row=>({...metadata(row),expiryWarnings:warnings.filter(w=>w.key_id===row.id&&w.expires_at===row.expires_at).map(({days,state,claimed_at,finished_at})=>({days,state,claimedAt:claimed_at,finishedAt:finished_at}))}))}
 }
 /** Command receipts deliberately never contain a bearer token. Retrying mint/rotate returns tokenShown, not the secret. */
 export async function changeApiKey(env: Env, context: CommandContext, action: 'mint' | 'rotate' | 'scopes' | 'revoke', input: Record<string, unknown>) {
   const { actor } = context; management(actor)
+  const permission=await selfServiceKeyGuard(env,actor)
   const fresh = action === 'revoke' ? [] : await freshGuards(env, actor)
   const previous = await previousCommand(env.DB, actor.id, context.commandId, context.fingerprint)
   if (previous) return previous
-  const guards = [roleGuard(actor, ['owner', 'admin']), ...fresh]
+  const guards = [roleGuard(actor, ['owner', 'admin','sender']), ...permission,...fresh]
   if (action === 'mint') {
     insist(input.mode === undefined || input.mode === 'live', 'Test-mode keys arrive with API-004; mint a live key.', 409)
     const memberId = text(input.memberId, 'an active member ID', 100), name = text(input.name, 'a key name', 100)
+    insist(actor.role!=='sender'||memberId===actor.id,'A sender can mint API keys bound only to themselves.',403)
     const member = await env.DB.prepare(`SELECT o.id,o.version,${effectiveRole} AS role FROM oa_operators o WHERE o.id=? AND o.status='active'`).bind(memberId).first<{ id: string; version: number; role: Role }>()
     insist(member && ['owner', 'admin', 'sender'].includes(member.role), 'Bind the key to an active owner, admin or sender.', 403)
     const days = input.expiresInDays ?? 365
@@ -76,6 +79,7 @@ export async function changeApiKey(env: Env, context: CommandContext, action: 'm
     return { ...result, token: created.token }
   }
   const row = await getKey(env, text(input.id, 'a key ID', 100))
+  insist(actor.role!=='sender'||row.member_id===actor.id,'A sender can manage only their own bound keys.',403)
   const result = { key: metadata(row) }
   if (action === 'revoke') {
     const revokedAt = row.revoked_at ?? now(); result.key.revokedAt = revokedAt

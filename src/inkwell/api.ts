@@ -1,3 +1,4 @@
+import { apiKeyPermissions,setApiKeyPermission } from './api-key-permissions'
 import { smsMessages, dispatchSms } from './sms'
 import { receiveSmsReply } from './sms-replies'
 import { previewComposition, combineTemplates } from './template-combine'
@@ -189,9 +190,11 @@ api.get('/api/copy/:token/artifacts/:kind',async c=>copyArtifact(c.env,await cop
 api.get('/api/v1/openapi.json', c => c.json(apiOpenApi))
 // API-001: key management is a member-session door; bearer credentials never borrow a browser session.
 async function keyManager(request: Request, env: Bindings) {
-  insist(!request.headers.has('authorization'), 'Bearer credentials cannot manage API keys. Use a signed-in owner or admin session.', 403)
-  return requireActor(request, env, ['owner', 'admin'])
+  insist(!request.headers.has('authorization'), 'Bearer credentials cannot manage API keys. Use a native owner, admin or permitted sender session.', 403)
+  return requireActor(request, env, ['owner', 'admin','sender'])
 }
+api.get('/api/inkwell/api-key-permissions',async c=>{await requireActor(c.req.raw,c.env,['owner','admin']);return c.json(await apiKeyPermissions(c.env))})
+api.post('/api/inkwell/api-key-permissions',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner','admin']),body=await readJson(c.req.raw,8192);return c.json(await setApiKeyPermission(c.env,await apiKeyContext(c.req.raw,actor,body),body))})
 api.get('/api/inkwell/api-keys', async c => c.json(await listApiKeys(c.env, await keyManager(c.req.raw, c.env))))
 api.post('/api/inkwell/api-keys', async c => {
   sameOrigin(c.req.raw, c.env)
