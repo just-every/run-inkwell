@@ -255,7 +255,9 @@ test('API-001: rolling request/send limits return Retry-After and API command re
   const api=(await h.send('/api/inkwell/send-policies',undefined,h.owner)).value.policies.find(p=>p.source==='api')
   await h.command('account.send_policy',{source:'api',expectedVersion:api.version,mode:'autonomous'})
   const definition=await draft('Rate limited policy sends')
-  for(let n=0;n<60;n++)assert.equal((await client(h,key.token,'/api/v1/envelopes',{...definition,status:'sent',commandId:crypto.randomUUID()})).status,200)
+  for(let n=0;n<59;n++)assert.equal((await client(h,key.token,'/api/v1/envelopes',{...definition,status:'sent',commandId:crypto.randomUUID()})).status,200)
+  const concurrent=await Promise.all([0,1].map(()=>client(h,key.token,'/api/v1/envelopes',{...definition,status:'sent',commandId:crypto.randomUUID()})))
+  assert.deepEqual(concurrent.map(response=>response.status).sort(),[200,429],'only one concurrent release can consume the last send slot')
   const total=(await client(h,key.token)).value.total
   const over=await client(h,key.token,'/api/v1/envelopes',{...definition,status:'sent',commandId:crypto.randomUUID()});assert.equal(over.status,429);assert.ok(Number(over.headers.get('retry-after'))>0);assert.equal((await client(h,key.token)).value.total,total)
   h.advanceTo(start+120_001)

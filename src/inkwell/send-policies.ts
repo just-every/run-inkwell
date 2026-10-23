@@ -6,7 +6,7 @@ import type { CommandContext } from './envelopes'
 /** ADMIN-004 / SEND-001: per-source, versioned send policies at the account scope. A policy says whether a source may send
  * (`off`, `person` = with the sending person's eligibility confirmation, `autonomous` = with no per-envelope human
  * approval), for which templates, whether an internal approval (ROUTE-004) comes first and whether the send may be
- * deferred (PREP-009). Group and profile policies narrow the account policy when ADMIN-002 and ADMIN-008 ship; each
+ * deferred (PREP-009). Group/profile send policies narrow the account now; ADMIN-002/008 carry broader capabilities. Each
  * source that adds a door (BULK-001, FORM-001, API-001, the integrations) reads its policy here before it ships. */
 export const sendSources = ['ad_hoc', 'template', 'bulk', 'web_form', 'api'] as const
 export type SendSource = typeof sendSources[number]
@@ -24,7 +24,7 @@ const freshSeconds = 15 * 60
 interface Row { scope: string; source: SendSource; version: number; mode: SendMode; templates: string | null; require_internal_approval: number; deferred_release: number; actor: string; at: string; reason: string | null; before_value?: string }
 const policyOf = (row: Row): SendPolicy => ({ ...scopeParts(row.scope), source: row.source, mode: row.mode, templates: row.templates ? JSON.parse(row.templates) : null, requireInternalApproval: Boolean(row.require_internal_approval), deferredRelease: Boolean(row.deferred_release), version: row.version, actor: row.actor, at: row.at, reason: row.reason })
 const scopeParts = (scope: string): Pick<SendPolicy,'scope'|'scopeId'> => scope === 'account' ? {scope:'account'} : {scope:scope.startsWith('group:')?'group':'profile',scopeId:scope.slice(scope.indexOf(':')+1)}
-const builtIn = (source: SendSource, scope = 'account'): SendPolicy => ({ ...scopeParts(scope), source, mode: scope === 'account' ? defaultMode[source] : source === 'ad_hoc' ? 'person' : 'autonomous', templates: null, requireInternalApproval: false, deferredRelease: true, version: 0, actor: null, at: null, reason: null })
+const builtIn = (source: SendSource, scope = 'account'): SendPolicy => ({ ...scopeParts(scope), source, mode: defaultMode[source], templates: null, requireInternalApproval: false, deferredRelease: true, version: 0, actor: null, at: null, reason: null })
 const columns = 'source,version,mode,templates,require_internal_approval,deferred_release,actor,at,reason,before_value'
 
 export async function sendPolicy(env: Env, source: SendSource, scope = 'account'): Promise<SendPolicy> {

@@ -4,8 +4,9 @@ Settings → Send policies selects the whole account or an existing member group
 permission profile. A send combines the account policy with every group and
 profile assigned to its principal. Scopes can only narrow the account: restrictive
 modes win, template lists intersect, approval requirements accumulate, and any
-scope can refuse a scheduled release. An unset group/profile source imposes no
-extra restriction; the account's opt-in defaults still apply.
+scope can refuse a scheduled release. Every scope starts with person mode for ad hoc, template and bulk sends, and off
+for web-form and API sends. Every applicable scope must opt in before a policy
+send can release.
 
 The current member-group/profile HTTP door is for a signed-in owner or admin:
 

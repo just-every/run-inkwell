@@ -3,7 +3,7 @@ import { atomic, commandWrite, memberRoleSql, previousCommand, roleGuard, type G
 import type { CommandContext } from './envelopes'
 
 /** API-001 scope-review-65: preparation agents, API keys and OAuth grants are separate credentials.
- * This slice exposes live keys for reads and draft preparation only. Sending/test mode/OAuth are unshipped. */
+ * Live keys cover read, artifact, template, prepare, send and manage doors. OAuth and test mode remain unshipped. */
 export const apiScopes = ['envelopes:read', 'artifacts:read', 'templates:read', 'envelopes:prepare', 'envelopes:send', 'envelopes:manage'] as const
 export type ApiScope = typeof apiScopes[number]
 const day = 86_400_000

@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "3a4af8628da7893c481f48b00ce611bf1a3d14c7c2953635a8f4451a9be772b3",
+      "sha256": "0b15d50e95efe64283e1151794234af0e858c20d888df6b596f013d266953d8e",
       "executable": false
     },
     "DEMO.md": {
@@ -107,7 +107,7 @@
       "executable": false
     },
     "docs/api.md": {
-      "sha256": "bd92ab208123813fab99b2da51c236f64eaf79ead544e4bcf4e3f99a9507c8ef",
+      "sha256": "ef045a9de93995aaa5cddc641b16728a2242637f6ac510db4edde4e9b698f0ac",
       "executable": false
     },
     "docs/backup-and-restore.md": {
@@ -155,7 +155,7 @@
       "executable": false
     },
     "docs/send-policies.md": {
-      "sha256": "a55597fb98b8e3b1d038df21438e13f7248dad5c9869b1e9e499fe6f389ceb9c",
+      "sha256": "f4363dca54304898ea86939c068bef66e2aba30bf71c867d9f1e2a3f46445d16",
       "executable": false
     },
     "docs/signing.md": {
@@ -787,7 +787,7 @@
       "executable": false
     },
     "src/inkwell/api-keys.ts": {
-      "sha256": "f2733401733df132db11fb1680ca342f3b55b11af63ab7f6855b7fe4fcb4a476",
+      "sha256": "92e76a4de29ec8c2e25e45e34dfb939494cf123dbe7b6dfdf9ecc65141b43378",
       "executable": false
     },
     "src/inkwell/api-limits.ts": {
@@ -1235,7 +1235,7 @@
       "executable": false
     },
     "src/inkwell/send-policies.ts": {
-      "sha256": "b1042397b51461c7c46b38c726c26bfa302f813d929d201d221c020f7fb48035",
+      "sha256": "f519ecded2e0aaf5d50f5b080e469eb0777568c26af4e90d63216e208af173b9",
       "executable": false
     },
     "src/inkwell/send-policy-scopes.ts": {
@@ -3191,7 +3191,7 @@
       "executable": false
     },
     "src/ui/account-defaults.tsx": {
-      "sha256": "c6be8d8755ef17fd6fad8ed3ab3d0175b9896a027a9a4ced068b3320a05f826a",
+      "sha256": "edec54b92f512c3daa5180b76d25cfd7a29de08676f7b3120e4bbe9db1e5e9f5",
       "executable": false
     },
     "src/ui/activity.tsx": {
@@ -3467,7 +3467,7 @@
       "executable": false
     },
     "tests/api-keys.test.mjs": {
-      "sha256": "32729c19feb4a1418fdf46fe476167ede058c540f9f4c6ff005545d5e3fb58ab",
+      "sha256": "6bc951e2c93ecf5268abccb2588762081ba2e2aef8b3e267c311f56e19963da2",
       "executable": false
     },
     "tests/api-worker.ts": {
@@ -3715,7 +3715,7 @@
       "executable": false
     },
     "tests/send-policies.test.mjs": {
-      "sha256": "9da384dfa4ccaea864295319c55e4befd1fc3675eca4e9d4f2e9e97ad588e753",
+      "sha256": "961eef745c2fef36b857416148223eb95c8d244ff378101627b49bf2a0506131",
       "executable": false
     },
     "tests/site/site.test.mjs": {

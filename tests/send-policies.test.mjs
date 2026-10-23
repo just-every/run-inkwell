@@ -443,6 +443,7 @@ test('ADMIN-004: every group and profile narrows the account policy, with live m
   const group=await create('group','Field',[fieldId]),office=await create('group','Office',[officeId]),profile=await create('profile','Restricted field profile',[fieldId])
   const scopeState=async scope=>(await h.send('/api/inkwell/send-policy-scopes',undefined,h.owner)).value.scopes.find(s=>s.id===scope.id)
   const scoped=async(scope,source,change)=>h.command('account.send_policy',{scope:scope.kind,scopeId:scope.id,source,expectedVersion:(await scopeState(scope)).policies.find(p=>p.source===source).version,...change})
+  assert.deepEqual((await scopeState(group)).policies.map(p=>[p.source,p.mode]),[['ad_hoc','person'],['template','person'],['bulk','person'],['web_form','off'],['api','off']],'every scope uses the approved opt-in defaults')
   assert.equal((await h.send('/api/inkwell/send-policy-scopes',undefined,fieldSender)).status,403)
   await h.post('/api/inkwell/send-policy-scopes',{kind:'group',name:'Unprivileged',members:[fieldId],expectedVersion:0,commandId:crypto.randomUUID()},fieldSender,403)
   const make=async(cookie,title)=>(await h.command('envelope.prepare',await draft(title,`${title.toLowerCase().replaceAll(' ','.')}@clients.example`),cookie)).result.id
