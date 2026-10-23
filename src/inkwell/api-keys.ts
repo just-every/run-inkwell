@@ -52,8 +52,9 @@ async function newKey(env: Env, actor: Actor, member: { id: string; version: num
   return { row, token, write }
 }
 export async function listApiKeys(env: Env, actor: Actor) {
-  management(actor)
-  return { keys: (await env.DB.prepare(`SELECT ${columns} FROM iw_api_keys ORDER BY created_at,id`).all<KeyRow>()).results.map(metadata) }
+ management(actor)
+ const warnings=(await env.DB.prepare('SELECT key_id,expires_at,days,state,claimed_at,finished_at FROM iw_api_key_warnings ORDER BY claimed_at,id').all<{key_id:string;expires_at:string;days:number;state:string;claimed_at:string;finished_at:string|null}>()).results
+ return {keys:(await env.DB.prepare(`SELECT ${columns} FROM iw_api_keys ORDER BY created_at,id`).all<KeyRow>()).results.map(row=>({...metadata(row),expiryWarnings:warnings.filter(w=>w.key_id===row.id&&w.expires_at===row.expires_at).map(({days,state,claimed_at,finished_at})=>({days,state,claimedAt:claimed_at,finishedAt:finished_at}))}))}
 }
 /** Command receipts deliberately never contain a bearer token. Retrying mint/rotate returns tokenShown, not the secret. */
 export async function changeApiKey(env: Env, context: CommandContext, action: 'mint' | 'rotate' | 'scopes' | 'revoke', input: Record<string, unknown>) {

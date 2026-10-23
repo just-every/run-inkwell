@@ -4,7 +4,7 @@ export const apiOpenApi = {
   "info": {
     "title": "Inkwell envelope API",
     "version": "0.1.0",
-    "description": "Scoped live keys support draft preparation, autonomous policy-authorized creation/sending, reads, artifacts and voiding. API-001 remains partial: OAuth/PKCE, sender self-minting permission, expiry warnings, test mode, webhook management and account audit integration remain unshipped."
+    "description": "Scoped live keys support draft preparation, autonomous policy-authorized creation/sending, reads, artifacts and voiding. API-001 remains partial: OAuth/PKCE, sender self-minting permission, test mode, webhook management and account audit integration remain unshipped."
   },
   "servers": [
     {
@@ -166,7 +166,7 @@ export const apiOpenApi = {
       },
       "post": {
         "operationId": "prepareEnvelope",
-        "description": "Drafts require envelopes:prepare and work with API policy off. status=sent requires envelopes:send and an autonomous effective API policy; it creates and releases in one atomic batch (or waits for required internal approval). Off/person/refused policy creates no envelope. commandId retries are scoped to the key for 24 hours; changed input is refused. Every invitation rechecks live policy, principal, credential and frozen definition. Limits: 600 requests/minute, 60 sends/minute per key and 3,000 policy sends/hour per account, rolling windows; 429 supplies Retry-After and queues nothing silently.",
+        "description": "Drafts require envelopes:prepare and work with API policy off. status=sent requires envelopes:send and an autonomous effective API policy; it creates and releases in one atomic batch (or waits for required internal approval). Off/person/refused policy creates no envelope. commandId retries are scoped to the key for 24 hours; changed input is refused. Every invitation rechecks live policy, principal, credential and frozen definition. Limits: 600 requests/minute, 60 sends/minute per key and 3,000 policy sends/hour per account, rolling windows; 429 supplies Retry-After and queues nothing silently. A templateId with one recipient per role and optional prefill uses the template’s frozen content, fields, settings and approval rule. Its current use access and definition are fenced at creation. An API source allowlist applies even when content came from a template.",
         "security": [
           {
             "ApiKey": []
@@ -760,19 +760,93 @@ export const apiOpenApi = {
           "freeForm": {
             "type": "boolean"
           },
-          "expiryDays": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 365
+          "templateId": {
+            "type": "string",
+            "description": "Use one visible pinned template instead of a file definition; fields/content remain fixed."
+          },
+          "recipients": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "email": {
+                  "type": "string",
+                  "format": "email"
+                },
+                "phone": {
+                  "type": "string"
+                },
+                "accessCode": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "prefill": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "value",
+                "source"
+              ],
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Caller-reported provenance, not provider-verified."
+                },
+                "readOnly": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sendAt": {
+            "type": "object",
+            "required": [
+              "at",
+              "timeZone"
+            ],
+            "properties": {
+              "at": {
+                "type": "string",
+                "description": "YYYY-MM-DDTHH:MM wall time"
+              },
+              "timeZone": {
+                "type": "string"
+              }
+            }
           }
         },
         "required": [
-          "commandId",
-          "title",
-          "filename",
-          "pdfBase64",
-          "signers",
-          "fields"
+          "commandId"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "templateId",
+              "recipients"
+            ]
+          },
+          {
+            "required": [
+              "title",
+              "filename",
+              "pdfBase64",
+              "signers"
+            ]
+          }
         ]
       },
       "Field": {

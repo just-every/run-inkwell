@@ -218,9 +218,10 @@ api.get('/api/v1/templates', async c => c.json(await listTemplates(c.env, await 
 api.post('/api/v1/envelopes', async c => {
   const body=await readJson(c.req.raw),sending=body.status==='sent'
   insist(body.status===undefined||body.status==='draft'||sending,'Choose draft or sent status.')
+  insist(body.templateId===undefined||!['pdfBase64','fields','signers','documents','anchors','filename'].some(key=>Object.hasOwn(body,key)),'Use templateId, recipients and optional prefill, or a file definition; template content and fields are pinned.')
   const actor=await apiClient(c,sending?'envelopes:send':'envelopes:prepare'),context=await apiKeyContext(c.req.raw,actor,body)
   const previous=await previousCommand(c.env.DB,apiCommandActor(actor),context.commandId,context.fingerprint)
-  const result=previous??await prepareEnvelope(c.env,context,body,sending)
+  const result=previous??await (body.templateId!==undefined?useTemplate(c.env,context,{...body,id:body.templateId},sending):prepareEnvelope(c.env,context,body,sending))
   if(sending)await dispatchMail(c.env,result.id)
   return c.json({result})
 })

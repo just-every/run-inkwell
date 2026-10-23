@@ -6,6 +6,7 @@ import { harness } from '../harness.mjs'
 const sha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim()
 execFileSync('git',['diff','--exit-code','HEAD'],{stdio:'pipe'})
 const runId=`cloud-sx-inkwell-c42-api-capacity-${new Date().toISOString().replace(/[-:.]/g,'')}`
+execFileSync(process.execPath,['--test','--test-name-pattern=API-001: hourly 30/7-day warnings','tests/api-keys.test.mjs'],{stdio:'inherit'})
 const start=Date.now(),h=await harness({now:start})
 try {
  const member=(await h.send('/api/inkwell',undefined,h.owner)).value.actor.id
@@ -37,5 +38,5 @@ try {
  h.advanceTo(start+60_001+3600_000)
  const admitted=await call(keys[50],{...definition,commandId:'synthetic-inkwell-3005'})
  assert.equal(admitted.status,200,JSON.stringify(admitted.value));assert.equal((await call(keys[50])).value.total,3001)
- console.log(JSON.stringify({runId,head:sha,result:'PASS',requestsPerMinute:600,sendsPerKeyPerMinute:60,policySendsPerAccountPerHour:3000,afterWindow:3001}))
+ console.log(JSON.stringify({runId,head:sha,result:'PASS',expiryWarningThresholds:[30,7],requestsPerMinute:600,sendsPerKeyPerMinute:60,policySendsPerAccountPerHour:3000,afterWindow:3001}))
 }finally{await h.close()}

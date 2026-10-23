@@ -266,3 +266,56 @@ test('API-001: rolling request/send limits return Retry-After and API command re
   const expired=await client(h,key.token,'/api/v1/envelopes',body);assert.equal(expired.status,200,JSON.stringify(expired.value));assert.notEqual(expired.value.result.id,first.value.result.id)
  }finally{await h.close()}
 })
+
+
+test('API-001: hourly 30/7-day warnings name only key metadata and retain single-claim delivery outcomes',async()=>{
+ const h=await harness()
+ try {
+  const owner=await actor(h),key=await mint(h,owner.id,['envelopes:read']),revoked=await mint(h,owner.id,['envelopes:read'])
+  await change(h,revoked.key,'revoke',{})
+  const expires=Date.parse(key.key.expiresAt),warnings=async()=> (await h.send('/api/inkwell/api-keys',undefined,h.owner)).value.keys.find(k=>k.id===key.key.id).expiryWarnings
+  await h.scheduled(expires-30*86400000-1);assert.deepEqual(await warnings(),[])
+  await h.scheduled(expires-30*86400000)
+  const first=await h.mail(owner.email,'30-day warning');assert.ok(first);assert.ok(first.text.includes(key.key.prefix)&&first.text.includes(key.key.lastFour));assert.ok(!first.text.includes(key.token)&&!first.text.includes(revoked.key.prefix))
+  const count=h.attempted().filter(mail=>mail.subject.includes('API key expiry')).length
+  await h.scheduled(expires-29*86400000);assert.equal(h.attempted().filter(mail=>mail.subject.includes('API key expiry')).length,count)
+  await h.scheduled(expires-7*86400000)
+  assert.ok(await h.mail(owner.email,'7-day warning'));assert.deepEqual((await warnings()).map(w=>[w.days,w.state]),[[30,'sent'],[7,'sent']])
+  await h.scheduled(expires);assert.equal(h.attempted().filter(mail=>mail.subject.includes('API key expiry')).length,count+1)
+  const failed=await mint(h,owner.id,['envelopes:read'],{expiresInDays:1});h.failSends(1)
+  await h.scheduled(Date.now());const metadata=(await h.send('/api/inkwell/api-keys',undefined,h.owner)).value.keys.find(k=>k.id===failed.key.id)
+  assert.equal(metadata.expiryWarnings.length,1);assert.notEqual(metadata.expiryWarnings[0].state,'sent')
+  const after=h.attempted().length;await h.scheduled(Date.now()+3600000);assert.equal(h.attempted().length,after,'an ambiguous/rejected claimed warning is not silently replayed')
+ }finally{await h.close()}
+})
+
+
+test('API-001: template clients preserve pinned fields/prefill, enforce live use access and hold stale template revisions',async()=>{
+ const h=await harness()
+ try {
+  const sam=await sender(h,'template.api@harbour.example'),other=await sender(h,'other.template.api@harbour.example'),definition=await draft('Pinned API template')
+  const template={title:definition.title,filename:definition.filename,pdfBase64:definition.pdfBase64,roles:[{role:'Client',order:1}],fields:[...definition.fields,{id:'department',label:'Department',signer:0,type:'text',page:0,x:.1,y:.6,width:.4,height:.05}]}
+  const t=(await h.command('template.save',template)).result.id
+  await h.command('template.share',{id:t,email:sam.email,access:'use'})
+  const key=await mint(h,sam.id,['envelopes:read','envelopes:prepare','envelopes:send']),hidden=await mint(h,other.id,['envelopes:send'])
+  const current=async()=> (await h.send('/api/inkwell/send-policies',undefined,h.owner)).value.policies.find(p=>p.source==='api')
+  await h.command('account.send_policy',{source:'api',mode:'autonomous',templates:[t],expectedVersion:(await current()).version})
+  const body={templateId:t,recipients:[{name:'Mara Quinn',email:'mara.template.api@clients.example'}],prefill:{department:{value:'Procurement',source:'Supplied by API caller'}},status:'sent',commandId:crypto.randomUUID()}
+  assert.equal((await client(h,hidden.token,'/api/v1/envelopes',body)).status,404)
+  const issued=await client(h,key.token,'/api/v1/envelopes',body);assert.equal(issued.status,200,JSON.stringify(issued.value))
+  const read=async id=>(await client(h,key.token,'/api/v1/envelopes/'+id)).value.envelope
+  const first=await read(issued.value.result.id);assert.equal(first.template.id,t);assert.equal(first.template.version,1);assert.equal(first.fields.find(f=>f.id==='department').prefill.value,'Procurement')
+  assert.equal(first.events.findLast(e=>e.action==='envelope.approved').detail.sendPolicy.source,'api')
+  assert.equal((await h.send('/api/inkwell/envelopes/'+first.id+'/verify',undefined,h.owner)).value.ok,true)
+  const later={at:new Date(Date.now()+2*86400000).toISOString().slice(0,16),timeZone:'Pacific/Honolulu'}
+  const scheduled=await client(h,key.token,'/api/v1/envelopes',{...body,sendAt:later,commandId:crypto.randomUUID()});assert.equal(scheduled.status,200,JSON.stringify(scheduled.value))
+  await h.command('template.update',{...template,id:t,message:'A new revision must not replace frozen bytes.'})
+  await h.scheduled(Date.parse(scheduled.value.result.scheduled.at)+1000)
+  const held=await read(scheduled.value.result.id);assert.ok(held.sendHold);assert.equal(held.template.version,1);assert.equal(held.originalSha256,first.originalSha256)
+  await h.command('envelope.approve',{id:held.id,eligible:true},sam.cookie)
+  const recovered=await read(held.id);assert.equal(recovered.status,'awaiting_signature');assert.equal(recovered.template.version,1);assert.equal(recovered.originalSha256,first.originalSha256)
+  assert.equal(recovered.events.findLast(e=>e.action==='envelope.approved').detail.sendPolicy.source,'template')
+  await h.command('template.unshare',{id:t,operatorId:sam.id})
+  assert.equal((await client(h,key.token,'/api/v1/envelopes', {...body,commandId:crypto.randomUUID()})).status,401,'template authority loss permanently suspends its bound key')
+ }finally{await h.close()}
+})

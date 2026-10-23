@@ -1,3 +1,5 @@
+import { apiCommandActor } from './api-command'
+import { approvePreparedEnvelope } from './envelopes'
 import { validateDocumentAudience, remapSignerAudience } from './document-visibility'
 import { consumedUploadWrites, readDocuments, documentFields, documentInputFields, documentWrites, stagedBlobWrites, type EnvelopeDocument } from './documents'
 import { verifyTemplateDocument, templateOriginal, templateDocumentWrites } from './template-documents'
@@ -172,7 +174,7 @@ const base64 = (bytes: Uint8Array) => { let binary = ''; for (let i = 0; i < byt
 
 /** `template.use`: one person per role, in the template's order; everything else comes from the template. The envelope is
  * a draft validated by the same rules as one prepared by hand, and records the template it came from. */
-export async function useTemplate(env: Env, context: CommandContext, input: Record<string, unknown>) {
+export async function useTemplate(env: Env, context: CommandContext, input: Record<string, unknown>, release=false) {
   const { template } = await loadTemplate(env, context.actor, text(input.id, 'a template ID'), 'use')
   const [bytes, artifacts] = await Promise.all([templateBytes(env, template), supplementsFromTemplate(env, template)])
   insist(Array.isArray(input.recipients) && input.recipients.length === template.roles.length, `Name one person for each of the template’s ${template.roles.length} roles.`)
@@ -188,9 +190,13 @@ export async function useTemplate(env: Env, context: CommandContext, input: Reco
   const { draft, accessCodes } = await readDraft(env, { title: template.title, filename: template.filename, pdfBase64: base64(bytes), signers, fields: applyPrefillPayload(template.fields, input.prefill), expiresAt: new Date(Date.parse(createdAt) + template.expiryDays * day).toISOString(), reminders: template.reminders ?? null, ...(template.allowPaper ? { allowPaperSigning: true } : {}), allowReassignment: Boolean(template.allowReassign), ...(template.subject ? { subject: template.subject } : {}), ...(template.message ? { message: template.message } : {}) }, createdAt,undefined,context.actor,template.documents?{bytes,documents:template.documents}:undefined, template.adoptionMethods ?? ['typed','drawn','uploaded'], template.consumerDisclosure ?? null)
   const from = { id: template.id, title: template.title, version: versionOf(template) }
   const envelope = { id: id(), version: 1, status: 'prepared' as const, createdAt, createdBy: context.actor.id, ...draft, ...(template.part11?{part11:structuredClone(template.part11)}:{}), ...(artifacts.length ? { supplements: artifacts.map(a => a.supplement) } : {}), template: from, ...(template.approval ? { approvalRule: template.approval } : {}), events: [] }
-  await appendEvent(envelope, 'envelope.prepared', context.actor.id, { ...draftDetail(draft), ...(envelope.part11?{part11:envelope.part11}:{}), ...(envelope.supplements ? { supplements: envelope.supplements } : {}), template: { ...from, roles: template.roles.map(r => r.role) } })
+  await appendEvent(envelope, 'envelope.prepared', apiCommandActor(context.actor), { ...draftDetail(draft), ...(envelope.part11?{part11:envelope.part11}:{}), ...(envelope.supplements ? { supplements: envelope.supplements } : {}), template: { ...from, roles: template.roles.map(r => r.role) } })
   const result = { id: envelope.id, template: template.id }
-  await insertEnvelope(env.DB, envelope, context.actor, [...await stagedBlobWrites(env, envelope.id, 'original', bytes), ...(template.documents??[]).map((_,i)=>env.DB.prepare('INSERT INTO iw_blobs(envelope_id,kind,part,data) SELECT ?,?,part,data FROM iw_template_document_blobs WHERE template_id=? AND document=?').bind(envelope.id,`document-${i}`,template.id,i)), ...artifacts.flatMap(a => blobWrites(env.DB, envelope.id, `supplement-${a.supplement.id}`, a.bytes)), ...await accessCodeWrites(env, envelope.id, accessCodes), commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)], [{ sql: 'EXISTS(SELECT 1 FROM iw_templates WHERE id=? AND data=?)', values: [template.id, JSON.stringify(template)] }])
+  const visible=visibleSql(context.actor),repeated=visible.sql.match(/\?1/g)?.length??0
+  const guards:Guard[]=[{sql:`EXISTS(SELECT 1 FROM iw_templates t WHERE t.id=? AND t.data=? AND ${visible.sql.replaceAll('?1','?')})`,values:[template.id,JSON.stringify(template),...(repeated?Array.from({length:repeated},()=>context.actor.id):visible.values)]}]
+  const writes=[...await stagedBlobWrites(env,envelope.id,'original',bytes),...(template.documents??[]).map((_,i)=>env.DB.prepare('INSERT INTO iw_blobs(envelope_id,kind,part,data) SELECT ?,?,part,data FROM iw_template_document_blobs WHERE template_id=? AND document=?').bind(envelope.id,`document-${i}`,template.id,i)),...artifacts.flatMap(a=>blobWrites(env.DB,envelope.id,`supplement-${a.supplement.id}`,a.bytes)),...await accessCodeWrites(env,envelope.id,accessCodes)]
+  if(release)return approvePreparedEnvelope(env,{...context,guards:[...(context.guards??[]),...guards]},{...input,id:envelope.id},envelope,writes)
+  await insertEnvelope(env.DB,envelope,context.actor,[...writes,commandWrite(env.DB,apiCommandActor(context.actor),context.commandId,context.fingerprint,result)],guards)
   await readBlob(env.DB, envelope.id, 'original', envelope.originalSha256)
   return result
 }

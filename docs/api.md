@@ -1,6 +1,6 @@
 # API keys and envelope clients
 
-The current API can read envelopes and artifacts, list templates, prepare unsigned PDF drafts, send under an autonomous API policy, and void envelopes with a manage scope. Its machine-readable description is `GET /api/v1/openapi.json`. API-001 remains partial: OAuth/PKCE, sender self-minting permission, expiry warnings and account-audit integration are not shipped. Test-mode keys and webhook management remain unavailable.
+The current API can read envelopes and artifacts, list templates, prepare unsigned PDF drafts, send under an autonomous API policy, and void envelopes with a manage scope. Its machine-readable description is `GET /api/v1/openapi.json`. API-001 remains partial: OAuth/PKCE, sender self-minting permission, account-audit integration are not shipped. Test-mode keys and webhook management remain unavailable.
 
 An owner or admin uses their normal signed-in session and same-origin JSON requests to manage keys. `POST /api/inkwell/api-keys` takes `commandId`, `name`, the bound `memberId`, `scopes`, and optionally `expiresInDays` (365 by default, 1–730 whole 24-hour days). The member must currently be an active owner, admin or sender. A sender's own minting permission waits for ADMIN-008. Minting, scope changes and rotation require a sign-in from the last 15 minutes. Listing and revoking keys need a current owner/admin session. Bearer credentials cannot manage keys or use member-session commands, even alongside a valid browser cookie.
 
@@ -32,3 +32,21 @@ Use `POST /api/inkwell/api-keys/{id}/scopes` with `commandId` and `scopes` to ch
 A member's record-version change, deactivation, deletion or loss of sender authority permanently suspends their keys. Narrowing or removing a sender's envelope or template share does so too. Restoring the member or share never revives an old key; an owner/admin must issue a new one. Suspension happens when the member or share changes, even if no client request occurs during the loss. Draft writes also recheck key validity, required scope and member authority in the same atomic batch as the draft.
 
 Single-envelope reads show expiry consistently with the dashboard. Successful key requests appear as the bound member’s authenticated access in the healthcare access review, including while the profile is off; refused calls do not advance it. Fixed-schema request logs contain no URL, token, document text or field values.
+
+
+To create from a saved template, use `templateId`, one `recipients` entry per role,
+and optional `prefill` keyed by field ID/name (`{value, source, readOnly?}`). The
+source is reported by the caller. Supply a template or a file definition, not both.
+The template's content, fields, expiry/reminders, disclosure/adoption choices and
+approval rule are pinned. API policy is still the sending source; its template
+allowlist applies. A changed live template holds deferred releases until a current
+editor confirms the unchanged frozen request.
+
+The hourly scheduler sends the bound active member one warning on entering the
+30-day window and one on entering the 7-day window. A newly issued short-lived key
+starts with its current window; it never claims a warning that happened in the
+past. Messages contain the display name, prefix/last four and exact UTC expiry,
+never the secret or hash. Key listings include the warning's sent/rejected/uncertain
+outcome. A claimed attempt is never blindly replayed; a claim interrupted for over
+10 minutes becomes uncertain, so an administrator can review it. Revoked,
+suspended, expired and no-longer-bound credentials receive no new warnings.
