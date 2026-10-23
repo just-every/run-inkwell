@@ -45,7 +45,7 @@ test('API-001: fresh owners/admins mint bound expiring keys once; secrets never 
     }
     await mint(h, (await actor(h, viewer)).id, ['envelopes:read'], {}, admin, 403)
     for (const expiresInDays of [0, 731, 1.5]) await mint(h, owner.id, ['envelopes:read'], { expiresInDays }, admin, 400)
-    await mint(h, owner.id, ['envelopes:send'], {}, admin, 400)
+    await mint(h, owner.id, ['webhooks:manage'], {}, admin, 400)
     await mint(h, owner.id, ['envelopes:read'], { mode: 'test' }, admin, 409)
     await h.post('/api/inkwell/api-keys', { ...body, commandId: crypto.randomUUID() }, h.owner, 403, { origin: 'https://elsewhere.example' })
     const agent = (await h.command('agent.issue')).result
@@ -178,4 +178,91 @@ test('API-001: scope changes and revokes apply to the next call; rotation has bo
     assert.ok(listings.find(k => k.id === demoted.key.id).suspendedAt)
     assert.ok(listings.find(k => k.id === deactivated.key.id).suspendedAt)
   } finally { await h.close() }
+})
+
+
+test('API-001 and SEND-001: OpenAPI clients send only with explicit key scope and autonomous policy, with atomic creation, live deferred fences and fresh human recovery',async()=>{
+ const h=await harness()
+ try {
+  const owner=await actor(h),sam=await sender(h,'send.api@harbour.example'),key=await mint(h,sam.id,['envelopes:read','artifacts:read','envelopes:prepare','envelopes:send','envelopes:manage'])
+  const spec=(await h.send('/api/v1/openapi.json')).value,paths=Object.entries(spec.paths),operation=id=>paths.find(([,verbs])=>Object.values(verbs).some(v=>v.operationId===id))[0]
+  const create=operation('prepareEnvelope'),send=id=>operation('sendEnvelope').replace('{id}',id),voidPath=id=>operation('voidEnvelope').replace('{id}',id)
+  const current=async()=> (await h.send('/api/inkwell/send-policies',undefined,h.owner)).value.policies.find(p=>p.source==='api')
+  const policy=async change=>h.command('account.send_policy',{source:'api',expectedVersion:(await current()).version,...change})
+  const body={...await draft('API autonomous agreement'),status:'sent',commandId:crypto.randomUUID()}
+  const total=async()=> (await client(h,key.token)).value.total
+  const before=await total()
+  const refused=await client(h,key.token,create,body);assert.equal(refused.status,403);assert.equal(refused.value.code,'send_policy_off');assert.equal(await total(),before)
+  const draftOnly=await mint(h,sam.id,['envelopes:prepare'])
+  assert.equal((await client(h,draftOnly.token,create,body)).status,403)
+  await policy({mode:'person'})
+  assert.equal((await client(h,key.token,create,body)).value.code,'send_policy_person');assert.equal(await total(),before)
+  await policy({mode:'autonomous'})
+  const issued=await client(h,key.token,create,body);assert.equal(issued.status,200,JSON.stringify(issued.value));const id=issued.value.result.id
+  const record=(await client(h,key.token,operation('readEnvelope').replace('{id}',id))).value.envelope
+  assert.equal(record.status,'awaiting_signature');assert.equal(record.createdBy,sam.id)
+  const authorization=record.events.findLast(e=>e.action==='envelope.approved')
+  assert.equal(authorization.detail.eligible,false);assert.equal(authorization.detail.consent,false)
+  assert.equal(authorization.detail.sendPolicy.source,'api');assert.equal(authorization.detail.sendPolicy.mode,'autonomous')
+  assert.equal(authorization.detail.sendPolicy.principal,sam.id);assert.equal(authorization.detail.sendPolicy.credential.id,key.key.id)
+  assert.deepEqual(authorization.detail.sendPolicy.policies,[{scope:'account',version:2}]);assert.ok(authorization.detail.sendPolicy.fingerprint)
+  assert.ok(await h.mail('mara@supplier.example','Please sign:'))
+  const mailCount=h.sent();assert.equal((await client(h,key.token,create,body)).value.result.id,id);assert.equal(h.sent(),mailCount);assert.equal(await total(),before+1)
+  assert.equal((await h.send('/api/inkwell/envelopes/'+id+'/verify',undefined,h.owner)).value.ok,true)
+  const artifact=await client(h,key.token,operation('downloadArtifact').replace('{id}',id).replace('{kind}','original'));assert.equal(artifact.status,200)
+  const prepared=(await client(h,key.token,create,{...await draft('Prepared for key send'),commandId:crypto.randomUUID()})).value.result.id
+  assert.equal((await client(h,draftOnly.token,send(prepared),{commandId:crypto.randomUUID()})).status,403)
+  const agent=(await h.command('agent.issue')).result.token
+  for(const path of [create,send(prepared),voidPath(prepared)])assert.equal((await client(h,agent,path,{...body,commandId:crypto.randomUUID(),reason:'Cancelled by client'})).status,403)
+  const later={at:new Date(Date.now()+2*86400000).toISOString().slice(0,16),timeZone:'Pacific/Honolulu'}
+  const scheduled=await client(h,key.token,send(prepared),{commandId:crypto.randomUUID(),sendAt:later});assert.equal(scheduled.status,200,JSON.stringify(scheduled.value))
+  await policy({mode:'off'});await h.scheduled(Date.parse(scheduled.value.result.scheduled.at)+1000)
+  let held=(await client(h,key.token,'/api/v1/envelopes/'+prepared)).value.envelope;assert.equal(held.status,'prepared');assert.ok(held.sendHold)
+  assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM iw_signers WHERE envelope_id=?').bind(prepared).first()).n,0)
+  await policy({mode:'autonomous'});await h.scheduled(Date.parse(scheduled.value.result.scheduled.at)+3600000)
+  assert.ok((await client(h,key.token,'/api/v1/envelopes/'+prepared)).value.envelope.sendHold)
+  await h.command('envelope.approve',{id:prepared,eligible:true},sam.cookie)
+  const recovered=(await client(h,key.token,'/api/v1/envelopes/'+prepared)).value.envelope
+  assert.equal(recovered.status,'awaiting_signature');assert.equal(recovered.sendOrigin,undefined,'the editor explicitly assumes personal sending authority')
+  assert.equal(recovered.events.findLast(e=>e.action==='envelope.approved').detail.sendPolicy.source,'ad_hoc')
+  // The last real internal approval rechecks the still-bound send credential.
+  await h.command('account.internal_approval',{rule:{approverEmail:owner.email}})
+  const waiting=await client(h,key.token,create,{...await draft('Key waiting for owner'),status:'sent',commandId:crypto.randomUUID()});assert.equal(waiting.status,200,JSON.stringify(waiting.value))
+  const waitingId=waiting.value.result.id;assert.ok(waiting.value.result.waitingForApproval.length)
+  await change(h,key.key,'revoke',{})
+  assert.equal((await client(h,key.token)).status,401)
+  assert.equal((await h.command('envelope.internal_decide',{id:waitingId,decision:'approve'})).result.held,true)
+  assert.equal((await h.send('/api/inkwell/envelopes/'+waitingId,undefined,h.owner)).value.envelope.status,'prepared')
+  await h.command('account.internal_approval',{rule:null})
+  const successor=await mint(h,sam.id,['envelopes:read','envelopes:send','envelopes:manage'])
+  const revokeLater=(await client(h,successor.token,create,{...await draft('Revoke before dispatch'),status:'sent',sendAt:later,commandId:crypto.randomUUID()})).value.result
+  await change(h,successor.key,'revoke',{});await h.scheduled(Date.parse(revokeLater.scheduled.at)+1000)
+  held=(await h.send('/api/inkwell/envelopes/'+revokeLater.id,undefined,h.owner)).value.envelope;assert.ok(held.sendHold);assert.equal(held.status,'prepared')
+  const manager=await mint(h,sam.id,['envelopes:manage'])
+  const voided=await client(h,manager.token,voidPath(id),{commandId:crypto.randomUUID(),reason:'Supplier cancelled this agreement'});assert.equal(voided.status,200,JSON.stringify(voided.value));assert.equal(voided.value.result.status,'voided')
+  assert.equal((await client(h,draftOnly.token,voidPath(id),{commandId:crypto.randomUUID(),reason:'Wrong scope'})).status,403)
+ }finally{await h.close()}
+})
+
+test('API-001: rolling request/send limits return Retry-After and API command receipts expire only after 24 hours',async()=>{
+ const start=Date.now(),h=await harness({now:start})
+ try {
+  const person=await actor(h),reads=await mint(h,person.id,['envelopes:read'])
+  for(let n=0;n<600;n++)assert.equal((await client(h,reads.token)).status,200)
+  const refused=await client(h,reads.token);assert.equal(refused.status,429);assert.equal(refused.value.code,'rate_limited');assert.equal(Number(refused.headers.get('retry-after')),60)
+  h.advanceTo(start+60_000);assert.equal((await client(h,reads.token)).status,200)
+  const key=await mint(h,person.id,['envelopes:read','envelopes:send'])
+  const api=(await h.send('/api/inkwell/send-policies',undefined,h.owner)).value.policies.find(p=>p.source==='api')
+  await h.command('account.send_policy',{source:'api',expectedVersion:api.version,mode:'autonomous'})
+  const definition=await draft('Rate limited policy sends')
+  for(let n=0;n<60;n++)assert.equal((await client(h,key.token,'/api/v1/envelopes',{...definition,status:'sent',commandId:crypto.randomUUID()})).status,200)
+  const total=(await client(h,key.token)).value.total
+  const over=await client(h,key.token,'/api/v1/envelopes',{...definition,status:'sent',commandId:crypto.randomUUID()});assert.equal(over.status,429);assert.ok(Number(over.headers.get('retry-after'))>0);assert.equal((await client(h,key.token)).value.total,total)
+  h.advanceTo(start+120_001)
+  const body={...definition,status:'sent',commandId:crypto.randomUUID()},first=await client(h,key.token,'/api/v1/envelopes',body)
+  assert.equal(first.status,200);assert.equal((await client(h,key.token,'/api/v1/envelopes',body)).value.result.id,first.value.result.id)
+  h.advanceTo(start+120_001+24*3600000-1);assert.equal((await client(h,key.token,'/api/v1/envelopes',body)).value.result.id,first.value.result.id)
+  h.advanceTo(start+120_001+24*3600000)
+  const expired=await client(h,key.token,'/api/v1/envelopes',body);assert.equal(expired.status,200,JSON.stringify(expired.value));assert.notEqual(expired.value.result.id,first.value.result.id)
+ }finally{await h.close()}
 })

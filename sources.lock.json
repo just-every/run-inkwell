@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "6fabe1ac0f410dd54f344d4a9b140754383dc56acdad4cfa104c564621372d63",
+      "sha256": "3ce6abb01effee8f90e4c962b189bee4d257f0a06a750cd4bbb887ae032632dd",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "917d820eef4ec0b211b4fa428f1a408d0c1678da7c181bbeb61267f3d2aea138",
+      "sha256": "144dac94e120b92caf8022587025d31aa23753de97901620e830a14ca6a0734c",
       "executable": false
     },
     "DEMO.md": {
@@ -107,7 +107,7 @@
       "executable": false
     },
     "docs/api.md": {
-      "sha256": "1d1c1d25b24648f490e3dc839dd6e28db3ecb153c77b546a8b1dd38492732911",
+      "sha256": "153a8c0f9db93fd1e5b20394ad5920b21540cb24f78996467e31fe72f7350512",
       "executable": false
     },
     "docs/backup-and-restore.md": {
@@ -372,6 +372,10 @@
     },
     "migrations/core/0048_send_policy_scopes.sql": {
       "sha256": "b3a2e40b1912687c760a9e8e9320f8bd3cd12c00a3b19f5a91c6c2a8ffa5fb70",
+      "executable": false
+    },
+    "migrations/core/0049_api_limits.sql": {
+      "sha256": "36cd66b78e658c4b6d61f391bd18d04162c940d1437f0a95ee1dfeb8143dc5c9",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -770,16 +774,24 @@
       "sha256": "49b958f54ee1034adef585edc26ddff004fc93d5fe701f78d8e2f546d42b2e99",
       "executable": false
     },
+    "src/inkwell/api-command.ts": {
+      "sha256": "ef0887dba4ba36aade20155a6fcd0ceef6d1b613f811993a07c59b866a7893e8",
+      "executable": false
+    },
     "src/inkwell/api-keys.ts": {
-      "sha256": "0a7afcc702b6aef5ca6323dc089af7b36e531172432c6c37d3649a1cd6b4abb7",
+      "sha256": "e1b61041803bce28f2208e2edf31c722daa9ecbc7a0bf310cc01605fd1d46bce",
+      "executable": false
+    },
+    "src/inkwell/api-limits.ts": {
+      "sha256": "eed84b328083a95b7b59e08ce3372babfd00369ddb79fca48a4f8e8ea924114b",
       "executable": false
     },
     "src/inkwell/api-openapi.ts": {
-      "sha256": "74af168f33b62f4696213a31a29f9e388651a6e36de0751bc8a181851974fd78",
+      "sha256": "8e656e1841950262511c40fca89c419c006d978f97e0c1b1875936182f609706",
       "executable": false
     },
     "src/inkwell/api.ts": {
-      "sha256": "93d8578ecf50d59da2b154b7e740e88e798747f5e69ba061f7fabfba96ddafd9",
+      "sha256": "93777378c7b3eed24e45c4b37991c4aacfe3169acfacb0875c66246fca264ede",
       "executable": false
     },
     "src/inkwell/archive-policy.d.mts": {
@@ -787,7 +799,7 @@
       "executable": false
     },
     "src/inkwell/archive-policy.mjs": {
-      "sha256": "a59796b6081157a668390dd00ddd18c824a7fc6d5b0127b92a1e27f18bb8ea50",
+      "sha256": "13704a062ff31c5be0cdb7f5474588fb369ad6fd903b0f609f38c4f11253a0cd",
       "executable": false
     },
     "src/inkwell/archive-transfers.ts": {
@@ -883,7 +895,7 @@
       "executable": false
     },
     "src/inkwell/default-record.mjs": {
-      "sha256": "6c41d36d203165caa8dc378c5fe03dbaef6d1c7038b8b1fbdcb8053653d9eb19",
+      "sha256": "11ede4bfefcedeef936b90cff4769287e3fd9b859755451c9f93335452726415",
       "executable": false
     },
     "src/inkwell/delegation-grants.ts": {
@@ -935,7 +947,7 @@
       "executable": false
     },
     "src/inkwell/envelopes.ts": {
-      "sha256": "3f9a3b399a59e4f2ef69a522fbb104dab26f3739d49f045249a805b0e73f640e",
+      "sha256": "bae17dabf2b6c56c3472163933196cbee212bf04bf0712027a0b8ec7e5513391",
       "executable": false
     },
     "src/inkwell/erasure.ts": {
@@ -1055,7 +1067,7 @@
       "executable": false
     },
     "src/inkwell/internal-approval.ts": {
-      "sha256": "891ab02141930c6f3fbabe459f1d474ddc1aa6a51b1d7b9486d6ef0a54eea996",
+      "sha256": "a6ba2d9fe7e00de5cd57ed4e70f6e0256dd02f60867a1d139bcdb3765b6d16c8",
       "executable": false
     },
     "src/inkwell/links.ts": {
@@ -1079,7 +1091,7 @@
       "executable": false
     },
     "src/inkwell/model.ts": {
-      "sha256": "b36d623a92d38be2ae15546169bfb310a3eb899f4f709b613861a6e5d545b03e",
+      "sha256": "1fb176f2e7377a9e153b568b6b8a1a52d58f83ef7e49e1bc9c9d43608c5c83c0",
       "executable": false
     },
     "src/inkwell/notices.ts": {
@@ -1187,7 +1199,7 @@
       "executable": false
     },
     "src/inkwell/schedule.ts": {
-      "sha256": "1dc1f0ccb3487081d32124adec0f460a58bd47bcc460d2ab2d4eb198c189feb0",
+      "sha256": "8ceaedc422672527bbf0af79efdc995bb96d2ae3262098ea9fae0848ebdcd901",
       "executable": false
     },
     "src/inkwell/scheduled-approval.ts": {
@@ -1207,7 +1219,7 @@
       "executable": false
     },
     "src/inkwell/send-authority.ts": {
-      "sha256": "d04abb9f0650020fd760a9523f8aa27e42a1f47ee792c8c130d3840c28554dd0",
+      "sha256": "435d353e62ee06cacf12055e0426d29feca08116c20cf3a89629d0b3036b0320",
       "executable": false
     },
     "src/inkwell/send-hold-notices.ts": {
@@ -1215,11 +1227,11 @@
       "executable": false
     },
     "src/inkwell/send-policies.ts": {
-      "sha256": "ce8e455e9499508aad2cc8bef44db7a6841b45f2a183d45701eb67b42c35233e",
+      "sha256": "ad886b0c0e206e180c0fc4514e48c5b82118cd7f4abcc08f5dc8ab7a46b347bc",
       "executable": false
     },
     "src/inkwell/send-policy-scopes.ts": {
-      "sha256": "a3cac9a50899ec39699e102b6e54d69eb106c4c9fde94ee1e9496a33aadb4135",
+      "sha256": "452c4044b8f6ff7873adb77e9a9678140f9ed947d903d1a36e58811fae8c12b0",
       "executable": false
     },
     "src/inkwell/shares.ts": {
@@ -1271,7 +1283,7 @@
       "executable": false
     },
     "src/inkwell/storage.ts": {
-      "sha256": "b4420d81991f126ff808390967bad7da6a8e11d205eae0936d9d759a9be9191a",
+      "sha256": "f9eb790fa63432bf9ac85f15e87b6c5a17570c294be41c9c85d5c94a8153cb4d",
       "executable": false
     },
     "src/inkwell/supplement-record.d.mts": {
@@ -3447,7 +3459,7 @@
       "executable": false
     },
     "tests/api-keys.test.mjs": {
-      "sha256": "961a53a697b1b533bf513784ef4b30b758bd5bb73d77869f3551bd586bcdddad",
+      "sha256": "12dfa845e9b52ee946815f43ba267ec115af19d02e9796e783c1831304869c1b",
       "executable": false
     },
     "tests/api-worker.ts": {
@@ -3530,6 +3542,10 @@
       "sha256": "271fa5507c9e0e316a2b067c5f21fbd2fda90dd8805cbc81a9684d26389b8afe",
       "executable": false
     },
+    "tests/journeys/api-capacity.mjs": {
+      "sha256": "1087bd8c126158072db8dfa13ca4f07bee72dee6f9893eca51557f244f400d67",
+      "executable": false
+    },
     "tests/journeys/archive-capacity.mjs": {
       "sha256": "d2dd3392882a63e6b5e4d418c643899f6506a65da59cf607ad3e1461494bef71",
       "executable": false
@@ -3587,7 +3603,7 @@
       "executable": false
     },
     "tests/journeys/internal-approval.mjs": {
-      "sha256": "fe804a3e74465cd2ca3336fd9a13154607dbf73659b5f0272a705cf49318d45c",
+      "sha256": "515fd59bf1da00bd211b02f2002601a5c25d79478f39c3e5b17f42a73bfcd9a9",
       "executable": false
     },
     "tests/journeys/mail-worker.mjs": {
@@ -3691,7 +3707,7 @@
       "executable": false
     },
     "tests/send-policies.test.mjs": {
-      "sha256": "6d0974756a8b2cf276fb831b344b6c6145b04a9b74d8c71a0d67f19efe6963c2",
+      "sha256": "61f4edecc1f9d8b97fd290de4c89a0a8a7a83ce435ebf5823501796806472d2f",
       "executable": false
     },
     "tests/site/site.test.mjs": {

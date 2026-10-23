@@ -4,7 +4,7 @@ import type { CommandContext } from './envelopes'
 
 /** API-001 scope-review-65: preparation agents, API keys and OAuth grants are separate credentials.
  * This slice exposes live keys for reads and draft preparation only. Sending/test mode/OAuth are unshipped. */
-export const apiScopes = ['envelopes:read', 'artifacts:read', 'templates:read', 'envelopes:prepare'] as const
+export const apiScopes = ['envelopes:read', 'artifacts:read', 'templates:read', 'envelopes:prepare', 'envelopes:send', 'envelopes:manage'] as const
 export type ApiScope = typeof apiScopes[number]
 const day = 86_400_000
 interface KeyRow {
@@ -101,7 +101,7 @@ export async function changeApiKey(env: Env, context: CommandContext, action: 'm
   return { ...rotated, token: created.token }
 }
 /** No cookie fallback, query-string credential, or preparation token is accepted at this door. */
-export async function authenticateApiKey(request: Request, env: Env, scope: ApiScope): Promise<Actor> {
+export async function authenticateApiKey(request: Request, env: Env, scope?: ApiScope): Promise<Actor> {
   const header = request.headers.get('authorization') ?? ''
   insist(!/^Bearer [a-f0-9]{64}$/.test(header), 'Preparation tokens cannot use API-key routes.', 403)
   const match = /^Bearer (iwk_live_[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}_[a-f0-9]{64})$/.exec(header)
@@ -112,10 +112,10 @@ export async function authenticateApiKey(request: Request, env: Env, scope: ApiS
     AND o.status='active' AND ${effectiveRole}=k.member_role AND k.member_role IN ('owner','admin','sender')`)
     .bind(await sha256(match[1]), now()).first<{ key_id: string; scopes: string; id: string; display_name: string; email: string; version: number; role: Role }>()
   insist(row, 'This API key is invalid, expired, revoked or suspended.', 401)
-  insist(JSON.parse(row.scopes).includes(scope), `This API key needs the ${scope} scope.`, 403)
+  insist(scope === undefined || JSON.parse(row.scopes).includes(scope), `This API key needs the ${scope} scope.`, 403)
   return { id: row.id, name: row.display_name, email: row.email, role: row.role, version: row.version, apiKeyId: row.key_id, apiKeyScope: scope }
 }
-export const apiCommandActor = (actor: Actor) => actor.apiKeyId ? `api-key:${actor.apiKeyId}` : actor.agentId ?? actor.id
+export { apiCommandActor } from './api-command'
 export async function apiKeyContext(request: Request, actor: Actor, body: Record<string, unknown>): Promise<CommandContext> {
   const commandId = text(body.commandId, 'a command ID', 100)
   return { actor, commandId, fingerprint: await sha256(canonical({ path: new URL(request.url).pathname, body })) }

@@ -248,7 +248,7 @@ test('ADMIN-004: reminder, expiry, authentication, adoption, disclosure and reas
     assert.equal(defaults.actor, (await h.send('/api/inkwell', undefined, h.owner)).value.actor.id)
     assert.ok(Number.isFinite(Date.parse(defaults.at)))
     await h.command('account.envelope_defaults', { expectedVersion: 0, expiryDays: 10, reminders: null }, admin, 409)
-    const inherited = await prepare('Inherited reminders'), inheritedEnvelope = await read(h, inherited)
+    const inherited = await prepare('Inherited reminders', {adoptionMethods:['typed']}), inheritedEnvelope = await read(h, inherited)
     assert.equal(inheritedEnvelope.consumerDisclosure.text,defaults.disclosureText); assert.equal(inheritedEnvelope.consumerDisclosure.version,defaults.version); assert.equal((await read(h,old)).consumerDisclosure,undefined)
     assert.deepEqual(inheritedEnvelope.adoptionMethods, ['uploaded']); assert.deepEqual((await read(h, old)).adoptionMethods, ['typed','drawn','uploaded'])
     assert.equal(inheritedEnvelope.signers[0].linkOnly, true); assert.equal((await read(h, old)).signers[0].linkOnly, undefined)

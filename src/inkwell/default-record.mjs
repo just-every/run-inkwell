@@ -1,5 +1,7 @@
 /** ADMIN-004: allowed adoption methods are authenticated in the saved sending definition. */
 export function validDefaultRecord(envelope, canonical) {
+  const authority = envelope.events.findLast(event => ['envelope.prepared','envelope.updated','envelope.approved','envelope.internal_approval_requested'].includes(event.action))
+  if(canonical(envelope.sendOrigin ?? null)!==canonical(authority?.detail.sendOrigin ?? null))return false
   const definition = envelope.events.findLast(event => ['envelope.prepared','envelope.updated'].includes(event.action))
   if (canonical(envelope.consumerDisclosure ?? null) !== canonical(definition?.detail.consumerDisclosure ?? null)) return false
   if (envelope.consumerDisclosure && (!Number.isSafeInteger(envelope.consumerDisclosure.version) || envelope.consumerDisclosure.version < 1 || typeof envelope.consumerDisclosure.text !== 'string' || !envelope.consumerDisclosure.text.trim() || envelope.consumerDisclosure.text.length > 4000 || typeof envelope.consumerDisclosure.actor !== 'string' || !Number.isFinite(Date.parse(envelope.consumerDisclosure.at)))) return false

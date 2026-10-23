@@ -20,8 +20,9 @@ export async function saveSendPolicyScope(env: Env, context: CommandContext, inp
   insist(input.expectedVersion === (before?.version ?? 0), 'This membership changed. Refresh and try again.',409)
   insist(Array.isArray(input.members) && input.members.length <= 1000 && input.members.every(member => typeof member === 'string'), 'Choose up to 1,000 current members.')
   const members = [...new Set(input.members as string[])].sort()
-  const membershipGuards: Guard[] = members.map(member => ({sql:"EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND status='active')",values:[member]}))
-  for (const guard of membershipGuards) insist(await env.DB.prepare(`SELECT 1 WHERE ${guard.sql}`).bind(...guard.values).first(),'Every selected member must be active.')
+  const membershipGuards: Guard[] = [{sql:"NOT EXISTS(SELECT 1 FROM json_each(?) member WHERE NOT EXISTS(SELECT 1 FROM oa_operators o WHERE o.id=member.value AND o.status='active'))",values:[JSON.stringify(members)]}]
+  const membership=membershipGuards[0]
+  insist(await env.DB.prepare(`SELECT 1 WHERE ${membership.sql}`).bind(...membership.values).first(),'Every selected member must be active.')
   // Removing a constraint can widen authority, so all membership saves use a fresh administrator sign-in.
   const fresh: Guard = {sql:'EXISTS(SELECT 1 FROM oa_sessions WHERE id=? AND created_at>=?)',values:[actor.sessionId,Date.now()-15*60_000]}
   insist(await env.DB.prepare(`SELECT 1 WHERE ${fresh.sql}`).bind(...fresh.values).first(),'Sign in again: group/profile membership changes need a sign-in from the last 15 minutes.',403)

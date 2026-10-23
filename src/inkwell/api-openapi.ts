@@ -1,10 +1,10 @@
-/** API-001: only shipped public read/draft doors; session-only key management is documented in docs/api.md. */
+/** API-001: only shipped public envelope doors; session-only key management is documented in docs/api.md. */
 export const apiOpenApi = {
   "openapi": "3.1.0",
   "info": {
-    "title": "Inkwell read and draft API",
+    "title": "Inkwell envelope API",
     "version": "0.1.0",
-    "description": "API-001 is partial: live scoped keys, reads and draft preparation. No autonomous sending, OAuth, quotas, expiry warning mail, test mode or account-audit integration yet. API keys cannot use member-session commands or preparation-agent routes."
+    "description": "Scoped live keys support draft preparation, autonomous policy-authorized creation/sending, reads, artifacts and voiding. API-001 remains partial: OAuth/PKCE, sender self-minting permission, expiry warnings, test mode, webhook management and account audit integration remain unshipped."
   },
   "servers": [
     {
@@ -15,7 +15,7 @@ export const apiOpenApi = {
     "/api/v1/openapi.json": {
       "get": {
         "operationId": "describeApi",
-        "description": "The shipped read and draft API. Sending, test mode, OAuth, quotas and expiry warnings are not implemented.",
+        "description": "The shipped envelope API, including scopes, autonomous policy gates and rolling rate limits.",
         "security": [],
         "responses": {
           "200": {
@@ -166,7 +166,7 @@ export const apiOpenApi = {
       },
       "post": {
         "operationId": "prepareEnvelope",
-        "description": "Requires envelopes:prepare. Creates an unsigned draft even when API send policy is off. No signer invitation is sent. commandId retries are scoped to this key; changed input with the same ID is refused. status=sent is refused with 403 and creates nothing.",
+        "description": "Drafts require envelopes:prepare and work with API policy off. status=sent requires envelopes:send and an autonomous effective API policy; it creates and releases in one atomic batch (or waits for required internal approval). Off/person/refused policy creates no envelope. commandId retries are scoped to the key for 24 hours; changed input is refused. Every invitation rechecks live policy, principal, credential and frozen definition. Limits: 600 requests/minute, 60 sends/minute per key and 3,000 policy sends/hour per account, rolling windows; 429 supplies Retry-After and queues nothing silently.",
         "security": [
           {
             "ApiKey": []
@@ -395,6 +395,205 @@ export const apiOpenApi = {
           }
         ]
       }
+    },
+    "/api/v1/envelopes/{id}/send": {
+      "post": {
+        "operationId": "sendEnvelope",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "description": "Requires envelopes:send and current edit access. An autonomous API policy authorizes the fixed prepared draft; optional sendAt uses the existing US-zone schedule shape. Policy/credential loss holds a deferred send. A signed-in editor can freshly confirm a held draft under their personal ad hoc/template policy.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id"
+                      ]
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "429": {
+            "description": "Rolling key/account quota reached. No silent queue.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "Seconds until admission may be retried."
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "commandId"
+                ],
+                "properties": {
+                  "commandId": {
+                    "type": "string"
+                  },
+                  "sendAt": {
+                    "type": "object",
+                    "properties": {
+                      "at": {
+                        "type": "string"
+                      },
+                      "timeZone": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/envelopes/{id}/void": {
+      "post": {
+        "operationId": "voidEnvelope",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "description": "Requires envelopes:manage and current edit access; a reason is required. Other scopes never imply manage. A voided request cannot be replayed into another void or another send.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id"
+                      ]
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "429": {
+            "description": "Rolling key/account quota reached. No silent queue.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "Seconds until admission may be retried."
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "commandId",
+                  "reason"
+                ],
+                "properties": {
+                  "commandId": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -460,7 +659,9 @@ export const apiOpenApi = {
                 "envelopes:read",
                 "artifacts:read",
                 "templates:read",
-                "envelopes:prepare"
+                "envelopes:prepare",
+                "envelopes:send",
+                "envelopes:manage"
               ]
             }
           },
@@ -507,7 +708,11 @@ export const apiOpenApi = {
             "type": "string"
           },
           "status": {
-            "const": "draft"
+            "type": "string",
+            "enum": [
+              "draft",
+              "sent"
+            ]
           },
           "title": {
             "type": "string"

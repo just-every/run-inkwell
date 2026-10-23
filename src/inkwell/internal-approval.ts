@@ -1,3 +1,6 @@
+import { apiCommandActor } from './api-command'
+import { insertEnvelope } from './storage'
+import { noticeWrites } from './notices'
 import { templateConfirmation, confirmedTemplateGuard } from './template-confirmation'
 import { freeFormPolicy, freeFormSendGuard } from './freeform-policy'
 import { appendEvent, insist, now, object, text, type Actor, type ApprovalRule, type ApprovalStep, type Envelope, type Env, type Field } from './model'
@@ -102,15 +105,17 @@ export const namedApprover = (envelope: Envelope, operator: string) => envelope.
 
 export const eligibilityStatement = 'I confirm this document is eligible for electronic signature and consent to sending these fixed bytes to the listed signers in order.'
 /** The confirmed send waits for the approvers: the draft is locked and nobody is invited. */
-export async function requestApproval(env: Env, context: CommandContext, before: Envelope, steps: ApprovalStep[], schedule: Schedule | undefined, decision: SendDecision) {
+export async function requestApproval(env: Env, context: CommandContext, before: Envelope, steps: ApprovalStep[], schedule: Schedule | undefined, decision: SendDecision, creating?: D1PreparedStatement[]) {
   const after = structuredClone(before), at = now(), waiting = steps.filter(s => !s.decision)
   const policy = before.freeForm ? await freeFormPolicy(env) : undefined
   const templateSnapshot = await templateConfirmation(env, before)
   delete after.sendHold
   after.internalApproval = { state: 'pending', requestedAt: at, requestedBy: { id: context.actor.id, name: context.actor.name, email: context.actor.email.toLowerCase() }, ...(schedule ? { schedule } : {}), steps }
-  await appendEvent(after, 'envelope.internal_approval_requested', context.actor.id, { ...(templateSnapshot ? { templateConfirmation: templateSnapshot } : {}), ...(policy ? { freeForm: true, freeFormPolicyVersion: policy.version } : {}), sendPolicy: decision.record, sendingSha256: await sendingFingerprint(after), eligible: true, consent: true, statement: eligibilityStatement, originalSha256: after.originalSha256, steps: steps.map(({ approver, name, rules, why, bySender }) => ({ approver, name, rules, why, ...(bySender ? { approvedBySender: true } : {}) })), ...(schedule ? { sendAt: schedule.at, sendAtLocal: schedule.local, timeZone: schedule.timeZone } : {}) }, at)
+  await appendEvent(after, 'envelope.internal_approval_requested', context.actor.id, { ...(templateSnapshot ? { templateConfirmation: templateSnapshot } : {}), ...(policy ? { freeForm: true, freeFormPolicyVersion: policy.version } : {}), sendPolicy: decision.record, sendingSha256: await sendingFingerprint(after), sendOrigin:after.sendOrigin??null,eligible:!after.sendOrigin,consent:!after.sendOrigin,statement:after.sendOrigin?'Sending authorized by the autonomous API policy; no per-envelope human confirmation.':eligibilityStatement, originalSha256: after.originalSha256, steps: steps.map(({ approver, name, rules, why, bySender }) => ({ approver, name, rules, why, ...(bySender ? { approvedBySender: true } : {}) })), ...(schedule ? { sendAt: schedule.at, sendAtLocal: schedule.local, timeZone: schedule.timeZone } : {}) }, at)
   const result = { id: after.id, status: after.status, waitingForApproval: waiting.map(s => s.name) }
-  await commitEnvelope(env, before, after, context.actor, [commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)], [...(policy ? [freeFormSendGuard(policy)] : []), decision.fence, confirmedTemplateGuard(before, templateSnapshot)])
+  const writes=[commandWrite(env.DB,apiCommandActor(context.actor),context.commandId,context.fingerprint,result)],guards=[...(policy?[freeFormSendGuard(policy)]:[]),decision.fence,confirmedTemplateGuard(before,templateSnapshot)]
+  if(creating)await insertEnvelope(env.DB,after,context.actor,[...creating,...writes,...await noticeWrites(env,before,after)],guards)
+  else await commitEnvelope(env,before,after,context.actor,writes,guards)
   return result
 }
 

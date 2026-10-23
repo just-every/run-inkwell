@@ -15,6 +15,7 @@ import { setFollowup, resumeFollowup, followupView } from './followup-store'
 import { receiveFollowupReply } from './followup-inbound'
 import { apiOpenApi } from './api-openapi'
 import { apiCommandActor, apiKeyContext, authenticateApiKey, changeApiKey, listApiKeys, type ApiScope } from './api-keys'
+import { admitApiRequest, ApiRateLimit } from './api-limits'
 import { saveSendPolicyScope, sendPolicyScopes, encodedScope } from './send-policy-scopes'
 import { envelopeDefaultHistory, envelopeDefaults, setEnvelopeDefaults } from './envelope-defaults'
 import { freeFormPolicy, freeFormHistory, setFreeFormPolicy } from './freeform-policy'
@@ -77,6 +78,7 @@ api.use('*',async(c,next)=>{c.env=runtimeBindings(c.env);await next();c.header('
 // COMPLY-002: a successful API-key request counts for its bound member; failed requests do not.
 // The outer compliance dispatcher retains fixed-schema logs without credentials, URLs or document content.
 api.use('/api/v1/*', async (c, next) => {
+  if(new URL(c.req.url).pathname!=='/api/v1/openapi.json'){const actor=await authenticateApiKey(c.req.raw,c.env);await admitApiRequest(c.env,actor.apiKeyId!)}
   await next()
   const principal = c.get('apiPrincipal')
   if (principal && c.res.status < 400) await c.env.DB.prepare(`INSERT INTO iw_member_access(operator_id,last_access_at) VALUES(?,?)
@@ -86,7 +88,7 @@ async function apiClient(c: Context<ApiContext>, scope: ApiScope) {
   const actor = await authenticateApiKey(c.req.raw, c.env, scope)
   c.set('apiPrincipal', actor.id); return actor
 }
-api.onError((error,c)=>c.json({error:error instanceof Refusal?error.message:'The request could not be completed. Please try again.',...(error instanceof Refusal&&error.code?{code:error.code}:{})},(error instanceof Refusal?error.status:500) as 400))
+api.onError((error,c)=>{if(error instanceof ApiRateLimit)c.header('Retry-After',String(error.retryAfter));return c.json({error:error instanceof Refusal?error.message:'The request could not be completed. Please try again.',...(error instanceof Refusal&&error.code?{code:error.code}:{})},(error instanceof Refusal?error.status:500) as 400)})
 api.get('/health',c=>c.json({status:'ok',product:'Inkwell',...deploymentHealth(c.env)}))
 // MANAGE-001: the workspace is who is signed in, their agent tokens and people; envelopes are read a page or one at a time.
 api.get('/api/inkwell',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json({actor:{id:actor.id,name:actor.name,email:actor.email,role:actor.role},agents:actor.role==='owner'?await listAgents(c.env):[],people:['owner','admin'].includes(actor.role)?await listPeople(c.env):[],...(['owner','admin'].includes(actor.role)?{settings:{envelopeDefaults:await envelopeDefaults(c.env),freeForm:await freeFormPolicy(c.env),freeFormHistory:await freeFormHistory(c.env),completedCopies:await completedCopyDelivery(c.env),retention:await retentionView(c.env),healthcare:await healthcareProfile(c.env),internalApproval:await approvalView(c.env),sendPolicies:await sendPolicies(c.env),sendPolicyHistory:await sendPolicyHistory(c.env)}}:{}),...(actor.role==='viewer'?{}:{signingGroups:await listGroups(c.env)})})})
@@ -214,9 +216,24 @@ api.get('/api/v1/envelopes/:id/artifacts/:kind', async c => {
 })
 api.get('/api/v1/templates', async c => c.json(await listTemplates(c.env, await apiClient(c, 'templates:read'), new URL(c.req.url).searchParams)))
 api.post('/api/v1/envelopes', async c => {
-  const actor = await apiClient(c, 'envelopes:prepare'), body = await readJson(c.req.raw)
-  insist(body.status === undefined || body.status === 'draft', 'API sending is not shipped; a preparation scope can create drafts only.', 403)
-  const context = await apiKeyContext(c.req.raw, actor, body), previous = await previousCommand(c.env.DB, apiCommandActor(actor), context.commandId, context.fingerprint)
-  return c.json({ result: previous ?? await prepareEnvelope(c.env, context, body) })
+  const body=await readJson(c.req.raw),sending=body.status==='sent'
+  insist(body.status===undefined||body.status==='draft'||sending,'Choose draft or sent status.')
+  const actor=await apiClient(c,sending?'envelopes:send':'envelopes:prepare'),context=await apiKeyContext(c.req.raw,actor,body)
+  const previous=await previousCommand(c.env.DB,apiCommandActor(actor),context.commandId,context.fingerprint)
+  const result=previous??await prepareEnvelope(c.env,context,body,sending)
+  if(sending)await dispatchMail(c.env,result.id)
+  return c.json({result})
+})
+api.post('/api/v1/envelopes/:id/send',async c=>{
+ const actor=await apiClient(c,'envelopes:send'),body=await readJson(c.req.raw,8192),envelope=await getEnvelope(c.env.DB,c.req.param('id'))
+ await insistAccess(c.env,actor,envelope,'edit')
+ const context=await apiKeyContext(c.req.raw,actor,body),previous=await previousCommand(c.env.DB,apiCommandActor(actor),context.commandId,context.fingerprint)
+ const result=previous??await approveEnvelope(c.env,context,{...body,id:envelope.id});await dispatchMail(c.env,envelope.id);return c.json({result})
+})
+api.post('/api/v1/envelopes/:id/void',async c=>{
+ const actor=await apiClient(c,'envelopes:manage'),body=await readJson(c.req.raw,8192),envelope=await getEnvelope(c.env.DB,c.req.param('id'))
+ await insistAccess(c.env,actor,envelope,'edit')
+ const context=await apiKeyContext(c.req.raw,actor,body),previous=await previousCommand(c.env.DB,apiCommandActor(actor),context.commandId,context.fingerprint)
+ const result=previous??await voidEnvelope(c.env,context,{...body,id:envelope.id});await dispatchMail(c.env,envelope.id);return c.json({result})
 })
 api.notFound(c=>c.json({error:'This API route was not found.'},404))

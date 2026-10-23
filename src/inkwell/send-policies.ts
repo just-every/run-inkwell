@@ -1,6 +1,6 @@
 import { encodedScope, principalScopes, sendPolicyScopes } from './send-policy-scopes'
 import { canonical, insist, now, Refusal, sha256, text, type Env, type Envelope } from './model'
-import { atomic, commandWrite, roleGuard, type Guard } from './storage'
+import { atomic, commandWrite, roleGuard, memberRoleSql, type Guard } from './storage'
 import type { CommandContext } from './envelopes'
 
 /** ADMIN-004 / SEND-001: per-source, versioned send policies at the account scope. A policy says whether a source may send
@@ -14,7 +14,7 @@ export type SendMode = 'off' | 'person' | 'autonomous'
 export interface SendPolicy { scope: 'account' | 'group' | 'profile'; scopeId?: string; source: SendSource; mode: SendMode; templates: string[] | null; requireInternalApproval: boolean; deferredRelease: boolean; version: number; actor: string | null; at: string | null; reason: string | null }
 export interface SendPolicyVersion extends SendPolicy { before: Pick<SendPolicy, 'mode' | 'templates' | 'requireInternalApproval' | 'deferredRelease' | 'version'> }
 /** What an envelope records about the policy that allowed it: the source, who the send is for, and each contributing policy version. */
-export interface SendPolicyRecord { source: SendSource; mode: SendMode; principal: string; credential: null; policies: { scope: 'account' | 'group' | 'profile'; scopeId?: string; version: number }[]; templates: string[] | null; requireInternalApproval: boolean; deferredRelease: boolean; fingerprint: string }
+export interface SendPolicyRecord { source: SendSource; mode: SendMode; principal: string; credential: { kind: 'api_key'; id: string; version: number; memberVersion: number } | null; policies: { scope: 'account' | 'group' | 'profile'; scopeId?: string; version: number }[]; templates: string[] | null; requireInternalApproval: boolean; deferredRelease: boolean; fingerprint: string }
 export interface SendDecision { allowed: boolean; code?: string; reason?: string; requiresApproval: boolean; record: SendPolicyRecord; fence: Guard; versionFence: Guard }
 export const sourceLabel: Record<SendSource, string> = { ad_hoc: 'ad hoc', template: 'template', bulk: 'bulk', web_form: 'web form', api: 'API' }
 /** Opt-in defaults: the person-based sources start with the person's confirmation, every other source starts off. */
@@ -86,22 +86,34 @@ export async function setSendPolicy(env: Env, context: CommandContext, input: Re
   return result
 }
 
-export const envelopeSource = (envelope: Envelope): SendSource => envelope.template ? 'template' : 'ad_hoc'
+export const envelopeSource = (envelope: Envelope): SendSource => envelope.sendOrigin?.source ?? (envelope.template ? 'template' : 'ad_hoc')
 /** Whether `envelope` may be released now by its source's current policy, with the record it keeps and the fence that
  * keeps that verdict true in the release's own batch. `stage: 'release'` also requires an internal approval the policy
  * demands to have been given (`approved`); at the request stage it only reports that one is needed. */
+/** A credential's current custody and authority are checked without caches and fenced in the invitation batch. */
+async function sendCredential(env: Env, envelope: Envelope, principal: string) {
+ const origin=envelope.sendOrigin
+ if(!origin)return {record:null,active:true,guard:{sql:'1=1',values:[]} as Guard}
+ const row=await env.DB.prepare('SELECT id,version,member_version FROM iw_api_keys WHERE id=?').bind(origin.credential.id).first<{id:string;version:number;member_version:number}>()
+ const guard:Guard={sql:`EXISTS(SELECT 1 FROM iw_api_keys k JOIN oa_operators o ON o.id=k.member_id AND o.version=k.member_version WHERE k.id=? AND k.version=? AND k.member_id=? AND o.status='active' AND k.revoked_at IS NULL AND k.suspended_at IS NULL AND k.expires_at>? AND CASE WHEN o.role='member' THEN ${memberRoleSql('o.id')} ELSE o.role END=k.member_role AND k.member_role IN ('owner','admin','sender') AND EXISTS(SELECT 1 FROM json_each(k.scopes) WHERE value='envelopes:send')) AND ?=?`,values:[origin.credential.id,row?.version??-1,principal,now(),origin.principal,principal]}
+ const active=Boolean(await env.DB.prepare(`SELECT 1 WHERE ${guard.sql}`).bind(...guard.values).first())
+ return {record:row?{kind:'api_key' as const,id:row.id,version:row.version,memberVersion:row.member_version}:null,active,guard}
+}
 export async function evaluateSendPolicy(env: Env, envelope: Envelope, principal: string, options: { deferred: boolean; approved: boolean; stage: 'request' | 'release' }): Promise<SendDecision> {
   const source = envelopeSource(envelope), memberships = await principalScopes(env,principal), policies = await Promise.all(['account',...memberships.list.map(encodedScope)].map(scope => sendPolicy(env,source,scope))), label = sourceLabel[source]
   const rank: Record<SendMode,number> = {off:0,person:1,autonomous:2}
   const policy = policies.reduce((effective,next) => ({...effective,mode:rank[next.mode]<rank[effective.mode]?next.mode:effective.mode,templates:effective.templates===null?next.templates:next.templates===null?effective.templates:effective.templates.filter(id=>next.templates!.includes(id)),requireInternalApproval:effective.requireInternalApproval||next.requireInternalApproval,deferredRelease:effective.deferredRelease&&next.deferredRelease}))
+  const credential = await sendCredential(env,envelope,principal)
   let code: string | undefined, reason: string | undefined
   if (policy.mode === 'off') [code, reason] = ['send_policy_off', `The effective send policy for ${label} sends is off. Ask an owner or admin to turn it on.`]
   else if (policy.templates && !((envelope.templates ?? (envelope.template ? [envelope.template] : [])).length && (envelope.templates ?? [envelope.template!]).every(t=>policy.templates!.includes(t.id)))) [code, reason] = ['send_policy_template', `The effective send policy for ${label} sends does not include this template.`]
   else if (options.deferred && !policy.deferredRelease) [code, reason] = ['send_policy_deferred', `The effective send policy for ${label} sends does not allow scheduling.`]
   else if (options.stage === 'release' && policy.requireInternalApproval && !options.approved) [code, reason] = ['send_policy_approval', `The effective send policy for ${label} sends now requires an internal approval first.`]
-  const effective = { source, mode: policy.mode, principal, credential: null, policies: policies.map(p=>({...scopeParts(p.scope==='account'?'account':`${p.scope}:${p.scopeId}`),version:p.version})), templates: policy.templates, requireInternalApproval: policy.requireInternalApproval, deferredRelease: policy.deferredRelease }
+  if (!credential.active) [code,reason]=['send_credential','The sending credential is no longer active or its bound member no longer has sending authority. A current editor must confirm again.']
+  else if(envelope.sendOrigin && policy.mode === 'person') [code,reason]=['send_policy_person','The effective API policy requires a person to confirm each send. Prepare a draft for an editor instead.']
+  const effective = { source, mode: policy.mode, principal, credential: credential.record, policies: policies.map(p=>({...scopeParts(p.scope==='account'?'account':`${p.scope}:${p.scopeId}`),version:p.version})), templates: policy.templates, requireInternalApproval: policy.requireInternalApproval, deferredRelease: policy.deferredRelease }
   const record: SendPolicyRecord = { ...effective, fingerprint: await sha256(canonical(effective)) }
-  const guards = [memberships.fence,...policies.map(p=>versionGuard(source,p.version,p.scope==='account'?'account':`${p.scope}:${p.scopeId}`))]
+  const guards = [credential.guard,memberships.fence,...policies.map(p=>versionGuard(source,p.version,p.scope==='account'?'account':`${p.scope}:${p.scopeId}`))]
   const fence: Guard = {sql:guards.map(g=>`(${g.sql})`).join(' AND '),values:guards.flatMap(g=>g.values)}
   return { allowed: !code, ...(code ? { code, reason } : {}), requiresApproval: policy.requireInternalApproval, record, versionFence: fence, fence: { sql: `${fence.sql} AND ?=1`, values: [...fence.values, code ? 0 : 1] } }
 }

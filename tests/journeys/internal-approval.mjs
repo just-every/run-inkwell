@@ -248,6 +248,32 @@ try {
   await capture('policy-approved-sent', policyReview); await policyContext.close()
   const currentPolicy = (await app.call('/api/inkwell/send-policies', { cookie: app.owner })).value.policies.find(p => p.source === 'ad_hoc')
   await app.command('account.send_policy', { source: 'ad_hoc', expectedVersion: currentPolicy.version, requireInternalApproval: false })
+  // API-001/SEND-001: the built detail screen shows policy/credential holds and a real editor's recovery.
+  await app.command('account.internal_approval',{rule:null})
+  const ownerId=(await app.call('/api/inkwell',{cookie:app.owner})).value.actor.id
+  const apiPolicy=async change=>{const p=(await app.call('/api/inkwell/send-policies',{cookie:app.owner})).value.policies.find(p=>p.source==='api');return app.command('account.send_policy',{source:'api',expectedVersion:p.version,...change})}
+  await apiPolicy({mode:'autonomous'})
+  const key=(await app.call('/api/inkwell/api-keys',{cookie:app.owner,body:{memberId:ownerId,name:`Operations release ${width}`,scopes:['envelopes:send'],commandId:crypto.randomUUID()}})).value
+  const keyHeaders={authorization:`Bearer ${key.token}`}
+  const apiSchedule={at:new Date(Date.now()+2*86400000).toISOString().slice(0,16),timeZone:'Pacific/Honolulu'}
+  const keySend=async title=>(await app.call('/api/v1/envelopes',{headers:keyHeaders,body:{title,filename:'api.pdf',pdfBase64,signers:[{name:'Mara Quinn',email:`api.${title.includes('credential')?'credential':'policy'}.${width}@clients.example`}],fields:[fields[0]],status:'sent',sendAt:apiSchedule,commandId:crypto.randomUUID()}})).value.result
+  const apiTitle=`API policy release ${width}`,apiSent=await keySend(apiTitle)
+  await apiPolicy({mode:'off'});await app.scheduled(Date.parse(apiSent.scheduled.at)+1000)
+  await page.reload();await page.getByRole('row',{name:new RegExp(apiTitle)}).first().click()
+  await page.getByText('Sending held.',{exact:true}).waitFor();await axe(page,`SEND-001 API policy held ${width}`);await capture('api-policy-held',page)
+  await apiPolicy({mode:'autonomous'});await app.scheduled(Date.parse(apiSent.scheduled.at)+3600000)
+  assert.equal((await app.call('/api/inkwell/envelopes/'+apiSent.id,{cookie:app.owner})).value.envelope.status,'prepared')
+  let apiDetail=page.getByRole('region',{name:apiTitle,exact:true})
+  await apiDetail.getByLabel(/confirm it is eligible for electronic signature/).check();await apiDetail.getByRole('button',{name:'Approve and invite first recipient',exact:true}).click()
+  await apiDetail.getByText('Sending held.',{exact:true}).waitFor({state:'detached'});await capture('api-policy-confirmed',page)
+  const credentialTitle=`API credential release ${width}`,credentialSent=await keySend(credentialTitle)
+  await app.call('/api/inkwell/api-keys/'+key.key.id+'/revoke',{cookie:app.owner,body:{commandId:crypto.randomUUID()}})
+  await app.scheduled(Date.parse(credentialSent.scheduled.at)+1000)
+  await page.reload();await page.getByRole('row',{name:new RegExp(credentialTitle)}).first().click()
+  await page.getByText('Sending held.',{exact:true}).waitFor();await axe(page,`SEND-001 API credential held ${width}`);await capture('api-credential-held',page)
+  apiDetail=page.getByRole('region',{name:credentialTitle,exact:true})
+  await apiDetail.getByLabel(/confirm it is eligible for electronic signature/).check();await apiDetail.getByRole('button',{name:'Approve and invite first recipient',exact:true}).click()
+  await apiDetail.getByText('Sending held.',{exact:true}).waitFor({state:'detached'});await capture('api-credential-confirmed',page)
   // A template carries its own rule, edited on the template screen.
   await app.command('account.internal_approval', { rule: null })
   const template = `Supply template ${width}`; await app.command('template.save', { title: template, filename: 'supply.pdf', pdfBase64, roles: [{ role: 'Client', order: 1 }], fields })
