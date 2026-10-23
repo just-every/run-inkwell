@@ -286,7 +286,7 @@ test('ADMIN-004: reminder, expiry, authentication, adoption, disclosure and reas
     assert.equal((await read(h, stillTemplate)).consumerDisclosure.text, defaults.disclosureText)
     assert.equal((await read(h, oldTemplated)).consumerDisclosure, undefined)
     assert.deepEqual((await read(h, stillTemplate)).adoptionMethods, ['uploaded'])
-    assert.deepEqual((await read(h, oldTemplated)).adoptionMethods, ['typed','drawn','uploaded'])
+    assert.deepEqual((await read(h, oldTemplated)).adoptionMethods, ['uploaded'], 'new template-derived drafts obey the current account limit, including older templates')
     assert.equal((await read(h, stillTemplate)).signers[0].linkOnly, true)
     assert.equal((await read(h, stillTemplate)).allowReassign, true, 'a template keeps its saved reassignment choice')
     assert.equal((await read(h, inherited)).allowReassign, true)
@@ -335,6 +335,11 @@ test('ADMIN-004: reminder, expiry, authentication, adoption, disclosure and reas
     let text='';for(let n=1;n<=pdf.numPages;n++)text+=(await(await pdf.getPage(n)).getTextContent()).items.map(item=>item.str).join(' ')+' '
     assert.ok(text.includes(defaults.disclosureText));assert.ok(!text.includes(changed.disclosureText));assert.ok(text.includes(disclosure.version))
     assert.equal((await h.send('/api/inkwell/envelopes/' + inherited + '/verify',undefined,h.owner)).value.ok, true)
+    await save({expiryDays:12,reminders:null,adoptionMethods:['typed']},admin)
+    const totalBefore=(await h.send('/api/inkwell/envelopes?limit=1',undefined,h.owner)).value.total
+    await h.command('template.use',{id:t,recipients:[{name:'Mara Quinn',email:'no.common.method@clients.example'}]},h.owner,409)
+    assert.equal((await h.send('/api/inkwell/envelopes?limit=1',undefined,h.owner)).value.total,totalBefore,'an empty adoption intersection creates no draft')
+    assert.equal((await h.send('/api/inkwell/envelopes/'+inherited+'/verify',undefined,h.owner)).value.ok,true,'later account restrictions never alter a completed request')
 
   } finally { await h.close() }
 })

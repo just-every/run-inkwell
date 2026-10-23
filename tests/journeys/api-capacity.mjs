@@ -5,7 +5,7 @@ import { PDFDocument } from 'pdf-lib'
 import { harness } from '../harness.mjs'
 const sha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim()
 execFileSync('git',['diff','--exit-code','HEAD'],{stdio:'pipe'})
-const runId=`cloud-sx-inkwell-c42-api-capacity-${new Date().toISOString().replace(/[-:.]/g,'')}`
+const runId=`inkwell-api-capacity-${new Date().toISOString().replace(/[-:.]/g,'')}`
 execFileSync(process.execPath,['--test','--test-name-pattern=API-001: hourly 30/7-day warnings','tests/api-keys.test.mjs'],{stdio:'inherit'})
 const start=Date.now(),h=await harness({now:start})
 try {
