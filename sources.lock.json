@@ -3387,7 +3387,7 @@
       "executable": false
     },
     "src/ui/public-form.tsx": {
-      "sha256": "7e18421f809cc13a8a7ed8c4eaf1f7216209292a4962433e7e2a42aa5029a9c2",
+      "sha256": "a463148cac55896fd517f75cbe30861ee7612e781f633b7a31154f1eb2115dbc",
       "executable": false
     },
     "src/ui/public-verify.tsx": {

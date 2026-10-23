@@ -6,15 +6,15 @@ import { request } from './types'
 type Bot = { render:(element:HTMLElement,options:{sitekey:string;action:string;callback:(token:string)=>void;'expired-callback':()=>void;'error-callback':()=>void})=>string;remove:(id:string)=>void }
 let botScript:Promise<void>|undefined
 function BotCheck({siteKey,action,onToken}:{siteKey:string;action:string;onToken:(token:string)=>void}){
- const element=useRef<HTMLDivElement>(null)
+ const element=useRef<HTMLDivElement>(null),[failed,setFailed]=useState(false)
  useEffect(()=>{
   let cancelled=false,widget:string|undefined
   const api=()=> (window as unknown as {turnstile?:Bot}).turnstile
   if(!botScript)botScript=new Promise<void>((resolve,reject)=>{if(api())return resolve();const script=document.createElement('script');script.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';script.async=true;script.onload=()=>resolve();script.onerror=()=>reject(new Error('Bot verification is unavailable.'));document.head.appendChild(script)})
-  void botScript.then(()=>{if(!cancelled&&element.current)widget=api()!.render(element.current,{sitekey:siteKey,action,callback:onToken,'expired-callback':()=>onToken(''),'error-callback':()=>onToken('')})}).catch(()=>{if(!cancelled)onToken('')})
+  void botScript.then(()=>{if(!cancelled&&element.current)widget=api()!.render(element.current,{sitekey:siteKey,action,callback:onToken,'expired-callback':()=>onToken(''),'error-callback':()=>{onToken('');setFailed(true)}})}).catch(()=>{if(!cancelled){onToken('');setFailed(true)}})
   return()=>{cancelled=true;if(widget)api()?.remove(widget)}
  },[siteKey,action,onToken])
- return <div ref={element} aria-label="Bot verification" />
+ return <div className="iw-stack"><div ref={element} aria-label="Bot verification" />{failed&&<p role="alert">Bot verification is unavailable. Reload this page to try again.</p>}</div>
 }
 /** The public entry uses the existing signing look; verified submission continues in the ordinary signer page. */
 export function PublicForm({id}:{id:string}){
@@ -28,7 +28,7 @@ export function PublicForm({id}:{id:string}){
   else if(stage==='submit'){const response=await request<{result:{status:string;signingPath?:string;message?:string}}>(base+'/submit',{name,admissionToken:grant,turnstileToken:botToken,commandId:crypto.randomUUID()});setGrant('');if(response.result.signingPath){window.location.assign(response.result.signingPath);return}setMessage(response.result.message??'Your unsigned submission is waiting for the publisher to review it.');setStage('held')}
   setBotToken('')
  }
- return <div className="iw-app"><header className="iw-topbar"><Brand /></header><main className="iw-main iw-stack">
+ return <div className="iw-app iw-signer"><header className="iw-header"><Brand href="/" /><span className="iw-header-note">Secure document signing</span></header><main className="iw-main iw-stack">
   <section className="iw-page-heading"><div><p className="iw-eyebrow">Public signing form</p><h1>{form?.title??'Signing form'}</h1>{form&&<p>You sign as {form.role}. Other recipients and the document are fixed by the publisher.</p>}</div></section>
   <p><a href={`/api/forms/${id}/qr.svg`} download>Download form QR code</a></p>
   <section className="iw-panel iw-stack"><ErrorNotice error={action.error}/>
