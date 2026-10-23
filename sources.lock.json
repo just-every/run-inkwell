@@ -3235,7 +3235,7 @@
       "executable": false
     },
     "src/ui/envelope-detail.tsx": {
-      "sha256": "e602d6dc3a5175b0fc1165707ab2cda44f2e8827a932f54a70fce95d08d1b3ad",
+      "sha256": "2d7a1d7dc4776656ce2a9c96013ba498adb0923fe596c1375789cd57af3947ec",
       "executable": false
     },
     "src/ui/envelope-list.tsx": {
@@ -3611,7 +3611,7 @@
       "executable": false
     },
     "tests/journeys/internal-approval.mjs": {
-      "sha256": "515fd59bf1da00bd211b02f2002601a5c25d79478f39c3e5b17f42a73bfcd9a9",
+      "sha256": "a83dd34f029867df0e4fa38f89ad754d3001e9b669ad11c0d76326074fc569e6",
       "executable": false
     },
     "tests/journeys/mail-worker.mjs": {

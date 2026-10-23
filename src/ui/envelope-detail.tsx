@@ -1,3 +1,4 @@
+import { TooltipButton } from './tooltip-button'
 import { Part11Profile } from './part11'
 import { Comments } from './comments'
 import { EnvelopeSupplements } from './supplements'
@@ -106,7 +107,7 @@ export function EnvelopeDetail({ envelope, actor, refresh, onClose, onOpen, onEd
     const { signing } = await command<OwnSigningResult>('envelope.open_signing', { id: envelope.id }); window.location.assign(signing.url)
   }
   return <section className="iw-detail" aria-label={envelope.title}><div className="iw-detail-body">
-    <div className="iw-detail-top"><Pill {...state} /><button className="iw-icon-button" aria-label="Close" onClick={onClose}><Icon name="close" /></button></div>
+    <div className="iw-detail-top"><Pill {...state} /><TooltipButton tooltip="Close details" className="iw-icon-button" aria-label="Close" onClick={onClose}><Icon name="close" /></TooltipButton></div>
     {envelope.sendHold && <div className="iw-alert" role="status"><span className="iw-alert-mark" aria-hidden="true">!</span><div><strong>Sending held.</strong><p>The sending confirmation is no longer valid. A current editor must review and confirm again.</p></div></div>}
     <h2>{name}</h2>{(envelope.part11 || envelope.status==='prepared' && ['owner','admin'].includes(actor.role)) && <Part11Profile id={envelope.id} enabled={Boolean(envelope.part11)} available={envelope.status==='prepared' && ['owner','admin'].includes(actor.role)} refresh={refresh} />}{envelope.freeForm && <p className="iw-muted">Free-form signing{envelope.freeFormSetting ? ` · setting version ${envelope.freeFormSetting.version}` : ' · signers place their own fields'}</p>}<p className="iw-detail-sub">{detail && <span>{detail}</span>}<span className="iw-detail-date">Prepared {dateTime(envelope.createdAt)}</span>{['prepared', 'awaiting_signature', 'expired'].includes(envelope.status) && envelope.expiresAt && <span className="iw-detail-date">{envelope.status === 'expired' ? 'Expired' : 'Expires'} {dateTime(envelope.expiresAt)}</span>}{envelope.reminders && ['prepared', 'awaiting_signature'].includes(envelope.status) && <span>Reminders after {envelope.reminders.afterDays}, then every {envelope.reminders.everyDays} business days</span>}{envelope.copiedFrom && <span>Copied from envelope {envelope.copiedFrom.slice(0, 8)}</span>}</p>
 
