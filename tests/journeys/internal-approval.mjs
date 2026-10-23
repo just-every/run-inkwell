@@ -118,6 +118,7 @@ try {
   await signing.getByRole('heading',{name:'All signatures are complete.',exact:true}).waitFor()
   assert.equal((await app.call('/api/inkwell/envelopes/'+adoptionId,{cookie:app.owner})).value.envelope.status,'completed')
   await capture('allowed-adoption-completed',signing); await signerContext.close()
+  await page.screenshot({path:`${images}/${width}-settings-before-reset.png`,fullPage:true})
   // Reset to the installation defaults so the rest of this journey keeps its own explicit settings.
   await defaults.getByLabel('Additional consumer disclosure', {exact:true}).fill('')
   await defaults.getByLabel('Typed name', {exact:true}).check()
@@ -257,4 +258,4 @@ try {
   await owner.close()
  }
  console.log('SEND-001 held/reconfirmed scheduled and internal-approval sends; ROUTE-004 passed at 1440/390: account and template rules, waiting draft, reject with reason, approve and send, accessibility')
-} catch (error) { await screenshots(app.browser, 'route-004'); throw error } finally { await app.close() }
+} catch (error) { for(const context of app.browser.contexts())for(const page of context.pages())console.error('Default proof diagnostic',JSON.stringify({headings:await page.getByRole('heading').allTextContents(),defaultRegions:await page.getByRole('region',{name:'Envelope defaults',exact:true}).count(),textareaCount:await page.locator('textarea').count()})); await screenshots(app.browser, 'route-004'); throw error } finally { await app.close() }
