@@ -112,7 +112,7 @@ try {
   await axe(signing,`ADMIN-004 allowed adoption ${width}`); await capture('allowed-adoption',signing)
   await signing.getByLabel(/I have reviewed this document and consent/).check()
   await signing.getByRole('button',{name:'Sign document',exact:true}).click()
-  await signing.getByRole('heading',{name:'Your signature has been recorded.',exact:true}).waitFor()
+  await signing.getByRole('heading',{name:'All signatures are complete.',exact:true}).waitFor()
   assert.equal((await app.call('/api/inkwell/envelopes/'+adoptionId,{cookie:app.owner})).value.envelope.status,'completed')
   await capture('allowed-adoption-completed',signing); await signerContext.close()
   // Reset to the installation defaults so the rest of this journey keeps its own explicit settings.
