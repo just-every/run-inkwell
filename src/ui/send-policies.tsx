@@ -17,7 +17,7 @@ export function SendPolicies({ policies, history, templates, refresh }: { polici
     <h2>Send policies</h2>
     <p>Choose, for each source, whether it may send. Every save is a new version; each sent envelope records the source, the policy versions that allowed it and a fingerprint of them.</p>
     <p className="iw-muted">If a policy turns off or changes before a deferred send is released, the send goes back to a held draft and an editor must confirm it again, even if the policy is turned back on. Envelopes already sent are never recalled. The account policy combines with every applicable member group and permission profile. These scopes only narrow authority: restrictive modes and template intersections win; approval requirements accumulate; any scheduling refusal wins.</p>
-    <label>Policy scope<select value={scope} onChange={event=>setScope(event.target.value)}><option value="account">Whole account</option>{scopes.map(s=><option key={s.id} value={`${s.kind}:${s.id}`}>{s.kind==='group'?'Group':'Profile'}: {s.name}</option>)}</select></label>
+    <label>Policy scope<select aria-label="Policy scope" value={scope} onChange={event=>setScope(event.target.value)}><option value="account">Whole account</option>{scopes.map(s=><option key={s.id} value={`${s.kind}:${s.id}`}>{s.kind==='group'?'Group':'Profile'}: {s.name}</option>)}</select></label>
     <ErrorNotice error={error}/>
     {shownPolicies.map(policy => <PolicyRow key={`${policy.scope}-${policy.scopeId ?? ''}-${policy.source}-${policy.version}`} policy={policy} templates={templates} refresh={refresh} />)}
     {shownHistory.length > 0 && <details><summary>Policy history ({shownHistory.length})</summary>
