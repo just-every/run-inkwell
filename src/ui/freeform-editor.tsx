@@ -1,3 +1,4 @@
+import { TooltipButton } from './tooltip-button'
 import { useId, useState } from 'react'
 import type { Field } from './types'
 import { fieldTypes } from '../inkwell/business-fields'
@@ -67,7 +68,7 @@ export function FreeformEditor({ source, fields, signedFields, signer, name, pag
         const next = nudge(field, event.key, event.shiftKey)
         if (next) { event.preventDefault(); replace([next]) }
         if (event.key === 'Delete') { event.preventDefault(); editing.remove(field.id) }
-      }} /><span className={`iw-who-swatch ${colorClass(signer)}`} aria-hidden="true" />{field.label} · p{field.page + 1}</label><button type="button" disabled={busy} aria-label={`Remove field ${index + 1}`} onClick={() => editing.remove(field.id)}>×</button></div>)}</div>
+      }} /><span className={`iw-who-swatch ${colorClass(signer)}`} aria-hidden="true" />{field.label} · p{field.page + 1}</label><TooltipButton tooltip="Remove field" type="button" disabled={busy} aria-label={`Remove field ${index + 1}`} onClick={() => editing.remove(field.id)}>×</TooltipButton></div>)}</div>
       {signedFields.length > 0 && <section aria-label="Earlier signed fields"><h4>Earlier signed fields · locked</h4><ul>{signedFields.map(field => <li key={field.id}>{field.label} · {field.type.replaceAll('_', ' ')} · page {field.page + 1} · signed, read-only</li>)}</ul></section>}
     </aside>
     <PdfViewer source={source} fields={[...signedFields, ...fields]} activeField={current} editing={editing} onPlace={busy ? undefined : place} />

@@ -8,7 +8,7 @@ import { commitEnvelope, memberRoleSql, type Guard } from './storage'
 export const sendingFingerprint = (e: Envelope) => sha256(canonical({
   ...(e.freeForm ? { freeForm: true } : {}), ...(e.part11?{part11:e.part11}:{}),
   template: e.template ?? null, ...(e.templates?{templates:e.templates,approvalRules:e.approvalRules??[]}:{}), ...(e.documents?{documents:e.documents}:{}),
-  title: e.title, filename: e.filename, originalSha256: e.originalSha256, expiresAt: e.expiresAt,
+  adoptionMethods: e.adoptionMethods ?? null, title: e.title, filename: e.filename, originalSha256: e.originalSha256, expiresAt: e.expiresAt,
   signers: e.signers.map(({ routeResult, activatedAt, ...signer }) => signer), fields: e.fields,
   copies: e.copies?.map(({ routeResult, ...copy }) => copy) ?? [], supplements: e.supplements ?? [],
   subject: e.subject ?? '', message: e.message ?? '', reminders: e.reminders ?? null,

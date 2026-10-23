@@ -1,3 +1,4 @@
+import { validDefaultRecord } from './default-record.mjs';
 import { validSmsRecord } from './sms-record.mjs';
 import { validTemplateRecord } from './template-record.mjs';
 import { validRecipientRecord } from './recipient-record.mjs';
@@ -39,7 +40,7 @@ export default {
     }
     for await(const row of rows('iw_envelopes')) {
       const e=JSON.parse(row.data);
-      if(e.id!==row.id||e.version!==row.version||!await validRecipientRecord(e,canonicalJson,sha256)||!validSmsRecord(e)||!validTemplateRecord(e,canonicalJson)||!validPart11Record(e,canonicalJson)||!validDocumentRecord(e,canonicalJson)||!validSupplementRecord(e,canonicalJson)||!await verifyFreeFormRecord(e))return false;
+      if(e.id!==row.id||e.version!==row.version||!await validRecipientRecord(e,canonicalJson,sha256)||!validSmsRecord(e)||!validDefaultRecord(e,canonicalJson)||!validTemplateRecord(e,canonicalJson)||!validPart11Record(e,canonicalJson)||!validDocumentRecord(e,canonicalJson)||!validSupplementRecord(e,canonicalJson)||!await verifyFreeFormRecord(e))return false;
       const threads=[];for await(const r of rows('iw_comment_threads','envelope_id=?',[e.id]))threads.push(r);
       if(!await validCommentRecords(e,threads,canonicalJson,sha256))return false;
       try {for(const [index,signer] of e.signers.entries()){

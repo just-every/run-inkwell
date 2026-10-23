@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { PDFDocument } from 'pdf-lib'
@@ -220,7 +221,7 @@ test('SEND-001 and ADMIN-004: a scheduled send is held when its policy turns off
 })
 
 
-test('ADMIN-004: reminder, expiry, authentication and reassignment defaults are administered, inherited by new drafts and templates, overridden explicitly and never change saved records', async () => {
+test('ADMIN-004: reminder, expiry, authentication, adoption and reassignment defaults are administered, inherited by new drafts and templates, overridden explicitly and never change saved records', async () => {
   const h = await harness()
   try {
     const admin = await h.invite('defaults.admin@harbour.example', 'admin'), sender = await h.invite('defaults.sender@harbour.example', 'member'), viewer = await h.invite('defaults.viewer@harbour.example', 'member')
@@ -240,12 +241,14 @@ test('ADMIN-004: reminder, expiry, authentication and reassignment defaults are 
     await save({ expiryDays: 21 }, admin, 400)
     await save({ expiryDays: 21, reminders: null, allowReassignment: 'yes' }, admin, 400)
     await save({ expiryDays: 21, reminders: null, authentication: 'unknown' }, admin, 400)
+    for (const adoptionMethods of [[], ['unknown'], 'typed']) await save({expiryDays:21,reminders:null,adoptionMethods},admin,400)
     assert.equal((await settings()).version, 0, 'refusals leave defaults untouched')
-    const defaults = (await save({ expiryDays: 21, reminders: { afterDays: 2, everyDays: 3 }, allowReassignment: true, authentication: 'link' })).result.defaults
+    const defaults = (await save({ expiryDays: 21, reminders: { afterDays: 2, everyDays: 3 }, allowReassignment: true, authentication: 'link', adoptionMethods: ['uploaded'] })).result.defaults
     assert.equal(defaults.actor, (await h.send('/api/inkwell', undefined, h.owner)).value.actor.id)
     assert.ok(Number.isFinite(Date.parse(defaults.at)))
     await h.command('account.envelope_defaults', { expectedVersion: 0, expiryDays: 10, reminders: null }, admin, 409)
     const inherited = await prepare('Inherited reminders'), inheritedEnvelope = await read(h, inherited)
+    assert.deepEqual(inheritedEnvelope.adoptionMethods, ['uploaded']); assert.deepEqual((await read(h, old)).adoptionMethods, ['typed','drawn','uploaded'])
     assert.equal(inheritedEnvelope.signers[0].linkOnly, true); assert.equal((await read(h, old)).signers[0].linkOnly, undefined)
     assert.equal(inheritedEnvelope.allowReassign, true); assert.equal((await read(h, old)).allowReassign, undefined)
     assert.equal(days(inheritedEnvelope), 21); assert.deepEqual(inheritedEnvelope.reminders, defaults.reminders)
@@ -274,15 +277,18 @@ test('ADMIN-004: reminder, expiry, authentication and reassignment defaults are 
     assert.equal((await read(h, old)).allowReassign, undefined, 'editing a draft without a new choice preserves false')
     await h.command('template.update', { id: oldTemplate, title: 'Old template edited', filename: 'old.pdf', pdfBase64: await pdfBase64(), roles: [{role:'Client',order:1}], fields:[field], expiryDays:30, reminders:null })
     assert.equal((await read(h, await fromTemplate(h, oldTemplate, 'edited.template@clients.example'))).allowReassign, undefined, 'editing an old template without a new choice preserves false')
-    const changed = (await save({ expiryDays: 12, reminders: null, allowReassignment: false, authentication: 'email' }, admin)).result.defaults
+    const changed = (await save({ expiryDays: 12, reminders: null, allowReassignment: false, authentication: 'email', adoptionMethods: ['typed','drawn','uploaded'] }, admin)).result.defaults
     assert.equal(changed.actor, (await h.send('/api/inkwell', undefined, admin)).value.actor.id)
     assert.equal(days(await read(h, inherited)), 21); assert.deepEqual((await read(h, inherited)).reminders, defaults.reminders)
     const stillTemplate = await fromTemplate(h, t, 'still.template@clients.example')
+    assert.deepEqual((await read(h, stillTemplate)).adoptionMethods, ['uploaded'])
+    assert.deepEqual((await read(h, oldTemplated)).adoptionMethods, ['typed','drawn','uploaded'])
     assert.equal((await read(h, stillTemplate)).signers[0].linkOnly, true)
     assert.equal((await read(h, stillTemplate)).allowReassign, true, 'a template keeps its saved reassignment choice')
     assert.equal((await read(h, inherited)).allowReassign, true)
     assert.equal(days(await read(h, stillTemplate)), 21); assert.deepEqual((await read(h, stillTemplate)).reminders, defaults.reminders, 'saved templates keep their snapshot')
     const fresh = await prepare('New defaults')
+    assert.deepEqual((await read(h, fresh)).adoptionMethods, ['drawn','typed','uploaded'])
     assert.equal((await read(h, fresh)).signers[0].linkOnly, undefined)
     assert.equal((await read(h, fresh)).allowReassign, undefined)
     assert.equal(days(await read(h, fresh)), 12); assert.equal((await read(h, fresh)).reminders, undefined)
@@ -294,9 +300,22 @@ test('ADMIN-004: reminder, expiry, authentication and reassignment defaults are 
     assert.ok(await h.mail('inherited.reminders@clients.example', 'Reminder to sign:'))
     assert.equal(await h.mail('reminders.off@clients.example', 'Reminder to sign:'), undefined)
     const copy = (await h.command('envelope.copy', { id: inherited }, sender)).result.id
+    assert.deepEqual((await read(h, copy)).adoptionMethods, ['uploaded'])
     assert.equal((await read(h, copy)).allowReassign, true, 'a copy keeps the source reassignment choice')
     assert.equal(days(await read(h, copy)), 12, 'a copied envelope starts with the current account expiry')
     assert.deepEqual((await read(h, copy)).reminders, defaults.reminders, 'a copy keeps the source envelope reminder choice')
+    const invitation = await h.mail('inherited.reminders@clients.example', 'Please sign:')
+    const path = '/api/sign/' + new URL(invitation.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)
+    const cookie = (await h.post(path + '/open', {})).cookie
+    await h.agree(path, cookie)
+    assert.deepEqual((await h.send(path, undefined, cookie)).value.adoptionMethods, ['uploaded'], 'signing keeps the prepared methods after the default widens')
+    const sign = (adoption, status) => h.post(path + '/sign', { values: {sig:'Mara Quinn'}, consent:true, adoption, commandId:crypto.randomUUID() }, cookie, status)
+    await sign({method:'typed',style:'sans'}, 403)
+    await sign({method:'drawn',imageBase64:'synthetic-inkwell-1'}, 403)
+    await sign({method:'uploaded',mediaType:'image/jpeg',imageBase64:(await readFile('tests/fixtures/signature.jpg')).toString('base64')}, 200)
+    assert.equal((await read(h, inherited)).signers[0].adoption.method, 'uploaded')
+    assert.equal((await h.send('/api/inkwell/envelopes/' + inherited + '/verify',undefined,h.owner)).value.ok, true)
+
   } finally { await h.close() }
 })
 

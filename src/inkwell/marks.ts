@@ -17,9 +17,9 @@ export const markKind = (signer: number, initials = false) => `${initials ? 'ini
 const pngMagic = [0x89, 0x50, 0x4e, 0x47], jpegMagic = [0xff, 0xd8, 0xff]
 
 /** The adoption a signing request carries (typed in the sans style when it names none), with the image bytes. */
-export async function parseAdoption(value: unknown): Promise<{ adoption: Adoption; image?: Uint8Array }> {
-  if (value === undefined) return { adoption: typed }
-  const input = object(value)
+export async function parseAdoption(value: unknown, allowed: import('./model').AdoptionMethod[] = ['typed','drawn','uploaded']): Promise<{ adoption: Adoption; image?: Uint8Array }> {
+  const input: Record<string, unknown> = value === undefined ? { ...typed } : object(value)
+  insist(allowed.includes(input.method as import('./model').AdoptionMethod), 'This signature adoption method is not allowed for this envelope.', 403)
   if (input.method === 'typed') { insist(typeof input.style === 'string' && Object.hasOwn(typedStyles, input.style), 'Choose a signature style.'); return { adoption: { method: 'typed', style: input.style as TypedStyle } } }
   insist(input.method === 'drawn' || input.method === 'uploaded', 'Adopt your signature by typing, drawing or uploading it.')
   const mediaType = input.method === 'drawn' ? 'image/png' : input.mediaType

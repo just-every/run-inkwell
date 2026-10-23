@@ -32,6 +32,7 @@ export function RetentionRule({ retention, refresh }: { retention: Retention; re
 
 /** ADMIN-004: initial values for new envelopes and templates; existing records keep their own choices. */
 export function EnvelopeDefaultsSettings({ defaults, refresh }: { defaults: import('./types').EnvelopeDefaults; refresh: () => Promise<void> }) {
+  const [adoptionMethods, setAdoptionMethods] = useState<import('../inkwell/model').AdoptionMethod[]>(defaults.adoptionMethods ?? ['typed','drawn','uploaded'])
   const [authentication, setAuthentication] = useState(defaults.authentication ?? 'email')
   const [allowReassignment, setAllowReassignment] = useState(Boolean(defaults.allowReassignment))
   const [hideDocumentsWithoutFields,setHideDocumentsWithoutFields]=useState(Boolean(defaults.hideDocumentsWithoutFields))
@@ -40,7 +41,8 @@ export function EnvelopeDefaultsSettings({ defaults, refresh }: { defaults: impo
   const action = useAction()
   return <section className="iw-panel iw-stack" aria-label="Envelope defaults"><h2>Envelope defaults</h2>
     <p>New envelopes and templates start with these choices. A template or an envelope can override them; existing envelopes and saved templates keep their settings.</p>
-    <form className="iw-stack" onSubmit={event => { event.preventDefault(); void action.run(async () => { await command('account.envelope_defaults', { authentication, allowReassignment, hideDocumentsWithoutFields, expiryDays, reminders: remind ? { afterDays, everyDays } : null, expectedVersion: defaults.version }); await refresh() }) }}>
+    <form className="iw-stack" onSubmit={event => { event.preventDefault(); void action.run(async () => { await command('account.envelope_defaults', { adoptionMethods, authentication, allowReassignment, hideDocumentsWithoutFields, expiryDays, reminders: remind ? { afterDays, everyDays } : null, expectedVersion: defaults.version }); await refresh() }) }}>
+      <fieldset className="iw-stack"><legend>Allowed signature adoption methods for new requests</legend>{(['typed','drawn','uploaded'] as const).map(method => <label className="iw-check" key={method}><input type="checkbox" checked={adoptionMethods.includes(method)} disabled={action.busy} onChange={event => setAdoptionMethods(current => event.target.checked ? [...current, method] : current.filter(m => m !== method))} />{method === 'typed' ? 'Typed name' : method === 'drawn' ? 'Drawn signature' : 'Uploaded signature'}</label>)}<p>Allow at least one method. Saved drafts and templates keep their allowed methods, and sent requests continue under their saved choices.</p></fieldset>
       <label>Default recipient authentication<select value={authentication} disabled={action.busy} onChange={event => setAuthentication(event.target.value as 'email' | 'link')}><option value="email">Email code</option><option value="link">Link only</option></select></label>
       {authentication === 'link' && <p role="note">Anyone with an invitation link can sign as its recipient. New recipients start with this choice; the sender can choose a stronger method before sending. Link-only signing is refused until email delivery is configured.</p>}
       <label className="iw-check"><input type="checkbox" checked={allowReassignment} disabled={action.busy} onChange={event => setAllowReassignment(event.target.checked)} />Allow recipient reassignment by default</label>

@@ -11,6 +11,7 @@ const styles: { id: Style; label: string; className: string }[] = [
   { id: 'serif-bold', label: 'Serif bold italic', className: 'iw-mark-serif-bold' },
 ]
 export const defaultAdoption: AdoptionInput = { method: 'typed', style: 'sans' }
+export const defaultAllowedAdoption = (allowed: AdoptionInput['method'][] = ['typed','drawn','uploaded']): AdoptionInput => allowed.includes('typed') ? defaultAdoption : allowed.includes('drawn') ? { method: 'drawn', imageBase64: '' } : { method: 'uploaded', mediaType: 'image/png', imageBase64: '' }
 const MAX_MARK = 512 * 1024
 export function fromSaved(saved: SavedMark): AdoptionInput {
   const { adoption, imageBase64 } = saved
@@ -19,8 +20,8 @@ export function fromSaved(saved: SavedMark): AdoptionInput {
 }
 const base64 = (bytes: Uint8Array) => { let out = ''; for (let i = 0; i < bytes.length; i += 0x8000) out += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(out) }
 
-type Props = { kind?: 'signature' | 'initials'; name: string; value: AdoptionInput; onChange: (value: AdoptionInput) => void; disabled: boolean }
-export function AdoptSignature({ kind = 'signature', name, value, onChange, disabled }: Props) {
+type Props = { allowedMethods?: AdoptionInput['method'][]; kind?: 'signature' | 'initials'; name: string; value: AdoptionInput; onChange: (value: AdoptionInput) => void; disabled: boolean }
+export function AdoptSignature({ kind = 'signature', allowedMethods = ['typed','drawn','uploaded'], name, value, onChange, disabled }: Props) {
   const [method, setMethod] = useState<AdoptionInput['method']>(value.method)
   const [error, setError] = useState('')
   const shown = name.trim() || (kind === 'initials' ? 'Your initials' : 'Your name')
@@ -36,15 +37,15 @@ export function AdoptSignature({ kind = 'signature', name, value, onChange, disa
   return <fieldset className="iw-adopt iw-stack" disabled={disabled}>
     <legend>Adopt your {kind} <span>applied to every {kind} field</span></legend>
     <div className="iw-adopt-methods" role="radiogroup" aria-label={`How to adopt your ${kind}`}>
-      {(['typed', 'drawn', 'uploaded'] as const).map(id => <label key={id} className="iw-check"><input type="radio" name={`iw-adopt-method-${kind}`} checked={method === id} onChange={() => choose(id)} />{id === 'typed' ? 'Type' : id === 'drawn' ? 'Draw' : 'Upload'}</label>)}
+      {(['typed', 'drawn', 'uploaded'] as const).filter(method => allowedMethods.includes(method)).map(id => <label key={id} className="iw-check"><input type="radio" name={`iw-adopt-method-${kind}`} checked={method === id} onChange={() => choose(id)} />{id === 'typed' ? 'Type' : id === 'drawn' ? 'Draw' : 'Upload'}</label>)}
     </div>
     {method === 'typed' && <div className="iw-adopt-styles" role="radiogroup" aria-label={`${kind === 'signature' ? 'Signature' : 'Initials'} style`}>
       {styles.map(style => <label key={style.id} className="iw-check"><input type="radio" name={`iw-adopt-style-${kind}`} checked={value.method === 'typed' && value.style === style.id} onChange={() => onChange({ method: 'typed', style: style.id })} /><span><span className={`iw-mark-preview ${style.className}`}>{shown}</span><small>{style.label}</small></span></label>)}
     </div>}
-    {method === 'drawn' && <DrawPad kind={kind} onDrawn={imageBase64 => onChange(imageBase64 ? { method: 'drawn', imageBase64 } : defaultAdoption)} drawn={image} />}
+    {method === 'drawn' && <DrawPad kind={kind} onDrawn={imageBase64 => onChange(imageBase64 ? { method: 'drawn', imageBase64 } : defaultAllowedAdoption(allowedMethods))} drawn={image} />}
     {method === 'uploaded' && <label>{kind === 'signature' ? 'Signature' : 'Initials'} image (PNG or JPEG, up to 512 KB)<input type="file" accept="image/png,image/jpeg" onChange={event => void upload(event.target.files?.[0])} /></label>}
     {method === 'uploaded' && image && <img className="iw-mark-image" src={image} alt={`Your uploaded ${kind}`} />}
-    {method !== 'typed' && !image && <p className="iw-muted" role="status">{method === 'drawn' ? `Draw your ${kind} in the box.` : `Choose an image of your ${kind}.`} Until then your typed {kind === 'signature' ? 'name' : 'initials'} is used.</p>}
+    {method !== 'typed' && !image && <p className="iw-muted" role="status">{method === 'drawn' ? `Draw your ${kind} in the box.` : `Choose an image of your ${kind}.`} {allowedMethods.includes('typed') ? `Until then your typed ${kind === 'signature' ? 'name' : 'initials'} is used.` : 'Add your mark before signing.'}</p>}
     {error && <p className="iw-error" role="alert">{error}</p>}
   </fieldset>
 }

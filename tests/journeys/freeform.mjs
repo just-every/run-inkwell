@@ -69,6 +69,13 @@ try {
     // Add through the PREP-005 keyboard page, then move and resize through its unchanged inspector.
     await activate(first, first.getByRole('button', { name: /^Place field on page 1;/ }))
     await enter(first, first.getByLabel('Label of the selected field', { exact: true }), 'Client signature')
+    const remove = first.getByRole('button', {name:'Remove field 1',exact:true})
+    await remove.hover(); await first.getByRole('tooltip',{name:'Remove field',exact:true}).waitFor()
+    await capture(first,width,'remove-tooltip-hover'); await first.mouse.move(0,0)
+    await first.getByRole('tooltip').waitFor({state:'detached'})
+    await remove.focus(); assert.equal(await first.getByRole('tooltip',{name:'Remove field',exact:true}).isVisible(),true)
+    await capture(first,width,'remove-tooltip-focus'); await first.keyboard.press('Escape')
+    await first.getByRole('tooltip').waitFor({state:'detached'})
     await choose(first, first.getByLabel('Page of the selected field', { exact: true }), 0)
     await enter(first, first.getByLabel('Left (%) of the selected field', { exact: true }), 12)
     await enter(first, first.getByLabel('Top (%) of the selected field', { exact: true }), 33)
