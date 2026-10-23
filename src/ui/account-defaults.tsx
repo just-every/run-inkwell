@@ -32,13 +32,15 @@ export function RetentionRule({ retention, refresh }: { retention: Retention; re
 
 /** ADMIN-004: initial values for new envelopes and templates; existing records keep their own choices. */
 export function EnvelopeDefaultsSettings({ defaults, refresh }: { defaults: import('./types').EnvelopeDefaults; refresh: () => Promise<void> }) {
+  const [allowReassignment, setAllowReassignment] = useState(Boolean(defaults.allowReassignment))
   const [hideDocumentsWithoutFields,setHideDocumentsWithoutFields]=useState(Boolean(defaults.hideDocumentsWithoutFields))
   const [expiryDays, setExpiryDays] = useState(defaults.expiryDays), [remind, setRemind] = useState(Boolean(defaults.reminders))
   const [afterDays, setAfterDays] = useState(defaults.reminders?.afterDays ?? 2), [everyDays, setEveryDays] = useState(defaults.reminders?.everyDays ?? 2)
   const action = useAction()
   return <section className="iw-panel iw-stack" aria-label="Envelope defaults"><h2>Envelope defaults</h2>
     <p>New envelopes and templates start with these choices. A template or an envelope can override them; existing envelopes and saved templates keep their settings.</p>
-    <form className="iw-stack" onSubmit={event => { event.preventDefault(); void action.run(async () => { await command('account.envelope_defaults', { hideDocumentsWithoutFields, expiryDays, reminders: remind ? { afterDays, everyDays } : null, expectedVersion: defaults.version }); await refresh() }) }}>
+    <form className="iw-stack" onSubmit={event => { event.preventDefault(); void action.run(async () => { await command('account.envelope_defaults', { allowReassignment, hideDocumentsWithoutFields, expiryDays, reminders: remind ? { afterDays, everyDays } : null, expectedVersion: defaults.version }); await refresh() }) }}>
+      <label className="iw-check"><input type="checkbox" checked={allowReassignment} disabled={action.busy} onChange={event => setAllowReassignment(event.target.checked)} />Allow recipient reassignment by default</label>
       <label className="iw-check"><input type="checkbox" checked={hideDocumentsWithoutFields} disabled={action.busy} onChange={event=>setHideDocumentsWithoutFields(event.target.checked)}/>Hide documents without a recipient’s fields when saving new drafts or templates</label>
       <p>Document visibility is saved with each draft. This policy can only narrow the selected recipients; copies with no fields receive only the certificate. Sent envelopes keep their approved visibility.</p>
       <label>Default expiry (days)<input type="number" required min={1} max={365} step={1} value={expiryDays} disabled={action.busy} onChange={event => setExpiryDays(Number(event.target.value))} /></label>

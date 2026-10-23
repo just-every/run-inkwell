@@ -79,7 +79,7 @@ export async function combineTemplates(env: Env, context: CommandContext, input:
   const createdAt = now(), prepared = { bytes: multiple.bytes, documents: multiple.documents, composition: true as const }
   const { draft, accessCodes } = await readDraft(env, { title: plan.settings.title, filename: 'combined.pdf', signers, fields: plan.fields,
     expiresAt: new Date(Date.parse(createdAt) + plan.settings.expiryDays * 86_400_000).toISOString(), reminders: plan.settings.reminders ?? null,
-    ...(plan.settings.allowPaper ? { allowPaperSigning: true } : {}), ...(plan.settings.allowReassign ? { allowReassignment: true } : {}),
+    ...(plan.settings.allowPaper ? { allowPaperSigning: true } : {}), allowReassignment: Boolean(plan.settings.allowReassign),
     ...(plan.settings.subject ? { subject: plan.settings.subject } : {}), ...(plan.settings.message ? { message: plan.settings.message } : {}) }, createdAt, undefined, context.actor, prepared)
   const templates = plan.templates, approvalRules = sources.flatMap(source => source.template.approval ? [structuredClone(source.template.approval)] : [])
   const envelope = { id: id(), version: 1, status: 'prepared' as const, createdAt, createdBy: context.actor.id, ...draft,

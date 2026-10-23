@@ -4,7 +4,7 @@ import { chooseReminders, type Reminders } from './reminders'
 import { defaultExpiryDays, maxExpiryDays } from './expiry'
 import type { CommandContext } from './envelopes'
 
-export interface EnvelopeDefaults { hideDocumentsWithoutFields?: boolean; expiryDays: number; reminders: Reminders | null; version: number; actor: string | null; at: string | null }
+export interface EnvelopeDefaults { allowReassignment?: boolean; hideDocumentsWithoutFields?: boolean; expiryDays: number; reminders: Reminders | null; version: number; actor: string | null; at: string | null }
 const key = 'envelope_defaults'
 /** ADMIN-004: installation defaults are copied into new envelopes/templates, never applied retroactively. */
 export async function envelopeDefaults(env: Env): Promise<EnvelopeDefaults> {
@@ -20,7 +20,8 @@ export async function setEnvelopeDefaults(env: Env, context: CommandContext, inp
   const before = await envelopeDefaults(env)
   insist(input.expectedVersion === before.version, 'Envelope defaults changed. Refresh and try again.', 409)
   insist(input.hideDocumentsWithoutFields===undefined||typeof input.hideDocumentsWithoutFields==='boolean','Choose whether documents without fields are hidden.')
-  const defaults: EnvelopeDefaults = { hideDocumentsWithoutFields: input.hideDocumentsWithoutFields as boolean ?? before.hideDocumentsWithoutFields ?? false, expiryDays: input.expiryDays as number, reminders: chooseReminders(input.reminders) ?? null, version: before.version + 1, actor: actor.id, at: now() }, result = { defaults }
+  insist(input.allowReassignment === undefined || typeof input.allowReassignment === 'boolean', 'Choose whether recipients may reassign their signing.')
+  const defaults: EnvelopeDefaults = { allowReassignment: input.allowReassignment as boolean ?? before.allowReassignment ?? false, hideDocumentsWithoutFields: input.hideDocumentsWithoutFields as boolean ?? before.hideDocumentsWithoutFields ?? false, expiryDays: input.expiryDays as number, reminders: chooseReminders(input.reminders) ?? null, version: before.version + 1, actor: actor.id, at: now() }, result = { defaults }
   await atomic(env.DB, [roleGuard(actor, ['owner', 'admin']), { sql: "COALESCE((SELECT json_extract(value,'$.version') FROM iw_settings WHERE key=?),0)=?", values: [key, before.version] }], [
     env.DB.prepare('INSERT INTO iw_settings(key,value,updated_at,updated_by) VALUES(?,?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at,updated_by=excluded.updated_by').bind(key, JSON.stringify(defaults), defaults.at, actor.id),
     commandWrite(env.DB, actor.id, context.commandId, context.fingerprint, result),

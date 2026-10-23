@@ -220,7 +220,7 @@ test('SEND-001 and ADMIN-004: a scheduled send is held when its policy turns off
 })
 
 
-test('ADMIN-004: reminder and expiry defaults are administered, inherited by new drafts and templates, overridden explicitly and never change saved records', async () => {
+test('ADMIN-004: reminder, expiry and reassignment defaults are administered, inherited by new drafts and templates, overridden explicitly and never change saved records', async () => {
   const h = await harness()
   try {
     const admin = await h.invite('defaults.admin@harbour.example', 'admin'), sender = await h.invite('defaults.sender@harbour.example', 'member'), viewer = await h.invite('defaults.viewer@harbour.example', 'member')
@@ -238,29 +238,45 @@ test('ADMIN-004: reminder and expiry defaults are administered, inherited by new
     await save({ expiryDays: 21, reminders: { afterDays: 0, everyDays: 2 } }, admin, 400)
     await save({ expiryDays: 21, reminders: { afterDays: 1, everyDays: 31 } }, admin, 400)
     await save({ expiryDays: 21 }, admin, 400)
+    await save({ expiryDays: 21, reminders: null, allowReassignment: 'yes' }, admin, 400)
     assert.equal((await settings()).version, 0, 'refusals leave defaults untouched')
-    const defaults = (await save({ expiryDays: 21, reminders: { afterDays: 2, everyDays: 3 } })).result.defaults
+    const defaults = (await save({ expiryDays: 21, reminders: { afterDays: 2, everyDays: 3 }, allowReassignment: true })).result.defaults
     assert.equal(defaults.actor, (await h.send('/api/inkwell', undefined, h.owner)).value.actor.id)
     assert.ok(Number.isFinite(Date.parse(defaults.at)))
     await h.command('account.envelope_defaults', { expectedVersion: 0, expiryDays: 10, reminders: null }, admin, 409)
     const inherited = await prepare('Inherited reminders'), inheritedEnvelope = await read(h, inherited)
+    assert.equal(inheritedEnvelope.allowReassign, true); assert.equal((await read(h, old)).allowReassign, undefined)
     assert.equal(days(inheritedEnvelope), 21); assert.deepEqual(inheritedEnvelope.reminders, defaults.reminders)
     assert.equal(days(await read(h, old)), 120); assert.equal((await read(h, old)).reminders, undefined)
     const explicitAt = new Date(Date.now() + 9 * 86400000).toISOString()
     const explicit = await prepare('Explicit override', { expiresAt: explicitAt, reminders: { afterDays: 1, everyDays: 1 } })
     assert.equal((await read(h, explicit)).expiresAt, explicitAt); assert.deepEqual((await read(h, explicit)).reminders, { afterDays: 1, everyDays: 1 })
-    const off = await prepare('Reminders off', { reminders: null })
+    const off = await prepare('Reminders off', { reminders: null, allowReassignment: false })
+    assert.equal((await read(h, off)).allowReassign, undefined, 'explicit false overrides account reassignment')
     assert.equal((await read(h, off)).reminders, undefined, 'null explicitly overrides account reminders')
     const t = (await h.command('template.save', { title: 'Inherited defaults template', filename: 'letter.pdf', pdfBase64: await pdfBase64(), roles: [{ role: 'Client', order: 1 }], fields: [field] })).result.id
     const templated = await fromTemplate(h, t, 'template.defaults@clients.example'), oldTemplated = await fromTemplate(h, oldTemplate, 'old.template@clients.example')
     assert.equal(days(await read(h, templated)), 21); assert.deepEqual((await read(h, templated)).reminders, defaults.reminders)
     assert.equal(days(await read(h, oldTemplated)), 30); assert.equal((await read(h, oldTemplated)).reminders, undefined, 'an existing template with reminders off overrides the account')
-    const changed = (await save({ expiryDays: 12, reminders: null }, admin)).result.defaults
+    assert.equal((await read(h, templated)).allowReassign, true)
+    assert.equal((await read(h, oldTemplated)).allowReassign, undefined, 'an older template with reassignment off stays off')
+    const preservedTemplate = (await h.command('template.from_envelope', { id: off })).result.id
+    assert.equal((await read(h, await fromTemplate(h, preservedTemplate, 'off.saved@clients.example'))).allowReassign, undefined, 'saving an envelope as a template preserves false under an enabled account default')
+    const copiedOff = (await h.command('envelope.copy', { id: off })).result.id
+    assert.equal((await read(h, copiedOff)).allowReassign, undefined)
+    await h.command('envelope.update', { id: off, ...await draft('Reminders off edited', 'off.edited@clients.example'), reminders: null })
+    assert.equal((await read(h, off)).allowReassign, undefined, 'editing a draft without a new choice preserves false')
+    await h.command('template.update', { id: oldTemplate, title: 'Old template edited', filename: 'old.pdf', pdfBase64: await pdfBase64(), roles: [{role:'Client',order:1}], fields:[field], expiryDays:30, reminders:null })
+    assert.equal((await read(h, await fromTemplate(h, oldTemplate, 'edited.template@clients.example'))).allowReassign, undefined, 'editing an old template without a new choice preserves false')
+    const changed = (await save({ expiryDays: 12, reminders: null, allowReassignment: false }, admin)).result.defaults
     assert.equal(changed.actor, (await h.send('/api/inkwell', undefined, admin)).value.actor.id)
     assert.equal(days(await read(h, inherited)), 21); assert.deepEqual((await read(h, inherited)).reminders, defaults.reminders)
     const stillTemplate = await fromTemplate(h, t, 'still.template@clients.example')
+    assert.equal((await read(h, stillTemplate)).allowReassign, true, 'a template keeps its saved reassignment choice')
+    assert.equal((await read(h, inherited)).allowReassign, true)
     assert.equal(days(await read(h, stillTemplate)), 21); assert.deepEqual((await read(h, stillTemplate)).reminders, defaults.reminders, 'saved templates keep their snapshot')
     const fresh = await prepare('New defaults')
+    assert.equal((await read(h, fresh)).allowReassign, undefined)
     assert.equal(days(await read(h, fresh)), 12); assert.equal((await read(h, fresh)).reminders, undefined)
     // An inherited reminder actually reaches the current recipient through the normal scheduler and paid mail edge.
     await h.command('envelope.approve', { id: inherited, eligible: true }, sender)
@@ -271,6 +287,7 @@ test('ADMIN-004: reminder and expiry defaults are administered, inherited by new
     assert.ok(await h.mail('inherited.reminders@clients.example', 'Reminder to sign:'))
     assert.equal(await h.mail('reminders.off@clients.example', 'Reminder to sign:'), undefined)
     const copy = (await h.command('envelope.copy', { id: inherited }, sender)).result.id
+    assert.equal((await read(h, copy)).allowReassign, true, 'a copy keeps the source reassignment choice')
     assert.equal(days(await read(h, copy)), 12, 'a copied envelope starts with the current account expiry')
     assert.deepEqual((await read(h, copy)).reminders, defaults.reminders, 'a copy keeps the source envelope reminder choice')
   } finally { await h.close() }

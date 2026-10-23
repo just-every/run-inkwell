@@ -1,3 +1,4 @@
+import { TooltipButton } from './tooltip-button'
 import { choiceField, fieldTypes } from '../inkwell/business-fields'
 import { useId, useState, type Dispatch, type PointerEvent, type SetStateAction } from 'react'
 import type { Field } from './types'
@@ -73,7 +74,7 @@ export function FieldEditor({ pdf, fields, setFields, signer, setSigner, recipie
       const next = nudge(field, event.key, event.shiftKey)
       if (next) { event.preventDefault(); replace([next]) }
       if (event.key === 'Delete') { event.preventDefault(); setFields(current => current.filter(item => item.id !== field.id)) }
-    }} onChange={() => editing.select(field.id, true)} aria-label={`Select field ${index + 1}: ${field.label}, ${recipientName(field.signer)}, page ${field.page + 1}`} /><span className={`iw-who-swatch ${colorClass(field.signer)}`} aria-hidden="true" /><span>{field.signer + 1}. {field.label} · p{field.page + 1}</span></label><button type="button" aria-label={`Remove field ${index + 1}`} disabled={locked(field.signer)} onClick={() => setFields(current => current.filter(item => item.id !== field.id))}>×</button></div>)}</div>
+    }} onChange={() => editing.select(field.id, true)} aria-label={`Select field ${index + 1}: ${field.label}, ${recipientName(field.signer)}, page ${field.page + 1}`} /><span className={`iw-who-swatch ${colorClass(field.signer)}`} aria-hidden="true" /><span>{field.signer + 1}. {field.label} · p{field.page + 1}</span></label><TooltipButton tooltip="Remove field" type="button" aria-label={`Remove field ${index + 1}`} disabled={locked(field.signer)} onClick={() => setFields(current => current.filter(item => item.id !== field.id))}>×</TooltipButton></div>)}</div>
   </aside>}<PdfViewer source={pdf} fields={fields} onPlace={readOnly ? undefined : place} editing={readOnly ? undefined : editing} onPages={setPages} toolbar={readOnly ? undefined : <div className={`iw-drag-chip ${colorClass(signer)}`} aria-hidden="true" onPointerDown={dragChip} onPointerMove={event => { if (ghost) setGhost({ x: event.clientX, y: event.clientY }) }} onPointerUp={dropChip} onPointerCancel={() => setGhost(undefined)}>Drag a {label.trim() || type} field onto a page</div>} />
     {ghost && <div className={`iw-drag-ghost ${colorClass(signer)}`} aria-hidden="true" style={{ left: ghost.x, top: ghost.y }}>{label.trim() || type}</div>}
   </div>

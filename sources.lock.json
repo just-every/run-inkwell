@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "2ca3d87c87498cbe7b42e982f99ee80c024b846eeb325161e6322f0ad7b429fe",
+      "sha256": "29ef6c556c0f774a6783d474d0d2d55c3ef665cddb0827c829a6192a9c5b564f",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0d6cb368fbd94774ba168bb1693cad4bb8824a805b64b9972c9bc21a7262b5e2",
+      "sha256": "471b3b90a9f524d9136539cb81127f4af726b3b1d7f32b2a8b7669a2b04146b7",
       "executable": false
     },
     "DEMO.md": {
@@ -907,11 +907,11 @@
       "executable": false
     },
     "src/inkwell/drafts.ts": {
-      "sha256": "46fd77d01718ddad63b6cc627eb223900d3fb269cb3c708a98fee384f41ea736",
+      "sha256": "4f6ef0c2b2d8de17e197b19ada8a10f35edaafaeea497cdeeb60b4b709aac5c8",
       "executable": false
     },
     "src/inkwell/envelope-defaults.ts": {
-      "sha256": "42c020877baf1db40c3f1c308f740a9650f2df0f17638412139466246fbe35c4",
+      "sha256": "8ec788cdc5fb15993542a6e3785ab2f007afbac7c562df16e07bbc59a44a7750",
       "executable": false
     },
     "src/inkwell/envelopes.ts": {
@@ -1263,7 +1263,7 @@
       "executable": false
     },
     "src/inkwell/template-combine.ts": {
-      "sha256": "a8432f334ee78a50edad60ede6ccbfd0711c758d74538dde8fa15916682db0b8",
+      "sha256": "86921165ec6be503e907b4bbce3fb66e83125a0a9c95524a35a69a97fcf171f7",
       "executable": false
     },
     "src/inkwell/template-composition.ts": {
@@ -1303,7 +1303,7 @@
       "executable": false
     },
     "src/inkwell/templates.ts": {
-      "sha256": "94356df2120f1cc9ea689bb1c6ca56399bf37f7d427e19b64a3c7aa494a83167",
+      "sha256": "c7c87a081808b863a98702ac4874a9aeb1ae909bd70e8f5dce65050d343d28db",
       "executable": false
     },
     "src/inkwell/timeline.ts": {
@@ -3147,7 +3147,7 @@
       "executable": false
     },
     "src/ui/account-defaults.tsx": {
-      "sha256": "f32d19c181d93837249c7dd606efbac265023bf42b860c9e0c9e395c1b48b0e2",
+      "sha256": "282eb72dff4a96599c75011d993434cacfd6d6c49bcee2473a410ea1d5b8ddeb",
       "executable": false
     },
     "src/ui/activity.tsx": {
@@ -3215,7 +3215,7 @@
       "executable": false
     },
     "src/ui/field-editor.tsx": {
-      "sha256": "7cd5bfac05442cd9fee29e72e7f3858a26cf9956d2eda8518be5503d69918a66",
+      "sha256": "dcdbbd34407cc1c9e9589d7167f91fb321bec756faafa3c5dc0c882cc2910279",
       "executable": false
     },
     "src/ui/field-inspector.tsx": {
@@ -3307,7 +3307,7 @@
       "executable": false
     },
     "src/ui/prepare-envelope.tsx": {
-      "sha256": "c08b25bd599308cd58aaa2a2ede8bc8c55cb63aab01f337d0d4327dc39104acd",
+      "sha256": "0e7ecc7d38b628945a7ed52024586714b140c30f3af59fbf08c8a2c3bc01f08b",
       "executable": false
     },
     "src/ui/public-verify.tsx": {
@@ -3406,8 +3406,12 @@
       "sha256": "3c568548441969b07f0c1129fe9786982669fe267eba9e1cbf54bc727bfdcd0a",
       "executable": false
     },
+    "src/ui/tooltip-button.tsx": {
+      "sha256": "b7f77686fefaba2bdbec168afa63c7686750cd884d7d85333febbfad590d0d4b",
+      "executable": false
+    },
     "src/ui/types.ts": {
-      "sha256": "67780f9ef1bc93dcd62b378bb7036c8edada42f26f4c9f932d20716b45e1ef1b",
+      "sha256": "df0157f4cd6665f9f7bdd34ed4ab0eaf2b87ef80dc89901cebaf64830820480b",
       "executable": false
     },
     "src/ui/witness-nomination.tsx": {
@@ -3559,7 +3563,7 @@
       "executable": false
     },
     "tests/journeys/internal-approval.mjs": {
-      "sha256": "70381b479f58ea0442a868a7f86cc360054ee13ab3de0a22ca5b276781db652e",
+      "sha256": "2960d1bf6fb18491965f4ea051446a2fdae9c4785181bb0185c94c7e01f559d0",
       "executable": false
     },
     "tests/journeys/mail-worker.mjs": {
@@ -3663,7 +3667,7 @@
       "executable": false
     },
     "tests/send-policies.test.mjs": {
-      "sha256": "d37eff9573ce77c5546f0e4e8850be8046a7d66a2c9067efb9f44ecca334397a",
+      "sha256": "373313b6421e278067f1fd82d41755c01e61cb17b99f69eaed62e9c4a6f39ce9",
       "executable": false
     },
     "tests/site/site.test.mjs": {

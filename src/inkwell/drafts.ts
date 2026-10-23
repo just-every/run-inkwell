@@ -90,10 +90,10 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   await validatePdfText([...signers, ...copies].flatMap(person=>person.includeWhen?[person.includeWhen.value]:[]))
   await validatePrefilledFields(fields)
   insist(input.allowPaperSigning === undefined || typeof input.allowPaperSigning === 'boolean', 'Choose whether recipients may sign on paper.')
-  // ROUTE-006: whether a recipient may reassign their signing to someone else; off unless the sender turns it on.
+  // ADMIN-004 / ROUTE-006: inherit only for new drafts; a saved draft keeps its choice unless explicitly changed.
   insist(input.allowReassignment === undefined || typeof input.allowReassignment === 'boolean', 'Choose whether recipients may reassign their signing.')
   insist(!previous?.part11 || input.allowPaperSigning !== true, 'Paper signing is unavailable in this unvalidated electronic profile.',409)
-  const allowPaper = input.allowPaperSigning === true, allowReassign = input.allowReassignment === true, reminders = chooseReminders(input.reminders === undefined ? defaults?.reminders : input.reminders)
+  const allowPaper = input.allowPaperSigning === true, allowReassign = input.allowReassignment === undefined ? Boolean(previous ? previous.allowReassign : defaults?.allowReassignment) : input.allowReassignment === true, reminders = chooseReminders(input.reminders === undefined ? defaults?.reminders : input.reminders)
   const subject = optional(input.subject, 'the email subject', 200, true), message = optional(input.message, 'the message', 2000)
   await validatePdfText([title, ...[...signers, ...copies].flatMap(s => [s.name, s.email]), ...signers.flatMap(s => s.group ? s.group.members.flatMap(m => [m.name, m.email]) : [])])
   const draft: Draft = { ...(previous?.part11?{part11:structuredClone(previous.part11)}:{}), ...(multiple?{documents:multiple.documents}:{}), ...(freeForm ? { freeForm: true } : {}), title, filename, signers, fields, pageSizes, originalSha256: await sha256(bytes), expiresAt: chooseExpiry(input.expiresAt, base, defaults?.expiryDays), ...(allowPaper ? { allowPaper } : {}), ...(allowReassign ? { allowReassign } : {}), ...(reminders ? { reminders } : {}), ...(copies.length ? { copies } : {}), ...(subject ? { subject } : {}), ...(message ? { message } : {}) }
