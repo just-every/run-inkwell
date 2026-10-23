@@ -109,7 +109,7 @@ export async function authenticateApiKey(request: Request, env: Env, scope?: Api
   insist(match, 'Provide a live API key in the Bearer header.', 401)
   const row = await env.DB.prepare(`SELECT k.id AS key_id,k.scopes,o.id,o.display_name,o.email,o.version,${effectiveRole} AS role
     FROM iw_api_keys k JOIN oa_operators o ON o.id=k.member_id AND o.version=k.member_version
-    WHERE k.token_hash=? AND k.revoked_at IS NULL AND k.suspended_at IS NULL AND k.expires_at>?
+    WHERE k.token_hash=? AND k.revoked_at IS NULL AND k.suspended_at IS NULL AND k.expires_at>max(?,strftime('%Y-%m-%dT%H:%M:%fZ','now'))
     AND o.status='active' AND ${effectiveRole}=k.member_role AND k.member_role IN ('owner','admin','sender')`)
     .bind(await sha256(match[1]), now()).first<{ key_id: string; scopes: string; id: string; display_name: string; email: string; version: number; role: Role }>()
   insist(row, 'This API key is invalid, expired, revoked or suspended.', 401)

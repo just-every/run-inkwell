@@ -787,7 +787,7 @@
       "executable": false
     },
     "src/inkwell/api-keys.ts": {
-      "sha256": "ec2244edb08ba5c4b80cb6ed8887bbfe32a9da53edda2b80317b54b97e1f9d3c",
+      "sha256": "f2733401733df132db11fb1680ca342f3b55b11af63ab7f6855b7fe4fcb4a476",
       "executable": false
     },
     "src/inkwell/api-limits.ts": {
@@ -1235,7 +1235,7 @@
       "executable": false
     },
     "src/inkwell/send-policies.ts": {
-      "sha256": "ad886b0c0e206e180c0fc4514e48c5b82118cd7f4abcc08f5dc8ab7a46b347bc",
+      "sha256": "b1042397b51461c7c46b38c726c26bfa302f813d929d201d221c020f7fb48035",
       "executable": false
     },
     "src/inkwell/send-policy-scopes.ts": {
@@ -1291,7 +1291,7 @@
       "executable": false
     },
     "src/inkwell/storage.ts": {
-      "sha256": "f9eb790fa63432bf9ac85f15e87b6c5a17570c294be41c9c85d5c94a8153cb4d",
+      "sha256": "8d58a75e0c8bcbb2ed2e42ac50ecde2e08ab53841e85c7cfc8144fc00e4249f7",
       "executable": false
     },
     "src/inkwell/supplement-record.d.mts": {
