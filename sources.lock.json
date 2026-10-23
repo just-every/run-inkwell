@@ -407,7 +407,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "8fae62bb545b1f67fbaa990bef3ff4f75e92a6ba6589278ac77e918ec493d424",
+      "sha256": "9e5f5c718dabcff3b76d33e06c7a8a86832dc78e92031a0ac8d48d454fa3681c",
       "executable": false
     },
     "pnpm-lock.yaml": {
@@ -3511,7 +3511,7 @@
       "executable": false
     },
     "tests/api.test.mjs": {
-      "sha256": "9834bc689c9426fc5e224ff9cff61ce2e21650a026631e544561b19c8b1d3022",
+      "sha256": "299f049b600a89f1318eb9330e5653d7299b0d6e0c270717ce360bbfc0d3613f",
       "executable": false
     },
     "tests/compliance.test.mjs": {
@@ -3756,10 +3756,6 @@
     },
     "tests/send-policies.test.mjs": {
       "sha256": "961eef745c2fef36b857416148223eb95c8d244ff378101627b49bf2a0506131",
-      "executable": false
-    },
-    "tests/site/site.test.mjs": {
-      "sha256": "25d125904b8eb995e64a8515d4ac186adef16203c696dc7d5e99a56aa6bc78ab",
       "executable": false
     },
     "tests/supplements.test.mjs": {

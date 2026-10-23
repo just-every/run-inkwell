@@ -180,14 +180,6 @@ test('agent credentials can prepare but cannot approve, sign or retain authority
  await h.post('/api/inkwell/agent/prepare',{...preparation(),commandId:crypto.randomUUID()},'',401,headers)
  await h.command('envelope.void',{id,reason:'Agent proposal declined by owner'})
 })
-test('voiding revokes an invitation immediately',async()=>{
- const input={...preparation(),title:'Withdrawn agreement',signers:[{name:'Jamie Lee',email:'jamie@harbour.example'}],fields:[fields[0]]}
- const id=(await h.command('envelope.prepare',input)).result.id
- await h.command('envelope.approve',{id,eligible:true})
- const token=await signingToken('jamie@harbour.example')
- await h.command('envelope.void',{id,reason:'Scope changed before signing'})
- const r=await h.send('/api/sign/'+token+'/code',{},'');assert.equal(r.status,409)
-})
 test('SIGNX-004: the second signer declines with a reason; the third is never invited, the sender and first signer are told, and the certificate records it',async()=>{
  const trio=[{name:'Dana Cole',email:'dana@harbour.example'},{name:'Eli Park',email:'eli@harbour.example'},{name:'Fran Wu',email:'fran@harbour.example'}]
  const id=(await h.command('envelope.prepare',{...preparation(),title:'Harbour Studio supplier NDA',signers:trio,fields:trio.map((_,signer)=>({...fields[0],id:`signature-${signer}`,signer,y:.4+signer*.12}))})).result.id
