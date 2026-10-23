@@ -7,7 +7,7 @@ export function EnvelopeFolders({actor,folders,selected,onSelect,refresh}:{actor
  return <details className="iw-card iw-stack"><summary>Folders</summary>
  <label>Envelope folder<select value={selected} onChange={e=>onSelect(e.target.value)}><option value="">All folders</option>{folders.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></label>
  {actor.role!=='viewer'&&<form className="iw-stack" onSubmit={e=>{e.preventDefault();void action.run(async()=>{await command('folder.change',{action:'create',name});setName('');await refresh()})}}><label>New envelope folder<input required maxLength={80} value={name} onChange={e=>setName(e.target.value)} /></label><button className="iw-fit" disabled={action.busy}>Create envelope folder</button></form>}
- {folders.filter(f=>f.manage).map(f=><FolderSettings key={f.id+':'+f.version} folder={f} actor={actor} refresh={refresh}/>)}<ErrorNotice error={action.error}/></details>
+ {folders.filter(f=>f.manage).map(f=><FolderSettings key={f.id} folder={f} actor={actor} refresh={refresh}/>)}<ErrorNotice error={action.error}/></details>
 }
 function FolderSettings({folder,actor,refresh}:{folder:EnvelopeFolder;actor:Actor;refresh:()=>Promise<void>}) {
  const [email,setEmail]=useState(''),[access,setAccess]=useState('view'),[years,setYears]=useState(folder.retentionYears?.toString()??''),action=useAction()

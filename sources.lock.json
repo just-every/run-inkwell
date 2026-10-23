@@ -3283,7 +3283,7 @@
       "executable": false
     },
     "src/ui/envelope-folders.tsx": {
-      "sha256": "b00d04f8d05808c7600ced0806bcfa615a28b573924b6b04f7247366e1ce672c",
+      "sha256": "d396b4b1eb482c66851b9f49ddbe521f3046cf2bd9d2c488a9235afa8a99d364",
       "executable": false
     },
     "src/ui/envelope-list.tsx": {
@@ -3635,7 +3635,7 @@
       "executable": false
     },
     "tests/journeys/envelope-detail.mjs": {
-      "sha256": "228ffbe51af1026cc35a2360f48fa24df571874ea6d7d49b5f0981b04b8ed0fe",
+      "sha256": "c55000e3f2a20a8195529fb2e42f2255c638b8e598ad46979ee7fbd98b0d5f1b",
       "executable": false
     },
     "tests/journeys/field-placement.mjs": {
