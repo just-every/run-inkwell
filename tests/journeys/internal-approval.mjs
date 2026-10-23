@@ -39,8 +39,19 @@ try {
   await defaults.getByLabel('Enable automatic reminders by default').check()
   await defaults.getByLabel('Default first reminder (business days)', { exact: true }).fill('2')
   await defaults.getByLabel('Default repeat reminder (business days)', { exact: true }).fill('3')
-  const saveDefaults = defaults.getByRole('button', { name: 'Save envelope defaults', exact: true })
-  await saveDefaults.focus(); await Promise.all([page.waitForResponse(response => response.url().endsWith('/api/inkwell') && response.request().method() === 'GET'), page.keyboard.press('Enter')])
+  const saveDefaults = async (keyboard = false) => {
+    const previous = await defaults.elementHandle()
+    assert.ok(previous, 'the current envelope defaults are rendered')
+    const save = defaults.getByRole('button', { name: 'Save envelope defaults', exact: true })
+    if (keyboard) await save.focus()
+    await Promise.all([page.waitForResponse(response => response.url().endsWith('/api/inkwell') && response.request().method() === 'GET'), keyboard ? page.keyboard.press('Enter') : save.click()])
+    // A successful save changes the settings version and replaces this panel. The response arrives before
+    // React commits that replacement; wait for it before resolving controls or scrolling the saved panel.
+    await page.waitForFunction(element => !element.isConnected, previous)
+    await previous.dispose()
+    await defaults.getByRole('button', { name: 'Save envelope defaults', exact: true }).waitFor({ state: 'visible' })
+  }
+  await saveDefaults(true)
   assert.equal((await app.call('/api/inkwell/envelope-defaults', { cookie: app.owner })).value.defaults.expiryDays, 21)
   await defaults.scrollIntoViewIfNeeded(); await axe(page, `ADMIN-004 defaults settings ${width}`); await capture('envelope-defaults', page)
   await defaults.getByLabel('Additional consumer disclosure',{exact:true}).scrollIntoViewIfNeeded();await capture('default-disclosure-setting',page)
@@ -129,7 +140,7 @@ try {
   await defaults.getByLabel('Allow recipient reassignment by default').uncheck()
   await defaults.getByLabel('Default expiry (days)', { exact: true }).fill('120')
   await defaults.getByLabel('Enable automatic reminders by default').uncheck()
-  await Promise.all([page.waitForResponse(response => response.url().endsWith('/api/inkwell') && response.request().method() === 'GET'), defaults.getByRole('button', { name: 'Save envelope defaults', exact: true }).click()])
+  await saveDefaults()
   const panel = page.locator('section', { has: page.getByRole('heading', { name: 'Internal approval', exact: true }) })
   await panel.getByLabel('Require an internal approval before it is sent').check(); await panel.getByLabel('Approver email').fill(email)
   await panel.getByLabel('Only when a USD amount is above a threshold').check(); await panel.getByLabel('Number field label').fill('Contract value'); await panel.getByLabel('Above (USD)').fill('10000')
