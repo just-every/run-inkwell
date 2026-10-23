@@ -3571,7 +3571,7 @@
       "executable": false
     },
     "tests/journeys/internal-approval.mjs": {
-      "sha256": "0c76233f970511af6da7d9ff20768985c81be2837a8b4d2d9d0acf7ab3fdefe1",
+      "sha256": "819f556edd7c8bbfa3deb7974993e913b433eabf6989065068b1f0bc34a4a2c1",
       "executable": false
     },
     "tests/journeys/mail-worker.mjs": {
