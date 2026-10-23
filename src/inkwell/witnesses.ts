@@ -22,7 +22,7 @@ export async function nominateWitnesses(env: Env, context: SigningContext, input
   const commandId = text(input.commandId, 'a command ID', 100), nominees = witnessNames(input.nominees), fingerprint = await sha256(canonical({ nominees })), key = `witness:${context.envelope.id}:${context.recipient.row}`
   const previous = await previousCommand(env.DB, key, commandId, fingerprint)
   if (previous) { await dispatchMail(env, context.envelope.id); return previous }
-  active(context.envelope); notGroupSigner(context); accessGate(context); disclosureGate(recipientOf(context), 'nominating witnesses')
+  active(context.envelope); notGroupSigner(context); accessGate(context); disclosureGate(recipientOf(context), 'nominating witnesses', context.envelope.consumerDisclosure)
   const before = context.envelope, index = context.recipient.signer, principal = before.signers[index], rule = principal.witnesses
   insist(rule && currentSigners(before).includes(index) && (!principal.signedAt || principal.witnessReturnRequired), 'Only the signer whose witness step is open may nominate witnesses.', 409)
   const count = principal.signedAt ? before.signers.filter(s => s.witnessFor === index && !s.removedAt).length : 0

@@ -29,7 +29,7 @@ const challenge = (env: Env, c: SigningContext) => env.DB.prepare('SELECT * FROM
 const guard = (c: SigningContext, row: Challenge): Guard => ({ sql: 'EXISTS(SELECT 1 FROM iw_part11_challenges WHERE envelope_id=? AND signer=? AND token_hash=? AND session_hash=? AND code_hash=? AND generation=? AND attempts=? AND attempts<5 AND expires>?)', values: [c.envelope.id, c.recipient.row, c.recipient.token_hash, c.recipient.session_hash, row.code_hash, row.generation, row.attempts, Date.now()] })
 export async function requestSignatureCode(env: Env, c: SigningContext, request: Request) {
   insist(c.verified, 'Verify your identity before requesting signature re-authentication.', 401)
-  turn(c); accessGate(c); disclosureGate(recipientOf(c), 're-authenticating')
+  turn(c); accessGate(c); disclosureGate(recipientOf(c), 're-authenticating', c.envelope.consumerDisclosure)
   insist(c.envelope.part11, 'This envelope does not require the profile.', 409)
   await signerIdentity(env,c,request)
   insist(!mailSuppressed(env), 'Signature re-authentication requires configured email delivery.', 409)

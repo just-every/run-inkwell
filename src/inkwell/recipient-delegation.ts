@@ -86,7 +86,7 @@ export async function completeDelegation(env: Env, context: SigningContext, inpu
   const commandId = text(input.commandId, 'a command ID', 100), fingerprint = await sha256(canonical({ role, recipients: input.recipients, fields: input.fields, consent: input.consent })), key = `recipient:${before.id}:${context.recipient.row}`
   const previous = await previousCommand(env.DB, key, commandId, fingerprint)
   if (previous) { await dispatchMail(env, before.id); return previous }
-  turn(context); accessGate(context); disclosureGate(recipientOf(context), 'passing on this envelope'); requireSupplements(before, index, context.recipient.member)
+  turn(context); accessGate(context); disclosureGate(recipientOf(context), 'passing on this envelope', context.envelope.consumerDisclosure); requireSupplements(before, index, context.recipient.member)
   insist(input.consent === true, 'Review and explicitly confirm your delegated action.')
   const places = targetsOf(before, index), after = structuredClone(before), at = now(), actor = `signer:${index + 1}`, writes: D1PreparedStatement[] = []
   insist(Array.isArray(input.recipients) && input.recipients.length <= places.length, 'Supply only the later recipients the sender delegated to you.')

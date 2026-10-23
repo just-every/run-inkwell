@@ -66,7 +66,7 @@ function signerRead(context: SigningContext) {
   insist(context.verified, 'Verify your email before opening supplemental documents.', 401)
   notGroupSigner(context); accessGate(context)
   if (context.envelope.status !== 'completed') active(context.envelope)
-  disclosureGate(recipientOf(context), 'opening supplemental documents')
+  disclosureGate(recipientOf(context), 'opening supplemental documents', context.envelope.consumerDisclosure)
 }
 export async function supplementDocument(env: Env, context: SigningContext, supplementId: string) {
   signerRead(context)

@@ -22,7 +22,7 @@ export async function uploadPaper(env: Env, context: SigningContext, request: Re
   active(before)
   insist(currentSigners(before).includes(index), 'This invitation is waiting for an earlier signer, or you have already signed.', 409)
   accessGate(context)
-  disclosureGate(signer, 'uploading a paper signature')
+  disclosureGate(signer, 'uploading a paper signature', context.envelope.consumerDisclosure)
   requireSupplements(before, index, context.recipient.member)
   insist(signer.paper?.status !== 'pending', 'Your paper signature is already waiting for the sender’s review.', 409)
   const mediaType = request.headers.get('content-type')?.split(';')[0].trim() ?? ''

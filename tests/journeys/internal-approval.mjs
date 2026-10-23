@@ -29,6 +29,7 @@ try {
   await page.goto(app.origin + '/app'); await page.getByRole('button', { name: 'Settings', exact: true }).click()
   // ADMIN-004: keyboard-save account defaults and inspect the inherited controls on a new envelope.
   const defaults = page.getByRole('region', { name: 'Envelope defaults', exact: true })
+  await defaults.getByLabel('Additional consumer disclosure', {exact:true}).fill('Paper copies are available from Harbour Operations.')
   await defaults.getByLabel('Typed name', {exact:true}).uncheck()
   await defaults.getByLabel('Drawn signature', {exact:true}).uncheck()
   await defaults.getByLabel('Uploaded signature', {exact:true}).check()
@@ -100,6 +101,8 @@ try {
   const signing = await signerContext.newPage()
   await signing.goto(app.mail(adoptionEmail,'Please sign:').text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0])
   await signing.getByRole('button',{name:'Continue',exact:true}).click()
+  await signing.getByText('Paper copies are available from Harbour Operations.',{exact:true}).waitFor()
+  await axe(signing,`ADMIN-004 consumer disclosure ${width}`);await capture('consumer-disclosure',signing)
   await signing.getByRole('checkbox',{name:/I have read the electronic record/}).check()
   await signing.getByRole('button',{name:'Agree and continue',exact:true}).click()
   const adoption = signing.getByRole('radiogroup',{name:'How to adopt your signature',exact:true})
@@ -116,6 +119,7 @@ try {
   assert.equal((await app.call('/api/inkwell/envelopes/'+adoptionId,{cookie:app.owner})).value.envelope.status,'completed')
   await capture('allowed-adoption-completed',signing); await signerContext.close()
   // Reset to the installation defaults so the rest of this journey keeps its own explicit settings.
+  await defaults.getByLabel('Additional consumer disclosure', {exact:true}).fill('')
   await defaults.getByLabel('Typed name', {exact:true}).check()
   await defaults.getByLabel('Drawn signature', {exact:true}).check()
   await defaults.getByLabel('Default recipient authentication').selectOption('email')

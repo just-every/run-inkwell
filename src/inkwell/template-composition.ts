@@ -129,6 +129,6 @@ export function composition(templates: Template[], choices: CompositionChoices =
   validateRecipientCount(roles.map(r => ({ name: r.role, email: '', role: r.action, witnesses: r.witnesses })), 0)
   return { templates: templates.map(t => ({ id: t.id, title: t.title, version: t.version ?? 1 })), roles, roleIndexes, documents, documentSources, fields, conflicts,
     pageSizes: templates.flatMap(t => structuredClone(t.pageSizes)), settingsTemplate: settingsTemplate.id,
-    settings: { adoptionMethods: structuredClone<import('./model').AdoptionMethod[]>(settingsTemplate.adoptionMethods ?? ['typed','drawn','uploaded']), title: settingsTemplate.title, filename: 'combined.pdf', expiryDays: settingsTemplate.expiryDays, reminders: structuredClone(settingsTemplate.reminders),
+    settings: { consumerDisclosure: structuredClone(settingsTemplate.consumerDisclosure ?? null), adoptionMethods: structuredClone<import('./model').AdoptionMethod[]>(settingsTemplate.adoptionMethods ?? ['typed','drawn','uploaded']), title: settingsTemplate.title, filename: 'combined.pdf', expiryDays: settingsTemplate.expiryDays, reminders: structuredClone(settingsTemplate.reminders),
       subject: settingsTemplate.subject, message: settingsTemplate.message, allowPaper: settingsTemplate.allowPaper, allowReassign: settingsTemplate.allowReassign, approval: structuredClone(settingsTemplate.approval) } }
 }

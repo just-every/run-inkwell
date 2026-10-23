@@ -15,7 +15,7 @@ export async function saveProgress(env: Env, context: SigningContext, input: Rec
   insist(context.verified, 'Verify your email before saving your progress.', 401)
   insist(!context.envelope.signers[context.recipient.signer].signedAt&&!context.envelope.signers[context.recipient.signer].completedAt,'This recipient has already completed their action.',409)
   active(context.envelope); insist(currentSigners(context.envelope).includes(context.recipient.signer), 'This invitation is waiting for an earlier signer, or you have already signed.', 409)
-  accessGate(context); disclosureGate(recipientOf(context), 'saving your progress')
+  accessGate(context); disclosureGate(recipientOf(context), 'saving your progress', context.envelope.consumerDisclosure)
   const fields = context.envelope.freeForm ? placedFields(context.envelope, context.recipient.signer, input.fields) : context.envelope.fields.filter(field => field.signer === context.recipient.signer), values: Record<string, string> = {}
   insist(context.envelope.freeForm || input.fields === undefined, 'Fields cannot be placed in this envelope.')
   assertLockedValues(visibleFields(fields, object(input.values)), object(input.values))

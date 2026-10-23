@@ -21,7 +21,7 @@ export async function recordRecipientOpening(env: Env, context: SigningContext, 
   const current = { ...context, envelope: before }, person = before.signers[index]
   insist(isViewRole(person.role), 'This recipient’s action changed. Open their current invitation.', 409)
   insist(!person.group && context.recipient.member === undefined, 'Document-opening roles require an individual recipient.', 409)
-  accessGate(current); disclosureGate(recipientOf(current), 'opening the document')
+  accessGate(current); disclosureGate(recipientOf(current), 'opening the document', current.envelope.consumerDisclosure)
   const visible = before.documents ? visibleDocumentIndexes(before, index) : [0]
   insist(visible.length > 0, 'No documents are visible to this recipient.', 404)
   insist(Array.isArray(documents) && documents.length > 0 && documents.every(d => Number.isInteger(d) && visible.includes(d) && (!before.documents || canSeeDocument(before, d, index))), 'Open only documents visible to this recipient.', 404)

@@ -28,6 +28,7 @@ export async function certificatePdf(envelope: Envelope, mailed: number[] = [], 
     ...(envelope.freeForm ? [`Free-form signing; setting version ${envelope.freeFormSetting?.version}; set by ${envelope.freeFormSetting?.actor} at ${stamp(envelope.freeFormSetting!.at)}`] : []),
     ...(envelope.documents??[]).flatMap((d,i)=>visible&&!visible.includes(i)?[]:[`Document ${i+1}: ${d.filename}; ${d.mode}; ${d.pages} page(s)`, `Original document SHA-256: ${d.sha256}`, ...(d.signedSha256?[`Executed document SHA-256: ${d.signedSha256}`]:[])]),
     ...(envelope.supplements ?? []).map(s => `Supplemental document: ${s.label}; ${s.pages} page(s); SHA-256 ${s.sha256}; ${s.requirement === 'acknowledge' ? 'acknowledgment required' : 'view required'}; not signed`),
+    ...(envelope.consumerDisclosure ? [`Additional consumer disclosure (account version ${envelope.consumerDisclosure.version}; set by ${envelope.consumerDisclosure.actor} at ${envelope.consumerDisclosure.at}):`, ...envelope.consumerDisclosure.text.split('\n')] : []),
     ...disclosures.map(([version, hash]) => `Electronic record and signature disclosure: version ${version} (SHA-256 ${hash})`),
     ...(declined ? [
       `${withdrawn ? 'Consent withdrawn' : 'Declined'}: ${stamp(declined.declinedAt!)} by ${party(envelope, envelope.signers.indexOf(declined)).name} <${party(envelope, envelope.signers.indexOf(declined)).email}>${declined.group ? ` for the signing group ${declined.group.name}` : ''}`,

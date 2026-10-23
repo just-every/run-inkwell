@@ -1,4 +1,4 @@
-import { canonical, sha256, insist, type Signer } from './model'
+import { canonical, sha256, insist, type Signer, type ConsumerDisclosure } from './model'
 
 /** SIGNX-005: the installation's electronic record and signature disclosure under ESIGN and UETA. Every signer agrees
  * to it before first signing; the version and the fingerprint of these exact words go into the record. A changed text
@@ -18,7 +18,11 @@ export const disclosure = {
 export const disclosureStatement = 'I have read the electronic record and signature disclosure and agree to receive documents and sign electronically.'
 /** ROUTE-007: the hosted version gives direct sender contact instead of an invitation that was never sent.
  * Its version binds the recorded sender contact; the complete displayed words are fingerprinted on agreement. */
-export function disclosureFor(signer?: Signer) {
+export function disclosureFor(signer?: Signer, addition?: ConsumerDisclosure) {
+  const base = baseDisclosure(signer)
+  return addition ? { ...base, version: `${base.version}.account-${addition.version}`, sections: [...base.sections, { heading: 'Additional disclosure from the sender', body: addition.text }] } : base
+}
+function baseDisclosure(signer?: Signer) {
   if (!signer?.inPerson) return disclosure
   const sender = signer.hostedSender
   insist(sender, 'The host must open this in-person signing request.', 403)
@@ -31,4 +35,4 @@ export function disclosureFor(signer?: Signer) {
     return section
   }) }
 }
-export const disclosureSha256 = (signer?: Signer) => sha256(canonical(disclosureFor(signer)))
+export const disclosureSha256 = (signer?: Signer, addition?: ConsumerDisclosure) => sha256(canonical(disclosureFor(signer, addition)))

@@ -19,7 +19,7 @@ export async function memberCommentParticipant(env:Env,e:Envelope,actor:Actor):P
 }
 export function signerCommentParticipant(c:SigningContext):Participant {
  insist(c.verified,'Verify your identity before opening comments.',401);accessGate(c);notGroupSigner(c)
- const s=recipientOf(c);disclosureGate(s,'opening comments')
+ const s=recipientOf(c);disclosureGate(s, 'opening comments', c.envelope.consumerDisclosure)
  insist(!c.envelope.imported,'Imported envelopes have no signing comment session.',403)
  return {identity:{kind:'recipient',signer:c.recipient.signer,...(c.recipient.member===undefined?{}:{member:c.recipient.member}),email:s.email.toLowerCase(),epoch:commentEpoch(c.envelope,c.recipient.signer)},name:s.name,signing:c}
 }

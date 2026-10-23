@@ -15,7 +15,7 @@ import { setFollowup, resumeFollowup, followupView } from './followup-store'
 import { receiveFollowupReply } from './followup-inbound'
 import { apiOpenApi } from './api-openapi'
 import { apiCommandActor, apiKeyContext, authenticateApiKey, changeApiKey, listApiKeys, type ApiScope } from './api-keys'
-import { envelopeDefaults, setEnvelopeDefaults } from './envelope-defaults'
+import { envelopeDefaultHistory, envelopeDefaults, setEnvelopeDefaults } from './envelope-defaults'
 import { freeFormPolicy, freeFormHistory, setFreeFormPolicy } from './freeform-policy'
 import { sendPolicies, sendPolicyHistory, setSendPolicy } from './send-policies'
 import { addSupplement, removeSupplement, supplementDocument, acknowledgeSupplement } from './supplements'
@@ -114,6 +114,7 @@ api.get('/api/inkwell/templates/:id/documents/:index',async c=>{const actor=awai
 api.get('/api/inkwell/templates/:id/document',async c=>{const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);return templateDocument(c.env,actor,c.req.param('id'))})
 // DELIV-008: each member's activity feed and notification choices; every role has its own.
 api.get('/api/inkwell/notices',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json(await activityFeed(c.env,actor,new URL(c.req.url).searchParams))})
+api.get('/api/inkwell/envelope-defaults/history',async c=>{await requireActor(c.req.raw,c.env,['owner','admin']);return c.json({history:await envelopeDefaultHistory(c.env)})})
 api.get('/api/inkwell/envelope-defaults',async c=>{await requireActor(c.req.raw,c.env,['owner','admin','sender']);return c.json({defaults:await envelopeDefaults(c.env)})})
 api.get('/api/inkwell/freeform-policy',async c=>{await requireActor(c.req.raw,c.env);return c.json({policy:await freeFormPolicy(c.env)})})
 // ADMIN-004: the per-source send policies, current versions and every saved version, for owners and admins.

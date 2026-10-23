@@ -16,7 +16,7 @@ export async function completeRecipient(env: Env, context: SigningContext, input
   const commandId = text(input.commandId, 'a command ID', 100), fingerprint = await sha256(canonical({ role, values: input.values, consent: input.consent })), key = `recipient:${before.id}:${context.recipient.row}`
   const previous = await previousCommand(env.DB, key, commandId, fingerprint)
   if (previous) { await dispatchMail(env, before.id); return previous }
-  turn(context); accessGate(context); disclosureGate(recipientOf(context), role === 'approver' ? 'approving' : 'completing your fields')
+  turn(context); accessGate(context); disclosureGate(recipientOf(context), role === 'approver' ? 'approving' : 'completing your fields', context.envelope.consumerDisclosure)
   requireSupplements(before, index, context.recipient.member)
   insist(input.consent === true, 'Explicit confirmation of your action is required.')
   const fields = before.fields.filter(f => f.signer === index), values: Record<string,string> = {}, completedAt = now()
