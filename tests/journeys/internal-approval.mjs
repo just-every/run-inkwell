@@ -29,6 +29,7 @@ try {
   await page.goto(app.origin + '/app'); await page.getByRole('button', { name: 'Settings', exact: true }).click()
   // ADMIN-004: keyboard-save account defaults and inspect the inherited controls on a new envelope.
   const defaults = page.getByRole('region', { name: 'Envelope defaults', exact: true })
+  await defaults.getByLabel('Default recipient authentication').selectOption('link')
   await defaults.getByLabel('Allow recipient reassignment by default').check()
   await defaults.getByLabel('Default expiry (days)', { exact: true }).fill('21')
   await defaults.getByLabel('Enable automatic reminders by default').check()
@@ -43,6 +44,7 @@ try {
   await page.getByRole('button', { name: 'Envelopes', exact: true }).click()
   await page.getByRole('button', { name: /Prepare.*envelope|New envelope/i }).first().click()
   await page.waitForFunction(() => [...document.querySelectorAll('input[type=number]')].some(input => input.value === '21'))
+  assert.equal(await page.getByLabel('Recipient 1 authentication', {exact:true}).inputValue(), 'link')
   assert.equal(await page.getByLabel(/Allow recipients to reassign their signing/).isChecked(), true)
   assert.equal(await page.getByLabel(/^Expires after \(days\)/).inputValue(), '21')
   assert.equal(await page.getByLabel('Remind the recipients whose turn it is by email').isChecked(), true)
@@ -60,6 +62,7 @@ try {
   await page.getByLabel('Fixed PDF document', { exact: true }).setInputFiles({ name: 'defaulted.pdf', mimeType: 'application/pdf', buffer: defaultedBytes })
   await page.getByText(/Placed 2 fields from the document/).waitFor()
   for (const n of [1, 2]) {
+    await page.getByLabel(`Recipient ${n} authentication`, { exact: true }).selectOption('email')
     await page.getByLabel(`Recipient ${n} name`, { exact: true }).fill(`Client ${n}`)
     await page.getByLabel(`Recipient ${n} email`, { exact: true }).fill(`defaults${width}.${n}@clients.example`)
   }
@@ -73,6 +76,7 @@ try {
   await page.getByRole('button', { name: 'Save prepared envelope', exact: true }).click()
   const defaultedId = (await (await preparedResponse).json()).result.id
   const defaultedEnvelope = (await app.call('/api/inkwell/envelopes/' + defaultedId, { cookie: app.owner })).value.envelope
+  assert.ok(defaultedEnvelope.signers.every(s => !s.linkOnly), 'explicit browser email selection overrides the account')
   assert.equal(defaultedEnvelope.allowReassign, undefined, 'unchecked reassignment overrides the account')
   assert.equal(defaultedEnvelope.reminders, undefined, 'the unchecked browser choice explicitly overrides account reminders')
   assert.equal(Math.round((Date.parse(defaultedEnvelope.expiresAt) - Date.parse(defaultedEnvelope.createdAt)) / 86400000), 9)
@@ -86,6 +90,7 @@ try {
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.getByRole('button', { name: 'Settings', exact: true }).click()
   // Reset to the installation defaults so the rest of this journey keeps its own explicit settings.
+  await defaults.getByLabel('Default recipient authentication').selectOption('email')
   await defaults.getByLabel('Allow recipient reassignment by default').uncheck()
   await defaults.getByLabel('Default expiry (days)', { exact: true }).fill('120')
   await defaults.getByLabel('Enable automatic reminders by default').uncheck()

@@ -36,7 +36,10 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
   const accessCodes: (string | 'keep' | undefined)[] = []
   const groups = await Promise.all(input.signers.map(value => object(value).group === undefined ? undefined : snapshotGroup(env, object(value).group)))
   const signers: Signer[] = input.signers.map((value, i) => {
-    const s = object(value), role = recipientRole(s.role), witnesses = witnessRule(s.witnesses, role), group = groups[i], order = s.order === undefined ? i + 1 : s.order
+    const raw = object(value)
+    const chosen = previous?.signers[i]
+    const inheritedLink = Boolean(previous ? chosen?.linkOnly : defaults?.authentication === 'link')
+    const s = raw.linkOnly === undefined && raw.sms === undefined && raw.inPerson === undefined ? { ...raw, linkOnly: !raw.unresolvedIdentity && inheritedLink } : raw, role = recipientRole(s.role), witnesses = witnessRule(s.witnesses, role), group = groups[i], order = s.order === undefined ? i + 1 : s.order
     // ROUTE-005: a group recipient, snapshotted now; no access code, in-person signing or mail-less links in v1.
     if (group) insist(s.name === undefined && s.email === undefined, 'Name either a person or a signing group for each recipient, not both.')
     insist(!group || ((s.accessCode === undefined || s.accessCode === '') && s.keepAccessCode !== true && s.inPerson !== true), 'Signing groups cannot use access codes or in-person signing.', 409)

@@ -220,7 +220,7 @@ test('SEND-001 and ADMIN-004: a scheduled send is held when its policy turns off
 })
 
 
-test('ADMIN-004: reminder, expiry and reassignment defaults are administered, inherited by new drafts and templates, overridden explicitly and never change saved records', async () => {
+test('ADMIN-004: reminder, expiry, authentication and reassignment defaults are administered, inherited by new drafts and templates, overridden explicitly and never change saved records', async () => {
   const h = await harness()
   try {
     const admin = await h.invite('defaults.admin@harbour.example', 'admin'), sender = await h.invite('defaults.sender@harbour.example', 'member'), viewer = await h.invite('defaults.viewer@harbour.example', 'member')
@@ -239,48 +239,55 @@ test('ADMIN-004: reminder, expiry and reassignment defaults are administered, in
     await save({ expiryDays: 21, reminders: { afterDays: 1, everyDays: 31 } }, admin, 400)
     await save({ expiryDays: 21 }, admin, 400)
     await save({ expiryDays: 21, reminders: null, allowReassignment: 'yes' }, admin, 400)
+    await save({ expiryDays: 21, reminders: null, authentication: 'unknown' }, admin, 400)
     assert.equal((await settings()).version, 0, 'refusals leave defaults untouched')
-    const defaults = (await save({ expiryDays: 21, reminders: { afterDays: 2, everyDays: 3 }, allowReassignment: true })).result.defaults
+    const defaults = (await save({ expiryDays: 21, reminders: { afterDays: 2, everyDays: 3 }, allowReassignment: true, authentication: 'link' })).result.defaults
     assert.equal(defaults.actor, (await h.send('/api/inkwell', undefined, h.owner)).value.actor.id)
     assert.ok(Number.isFinite(Date.parse(defaults.at)))
     await h.command('account.envelope_defaults', { expectedVersion: 0, expiryDays: 10, reminders: null }, admin, 409)
     const inherited = await prepare('Inherited reminders'), inheritedEnvelope = await read(h, inherited)
+    assert.equal(inheritedEnvelope.signers[0].linkOnly, true); assert.equal((await read(h, old)).signers[0].linkOnly, undefined)
     assert.equal(inheritedEnvelope.allowReassign, true); assert.equal((await read(h, old)).allowReassign, undefined)
     assert.equal(days(inheritedEnvelope), 21); assert.deepEqual(inheritedEnvelope.reminders, defaults.reminders)
     assert.equal(days(await read(h, old)), 120); assert.equal((await read(h, old)).reminders, undefined)
     const explicitAt = new Date(Date.now() + 9 * 86400000).toISOString()
     const explicit = await prepare('Explicit override', { expiresAt: explicitAt, reminders: { afterDays: 1, everyDays: 1 } })
     assert.equal((await read(h, explicit)).expiresAt, explicitAt); assert.deepEqual((await read(h, explicit)).reminders, { afterDays: 1, everyDays: 1 })
-    const off = await prepare('Reminders off', { reminders: null, allowReassignment: false })
+    const off = await prepare('Reminders off', { reminders: null, allowReassignment: false, signers: [{name:'Mara Quinn',email:'reminders.off@clients.example',linkOnly:false}] })
+    assert.equal((await read(h, off)).signers[0].linkOnly, undefined, 'explicit email overrides link-only default')
     assert.equal((await read(h, off)).allowReassign, undefined, 'explicit false overrides account reassignment')
     assert.equal((await read(h, off)).reminders, undefined, 'null explicitly overrides account reminders')
     const t = (await h.command('template.save', { title: 'Inherited defaults template', filename: 'letter.pdf', pdfBase64: await pdfBase64(), roles: [{ role: 'Client', order: 1 }], fields: [field] })).result.id
     const templated = await fromTemplate(h, t, 'template.defaults@clients.example'), oldTemplated = await fromTemplate(h, oldTemplate, 'old.template@clients.example')
     assert.equal(days(await read(h, templated)), 21); assert.deepEqual((await read(h, templated)).reminders, defaults.reminders)
     assert.equal(days(await read(h, oldTemplated)), 30); assert.equal((await read(h, oldTemplated)).reminders, undefined, 'an existing template with reminders off overrides the account')
+    assert.equal((await read(h, templated)).signers[0].linkOnly, true)
+    assert.equal((await read(h, oldTemplated)).signers[0].linkOnly, undefined, 'an older email-code template does not inherit link only')
     assert.equal((await read(h, templated)).allowReassign, true)
     assert.equal((await read(h, oldTemplated)).allowReassign, undefined, 'an older template with reassignment off stays off')
     const preservedTemplate = (await h.command('template.from_envelope', { id: off })).result.id
     assert.equal((await read(h, await fromTemplate(h, preservedTemplate, 'off.saved@clients.example'))).allowReassign, undefined, 'saving an envelope as a template preserves false under an enabled account default')
+    await h.command('envelope.approve', { id: off, eligible: true }, sender)
     const copiedOff = (await h.command('envelope.copy', { id: off })).result.id
     assert.equal((await read(h, copiedOff)).allowReassign, undefined)
-    await h.command('envelope.update', { id: off, ...await draft('Reminders off edited', 'off.edited@clients.example'), reminders: null })
-    assert.equal((await read(h, off)).allowReassign, undefined, 'editing a draft without a new choice preserves false')
+    await h.command('envelope.update', { id: old, ...await draft('Reminders off edited', 'off.edited@clients.example'), reminders: null })
+    assert.equal((await read(h, old)).allowReassign, undefined, 'editing a draft without a new choice preserves false')
     await h.command('template.update', { id: oldTemplate, title: 'Old template edited', filename: 'old.pdf', pdfBase64: await pdfBase64(), roles: [{role:'Client',order:1}], fields:[field], expiryDays:30, reminders:null })
     assert.equal((await read(h, await fromTemplate(h, oldTemplate, 'edited.template@clients.example'))).allowReassign, undefined, 'editing an old template without a new choice preserves false')
-    const changed = (await save({ expiryDays: 12, reminders: null, allowReassignment: false }, admin)).result.defaults
+    const changed = (await save({ expiryDays: 12, reminders: null, allowReassignment: false, authentication: 'email' }, admin)).result.defaults
     assert.equal(changed.actor, (await h.send('/api/inkwell', undefined, admin)).value.actor.id)
     assert.equal(days(await read(h, inherited)), 21); assert.deepEqual((await read(h, inherited)).reminders, defaults.reminders)
     const stillTemplate = await fromTemplate(h, t, 'still.template@clients.example')
+    assert.equal((await read(h, stillTemplate)).signers[0].linkOnly, true)
     assert.equal((await read(h, stillTemplate)).allowReassign, true, 'a template keeps its saved reassignment choice')
     assert.equal((await read(h, inherited)).allowReassign, true)
     assert.equal(days(await read(h, stillTemplate)), 21); assert.deepEqual((await read(h, stillTemplate)).reminders, defaults.reminders, 'saved templates keep their snapshot')
     const fresh = await prepare('New defaults')
+    assert.equal((await read(h, fresh)).signers[0].linkOnly, undefined)
     assert.equal((await read(h, fresh)).allowReassign, undefined)
     assert.equal(days(await read(h, fresh)), 12); assert.equal((await read(h, fresh)).reminders, undefined)
     // An inherited reminder actually reaches the current recipient through the normal scheduler and paid mail edge.
     await h.command('envelope.approve', { id: inherited, eligible: true }, sender)
-    await h.command('envelope.approve', { id: off, eligible: true }, sender)
     let at = new Date(Date.now() + 7 * 86400000); at.setUTCHours(16, 0, 0, 0)
     while ([0, 6].includes(at.getUTCDay())) at = new Date(at.getTime() + 86400000)
     await h.scheduled(at.getTime())
@@ -355,8 +362,12 @@ test('Combined templates: every source approval, allowlist entry and live revisi
   const definition=async(title,approver)=>({title,filename:'agreement.pdf',pdfBase64:await pdfBase64(),roles:[{role:'Client',order:1}],fields:[field],expiryDays:30,approval:{approver}})
   const first=await definition('Harbour NDA',await actor(ada)),second=await definition('Harbour W-9',await actor(ben))
   const a=(await h.command('template.save',first)).result.id,b=(await h.command('template.save',second)).result.id
+  const defaults=(await h.send('/api/inkwell/envelope-defaults',undefined,h.owner)).value.defaults
+  await h.command('account.envelope_defaults',{expectedVersion:defaults.version,expiryDays:120,reminders:null,authentication:'link',allowReassignment:true})
   const combine=async()=> (await h.command('template.combine',{ids:[a,b],recipients:[{name:'Mara Quinn',email:'mara.composition@harbour.example'}]})).result.id
   const id=await combine(),frozen=await read(h,id)
+  assert.equal(frozen.allowReassign,undefined,'composition preserves its selected template rather than inheriting a later default')
+  assert.ok(frozen.signers.every(s=>!s.linkOnly),'composition preserves email-code source roles under a link-only account default')
   await set(h,'template',{templates:[a]})
   await h.command('envelope.approve',{id,eligible:true},h.owner,403)
   await set(h,'template',{templates:[a,b]})

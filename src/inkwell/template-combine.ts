@@ -51,7 +51,7 @@ export async function combineTemplates(env: Env, context: CommandContext, input:
     insist(role.accessCode || code === undefined, `The ${role.role} role does not use an access code.`)
     return { name:role.unresolvedIdentity?'':person.name, email:role.unresolvedIdentity?'':person.email, ...(role.unresolvedIdentity?{unresolvedIdentity:true as const}:{}), ...(role.delegates?{delegates:role.delegates}:{}), order: role.order, ...(role.action ? { role: role.action } : {}),
       ...(role.witnesses ? { witnesses: structuredClone(role.witnesses) } : {}), ...(role.includeWhen ? { includeWhen: role.includeWhen } : {}),
-      ...(role.identity === 'sms' ? { sms: true, phone: person.phone } : role.identity === 'link' ? { linkOnly: true } : {}),
+      sms: role.identity === 'sms', linkOnly: role.identity === 'link', ...(role.identity === 'sms' ? { phone: person.phone } : {}),
       ...(code === undefined ? {} : { accessCode: code }), ...(role.message ? { message: role.message } : {}) }
   })
   const additional = input.documents === undefined ? [] : input.documents
