@@ -1,3 +1,4 @@
+import { formPermissions, setFormPermission, listForms, publishForm, disableForm, publicForm, requestFormCode, verifyFormEmail } from './web-forms'
 import { apiKeyPermissions,setApiKeyPermission } from './api-key-permissions'
 import { smsMessages, dispatchSms } from './sms'
 import { receiveSmsReply } from './sms-replies'
@@ -187,6 +188,15 @@ api.get('/api/copy/:token',async c=>c.json(copyView(await copyContext(c.env,c.re
 api.post('/api/copy/:token/code',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await requestCopyCode(c.env,await copyContext(c.env,c.req.param('token'),c.req.raw)))})
 api.post('/api/copy/:token/verify',async c=>{sameOrigin(c.req.raw,c.env);const context=await copyContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096);c.header('set-cookie',await verifyCopyCode(c.env,context,body));return c.json({ok:true})})
 api.get('/api/copy/:token/artifacts/:kind',async c=>copyArtifact(c.env,await copyContext(c.env,c.req.param('token'),c.req.raw),c.req.param('kind')))
+// FORM-001: publication/admission foundations; no submission or autonomous send door yet.
+api.use('/api/forms/*',async(c,next)=>{insist(!c.req.header('authorization'),'Credentials cannot use public web-form admission.',403);await next()})
+api.get('/api/inkwell/web-form-permissions',async c=>{await requireActor(c.req.raw,c.env,['owner','admin']);return c.json(await formPermissions(c.env))})
+api.post('/api/inkwell/web-form-permissions',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner','admin']),body=await readJson(c.req.raw,8192);return c.json(await setFormPermission(c.env,await apiKeyContext(c.req.raw,actor,body),body))})
+api.get('/api/inkwell/forms',async c=>c.json(await listForms(c.env,await requireActor(c.req.raw,c.env,['owner','admin','sender']))))
+api.post('/api/inkwell/forms',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']),body=await readJson(c.req.raw,32768);return c.json(await publishForm(c.env,await apiKeyContext(c.req.raw,actor,body),body))})
+api.post('/api/inkwell/forms/:id/disable',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']),body=await readJson(c.req.raw,4096);return c.json(await disableForm(c.env,await apiKeyContext(c.req.raw,actor,body),c.req.param('id')))})
+api.get('/api/forms/:id',async c=>{insist(!c.req.header('authorization'),'Credentials cannot use public web-form admission.',403);return c.json(await publicForm(c.env,c.req.param('id')))})
+for(const step of ['code','verify'] as const)api.post(`/api/forms/:id/${step}`,async c=>{sameOrigin(c.req.raw,c.env);insist(!c.req.header('authorization'),'Credentials cannot use public web-form admission.',403);return c.json(await (step==='code'?requestFormCode:verifyFormEmail)(c.env,c.req.raw,c.req.param('id'),await readJson(c.req.raw,4096)))})
 api.get('/api/v1/openapi.json', c => c.json(apiOpenApi))
 // API-001: key management is a member-session door; bearer credentials never borrow a browser session.
 async function keyManager(request: Request, env: Bindings) {

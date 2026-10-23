@@ -74,3 +74,16 @@ this permission permanently suspends all bound keys, including owner-issued
 keys; restoring the permission does not revive them. Grants/history do not travel
 with document archives. This is the API-key permission foundation; full ADMIN-008
 profiles must narrow these gates and suspension rules before they ship.
+
+
+## Web-form admission foundation (FORM-001 remains partial)
+
+These routes configure and verify admission only. There is no public form page or submission route yet; an admission token cannot create, send or sign an envelope. The total/daily submission limits are saved for the future submission transaction, not enforced by email verification. QR links, embed snippets, the signing/countersigning flow and policy-held review remain unbuilt.
+
+Native owner/admin sessions may GET/POST `/api/inkwell/web-form-permissions` to inspect or version a sender’s explicit grant (`memberId`, `enabled`, `expectedVersion`, `commandId`). A sender needs this grant and live template access; it never grants record access. GET `/api/inkwell/forms` lists forms the current publisher manages. POST creates a new immutable form with `templateId`, `templateVersion`, `publicRole` (zero-based), `fixedRecipients` (null for that role, name/email for every other role), and `commandId`. Optional totalLimit/dailyLimit/expiryDays default to 100/50/90; totalLimit is at most 10,000 and expiryDays at most 365. Republish creates a new ID. POST `/api/inkwell/forms/{id}/disable` disables an owned form (owner/admin may disable any).
+
+Signed-out GET `/api/forms/{id}` returns title, public-role label and expiry only. POST `/api/forms/{id}/code` takes email and turnstileToken and returns challengeId/expiry. POST `/api/forms/{id}/verify` takes challengeId, code and turnstileToken and returns a once-visible 10-minute admissionToken. Both changes require this installation’s Origin; preparation tokens and API keys are refused. Codes expire at 10 minutes, permit five attempts, and are limited to three mail requests per normalized email/form in a rolling hour, including failed delivery. Verification cannot set recipients, fields or the form definition.
+
+Configure the Worker secret `TURNSTILE_SECRET_KEY` before code requests. Siteverify must return success and this installation’s hostname with action `inkwell_form_code` or `inkwell_form_verify`, respectively. Missing configuration fails closed; provider failures never create envelopes. Tests fake only the Turnstile and mail network edges. No credential values belong in source or arguments.
+
+Owner/role/permission loss suspends old forms permanently; restoration permits publishing a new form, never reviving the old one. Changed/deleted/inaccessible templates refuse admission. Form configuration, grants and email admission state are installation state excluded from document archives. The hourly pass deletes admission PII after 24 hours; public management statistics do not expose admission addresses or tokens.
