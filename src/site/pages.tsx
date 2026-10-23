@@ -47,7 +47,6 @@ export function sitePages({ styles, contract }: SiteContext): SiteBuild {
         <link rel="icon" type="image/svg+xml" href="/brand/favicon-32.svg" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {fontLinks.map(link => <link key={link.href} {...link} />)}
-        <link rel="stylesheet" href="/fonts/fonts.css" />
         <link rel="stylesheet" href={identity.theme} />
         {styles.map(href => <link key={href} rel="stylesheet" href={href} />)}
       </head>

@@ -71,11 +71,11 @@
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "6b30d5c33531a18ae70f12566d39941da35ad64107336d3d9beed330b64ffa18",
+      "sha256": "3ec5ef9a8f481a44a409c69aee0c6da6a787d01313de6915172a75028bd4e1e7",
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "ab99b4b0f55159ca42159d8b51d3a5835d3bd1609e32d255a337d5586036073a",
+      "sha256": "ac4750bffcaab5baebfdcb75c07acaa24002572d4170bf7b5d6689f371c32f41",
       "executable": false
     },
     "composition.lock.json": {
@@ -383,7 +383,7 @@
       "executable": false
     },
     "public/app/controls.css": {
-      "sha256": "3f0ac28ce231a493c785594eb7e29c1465839da3a8e2ea38545df0d91431691e",
+      "sha256": "fe92782c808e05007f0ac722670364695d29428a8a832168437d8d894df9a03a",
       "executable": false
     },
     "public/app/detail.css": {
@@ -459,7 +459,7 @@
       "executable": false
     },
     "public/fonts/fonts.css": {
-      "sha256": "53b2081dec75e5d0aa4eb965fc243268bd2eb8804eedb8e3d4b4cdc9428c4cbd",
+      "sha256": "b124a1045291451bbb6d3733cf92a5b1b9f94ed185ae3c6e8538373560e6c2fc",
       "executable": false
     },
     "public/fonts/geist-mono/geist-mono-latin-wght-normal.woff2": {
@@ -507,11 +507,11 @@
       "executable": false
     },
     "public/fonts/README.md": {
-      "sha256": "f74c07583cb10ef655b60e181890e5f2e7f0c0bc81be9243db627decb425eedc",
+      "sha256": "09fa12782a99ff29068659ed6495a11e3193118d2a6768539a303b7a66a234b5",
       "executable": false
     },
     "public/frame.css": {
-      "sha256": "883dff360288736a800b9dfc3dbb6036cf4872d18540e963ce8f6a478e7ef368",
+      "sha256": "6e041cbcbda6c87752e103264b0d90930d5d645cf80ab06e46a0d9ad6d38ddcf",
       "executable": false
     },
     "public/manifest.webmanifest": {
@@ -519,7 +519,7 @@
       "executable": false
     },
     "public/rer-theme.css": {
-      "sha256": "7fc27650eaaa13a0b66f80b8270d3acd55c851a0dc462c6ab1d535d5554a1c59",
+      "sha256": "b1f5bb1a6067f370e462939903483bdd90cfc241082367ade1065c1dd5ffa6c2",
       "executable": false
     },
     "public/site/base-pages.css": {
@@ -531,7 +531,7 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "dbc3e37b29cbd83b2dd6fc38b3629680c7228506c7ceb7d543277b57f833845c",
+      "sha256": "aca2e7bba3c82c088e700235dd7e3f387cd54f822f4b3ae6c893d857fea6b748",
       "executable": false
     },
     "rer-project.json": {
@@ -619,7 +619,7 @@
       "executable": false
     },
     "src/auth.server.ts": {
-      "sha256": "986dec672dd6ef634dc58f48719e8cb36e8269e9187df2e7d81ce28bf7f10d9e",
+      "sha256": "cb3e18b0c3fe861f91ae0414d341b4eb2b02695bc852fff14f3c96d538793d5f",
       "executable": false
     },
     "src/base/contract-filter.ts": {
@@ -643,7 +643,7 @@
       "executable": false
     },
     "src/base/font-head.ts": {
-      "sha256": "394bab2075e9f5d8ad33d456751a2f993a456fcbfa9c858b28ce7f1267ea0e80",
+      "sha256": "ba61822a1d2d815c897aabdbebb98d1456747c03f86fc27789a94c056904a5c5",
       "executable": false
     },
     "src/base/font-response.ts": {
@@ -751,7 +751,7 @@
       "executable": false
     },
     "src/identity.ts": {
-      "sha256": "3cc3b09723413a7e65174e34b31caf2f5803c9a61e3b0ffd4f86231b8becbda8",
+      "sha256": "1a5f8194d05958317ba4ba7241294b86b5c4fc9341ed286affebf1c1544d88b5",
       "executable": false
     },
     "src/inkwell/agents.ts": {
@@ -2951,7 +2951,7 @@
       "executable": false
     },
     "src/server.dev.ts": {
-      "sha256": "4892545be3afaf55d1a45b99933f017baa43512d7152f56b21422010aa70b8a5",
+      "sha256": "79540e700d89d02af4df1297bd844c0e58f0a4758a647eda87d873a8b7109168",
       "executable": false
     },
     "src/server.ts": {
@@ -3095,7 +3095,7 @@
       "executable": false
     },
     "src/site/pages.tsx": {
-      "sha256": "e9bf8e39054ca3f578e38f62dd526962ab389a39423d6c0349dc5767a0f08b06",
+      "sha256": "9fe97639cb0a4ede67118e0b24361ae36be8369ba14a6053d778404d8fa3e602",
       "executable": false
     },
     "src/site/run.json": {
@@ -3379,7 +3379,7 @@
       "executable": false
     },
     "src/ui/styles.ts": {
-      "sha256": "5900fe836df120410a55bada2c1cbb8cf3b728dd0f8e09dfb6230afaa2d53c58",
+      "sha256": "1ebc08d63c86ad18fe1b598f03d4494961a775b912d61e32c0b174b204a8959b",
       "executable": false
     },
     "src/ui/supplements.tsx": {

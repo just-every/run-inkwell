@@ -167,8 +167,9 @@ The suite stays below the [200-test budget](test-budget.json).
 Started from Base `fc0e1041efa55771142bbb57c4ab4743147e264d`; see
 [reuse and trust boundaries](docs/provenance.md). The run site's look (the design desk's
 Inkwell look of 18 Oct 2026: white grid paper, heavy Geist headings with an emerald-to-blue second line, white hairline
-cards and the smiling jade envelope mark in `public/brand/`) is defined in `public/rer-theme.css`, with fonts in
-`public/fonts/`; the app's styles are in `public/app/`, on the tokens in `public/rer-theme.css`.
+cards and the smiling jade envelope mark in `public/brand/`) is defined in `public/rer-theme.css` (the `--rer-*` tokens
+and the faces) and `public/fonts/fonts.css` (Inkwell's own tokens), with the font files in `public/fonts/`; the app's
+styles are in `public/app/`, on those tokens.
 
 ## Run site
 

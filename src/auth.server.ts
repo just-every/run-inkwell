@@ -8,8 +8,9 @@ import { operatorMail } from './mail.server.mjs'
 import branding from './branding.json'
 
 // What the Base frames (sign-in and /setup) link as their theme:
-// public/frame.css imports the declared rer-theme.css and Inkwell's tokens,
-// then lays the frames out in the setup look.
+// public/frame.css imports the declared rer-theme.css, then lays the frames
+// out in the setup look on Inkwell's tokens, which the font head links
+// (public/fonts/fonts.css).
 const theme = { href: '/frame.css', productName: branding.name, accentColor: branding.primaryColor }
 
 export interface Bindings {

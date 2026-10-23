@@ -104,7 +104,9 @@ flags, private state, deployment inputs and remote limitations.
 
 This edition implements the jobs in ACCEPTANCE.md. Its look (white grid paper, heavy Geist headings with an emerald-to-blue second
 line, the smiling jade envelope mark in `public/brand/`) lives in
-`public/rer-theme.css` (every token, once), `public/frame.css` (Base's sign-in
+`public/rer-theme.css` (the `--rer-*` tokens and the faces, in the grammar the
+installer reads), `public/fonts/fonts.css` (Inkwell's own tokens),
+`public/frame.css` (Base's sign-in
 and setup frames) and `public/app/`; the run site is `src/site/` with docs from
 `docs/site.json`. Preserve signing, approval and custody boundaries when
 extending it.

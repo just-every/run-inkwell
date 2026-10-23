@@ -1,7 +1,8 @@
 /* The Base frames (sign-in, /setup, sign-in confirmation, identity settings and the development outbox) link this file
-   as their theme: the tokens from rer-theme.css, then the app's look: one centred white card with the mark beside the
-   heavy wordmark, a heavy Geist heading, thin quiet fields and the ink button, on the white grid ground. Selectors
-   start at html.rer-themed so they outrank each frame's own hashed style. */
+   as their theme: the --rer-* tokens from rer-theme.css, then the app's look on Inkwell's own tokens (fonts.css, which
+   the font head links on each frame): one centred white card with the mark beside the heavy wordmark, a heavy Geist
+   heading, thin quiet fields and the ink button, on the white grid ground. Selectors start at html.rer-themed so they
+   outrank each frame's own hashed style. */
 @import url('/rer-theme.css');
 
 html.rer-themed body {

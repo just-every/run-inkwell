@@ -1,6 +1,7 @@
 // This edition's identity: what its installed Lobby and its run site say.
 // The name and colour are the ones setup saves in src/branding.json. The
-// tagline is the run site's meta description; public/fonts/fonts.css declares the faces.
+// tagline is the run site's meta description; public/rer-theme.css declares the faces and public/fonts/fonts.css
+// Inkwell's tokens beyond the theme.
 import type { EditionIdentity } from './base/identity'
 import branding from './branding.json'
 import site from '../deploy-site.json'

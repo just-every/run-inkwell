@@ -1,11 +1,82 @@
-/* Inkwell's faces, all SIL Open Font License 1.1 and self-hosted from public/fonts/ (licences beside each family; see
-   README.md): Geist for headings, the wordmark and text, Geist Mono for code, and three hands the run site draws with:
-   Kalam on the sticky notes, Mrs Saint Delafield and Allura for the signers' signatures. No page makes a third-party request. */
-@font-face { font-family: 'Geist'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/geist/geist-latin-wght-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-@font-face { font-family: 'Geist'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/geist/geist-latin-ext-wght-normal.woff2') format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
-@font-face { font-family: 'Geist'; font-style: italic; font-weight: 100 900; font-display: swap; src: url('/fonts/geist/geist-latin-wght-italic.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-@font-face { font-family: 'Geist Mono'; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/geist-mono/geist-mono-latin-wght-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-@font-face { font-family: 'Kalam'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/kalam/kalam-latin-400-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-@font-face { font-family: 'Kalam'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/kalam/kalam-latin-700-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-@font-face { font-family: 'Mrs Saint Delafield'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/mrs-saint-delafield/mrs-saint-delafield-latin-400-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
-@font-face { font-family: 'Allura'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/allura/allura-latin-400-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+/* Inkwell's look beyond its theme. /rer-theme.css holds only what Base's theme grammar allows (the --rer-* tokens and
+   the faces; the installer reads it), so Inkwell's own tokens are here: Base's extra --rer-* names, then the run
+   site's and the app's. The root document (the app and the signing pages), /setup, the Lobby, Base's Run, contract and
+   not-found pages and the run site link this file before the theme (src/base/font-head.ts and the edition identity's
+   fonts); the sign-in, confirmation and settings pages (src/base/font-response.ts) and the development sign-in and
+   hand-off pages (src/server.dev.ts) link it after their own style; the hosted demo's gate inlines it before the
+   theme. */
+
+/* Inkwell's tokens, defined once: Base's pages, the run site (src/site/styles), the app (public/app/) and the frames
+   (public/frame.css) read them with the --rer-* tokens in /rer-theme.css. */
+:root {
+  --rer-font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --rer-button-radius: 18px;
+  --rer-code-background: #12161f;
+  --rer-code-text: #e8ecf2;
+  --rer-wordmark-weight: 800;
+  --rer-wordmark-tracking: -.04em;
+
+  /* The run site's own tokens. */
+  --paper: var(--rer-page);
+  --surface: var(--rer-surface);
+  --ink: var(--rer-text);
+  --body: #434a58;
+  --soft: #6b7280;
+  --faint: #9aa1ad;
+  --line: #e6e9ee;
+  --line-strong: #d6dbe2;
+  --grid: #eff2f5;
+  --row: #f6f8fa;
+  --button: var(--rer-accent);
+  --jade: #00c98b;
+  --jade-deep: #0a9e6c;
+  --jade-band: #2bd9a2;
+  --mascot-ink: #07211a;
+  --tongue: #f26f8a;
+  --grad-a: #02a36b;
+  --grad-b: #008dfa;
+  --gradient: linear-gradient(90deg, var(--grad-a) 0%, #00a3a0 45%, var(--grad-b) 100%);
+  --green: #12a150;
+  --green-ink: #0b7a3e;
+  --green-tint: #e2f7ea;
+  --green-wash: #f3fbf6;
+  --blue: #0a7cff;
+  --blue-ink: #0466d6;
+  --blue-tint: #e6f1ff;
+  --blue-wash: #f4f8ff;
+  --red: #e5322d;
+  --red-ink: #c42420;
+  --red-tint: #fde4e4;
+  --amber-ink: #8a5a00;
+  --amber-tint: #fdf0b0;
+  --amber-wash: #fff8e1;
+  --violet-ink: #4b3fcf;
+  --violet-tint: #e7e4fd;
+  --rose-ink: #c2412f;
+  --rose-tint: #fee4e3;
+  --sticky: #ffe98c;
+  --sticky-ink: #1d1f22;
+  --code: var(--rer-code-background);
+  --code-text: var(--rer-code-text);
+  --font-hand: 'Kalam', 'Comic Sans MS', cursive;
+  --font-sign: 'Mrs Saint Delafield', 'Allura', cursive;
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 5%), 0 14px 34px -10px rgb(16 24 40 / 14%);
+  --shadow-lift: 0 2px 4px rgb(16 24 40 / 6%), 0 22px 48px -14px rgb(16 24 40 / 20%);
+  --radius-card: 18px;
+
+  /* The app's own tokens (public/app/*.css, Base's frames in public/frame.css): the picked app look's
+     white cards at 14px with hairlines, quiet 10px fields, and its brighter emerald-to-azure accent pair, kept to the
+     progress bars, the selected navigation and the count of envelopes that need you. */
+  --app-grad-a: #17b26a;
+  --app-grad-b: #1489f2;
+  --app-gradient: linear-gradient(90deg, var(--app-grad-a), var(--app-grad-b));
+  --app-nav: linear-gradient(90deg, #5fd8a6, #63b7f7);
+  --app-radius: 14px;
+  --app-radius-field: 10px;
+  --app-field: #d3d8e0;
+  --app-field-hover: #aab2bf;
+  --app-shadow: 0 1px 2px rgb(16 24 40 / 4%), 0 8px 24px -12px rgb(16 24 40 / 12%);
+  --app-grid: #f1f3f6;
+  --app-wash: #f6f8fa;
+  --app-select: #eef5ff;
+}

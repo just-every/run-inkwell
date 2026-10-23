@@ -1,4 +1,4 @@
-/* Inkwell app: type, buttons, fields, pills and marks. Every token is in /rer-theme.css. */
+/* Inkwell app: type, buttons, fields, pills and marks. Every token is in /rer-theme.css or /fonts/fonts.css. */
 body:has(.iw-app) { margin: 0; padding: 0; background: var(--paper); }
 .iw-app {
   min-height: 100vh;
