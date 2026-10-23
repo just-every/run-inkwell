@@ -231,6 +231,14 @@ api.post('/api/v1/envelopes/:id/send',async c=>{
  const context=await apiKeyContext(c.req.raw,actor,body),previous=await previousCommand(c.env.DB,apiCommandActor(actor),context.commandId,context.fingerprint)
  const result=previous??await approveEnvelope(c.env,context,{...body,id:envelope.id});await dispatchMail(c.env,envelope.id);return c.json({result})
 })
+// Management changes use the same live edit-access and signed-field fences as the member commands.
+for (const action of ['correct','resend'] as const) api.post(`/api/v1/envelopes/:id/${action}`,async c=>{
+ const actor=await apiClient(c,'envelopes:manage'),body=await readJson(c.req.raw,action==='correct'?1_000_000:8192),envelope=await getEnvelope(c.env.DB,c.req.param('id'))
+ await insistAccess(c.env,actor,envelope,'edit')
+ const context=await apiKeyContext(c.req.raw,actor,body),previous=await previousCommand(c.env.DB,apiCommandActor(actor),context.commandId,context.fingerprint)
+ const result=previous??await (action==='correct'?correctEnvelope:resendInvitation)(c.env,context,{...body,id:envelope.id})
+ return c.json({result})
+})
 api.post('/api/v1/envelopes/:id/void',async c=>{
  const actor=await apiClient(c,'envelopes:manage'),body=await readJson(c.req.raw,8192),envelope=await getEnvelope(c.env.DB,c.req.param('id'))
  await insistAccess(c.env,actor,envelope,'edit')

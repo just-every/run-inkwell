@@ -4,7 +4,7 @@ export const apiOpenApi = {
   "info": {
     "title": "Inkwell envelope API",
     "version": "0.1.0",
-    "description": "Scoped live keys support draft preparation, autonomous policy-authorized creation/sending, reads, artifacts and voiding. API-001 remains partial: OAuth/PKCE, sender self-minting permission, test mode, webhook management and account audit integration remain unshipped."
+    "description": "Scoped live keys support draft preparation, autonomous policy-authorized creation/sending, reads, artifacts, corrections, invitation resends and voiding. API-001 remains partial: OAuth/PKCE, sender self-minting permission, test mode, webhook management and account audit integration remain unshipped."
   },
   "servers": [
     {
@@ -587,6 +587,255 @@ export const apiOpenApi = {
                   },
                   "reason": {
                     "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/envelopes/{id}/correct": {
+      "post": {
+        "operationId": "correctEnvelope",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "description": "Requires envelopes:manage and current edit access. Corrects only an in-flight request. Omitted values stay unchanged. A supplied signers array keeps every existing place (remove with remove:true) and may append later recipients; signed recipients and their fields stay immutable. Identity/authentication changes revoke the previous link/session and send a new invitation. Every change is audited; document bytes cannot change.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id"
+                      ]
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "429": {
+            "description": "Rolling key/account quota reached. No silent queue.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "Seconds until admission may be retried."
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "commandId"
+                ],
+                "properties": {
+                  "commandId": {
+                    "type": "string"
+                  },
+                  "signers": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 5,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email"
+                        },
+                        "order": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 100
+                        },
+                        "remove": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "email"
+                      ]
+                    }
+                  },
+                  "fields": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/Field"
+                    }
+                  },
+                  "subject": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "message": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "expiresAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/envelopes/{id}/resend": {
+      "post": {
+        "operationId": "resendInvitation",
+        "security": [
+          {
+            "ApiKey": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "description": "Requires envelopes:manage and current edit access. Resends only a current unsigned invitation; bounced, in-person and paper-pending recipients are refused. Keeps the existing link unless newLink=true or it cannot be reopened. A new link revokes the old link/code/session. Each message has its own delivery outcome. A repeated commandId returns its receipt without sending another invitation.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id"
+                      ]
+                    }
+                  },
+                  "required": []
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "429": {
+            "description": "Rolling key/account quota reached. No silent queue.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "description": "Seconds until admission may be retried."
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "commandId",
+                  "signer"
+                ],
+                "properties": {
+                  "commandId": {
+                    "type": "string"
+                  },
+                  "signer": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Zero-based current recipient place."
+                  },
+                  "newLink": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "channel": {
+                    "type": "string",
+                    "enum": [
+                      "email",
+                      "sms"
+                    ],
+                    "default": "email"
                   }
                 }
               }

@@ -1,3 +1,4 @@
+import { apiCommandActor } from './api-command'
 import { dispatchSms, smsInvitation, smsReady } from './sms'
 // DELIV-005: the sender (or anyone who may change the envelope, ADMIN-001) resends the invitation to a recipient whose
 // turn it is, from the envelope detail page (MANAGE-005). Resend sends the same link again (the old link keeps
@@ -47,7 +48,7 @@ export async function resendInvitation(env: Env, context: CommandContext, input:
   for (const link of links) writes.push(...(link.rotated ? [env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=?,code_hash=NULL,code_expires=NULL,code_attempts=0,code_sent_at=NULL,session_hash=NULL,session_expires=NULL WHERE envelope_id=? AND signer=?').bind(await sha256(link.token), await sealLink(env, after.id, link.row, link.token), after.id, link.row),
 ] : []),
     sms ? smsInvitation(env, after, signer, link.token) : invitationWrite(env, after, signer, link.token, link.member))
-  await commitEnvelope(env, before, after, context.actor, [...writes, commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
+  await commitEnvelope(env, before, after, context.actor, [...writes, commandWrite(env.DB, apiCommandActor(context.actor), context.commandId, context.fingerprint, result)])
   if (sms) await dispatchSms(env, after.id); else await dispatchMail(env, after.id)
   return result
 }

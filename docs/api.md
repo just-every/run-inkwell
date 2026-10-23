@@ -1,6 +1,6 @@
 # API keys and envelope clients
 
-The current API can read envelopes and artifacts, list templates, prepare unsigned PDF drafts, send under an autonomous API policy, and void envelopes with a manage scope. Its machine-readable description is `GET /api/v1/openapi.json`. API-001 remains partial: OAuth/PKCE, sender self-minting permission, API correction/resend routes and account-audit integration are not shipped. Test-mode keys and webhook management remain unavailable.
+The current API can read envelopes and artifacts, list templates, prepare unsigned PDF drafts, send under an autonomous API policy, correct, resend and void envelopes with a manage scope. Its machine-readable description is `GET /api/v1/openapi.json`. API-001 remains partial: OAuth/PKCE, sender self-minting permission, API correction/resend routes and account-audit integration are not shipped. Test-mode keys and webhook management remain unavailable.
 
 An owner or admin uses their normal signed-in session and same-origin JSON requests to manage keys. `POST /api/inkwell/api-keys` takes `commandId`, `name`, the bound `memberId`, `scopes`, and optionally `expiresInDays` (365 by default, 1–730 whole 24-hour days). The member must currently be an active owner, admin or sender. A sender's own minting permission waits for ADMIN-008. Minting, scope changes and rotation require a sign-in from the last 15 minutes. Listing and revoking keys need a current owner/admin session. Bearer credentials cannot manage keys or use member-session commands, even alongside a valid browser cookie.
 
@@ -50,3 +50,15 @@ never the secret or hash. Key listings include the warning's sent/rejected/uncer
 outcome. A claimed attempt is never blindly replayed; a claim interrupted for over
 10 minutes becomes uncertain, so an administrator can review it. Revoked,
 suspended, expired and no-longer-bound credentials receive no new warnings.
+
+`POST /api/v1/envelopes/{id}/correct` and `/resend` require
+`envelopes:manage` and the bound member's current edit access. Corrections use
+`signers`, `fields`, `subject`, `message` and/or `expiresAt`; omitted values stay.
+A supplied signer list keeps every existing place, marking removals with
+`remove: true`. A signed recipient and their fields are immutable. Changing an
+unsigned recipient's identity rotates their link and revokes prior sessions.
+Resend takes a zero-based `signer`, optional `newLink` and optional `channel`
+(email by default, or SMS for an eligible individual with a saved mobile number).
+It applies the same current-turn, bounce and paper-review rules as the dashboard.
+Both take `commandId`, write a per-key 24-hour receipt in the same transaction,
+and audit the real bound member. Retrying a receipt never sends another message.

@@ -1,3 +1,4 @@
+import { apiCommandActor } from './api-command'
 import { smsIdentity } from './sms'
 import { recipientRole, witnessRule, validateRoleFields, validateRecipientCount } from './recipient-roles'
 import { remapCopyAudience } from './document-visibility'
@@ -160,7 +161,7 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
   const invited = nowCurrent.filter(i => !after.signers[i].inPerson && (!wasCurrent.includes(i) || rotated.has(i) || !before.signers[i])).map(i => after.signers[i].email)
   if (after.signers.every(routeSettled)) writes.push(...await advanceAfterSigning(env,after,after.signers.findLastIndex(s=>s.signedAt||s.completedAt)))
   const result = { id: after.id, invited, emailSent: mail && invited.length > 0 }
-  await commitEnvelope(env, before, after, context.actor, [...writes, commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
+  await commitEnvelope(env, before, after, context.actor, [...writes, commandWrite(env.DB, apiCommandActor(context.actor), context.commandId, context.fingerprint, result)])
   await dispatchMail(env, after.id)
   return result
 }

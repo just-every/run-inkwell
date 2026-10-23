@@ -67,7 +67,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "1f858b057855b2777a0ea81ad16e999ae5a6ad72e79dce729487922b1ca949d0",
+      "sha256": "0672448bf689fcf3fb81087f26e9428e83aecbbe3571d2cd59b8282a3af37efe",
       "executable": false
     },
     "AGENTS.md": {
@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0b15d50e95efe64283e1151794234af0e858c20d888df6b596f013d266953d8e",
+      "sha256": "0879d390e203bf36bcd182b39163f10968405c70979b981dd15084e521b6f472",
       "executable": false
     },
     "DEMO.md": {
@@ -107,7 +107,7 @@
       "executable": false
     },
     "docs/api.md": {
-      "sha256": "ef045a9de93995aaa5cddc641b16728a2242637f6ac510db4edde4e9b698f0ac",
+      "sha256": "746b2933f7518c8c1ddb1617b833dddf8e9b88f3fabc1a14bdd67f1967c7a8c1",
       "executable": false
     },
     "docs/backup-and-restore.md": {
@@ -795,11 +795,11 @@
       "executable": false
     },
     "src/inkwell/api-openapi.ts": {
-      "sha256": "c4722898d89591284252dcde4d50a5ec5dafd05128bc691715c49d3fd421e073",
+      "sha256": "3646b4821fe574aac16165fb589cdfca3264aff9a833eb0844e592277540312f",
       "executable": false
     },
     "src/inkwell/api.ts": {
-      "sha256": "5e0b2ba23b138041e9dbc701a0d5a772c6a82acf360e54474fa3997def2f2c8f",
+      "sha256": "e1814c1845d2d22775f8dc1a4b81de01e384829521df8ecfe1d769e98013221e",
       "executable": false
     },
     "src/inkwell/archive-policy.d.mts": {
@@ -895,7 +895,7 @@
       "executable": false
     },
     "src/inkwell/corrections.ts": {
-      "sha256": "864b6bad9b7f33b0d122693a590bcbccf1321da6510e1e7c1142775dc7098888",
+      "sha256": "faf356656b65f206d86e7103933d598ff47256e4047d389b60e2a8d3035bf058",
       "executable": false
     },
     "src/inkwell/default-record.d.mts": {
@@ -1187,7 +1187,7 @@
       "executable": false
     },
     "src/inkwell/resend.ts": {
-      "sha256": "ca48d61627f2f9356358594020f7053c0027292caacf0a0fe087d24623879676",
+      "sha256": "b263ebb57c890c1894748a4c8b1b0e61b550e5ca320f9b3f8cdf84b8c146e728",
       "executable": false
     },
     "src/inkwell/retention-imported-envelope.ts": {
@@ -3467,7 +3467,7 @@
       "executable": false
     },
     "tests/api-keys.test.mjs": {
-      "sha256": "6bc951e2c93ecf5268abccb2588762081ba2e2aef8b3e267c311f56e19963da2",
+      "sha256": "9029923fc5c126dc8a2ec46ba19fc54f7fb05e916a0fdd9e18fdeae6854ae79d",
       "executable": false
     },
     "tests/api-worker.ts": {

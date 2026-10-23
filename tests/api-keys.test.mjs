@@ -321,3 +321,56 @@ test('API-001: template clients preserve pinned fields/prefill, enforce live use
   assert.equal((await client(h,key.token,'/api/v1/envelopes', {...body,commandId:crypto.randomUUID()})).status,401,'template authority loss permanently suspends its bound key')
  }finally{await h.close()}
 })
+
+test('API-001: management clients correct unsigned recipients, rotate their identity links and preserve signed fields with per-key retries',async()=>{
+ const h=await harness()
+ try {
+  const sam=await sender(h,'correct.client@harbour.example'),other=await sender(h,'other.correct@harbour.example')
+  const key=await mint(h,sam.id,['envelopes:read','envelopes:send','envelopes:manage']),readOnly=await mint(h,sam.id,['envelopes:read'])
+  await h.command('account.send_policy',{source:'api',expectedVersion:0,mode:'autonomous'})
+  const spec=(await h.send('/api/v1/openapi.json')).value,operation=name=>Object.entries(spec.paths).find(([,verbs])=>Object.values(verbs).some(v=>v.operationId===name))[0]
+  const definition=await draft('API correction preserves signed evidence')
+  definition.signers=[{name:'Mara Quinn',email:'mara.correct@clients.example',order:1,linkOnly:true},{name:'Eli Brooks',email:'eli.correct@clients.example',order:1,linkOnly:true}]
+  definition.fields=[{...definition.fields[0],id:'first'},{...definition.fields[0],id:'second',signer:1,y:.7}]
+  const created=await client(h,key.token,operation('prepareEnvelope'),{...definition,status:'sent',commandId:crypto.randomUUID()});assert.equal(created.status,200,JSON.stringify(created.value));const id=created.value.result.id,path=operation('correctEnvelope').replace('{id}',id)
+  const tokenPath=async email=>'/api'+new URL((await h.mail(email,'Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+  const first=await tokenPath(definition.signers[0].email),oldSecond=await tokenPath(definition.signers[1].email),session=(await h.post(first+'/open',{},'')).cookie
+  await h.agree(first,session);await h.post(first+'/sign',{values:{first:'Mara Quinn'},consent:true,commandId:crypto.randomUUID()},session)
+  const before=(await client(h,key.token,'/api/v1/envelopes/'+id)).value.envelope,signers=[...definition.signers];signers[1]={...signers[1],email:'eli.new@clients.example'}
+  const body={commandId:crypto.randomUUID(),signers,message:'Corrected delivery address'}
+  assert.equal((await client(h,readOnly.token,path,body)).status,403)
+  const corrected=await client(h,key.token,path,body);assert.equal(corrected.status,200,JSON.stringify(corrected.value))
+  const sent=h.sent();assert.deepEqual((await client(h,key.token,path,body)).value,corrected.value);assert.equal(h.sent(),sent,'a correction retry creates no new invitation')
+  assert.equal((await client(h,key.token,path,{...body,message:'Changed input'})).status,409)
+  assert.equal((await h.send(oldSecond+'/open',{},'')).status,404)
+  const after=(await client(h,key.token,'/api/v1/envelopes/'+id)).value.envelope
+  assert.equal(after.signers[0].signedAt,before.signers[0].signedAt);assert.deepEqual(after.signers[0].values,before.signers[0].values)
+  assert.equal(after.signers[1].email,signers[1].email);assert.ok(after.events.some(e=>e.action==='signer.corrected'&&e.actor===sam.id))
+  assert.equal((await client(h,key.token,path,{commandId:crypto.randomUUID(),fields:after.fields.map(f=>f.id==='first'?{...f,x:.2}:f)})).status,409)
+  const foreign=(await h.command('envelope.prepare',await draft('Another sender'),other.cookie)).result.id
+  assert.equal((await client(h,key.token,operation('correctEnvelope').replace('{id}',foreign),{...body,commandId:crypto.randomUUID()})).status,403)
+  assert.equal((await h.send('/api/inkwell/envelopes/'+id+'/verify',undefined,h.owner)).value.ok,true)
+ }finally{await h.close()}
+})
+
+test('API-001: scoped invitation resends preserve or revoke links explicitly and retries never send duplicate mail',async()=>{
+ const h=await harness()
+ try {
+  const sam=await sender(h,'resend.client@harbour.example'),key=await mint(h,sam.id,['envelopes:send','envelopes:manage']),sendOnly=await mint(h,sam.id,['envelopes:send'])
+  await h.command('account.send_policy',{source:'api',expectedVersion:0,mode:'autonomous'})
+  const spec=(await h.send('/api/v1/openapi.json')).value,operation=name=>Object.entries(spec.paths).find(([,verbs])=>Object.values(verbs).some(v=>v.operationId===name))[0]
+  const definition=await draft('API resend invitation'),created=await client(h,key.token,operation('prepareEnvelope'),{...definition,status:'sent',commandId:crypto.randomUUID()});assert.equal(created.status,200,JSON.stringify(created.value))
+  const id=created.value.result.id,path=operation('resendInvitation').replace('{id}',id),body={commandId:crypto.randomUUID(),signer:0}
+  const link=async()=>new URL((await h.mail(definition.signers[0].email,'Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+  const original=await link(),initial=h.sent()
+  assert.equal((await client(h,sendOnly.token,path,body)).status,403)
+  const resent=await client(h,key.token,path,body);assert.equal(resent.status,200,JSON.stringify(resent.value));assert.equal(resent.value.result.newLink,false);assert.equal(await link(),original);assert.equal(h.sent(),initial+1)
+  assert.deepEqual((await client(h,key.token,path,body)).value,resent.value);assert.equal(h.sent(),initial+1)
+  assert.equal((await client(h,key.token,path,{...body,newLink:true})).status,409)
+  const rotated=await client(h,key.token,path,{...body,commandId:crypto.randomUUID(),newLink:true});assert.equal(rotated.status,200,JSON.stringify(rotated.value));assert.equal(rotated.value.result.newLink,true);assert.notEqual(await link(),original)
+  assert.equal((await h.send('/api'+original+'/code',{},'')).status,404)
+  const agent=(await h.command('agent.issue')).result.token
+  for(const name of ['correctEnvelope','resendInvitation'])assert.equal((await client(h,agent,operation(name).replace('{id}',id),body)).status,403)
+  assert.equal((await h.send('/api/inkwell/envelopes/'+id+'/verify',undefined,h.owner)).value.ok,true)
+ }finally{await h.close()}
+})
