@@ -979,7 +979,7 @@
       "executable": false
     },
     "src/inkwell/envelope-metadata.ts": {
-      "sha256": "f10baf39f2cb268ad3e8de62e83619b29d0ab41984ebe2eb5e5169a49f73bac2",
+      "sha256": "2bedced8a2e4deaae1a49c76e123037e3a99b38fbe826b6dfe02f76c531bb921",
       "executable": false
     },
     "src/inkwell/envelopes.ts": {
@@ -1231,7 +1231,7 @@
       "executable": false
     },
     "src/inkwell/retention.ts": {
-      "sha256": "98e2d5b0e372376c885a4498460e140a3e629f5e0374d0e7a8de1e04512b3b7d",
+      "sha256": "eca1fa8e16a22cd7c28343db61a1f779c41be757687401303c057031019e91a4",
       "executable": false
     },
     "src/inkwell/routing.ts": {
@@ -3283,7 +3283,7 @@
       "executable": false
     },
     "src/ui/envelope-folders.tsx": {
-      "sha256": "d396b4b1eb482c66851b9f49ddbe521f3046cf2bd9d2c488a9235afa8a99d364",
+      "sha256": "7730afa0016b0d418cc9cf0cb1483116cd32954c0adfcb1ec3ca2736b9a5e100",
       "executable": false
     },
     "src/ui/envelope-list.tsx": {
@@ -3635,7 +3635,7 @@
       "executable": false
     },
     "tests/journeys/envelope-detail.mjs": {
-      "sha256": "c55000e3f2a20a8195529fb2e42f2255c638b8e598ad46979ee7fbd98b0d5f1b",
+      "sha256": "8f0fc7d47ddb1849db13b66e565cf1a2cba0bdc552baa987f2b98df2716a1b5c",
       "executable": false
     },
     "tests/journeys/field-placement.mjs": {
@@ -3699,7 +3699,7 @@
       "executable": false
     },
     "tests/journeys/recipient-roles.mjs": {
-      "sha256": "166d28ae661cb7bbb246948b70c165868542fdfbe57e8c2480196d4b65b9113a",
+      "sha256": "145b69b291a4865bbf93a50bbaab9ae479e9c57c31ee34837d185c630a4b2e80",
       "executable": false
     },
     "tests/journeys/recipient-template-actions.mjs": {

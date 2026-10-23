@@ -11,8 +11,8 @@ export function customEnvelopeFields(value:unknown,definitions:CustomEnvelopeFie
 }
 export function envelopeTags(value:unknown):string[] {insist(value===undefined||Array.isArray(value)&&value.length<=10,'Add at most 10 tags.');return [...new Set(((value??[]) as unknown[]).map(tag=>text(tag,'a tag',40)))]}
 export function mergeCustomFields(groups:CustomEnvelopeField[][]):CustomEnvelopeField[] {
- const merged=new Map<string,CustomEnvelopeField>()
- for(const field of groups.flat()){const key=field.name.toLowerCase(),before=merged.get(key);merged.set(key,{...field,required:field.required||Boolean(before?.required),value:before&&before.value!==field.value?'':field.value})}
+ const merged=new Map<string,CustomEnvelopeField>(),conflicts=new Set<string>()
+ for(const field of groups.flat()){const key=field.name.toLowerCase(),before=merged.get(key);if(before&&before.value!==field.value)conflicts.add(key);merged.set(key,{...field,required:field.required||Boolean(before?.required),value:conflicts.has(key)?'':field.value})}
  return [...merged.values()]
 }
 const csvCell=(value:string)=>{const safe=/^[=+\-@\t\r]/.test(value)?"'"+value:value;return '"'+safe.replaceAll('"','""')+'"'}

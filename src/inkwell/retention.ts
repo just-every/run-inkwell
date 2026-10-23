@@ -21,7 +21,7 @@ import { dispatchArchiveRetentionMail } from './imports/retention-mail'
  * rule and the ended, warned and purged times. A warning stands only while its due date does, so an expired envelope
  * the sender extends is no longer due. A legal hold, placed and lifted by an owner or admin with a reason and audited in the
  * envelope's own trail, stops the warning, the purge and any erase request; lifting it restarts the 30-day warning. Folder
- * rules arrive with MANAGE-002's folders. */
+ * rules replace the account rule for envelopes assigned to that folder. */
 const day = 86_400_000
 export const retentionWarningDays = 30, maxRetentionYears = 99
 const key = 'retention_years'
