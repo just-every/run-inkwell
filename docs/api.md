@@ -118,3 +118,15 @@ Folder settings and shares stay out of document archives. A restored folder ID
 is inert unless that folder still exists in the destination installation.
 This conservative placement and restore default awaits ct approval. HubSpot
 handoff of custom envelope fields is not available until INTEG-001 ships.
+
+
+The OpenAPI preparation schema describes `customFields` and `tags` for file and
+template requests. A required template custom field must have a value; supplying
+`required: false` cannot remove that template requirement. Omitting tags inherits
+the template tags. These values are returned on the envelope record.
+
+The documented envelope-list query accepts `folder` (an exact folder ID),
+`customField` (a case-insensitive name), `customValue` (a case-insensitive exact
+value used with `customField`), and `tag` (a case-insensitive exact tag). Omitting
+`customValue` matches any value for that field. Every filter retains the bound
+member's current record access. Folder placement remains a member-session action.

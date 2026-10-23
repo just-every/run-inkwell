@@ -292,21 +292,33 @@ test('API-001: hourly 30/7-day warnings name only key metadata and retain single
 })
 
 
-test('API-001: template clients preserve pinned fields/prefill, enforce live use access and hold stale template revisions',async()=>{
+test('API-001: template clients preserve pinned fields and prefill, enforce live use access and hold stale template revisions',async()=>{
  const h=await harness()
  try {
   const sam=await sender(h,'template.api@harbour.example'),other=await sender(h,'other.template.api@harbour.example'),definition=await draft('Pinned API template')
-  const template={title:definition.title,filename:definition.filename,pdfBase64:definition.pdfBase64,roles:[{role:'Client',order:1}],fields:[...definition.fields,{id:'department',label:'Department',signer:0,type:'text',page:0,x:.1,y:.6,width:.4,height:.05}]}
+  const template={title:definition.title,filename:definition.filename,pdfBase64:definition.pdfBase64,roles:[{role:'Client',order:1}],customFields:[{name:'Cost center',value:'',required:true}],tags:['renewal'],fields:[...definition.fields,{id:'department',label:'Department',signer:0,type:'text',page:0,x:.1,y:.6,width:.4,height:.05}]}
   const t=(await h.command('template.save',template)).result.id
   await h.command('template.share',{id:t,email:sam.email,access:'use'})
   const key=await mint(h,sam.id,['envelopes:read','envelopes:prepare','envelopes:send']),hidden=await mint(h,other.id,['envelopes:send'])
   const current=async()=> (await h.send('/api/inkwell/send-policies',undefined,h.owner)).value.policies.find(p=>p.source==='api')
   await h.command('account.send_policy',{source:'api',mode:'autonomous',templates:[t],expectedVersion:(await current()).version})
-  const body={templateId:t,recipients:[{name:'Mara Quinn',email:'mara.template.api@clients.example'}],prefill:{department:{value:'Procurement',source:'Supplied by API caller'}},status:'sent',commandId:crypto.randomUUID()}
+  const description=(await h.send('/api/v1/openapi.json')).value
+  const preparation=description.components.schemas.Preparation.properties
+  const encode=input=>Object.fromEntries(Object.entries(input).filter(([name])=>name in preparation))
+  const body=encode({templateId:t,recipients:[{name:'Mara Quinn',email:'mara.template.api@clients.example'}],prefill:{department:{value:'Procurement',source:'Supplied by API caller'}},customFields:[{name:'Cost center',value:'Finance 42',required:false}],status:'sent',commandId:crypto.randomUUID()})
+  const withoutMetadata={...body};delete withoutMetadata.customFields
+  const before=(await client(h,key.token)).value.total
+  assert.equal((await client(h,key.token,'/api/v1/envelopes',withoutMetadata)).status,400,'a template client must supply its required metadata before any send')
+  assert.equal((await client(h,key.token)).value.total,before,'missing metadata creates no envelope')
   assert.equal((await client(h,hidden.token,'/api/v1/envelopes',body)).status,404)
   const issued=await client(h,key.token,'/api/v1/envelopes',body);assert.equal(issued.status,200,JSON.stringify(issued.value))
   const read=async id=>(await client(h,key.token,'/api/v1/envelopes/'+id)).value.envelope
   const first=await read(issued.value.result.id);assert.equal(first.template.id,t);assert.equal(first.template.version,1);assert.equal(first.fields.find(f=>f.id==='department').prefill.value,'Procurement')
+  assert.deepEqual(first.customFields,[{name:'Cost center',value:'Finance 42',required:true}]);assert.deepEqual(first.tags,['renewal'])
+  const list=description.paths['/api/v1/envelopes'].get
+  const query=values=>new URLSearchParams(Object.entries(values).filter(([name])=>list.parameters.some(parameter=>parameter.name===name)))
+  assert.deepEqual((await client(h,key.token,'/api/v1/envelopes?'+query({customField:'Cost center',customValue:'finance 42',tag:'renewal'}))).value.envelopes.map(e=>e.id),[first.id])
+  assert.equal((await client(h,key.token,'/api/v1/envelopes?'+query({customField:'Cost center',customValue:'unrelated'}))).value.total,0)
   assert.equal(first.events.findLast(e=>e.action==='envelope.approved').detail.sendPolicy.source,'api')
   assert.equal((await h.send('/api/inkwell/envelopes/'+first.id+'/verify',undefined,h.owner)).value.ok,true)
   const later={at:new Date(Date.now()+2*86400000).toISOString().slice(0,16),timeZone:'Pacific/Honolulu'}

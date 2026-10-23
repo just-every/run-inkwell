@@ -161,6 +161,38 @@ export const apiOpenApi = {
               "minimum": 1,
               "maximum": 100
             }
+          },
+          {
+            "name": "folder",
+            "in": "query",
+            "description": "Exact folder ID; current record access still applies.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "customField",
+            "in": "query",
+            "description": "Custom field name, matched without regard to case.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "customValue",
+            "in": "query",
+            "description": "Exact custom field value, matched without regard to case. Use with customField; omission matches any value.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "description": "Exact tag, matched without regard to case.",
+            "schema": {
+              "type": "string"
+            }
           }
         ]
       },
@@ -683,7 +715,7 @@ export const apiOpenApi = {
                   "signers": {
                     "type": "array",
                     "minItems": 1,
-                    "maxItems": 5,
+                    "maxItems": 100,
                     "items": {
                       "type": "object",
                       "properties": {
@@ -948,7 +980,30 @@ export const apiOpenApi = {
       },
       "Envelope": {
         "type": "object",
-        "description": "The current envelope record, including fingerprints, recipients, fields and audit events."
+        "description": "The current envelope record, including fingerprints, recipients, fields and audit events.",
+        "properties": {
+          "customFields": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/CustomEnvelopeField"
+            },
+            "description": "Required values must be nonblank. Omission inherits template defaults; supplied entries must retain every required template field."
+          },
+          "tags": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "description": "Omission inherits template tags."
+          },
+          "folderId": {
+            "type": "string",
+            "description": "Assigned through the member folder controls; it does not confer authority by itself."
+          }
+        }
       },
       "Preparation": {
         "type": "object",
@@ -977,7 +1032,7 @@ export const apiOpenApi = {
           "signers": {
             "type": "array",
             "minItems": 1,
-            "maxItems": 5,
+            "maxItems": 100,
             "items": {
               "type": "object",
               "properties": {
@@ -998,7 +1053,8 @@ export const apiOpenApi = {
                 "name",
                 "email"
               ]
-            }
+            },
+            "description": "At most 100 recipients in total, including completed-copy recipients and reserved witness places."
           },
           "fields": {
             "type": "array",
@@ -1076,6 +1132,23 @@ export const apiOpenApi = {
                 "type": "string"
               }
             }
+          },
+          "customFields": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/CustomEnvelopeField"
+            },
+            "description": "Required values must be nonblank. Omission inherits template defaults; supplied entries must retain every required template field."
+          },
+          "tags": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "description": "Omission inherits template tags."
           }
         },
         "required": [
@@ -1167,6 +1240,27 @@ export const apiOpenApi = {
           "y",
           "width",
           "height"
+        ]
+      },
+      "CustomEnvelopeField": {
+        "type": "object",
+        "description": "Envelope metadata, separate from signer fields. Required template definitions cannot be removed or made optional when preparing an envelope.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "required": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "name"
         ]
       }
     },
