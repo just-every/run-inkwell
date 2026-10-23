@@ -132,7 +132,7 @@ try {
   await mkdir(organizationImages,{recursive:true})
   const shareEmail='folder.reader@harbour.example'
   await inkwell.call('/auth/invite',{cookie:inkwell.owner,body:{email:shareEmail,displayName:'Folder Reader',role:'member'},status:202})
-  const inviteMail=inkwell.mail(shareEmail),inviteToken=new URL(inviteMail.text.match(/http:\/\/[^\s]+\/auth\/confirm\?token=[^\s]+/)[0]).searchParams.get('token')
+  const inviteMail=inkwell.mail(shareEmail,''),inviteToken=new URL(inviteMail.text.match(/http:\/\/[^\s]+\/auth\/confirm\?token=[^\s]+/)[0]).searchParams.get('token')
   await inkwell.call('/auth/confirm',{body:{token:inviteToken},status:303})
   for(const width of [1440,390]){
     const title=`Cost center agreement ${width}`,folderName=`Finance records ${width}`

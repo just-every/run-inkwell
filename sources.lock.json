@@ -83,7 +83,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "d4b743f27a9672e7d129f37f262d2cb83bdb3ac02f1f144817e633a878aac34b",
+      "sha256": "860325a60231c7b4db8b55dff15fef1f974535ba7a04e12ea201708d9c286a71",
       "executable": false
     },
     "DEMO.md": {
@@ -3635,7 +3635,7 @@
       "executable": false
     },
     "tests/journeys/envelope-detail.mjs": {
-      "sha256": "1b7d3d71da8520617ebc9b9789cc52b8c013cab3a5551e9a26665b677e7a2de6",
+      "sha256": "228ffbe51af1026cc35a2360f48fa24df571874ea6d7d49b5f0981b04b8ed0fe",
       "executable": false
     },
     "tests/journeys/field-placement.mjs": {
