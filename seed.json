@@ -80,5 +80,10 @@
       "operator-auth",
       "owner-claim"
     ]
-  }
+  },
+  "replaces": [
+    "Docusign eSignature",
+    "Adobe Acrobat Sign",
+    "Dropbox Sign"
+  ]
 }

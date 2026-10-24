@@ -63,3 +63,26 @@ instructions under `node_modules/@runeditrun/rer/modules/deploy-kit`; account sc
 resource ownership, migrations, receipt and health checks are defined there.
 Local validation does not prove hosted acceptance, provider delivery or remote
 health.
+
+## Hosted delivery
+
+`packaging.json` records Inkwell's build, verification, DB migrations and recovery
+policy. After the real `pnpm run build`, run `pnpm delivery:spec` to write the
+committed import specification. `pnpm check:deployment-spec` checks freshness
+against the build and source policy. Package with
+`node scripts/delivery/base/cli.mjs package --config packaging.json --output rer-package`;
+produce subsequent artifacts with
+`node scripts/delivery/base/cli.mjs artifact --config packaging.json`. These
+commands prepare files and do not deploy or publish a release.
+
+The app surface assigns `AUTH_ORIGIN`. Managed hosting assigns RER mail and its
+sender, relay URL and private installation credential. Assisted hosting asks for
+the selected RER, Resend, SendGrid or Cloudflare provider's sender and private
+credential; RER also needs its relay URL, and Cloudflare needs its account ID.
+The local development choice is filled only by `rer dev`; it uses the private
+outbox without external mail. Hosting requires one of the configured providers.
+
+Before a hosted recovery, pause writes and scheduled work and retain the exact
+source and private settings. Export the installation, restore into empty
+resources, run owner setup and re-export to compare fingerprints before routing
+traffic. Never change applied migration names or bytes.

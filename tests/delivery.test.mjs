@@ -658,3 +658,28 @@ test('SMS reassignment requires the new person’s number, preserves SMS authent
   assert.equal((await smsTestDetail(h,id)).status,'completed')
  }finally{await h.close()}
 })
+
+test('Managed mail: signing invitations use the configured relay and preserve an uncertain response without another provider', async () => {
+ const requests = []
+ let uncertain = false
+ const h = await harness({ mailProvider: 'rer', bindings: { MAIL_RELAY_URL: 'https://relay.inkwell.example/mail', MAIL_API_KEY: 'synthetic-inkwell-1' }, networkEdge: async request => {
+  assert.equal(request.url, 'https://relay.inkwell.example/mail')
+  assert.equal(request.headers.get('authorization'), 'Bearer synthetic-inkwell-1')
+  requests.push(await request.json())
+  return uncertain ? new Response(null, { status: 503 }) : Response.json({ messageId: '<synthetic-inkwell-1@relay.inkwell.example>' }, { status: 202 })
+ } })
+ try {
+  const id = await sendOne(h, 'dana@harbour.example')
+  assert.equal(requests.length, 1)
+  assert.equal(requests[0].to, 'dana@harbour.example')
+  assert.match(requests[0].subject, /^Please sign:/)
+  assert.match(requests[0].text, /\/sign\//)
+  assert.equal(Object.hasOwn(requests[0], 'from'), false)
+  const message = await invitation(h, id)
+  assert.equal(message.status, 'sent')
+  uncertain = true
+  const other = await sendOne(h, 'eli@harbour.example', 503)
+  assert.equal(requests.length, 2, 'one submission per invitation, without retry or provider substitution')
+  assert.equal((await invitation(h, other)).status, 'uncertain')
+ } finally { await h.close() }
+})

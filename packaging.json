@@ -1,0 +1,93 @@
+{
+  "schema": 1,
+  "project": {
+    "schema": 1,
+    "projectId": "signatures/inkwell",
+    "name": "Inkwell",
+    "sourceRepository": "https://github.com/just-every/run-inkwell",
+    "license": "MIT",
+    "deployment": {
+      "target": "cloudflare-workers",
+      "artifactFile": "rer-worker-artifact.json"
+    },
+    "operations": {
+      "setup": "pnpm install --frozen-lockfile && pnpm exec rer install",
+      "build": "pnpm run build",
+      "verify": "pnpm run verify && pnpm exec rer check --profile first-party && pnpm check:deployment-spec",
+      "artifact": "node scripts/delivery/base/cli.mjs artifact --config packaging.json",
+      "recovery": "Follow OPERATIONS.md: retain the exact source and private settings, pause writes and scheduled work, export the installation, restore into an empty destination, run owner setup and re-export to compare fingerprints before routing traffic. Preserve applied migration names and bytes."
+    },
+    "verification": {
+      "migrationDirectories": [
+        "migrations/core"
+      ]
+    }
+  },
+  "managed": {
+    "workflowRef": "runeditrun/delivery/.github/workflows/trusted-build.yml@86c8b37399c901bffd9a240dbd1148a65ec83b34",
+    "artifactFile": "rer-worker-artifact.json",
+    "buildProfile": "project",
+    "verificationProfiles": [
+      "full"
+    ],
+    "pnpmVersion": "10.12.4"
+  },
+  "artifact": {
+    "specInputs": {
+      "publicVariableNames": [
+        "AUTH_ORIGIN",
+        "AUTH_LOCAL",
+        "IDENTITY_PROVIDER",
+        "MAIL_PROVIDER",
+        "MAIL_FROM",
+        "MAIL_RELAY_URL",
+        "MAIL_ACCOUNT_ID",
+        "MAIL_INBOUND_DOMAIN",
+        "MAIL_WEBHOOK_KEY",
+        "TURNSTILE_SITE_KEY",
+        "TWILIO_ACCOUNT_SID",
+        "TWILIO_FROM",
+        "OWNER_EMAIL"
+      ],
+      "secretNames": [
+        "SESSION_SECRET",
+        "SETUP_TOKEN"
+      ],
+      "optionalSecretNames": [
+        "MAIL_API_KEY",
+        "MAIL_INBOUND_SECRET",
+        "MAIL_INBOUND_API_KEY",
+        "TWILIO_AUTH_TOKEN",
+        "TURNSTILE_SECRET_KEY"
+      ],
+      "mail": {
+        "providers": [
+          "rer",
+          "resend",
+          "sendgrid",
+          "cloudflare"
+        ]
+      },
+      "providerEffects": [
+        "outbound-mail",
+        "outbound-webhooks"
+      ],
+      "surfaces": {
+        "app": {
+          "path": "/app",
+          "originVariable": "AUTH_ORIGIN",
+          "signIn": {
+            "path": "/signin",
+            "loginHint": false
+          }
+        }
+      },
+      "healthPath": "/health",
+      "migrationPrefix": "core-",
+      "recovery": "Follow OPERATIONS.md: retain the exact source and private settings, pause writes and scheduled work, export the installation, restore into an empty destination, run owner setup and re-export to compare fingerprints before routing traffic. Preserve applied migration names and bytes."
+    }
+  },
+  "setup": {
+    "manifestFile": "rer-setup.json"
+  }
+}

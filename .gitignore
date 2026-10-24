@@ -17,3 +17,7 @@ research/
 
 .rer/demo/
 .rer/demo-host/
+
+# Disposable delivery output
+rer-package/
+delivery-artifact/
