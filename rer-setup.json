@@ -197,6 +197,16 @@
         "equals": "cloudflare"
       },
       "group": "mail"
+    },
+    {
+      "name": "INSTALLATION_KEY",
+      "label": "Installation encryption key",
+      "kind": "secret",
+      "required": true,
+      "ownerVisible": false,
+      "input": "managed",
+      "generate": "hex",
+      "group": "owner"
     }
   ],
   "steps": [

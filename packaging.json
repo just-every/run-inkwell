@@ -51,14 +51,16 @@
       ],
       "secretNames": [
         "SESSION_SECRET",
-        "SETUP_TOKEN"
+        "SETUP_TOKEN",
+        "INSTALLATION_KEY"
       ],
       "optionalSecretNames": [
         "MAIL_API_KEY",
         "MAIL_INBOUND_SECRET",
         "MAIL_INBOUND_API_KEY",
         "TWILIO_AUTH_TOKEN",
-        "TURNSTILE_SECRET_KEY"
+        "TURNSTILE_SECRET_KEY",
+        "INSTALLATION_KEY_PREVIOUS"
       ],
       "mail": {
         "providers": [
