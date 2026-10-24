@@ -1,6 +1,19 @@
 import { DocIcon, InfoIcon, WarnIcon } from '../icons'
 import { Cursor, Eyebrow, Heading, Sparks, Sticky, Tick } from '../parts'
 
+// The one start line every Run Edit Run page shows, and the alternative for people who already have Node.
+const START = 'curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-inkwell'
+const ALTERNATIVE = 'Already have Node 22 or later? npx -y @runeditrun/rer dev just-every/run-inkwell'
+
+/** A command that wraps only between words, keeping the installer's `install.sh | sh` together. */
+function words(line: string) {
+  return line.split(/(\S*install\.sh \| sh|\S+)/).map((part, index) => {
+    const pipe = /^(.*\/)(install\.sh \| sh)$/.exec(part)
+    if (pipe) return <span key={index}><span className="ik-nw">{pipe[1]}</span><wbr /><span className="ik-nw">{pipe[2]}</span></span>
+    return part.trim() ? <span key={index} className="ik-nw">{part}</span> : part
+  })
+}
+
 const carried = [
   ['Completed envelopes', '1,846 of 1,846'],
   ['Certificates of completion', '1,846'],
@@ -22,7 +35,7 @@ export function MoveIn() {
           <p className="ik-body">Templates, completed envelopes, certificates and contacts arrive with their owners. Anything that did not map is listed by name.</p>
           <div className="ik-terminal">
             <span className="ik-terminal-dots" aria-hidden="true"><i /><i /><i /></span>
-            <pre><code><span className="ik-prompt" aria-hidden="true">$ </span>npx -y @runeditrun/rer dev just-every/run-inkwell{'\n'}<span className="ik-comment"># clones, installs and starts Inkwell on your computer</span></code></pre>
+            <pre><code><span className="ik-prompt" aria-hidden="true">$ </span>{words(START)}{'\n'}<span className="ik-comment"># {words('installs rer, then gets and starts Inkwell on your computer')}</span>{'\n'}<span className="ik-comment"># {words(ALTERNATIVE)}</span></code></pre>
           </div>
         </div>
         <div className="ik-stage ik-movein-stage">

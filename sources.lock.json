@@ -119,7 +119,7 @@
       "executable": false
     },
     "docs/getting-started.md": {
-      "sha256": "b09076ff7b6d8135571e720aa9f0b6bd745ea18238cd0dc88419873775dd9a4f",
+      "sha256": "a72637c44284295954481ae9c467957eef367f9c71a558e24f01196852d6efc7",
       "executable": false
     },
     "docs/healthcare.md": {
@@ -3151,7 +3151,7 @@
       "executable": false
     },
     "src/site/landing/sections/MoveIn.tsx": {
-      "sha256": "1c2bb80d0a0ac847cfa85da03bc3d1d79d667f2816b6d217057d544eb6ddada6",
+      "sha256": "b3a15aff9bb886361be9ccdefd8bce0c3a59efbd6cba6e61729420d0b402cdf9",
       "executable": false
     },
     "src/site/landing/sections/Overview.tsx": {
@@ -3219,7 +3219,7 @@
       "executable": false
     },
     "src/site/styles/landing-sections.css": {
-      "sha256": "58f097de5d5b13063cee842591ab8198f661a4d07b73e963f47e6515bb164334",
+      "sha256": "37a9df3652d3983661618afe101745e1f87076f7d52050caf876fc35bb0eb433",
       "executable": false
     },
     "src/site/styles/landing.css": {

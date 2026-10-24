@@ -1,27 +1,22 @@
-Run Inkwell on your own computer with two lines. It is free and needs no account anywhere.
+Run Inkwell on your own computer with one line. It is free and needs no account anywhere.
 
 ## What you need
 
 - macOS, Linux, or Windows with WSL2.
-- Nothing else to install first. The installer brings its own Node if you have no Node 22 or later, and `rer` selects the exact Node version Inkwell pins, so you do not need to change your global Node.
+- Git is required; rer brings Node and pnpm. The installer brings its own Node if you have no Node 22 or later, and `rer` selects the exact Node version Inkwell pins, so you do not need to change your global Node.
 
 ## Get Inkwell and start it
 
-Install `rer`, the Run Edit Run command:
+Copy this line into a terminal and press Enter:
 
 ```sh
-curl -fsSL https://runeditrun.com/install.sh | sh
+curl -fsSL https://runeditrun.com/install.sh | sh -s -- dev just-every/run-inkwell
 ```
 
-It installs `rer` for you alone and changes no shell settings: if its last line puts `rer` on your PATH, run that line
-first. Then start Inkwell:
-
-```sh
-rer dev just-every/run-inkwell
-```
-
-`rer` clones Inkwell, installs everything, makes you the owner and starts it. Already have Node 22 or later?
-`npx -y @runeditrun/rer dev just-every/run-inkwell` does both steps in one line. To start it again later, run
+It installs `rer`, the Run Edit Run command, for you alone, then clones Inkwell into `run-inkwell`, installs
+everything, makes you the owner and starts it. Already have Node 22 or later?
+`npx -y @runeditrun/rer dev just-every/run-inkwell` does the same. If the installer prints a line that puts `rer`
+on your PATH, run that line too. To start it again later, run the same line from the same folder, or
 `cd run-inkwell && rer dev`.
 
 The first start installs dependencies, builds Inkwell and creates its local database, so

@@ -303,6 +303,7 @@
 .ik-terminal pre { font-family: var(--rer-font-mono); font-size: calc(16 * var(--u)); line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
 .ik-prompt { color: #8a93a3; }
 .ik-comment { color: #9aa3b2; }
+.ik-nw { white-space: nowrap; }
 .ik-movein-stage { padding: calc(20 * var(--u)) 0; }
 .ik-import { width: calc(490 * var(--u)); margin-left: 0; padding: calc(26 * var(--u)) calc(24 * var(--u)) calc(22 * var(--u)); transform: rotate(1.6deg); }
 .ik-import header { display: flex; align-items: center; gap: calc(18 * var(--u)); margin-bottom: calc(12 * var(--u)); padding-right: calc(120 * var(--u)); }
