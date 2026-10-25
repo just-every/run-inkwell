@@ -123,14 +123,27 @@ export async function usageJourney(){
     for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await axe(page,`ADMIN-006 ${width} ${state} ${theme}`)}
     await page.emulateMedia({colorScheme:'light'});await page.screenshot({path:join(images,`${width}-${state}-page.png`),fullPage:false});await usage.screenshot({path:join(images,`${width}-${state}.png`)})
    }
+   const reviewNotice=async threshold=>{
+    await page.getByRole('button',{name:'Activity',exact:true}).click()
+    const feed=page.getByRole('region',{name:'Activity feed',exact:true}),notice=feed.getByRole('button',{name:`SMS ${threshold}% cap notice`,exact:true})
+    await expect(notice).toHaveCount(1)
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'usage activity has no sideways scroll')
+    for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await axe(page,`ADMIN-006 ${width} activity ${threshold} ${theme}`)}
+    await page.emulateMedia({colorScheme:'light'});await page.screenshot({path:join(images,`${width}-activity-${threshold}.png`),fullPage:true})
+    await tabTo(page,notice);await expect(notice).toBeFocused();await page.keyboard.press('Enter')
+    await expect(usage.getByLabel('Monthly SMS cap in USD (blank for no cap)',{exact:true})).toHaveValue('5')
+    await expect(usage.getByRole('button',{name:'Refresh usage'})).toBeEnabled()
+   }
    for(let i=0;i<4;i++)await app.call(paths[i]+'/code',{body:{}})
    await capture('warning');await expect(usage.getByRole('status')).toContainText('SMS warning:')
    await expect(usage.locator('dd').nth(2)).toHaveText('$4.00 USD')
    await expect(usage.getByLabel('SMS usage notices')).toContainText('SMS 80% notice: $4.00 USD')
+   await reviewNotice(80)
    await app.call(paths[4]+'/code',{body:{}})
    await capture('stopped');await expect(usage.getByRole('status')).toContainText('SMS stopped:')
    await expect(usage.locator('dd').nth(0)).toHaveText('6');await expect(usage.locator('dd').nth(1)).toHaveText('5');await expect(usage.locator('dd').nth(2)).toHaveText('$5.00 USD')
    await expect(usage.getByLabel('SMS usage notices')).toContainText('SMS 100% notice: $5.00 USD')
+   await reviewNotice(100)
    // A fresh code request on a new SMS place has no resend delay to obscure the cap refusal.
    const extra=(await app.command('envelope.prepare',{title:'Blocked paid code',filename:'usage.pdf',pdfBase64,signers:[{name:'Blocked client',email:'blocked@harbour.example',sms:true,phone:'+12025550103'}],fields:[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.4,height:.07}]})).id
    await app.command('envelope.approve',{id:extra,eligible:true});const blocked='/api'+new URL(app.mail('blocked@harbour.example','Please sign:').text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
@@ -146,6 +159,11 @@ export async function usageJourney(){
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'cancellation detail has no sideways scroll')
    await axe(page,`ADMIN-006 ${width} cancellation`)
    await page.screenshot({path:join(images,`${width}-cancelled.png`),fullPage:true})
+   const close=detail.getByRole('button',{name:'Close',exact:true})
+   await close.focus();await expect(page.getByRole('tooltip')).toBeVisible()
+   await page.screenshot({path:join(images,`${width}-keyboard-tooltip.png`)})
+   await page.keyboard.press('Tab');await close.hover();await expect(page.getByRole('tooltip')).toBeVisible()
+
    await context.close()
   } finally {await app.close()}
  }

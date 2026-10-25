@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "ac95e9561e95ab9d26679ad9f62b6a5a4cf189f76eb188c644ca60cab3f63180",
+      "sha256": "43647808b60019c51d6ca83d905e989f83cfbea7a189b25cec6e026161bd9268",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "8a2a69e66f4fee81966c07d1d96d57767a7d3444ea713aff4834e5d0859950f2",
+      "sha256": "5a3cb2cabd9d90a32784cbdb07cca982dd26e369062ddd6f2933868c5f0de439",
       "executable": false
     },
     "DEMO.md": {
@@ -530,6 +530,10 @@
     },
     "migrations/core/0060_usage_notices.sql": {
       "sha256": "4696640d57ee63e292cee8a9a3746970fb5e29fec085a6342ad36a4eecc17828",
+      "executable": false
+    },
+    "migrations/core/0061_usage_activity.sql": {
+      "sha256": "e163d8387b1700b1923fc5f8c0619af93f4a94174afcdd47c7f7bcd53a561548",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -1405,7 +1409,7 @@
       "executable": false
     },
     "src/inkwell/notices.ts": {
-      "sha256": "df14c2a4392cd0ce4bb026a45afa2efd84542220acd95803ed698d2d87a0d9b6",
+      "sha256": "8eee90bf1ee53a5c4ae3aea3e825568426b7eb9d149397ac9253c023f6d374d0",
       "executable": false
     },
     "src/inkwell/own-signing.ts": {
@@ -3649,7 +3653,7 @@
       "executable": false
     },
     "src/ui/activity.tsx": {
-      "sha256": "c5164bf82a47fe744a41bbbbcf11580714bcc03ea816da3e1de2af1e49d2def9",
+      "sha256": "5e1e96aa4849ecd12319e05fb56844931bfc42076a4836b05c9d4579bcdf661e",
       "executable": false
     },
     "src/ui/adopt-signature.tsx": {
@@ -3785,7 +3789,7 @@
       "executable": false
     },
     "src/ui/operator-app.tsx": {
-      "sha256": "f034514fe8caeba1e9b282d59c6ce69374ad409c8034646da0345f03cc874779",
+      "sha256": "e6d03704871d03e201729b9956e6029ad8955b5c054552e4d406fa098fcae5bf",
       "executable": false
     },
     "src/ui/ordered-documents.tsx": {
@@ -3953,7 +3957,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "b6d19f84a398cc9d1f5da56d14fb2385670c8a37b67a2290e29d02462b79d903",
+      "sha256": "33ecdf23d0330ef9d1726ebf8a82693b731e8659d5f4e3166652bb2896e8c5d5",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
@@ -4141,7 +4145,7 @@
       "executable": false
     },
     "tests/journeys/sms.mjs": {
-      "sha256": "4431cb6b0b7097a8834d7b83fcba44c8846a4cc1f9753a5c985457aa41b26ec1",
+      "sha256": "d54fd4aecc2e3273b4b4e54d8748edd66e38ce52ebeb8a03fc00b75282bd21b7",
       "executable": false
     },
     "tests/journeys/supplements.mjs": {

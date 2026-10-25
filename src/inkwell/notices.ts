@@ -107,7 +107,7 @@ export async function dispatchNotices(env: Env) {
 export async function activityFeed(env: Env, actor: Actor, params: URLSearchParams) {
   const before = params.get('before') ?? ''
   insist(!before || !Number.isNaN(Date.parse(before)), 'Provide before as a time.')
-  const rows = (await env.DB.prepare(`SELECT id, envelope_id AS envelopeId, event, at, title, recipient FROM iw_notices WHERE operator_id=?${before ? ' AND at<?' : ''} ORDER BY at DESC, rowid DESC LIMIT 50`).bind(actor.id, ...(before ? [before] : [])).all<{ id: string; envelopeId: string; event: NoticeEvent; at: string; title: string; recipient: string }>()).results
+  const rows = (await env.DB.prepare(`SELECT id, envelope_id AS envelopeId, event, at, title, recipient FROM iw_notices WHERE operator_id=? AND (event!='usage_cap' OR ? IN ('owner','admin'))${before ? ' AND at<?' : ''} ORDER BY at DESC, rowid DESC LIMIT 50`).bind(actor.id, actor.role, ...(before ? [before] : [])).all<{ id: string; envelopeId: string; event: string; at: string; title: string; recipient: string }>()).results
   const posts = rows.length ? (await env.DB.prepare(`SELECT notice_id, channel, state, result FROM iw_notice_posts WHERE notice_id IN (${rows.map(() => '?').join(',')})`).bind(...rows.map(r => r.id)).all<{ notice_id: string; channel: Hook; state: string; result: string }>()).results : []
   return { notices: rows.map(row => ({ ...row, posts: posts.filter(p => p.notice_id === row.id).map(p => ({ channel: p.channel, state: p.state, result: p.result })) })) }
 }
