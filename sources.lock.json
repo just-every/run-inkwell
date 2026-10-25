@@ -3953,7 +3953,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "6d491bee485e3bd3dbd170245d3056dfdc7eee4a53e4f2a7fafa9e42fac620f4",
+      "sha256": "b6d19f84a398cc9d1f5da56d14fb2385670c8a37b67a2290e29d02462b79d903",
       "executable": false
     },
     "tests/document-fields.test.mjs": {

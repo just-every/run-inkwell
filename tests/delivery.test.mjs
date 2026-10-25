@@ -580,7 +580,7 @@ async function smsHarness({price,onAttempt}={}){
   await onAttempt?.()
   return failed?new Response('',{status:503}):Response.json({sid:'synthetic-inkwell-'+(texts.length+2),status:'queued',...(price===undefined?{}:{price,price_unit:'USD'})},{status:201})
  }})
- return {h,texts,fail:()=>{failed=true}}
+ return {h,texts,fail:()=>{failed=true},recover:()=>{failed=false}}
 }
 async function prepareSmsEnvelope(h,{sms=true,reminders,allowReassignment}={}){
  const pdf=await PDFDocument.create();pdf.addPage([612,792])
@@ -771,7 +771,7 @@ test('ADMIN-006: monthly SMS cap warns, atomically stops concurrent paid codes a
 test('ADMIN-006: unpriced and uncertain SMS attempts retain their allowance and policy changes never erase monthly usage',async()=>{
  let arrived,release
  const reached=new Promise(resolve=>{arrived=resolve}),held=new Promise(resolve=>{release=resolve})
- const {h,texts,fail}=await smsHarness({onAttempt:async()=>{arrived();await held}})
+ const {h,texts,fail,recover}=await smsHarness({onAttempt:async()=>{arrived();await held}})
  try {
   await h.command('account.usage',{capUsd:'5',reserveUsd:'3',expectedVersion:0,consent:true})
   const {id,path}=await prepareSmsEnvelope(h);fail()
@@ -798,5 +798,22 @@ test('ADMIN-006: unpriced and uncertain SMS attempts retain their allowance and 
   await h.post(path+'/code',{},'',503)
   assert.equal(texts.length,2,'raising the cap permits only a fresh request, not the cancelled invitation')
   assert.equal((await smsTestDetail(h,id)).messages.find(m=>m.id===cancelled.id).status,'not_sent')
+  recover();h.advanceTo(Date.parse('2026-10-26T15:04:00Z'))
+  await h.post(path+'/code',{},'')
+  assert.equal((await h.post('/api/inkwell/usage',undefined)).value.sms.stopped,true)
+  const verified=(await h.post(path+'/verify',{code:smsTestCode(texts)},'')).cookie
+  await h.agree(path,verified)
+  await h.post(path+'/sign',{values:{signature:'Mara Quinn'},consent:true,commandId:crypto.randomUUID()},verified)
+  const completed=await smsTestDetail(h,id)
+  assert.equal(completed.status,'completed','a dispatched verification can complete after further paid attempts stop')
+  assert.equal(completed.signers[0].sms,true,'completion retains the selected SMS authentication')
+  assert.ok(completed.events.some(event=>event.action==='signer.sms_verified'))
+  const removal={command:'account.usage',input:{capUsd:null,reserveUsd:'3',expectedVersion:2,consent:true},commandId:crypto.randomUUID()}
+  await h.post('/api/inkwell/commands',removal)
+  await h.post('/api/inkwell/commands',removal)
+  view=(await h.post('/api/inkwell/usage',undefined)).value
+  assert.equal(view.history.length,3,'removing the cap is audited once even when the same command is replayed')
+  assert.equal(view.history[0].before.capMicros,10_000_000);assert.equal(view.history[0].after.capMicros,null)
+  assert.equal(view.sms.committedMicros,9_000_000,'removing a cap retains uncertain and completed attempt allowances')
  } finally { await h.close() }
 })
