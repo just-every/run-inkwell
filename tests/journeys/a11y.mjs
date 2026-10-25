@@ -1,6 +1,7 @@
 // SIGNX-003's accessibility checks, shared by every journey that joins its scan and keyboard-only pass.
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
+import { expect } from '@playwright/test'
 
 const axePath = createRequire(import.meta.url).resolve('axe-core/axe.min.js')
 
@@ -16,6 +17,9 @@ export async function axe(page, label) {
  * reached shows its focus. */
 export async function tabTo(page, target, { backwards = false } = {}) {
   await target.waitFor({ state: 'visible' })
+  // Async loads can show a control before it enters the keyboard tab order.
+  await expect(target).toBeEnabled()
+  if (await target.evaluate(el => el === document.activeElement)) return
   for (let presses = 0; presses < 80; presses++) {
     await page.keyboard.press(backwards ? 'Shift+Tab' : 'Tab')
     // Focus styles fade in (a 0.15 s transition): read them at their end state. A date field's own calendar button is

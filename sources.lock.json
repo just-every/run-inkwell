@@ -4013,11 +4013,11 @@
       "executable": false
     },
     "tests/journeys/a11y.mjs": {
-      "sha256": "622e0a0cfa85bb705d8e998c561f07effe2249cd0e65153df60be82594d912fd",
+      "sha256": "be20fec7328e2261074789dedc7f1bb7f2e0a3c9fa764288d1411a68164a0d65",
       "executable": false
     },
     "tests/journeys/accessible-signing.mjs": {
-      "sha256": "271fa5507c9e0e316a2b067c5f21fbd2fda90dd8805cbc81a9684d26389b8afe",
+      "sha256": "cb3b318270478ffed9b310227c0fafd5b6b1ce995cb7d7ecf174350bd181fbf9",
       "executable": false
     },
     "tests/journeys/api-capacity.mjs": {
@@ -4141,11 +4141,11 @@
       "executable": false
     },
     "tests/journeys/sms.mjs": {
-      "sha256": "45866abe09bd17f4e0d25875f8a20b60da5994436e59900250c1d19bcf8619a6",
+      "sha256": "4431cb6b0b7097a8834d7b83fcba44c8846a4cc1f9753a5c985457aa41b26ec1",
       "executable": false
     },
     "tests/journeys/supplements.mjs": {
-      "sha256": "547fe8c69b53802f33acdea38597bf047ef9212bfc476d60ec297a65d43ff7d9",
+      "sha256": "8fb50af7fbf1044fcb975b7a7d812376ffb8770efd5562f03a59a2d7fa0d9fd9",
       "executable": false
     },
     "tests/journeys/template-composition.mjs": {

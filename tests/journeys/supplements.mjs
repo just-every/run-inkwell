@@ -13,8 +13,8 @@ const pdf = await PDFDocument.create(); pdf.addPage([612, 792]).drawText('Harbou
 pdf.addPage([612,792]).drawText('Questions about delivery dates', {x:54,y:720,size:18})
 const handbook = await PDFDocument.create(); handbook.addPage([612, 792]).drawText('Harbour Studio - Supplier Handbook', { x: 54, y: 720, size: 18 }); handbook.getPage(0).drawText('Contact the studio before changing delivery dates.', { x: 54, y: 660, size: 12 })
 const handbookBytes = Buffer.from(await handbook.save())
-const tab = async (page, control) => { await control.waitFor(); if (await control.evaluate(el => el === document.activeElement)) return; const backwards = await control.evaluate(el => Boolean(document.activeElement?.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_PRECEDING)); await tabTo(page, control, { backwards }) }
-const activate = async (page, control) => { await tab(page, control); await page.keyboard.press('Enter') }
+const tab = async (page, control) => { await control.waitFor(); await expect(control).toBeEnabled(); if (await control.evaluate(el => el === document.activeElement)) return; const backwards = await control.evaluate(el => Boolean(document.activeElement?.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_PRECEDING)); await tabTo(page, control, { backwards }) }
+const activate = async (page, control) => { await tab(page, control); await expect(control).toBeEnabled(); await expect(control).toBeFocused(); await page.keyboard.press('Enter') }
 try {
   await documentVisibilityJourney(proof)
   if(!process.env.INKWELL_VISIBILITY_ONLY){
@@ -75,7 +75,7 @@ try {
     await activate(signer, documents.getByRole('button', { name: 'Open Supplier handbook', exact: true }))
     await documents.locator('.iw-pdf-page[data-rendered]').waitFor()
     assert.ok((await documents.ariaSnapshot()).includes('Supplier handbook'))
-    assert.ok(!(await acknowledgment.isDisabled()), 'opened document enables the named acknowledgment')
+    await expect(acknowledgment, 'opened document enables the named acknowledgment').toBeEnabled()
     for (const theme of ['light', 'dark']) { await signer.emulateMedia({ colorScheme: theme }); await axe(signer, `SIGNX-009 opened handbook ${width} ${theme}`) }
     await signer.emulateMedia({ colorScheme: 'light' }); await documents.scrollIntoViewIfNeeded(); await capture(signer, 'signer-handbook')
     await activate(signer, acknowledgment); await documents.getByRole('status').filter({ hasText: 'Acknowledged' }).waitFor()

@@ -57,11 +57,13 @@ try {
   const app = await owner.newPage(); await app.goto(`${origin}/app`)
   await tabTo(app, app.getByRole('button', { name: 'New envelope' }))
   // Preparation loads its settings asynchronously and disables the file input meanwhile.
-  const policyLoaded = app.waitForResponse(response => response.url().endsWith('/api/inkwell/freeform-policy'))
-  await app.keyboard.press('Enter'); await (await policyLoaded).finished()
+  const settingsLoaded = Promise.all(['freeform-policy', 'envelope-defaults'].map(name =>
+    app.waitForResponse(response => response.url().endsWith(`/api/inkwell/${name}`)).then(response => response.finished())))
+  await app.keyboard.press('Enter'); await settingsLoaded
   await tabTo(app, app.getByLabel('Envelope title')); await app.keyboard.type('Keyboard access agreement')
   const fileInput = app.getByLabel('Fixed PDF document')
   await expect(fileInput).toBeEnabled(); await tabTo(app, fileInput); await expect(fileInput).toBeFocused()
+  await expect(fileInput).toBeEnabled()
   const [chooser] = await Promise.all([app.waitForEvent('filechooser'), app.keyboard.press('Space')])
   await chooser.setFiles({ name: 'access.pdf', mimeType: 'application/pdf', buffer: await pdfBytes() })
   await tabTo(app, app.getByLabel('Recipient 1 name')); await app.keyboard.type('Kai Morgan')
