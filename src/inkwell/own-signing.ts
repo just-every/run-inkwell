@@ -7,6 +7,7 @@ import type { CommandContext } from './envelopes'
  * authenticates them, so opening their signing page replaces the link they were sent with a fresh one that is already
  * verified in this browser, and the record names the session's member. Any role may sign their own turn; a sender's
  * access code is still asked for on the page (IDV-003), and mail being set up or not makes no difference. */
+/** Provider-selected invitations open unverified: membership locates the recipient but never replaces their required check. */
 /** ROUTE-009: how the member's Inkwell session was signed in, from Base's session and the token that started it. */
 export async function signInMethod(env: Env, sessionId?: string) {
   const row = sessionId ? await env.DB.prepare('SELECT s.kind AS session, t.kind AS token FROM oa_sessions s LEFT JOIN oa_tokens t ON t.id=s.source_token_id WHERE s.id=?').bind(sessionId).first<{ session: string; token: string | null }>() : null

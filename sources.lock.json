@@ -1429,7 +1429,7 @@
       "executable": false
     },
     "src/inkwell/own-signing.ts": {
-      "sha256": "00c84929713676e8e8945fb2ecfcb062267a564054601279ec6ced2bf5de14f8",
+      "sha256": "68bd192821b680de744c04e9dfa349dcdb0acbd6761f6d86377846c0c4ccfbbc",
       "executable": false
     },
     "src/inkwell/paper.ts": {
@@ -4137,7 +4137,7 @@
       "executable": false
     },
     "tests/journeys/provider-auth.mjs": {
-      "sha256": "aa074b36b22348df27e4823c331a0fba2893af922d03abe859b5bb2ec2ed5f5e",
+      "sha256": "d8fda271877362bf276ee15d8b5de5428452f58df96df20315117f0d2f4c2578",
       "executable": false
     },
     "tests/journeys/recipient-actions.mjs": {
