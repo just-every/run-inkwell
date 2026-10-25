@@ -57,6 +57,7 @@ export function composition(templates: Template[], choices: CompositionChoices =
   }
   const rule = (template: number, value?: RoutingRule): RoutingRule | undefined => value ? { ...value, field: fieldId(template, value.field) } : undefined
   for (const [ti, t] of templates.entries()) for (const [ri, original] of t.roles.entries()) {
+    insist(!original.providerAuth, 'Use identity and voice verification templates individually; combining these methods is not yet supported.',409)
     const label = original.role.trim(), key = JSON.stringify([label, original.order]), identity = method(original), source = { template: ti, role: ri }
     insist(label, 'Every template role needs a name.', 409)
     const includeWhen = rule(ti, original.includeWhen), existing = byKey.get(key)

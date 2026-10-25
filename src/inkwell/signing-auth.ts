@@ -8,6 +8,7 @@ import { dispatchSms, maskedMobile, smsReady, smsWrite } from './sms'
 
 export async function requestCode(env: Env, context: SigningContext) {
   const person = recipientOf(context), sms = person.sms === true
+  insist(!person.providerAuth, 'Complete the required provider verification.', 403)
   insist(!person.inPerson, 'The host must open in-person signing.', 403)
   insist(sms ? smsReady(env) : !mailSuppressed(env), sms ? 'SMS delivery is not configured.' : 'Mail is not set up. Ask the sender for a new signing link and verification code.', 409)
   turn(context, !sms); accessGate(context)
@@ -29,6 +30,7 @@ export async function requestCode(env: Env, context: SigningContext) {
 
 export async function verifyCode(env: Env, context: SigningContext, input: Record<string, unknown>) {
   const person = recipientOf(context), sms = person.sms === true
+  insist(!person.providerAuth, 'Complete the required provider verification.', 403)
   insist(!person.inPerson, 'The host must open in-person signing.', 403)
   turn(context, !sms); accessGate(context)
   const r = context.recipient, code = text(input.code, 'the six-digit code', 6)

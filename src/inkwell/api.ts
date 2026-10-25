@@ -1,3 +1,4 @@
+import { startProviderAuth, checkProviderAuth } from './provider-auth'
 import { usageView, setUsagePolicy } from './usage'
 import { envelopeFolders, changeFolder, changeEnvelopeFolder } from './envelope-folders'
 import { envelopeCsv } from './envelope-metadata'
@@ -171,6 +172,8 @@ api.get('/api/sign/:token/documents/:index',async c=>signingDocument(c.env,await
 api.get('/api/sign/:token/supplements/:id/document',async c=>supplementDocument(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),c.req.param('id')))
 api.post('/api/sign/:token/supplements/:id/acknowledge',async c=>{sameOrigin(c.req.raw,c.env);return c.json({ok:true,result:await acknowledgeSupplement(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),c.req.param('id'),await readJson(c.req.raw,4096))})})
 api.get('/api/sign/:token/document',async c=>signingDocument(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw)))
+api.post('/api/sign/:token/provider/start',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await startProviderAuth(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),await readJson(c.req.raw,4096)))})
+api.post('/api/sign/:token/provider/check',async c=>{sameOrigin(c.req.raw,c.env);const result=await checkProviderAuth(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),await readJson(c.req.raw,4096));if(result.cookie)c.header('set-cookie',result.cookie);return c.json({ok:true,pending:result.pending===true})})
 api.post('/api/sign/:token/access',async c=>{sameOrigin(c.req.raw,c.env);const context=await signingContext(c.env,c.req.param('token'),c.req.raw),body=await readJson(c.req.raw,4096);return c.json(await enterAccessCode(c.env,context,body))})
 api.post('/api/sign/:token/code',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await requestCode(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw)))})
 // IDV-001: a link-only recipient's session from the link alone.

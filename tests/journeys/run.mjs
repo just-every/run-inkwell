@@ -26,7 +26,8 @@ const journeys = [
  "tests/journeys/template-release.mjs",
  "tests/journeys/send-policies.mjs",
  "tests/journeys/forms.mjs",
- "tests/journeys/sms.mjs"
+ "tests/journeys/sms.mjs",
+ "tests/journeys/provider-auth.mjs"
 ]
 const selector = process.env.INKWELL_JOURNEY_SHARD
 if (selector && !/^[1234]\/4$/.test(selector)) throw new Error('INKWELL_JOURNEY_SHARD must be a shard from 1 to 4 with a total of 4')

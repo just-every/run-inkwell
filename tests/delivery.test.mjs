@@ -832,3 +832,94 @@ test('ADMIN-006: unpriced and uncertain SMS attempts retain their allowance and 
   assert.equal(view.sms.committedMicros,9_000_000,'removing a cap retains uncertain and completed attempt allowances')
  } finally { await h.close() }
 })
+
+test('Identity provider gates signing, retries failed and mismatched checks, preserves method custody and records only normalized proof',async()=>{
+ const {providerEdges,providerBindings}=await import('./provider-edge.mjs'),edge=providerEdges(),clock=Date.parse('2026-10-26T16:00:00Z')
+ const h=await harness({bindings:providerBindings,networkEdge:edge.networkEdge,now:clock})
+ try {
+  const email='mara.id@harbour.example',fields=[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.4,height:.07}]
+  const id=(await h.command('envelope.prepare',{title:'Harbour identity agreement',filename:'identity.pdf',pdfBase64:await pdf(),signers:[{name:'Mara Quinn',email,providerAuth:'identity',accessCode:'separate-secret'}],fields})).result.id
+  await h.command('envelope.approve',{id,eligible:true})
+  const path='/api'+new URL((await h.mail(email,'Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+  await h.post(path+'/provider/start',{consent:true},'',403)
+  await h.post(path+'/access',{accessCode:'separate-secret'},'')
+  await h.post(path+'/provider/start',{consent:false},'',400);assert.equal(edge.sessions.size,0)
+  await h.post(path+'/code',{},'',403);await h.post(path+'/verify',{code:'123456'},'',403)
+  await h.post(path+'/provider/start',{consent:true},'');assert.equal((await h.send(path+'/document')).status,401)
+  await h.post(path+'/provider/check',{},'');assert.equal((await h.send(path)).value.verified,false)
+  edge.result('failed');await h.post(path+'/provider/check',{},'',401)
+  h.advanceTo(clock+61_000);await h.post(path+'/provider/start',{consent:true},'')
+  edge.result('passed','Different Person');await h.post(path+'/provider/check',{},'',401)
+  h.advanceTo(clock+122_000);await h.post(path+'/provider/start',{consent:true},'')
+  const reference=edge.result('passed'),verified=(await h.post(path+'/provider/check',{},'')).cookie
+  assert.ok(verified);assert.equal((await h.send(path,undefined,verified)).value.verified,true)
+  await h.agree(path,verified);assert.equal((await h.send(path+'/document',undefined,verified)).status,200)
+  await h.post(path+'/sign',{commandId:crypto.randomUUID(),consent:true,values:{signature:'Mara Quinn'}},verified)
+  const record=(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
+  const evidence=record.events.filter(e=>['signer.provider_rejected','signer.provider_verified'].includes(e.action))
+  assert.deepEqual(evidence.map(e=>[e.detail.outcome,e.detail.nameMatch]),[['failed',true],['failed',false],['passed',true]])
+  assert.equal(evidence.at(-1).detail.reference,reference)
+  const certificate=await h.send(path+'/artifacts/certificate',undefined,verified),certificateText=await smsTestPdfText(certificate.bytes)
+  assert.match(certificateText,/Stripe Identity government ID and selfie, name matched/);assert.ok(certificateText.includes(reference))
+  const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
+  for(const marker of ['private-id-image','private-selfie-image','private-provider-address','private-provider-dob']) {assert.ok(!JSON.stringify(archive).includes(marker));assert.ok(!JSON.stringify(h.logs()).includes(marker))}
+  const template=(await h.command('template.from_envelope',{id,title:'Identity client'})).result
+  const reused=await h.command('template.use',{id:template.id,recipients:[{name:'Mara Quinn',email:'new.mara@harbour.example',accessCode:'new-secret'}]})
+  assert.equal((await h.send('/api/inkwell/envelopes/'+reused.result.id,undefined,h.owner)).value.envelope.signers[0].providerAuth,'identity')
+  const copied=await h.command('envelope.copy',{id});assert.equal((await h.send('/api/inkwell/envelopes/'+copied.result.id,undefined,h.owner)).value.envelope.signers[0].providerAuth,'identity')
+ } finally {await h.close()}
+})
+
+test('Voice-call provider code admits only its bound recipient and records the reference and outcome on the certificate',async()=>{
+ const {providerEdges,providerBindings}=await import('./provider-edge.mjs'),edge=providerEdges()
+ const h=await harness({bindings:providerBindings,networkEdge:edge.networkEdge})
+ try {
+  const email='mara.voice@harbour.example',id=(await h.command('envelope.prepare',{title:'Harbour voice agreement',filename:'voice.pdf',pdfBase64:await pdf(),signers:[{name:'Mara Quinn',email,providerAuth:'voice',phone:'+12025550102'}],fields:[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.4,height:.07}]})).result.id
+  await h.command('envelope.approve',{id,eligible:true})
+  const path='/api'+new URL((await h.mail(email,'Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+  await h.post(path+'/code',{},'',403);await h.post(path+'/provider/start',{consent:true},'');assert.equal(edge.voice[0].To,'+12025550102')
+  await h.post(path+'/provider/check',{code:'000000'},'',401);assert.equal((await h.send(path)).value.verified,false)
+  const verified=(await h.post(path+'/provider/check',{code:'123456'},'')).cookie;await h.agree(path,verified)
+  await h.post(path+'/sign',{commandId:crypto.randomUUID(),consent:true,values:{signature:'Mara Quinn'}},verified)
+  const certificateText=await smsTestPdfText((await h.send(path+'/artifacts/certificate',undefined,verified)).bytes)
+  assert.match(certificateText,/Twilio voice-call code/);assert.ok(certificateText.includes('synthetic-inkwell-80'))
+  const record=(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
+  assert.equal(record.events.find(e=>e.action==='signer.provider_verified').detail.outcome,'passed')
+  const archived=JSON.stringify((await h.send('/api/inkwell/archive',undefined,h.owner)).value)
+  assert.ok(!archived.includes('123456')&&!archived.includes('000000'))
+ } finally {await h.close()}
+})
+
+test('Knowledge questions admit a passing recipient and lock two failures with one sender notice, without retaining private provider data',async()=>{
+ const {providerEdges,providerBindings}=await import('./provider-edge.mjs'),clock=Date.parse('2026-10-26T16:00:00Z'),edge=providerEdges({now:clock})
+ const h=await harness({bindings:providerBindings,networkEdge:edge.networkEdge,now:clock})
+ try {
+  const emails=['mara.kba@harbour.example','devon.kba@harbour.example'],id=(await h.command('envelope.prepare',{title:'Harbour knowledge agreement',filename:'knowledge.pdf',pdfBase64:await pdf(),signers:[{name:'Mara Quinn',email:emails[0],providerAuth:'knowledge'}],fields:[{id:'signature-0',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.4,height:.07}]})).result.id
+  await h.command('envelope.approve',{id,eligible:true})
+  const path=async email=>'/api'+new URL((await h.mail(email,'Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+  const first=await path(emails[0]);await h.post(first+'/provider/start',{consent:false,dateOfBirth:'1985-06-15'},'',400);assert.equal(edge.knowledge.size,0)
+  await h.post(first+'/provider/start',{consent:true,dateOfBirth:'1985-06-15'},'')
+  const providerState=[...edge.knowledge.values()].at(-1),originalWorkflow=providerState.medallion.currentSession.workflowId
+  providerState.medallion.currentSession.workflowId='unapproved-workflow';await h.post(first+'/provider/check',{},'',503)
+  providerState.medallion.currentSession.workflowId=originalWorkflow;await h.post(first+'/provider/check',{},'')
+  const token=edge.knowledgeResult('passed'),verified=(await h.post(first+'/provider/check',{},'')).cookie
+  await h.agree(first,verified);await h.post(first+'/sign',{commandId:crypto.randomUUID(),consent:true,values:{'signature-0':'Mara Quinn'}},verified)
+  const blocked=(await h.command('envelope.prepare',{title:'Harbour blocked knowledge agreement',filename:'knowledge.pdf',pdfBase64:await pdf(),signers:[{name:'Devon Gray',email:emails[1],providerAuth:'knowledge'}],fields:[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.4,height:.07}]})).result.id
+  await h.command('envelope.approve',{id:blocked,eligible:true})
+  const second=await path(emails[1]);await h.post(second+'/provider/start',{consent:true,dateOfBirth:'1985-06-15'},'')
+  edge.knowledgeResult('failed');await h.post(second+'/provider/check',{},'',401)
+  h.advanceTo(clock+61_000);await h.post(second+'/provider/start',{consent:true,dateOfBirth:'1985-06-15'},'')
+  edge.knowledgeResult('failed');await h.post(second+'/provider/check',{},'',423)
+  await h.post(second+'/provider/check',{},'',423);await h.post(second+'/provider/start',{consent:true,dateOfBirth:'1985-06-15'},'',423)
+  const record=(await h.send('/api/inkwell/envelopes/'+blocked,undefined,h.owner)).value.envelope
+  assert.equal(record.events.filter(e=>e.action==='signer.provider_locked').length,1)
+  assert.ok(await h.mail('owner@harbour.example','Verification locked:'))
+  const notices=(await h.send('/api/inkwell/notices',undefined,h.owner)).value.notices
+  assert.equal(notices.filter(n=>n.event==='identity_locked').length,1)
+  assert.equal((await h.send(second)).value.verified,false)
+  const certificateText=await smsTestPdfText((await h.send(`/api/inkwell/envelopes/${id}/artifacts/certificate`,undefined,h.owner)).bytes)
+  assert.match(certificateText,/Authenticate knowledge questions/)
+  const archive=JSON.stringify((await h.send('/api/inkwell/archive',undefined,h.owner)).value)
+  for(const marker of [token,'1985-06-15','15-06-1985','private-provider-jwt','private-kba-question','private-kba-answer']) {assert.ok(!archive.includes(marker));assert.ok(!JSON.stringify(h.logs()).includes(marker))}
+ }finally{await h.close()}
+})

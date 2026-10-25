@@ -1,0 +1,19 @@
+# Provider verification
+
+The sender chooses Identity document and selfie, Knowledge questions (US), or Voice-call code beside the existing authentication methods. Optional access codes are still checked first. Drafts, corrections and individual template roles retain the choice. Changing the method, name, email or phone rotates the signing link. Copies retain the requirement but never an authentication result. Provider-authentication templates cannot yet be combined.
+
+The installation owner configures provider bindings using the installation's private settings. They are never entered into an envelope or exported:
+
+- `STRIPE_IDENTITY_SECRET_KEY`: a Stripe key permitted to create and retrieve Identity verification sessions. Stripe must support document and matching-selfie checks.
+- `AUTHENTICATE_API_KEY` and `AUTHENTICATE_KBA_WORKFLOW_ID`: an Authenticate account and saved Medallion workflow with knowledge questions mandatory, no mandatory government-ID or bank step, one or two allowed attempts, and an expiry. The actual workflow, applicant and session are checked on each provider response; a provider default workflow cannot admit a signer.
+- `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_VERIFY_SERVICE_SID`: a Twilio Verify service enabled for voice calls. Its number is set by the sender. This uses Verify rather than the SMS Messages service.
+
+No provider request occurs before the recipient's explicit consent is audited. Stripe receives only an opaque reference, and collects ID and selfie on its own page. Authenticate receives the recipient name and email plus a transient date of birth, then hosts its questions. Inkwell stores no images, dates of birth, questions, answers, codes, or raw provider responses. Temporary Authenticate capability tokens are sealed for this installation and invitation, never exported, and cleared after a terminal check. The business record retains only references, normalized outcomes, the ID name-match flag and ordinary authentication timing and network evidence. Provider-side custody and deletion remain the operator's responsibility; Inkwell does not claim to erase provider-held records.
+
+Only the selected provider can admit the recipient. Email codes and an in-app member session cannot substitute. Pending, failed, expired, mismatched, wrong-workflow and wrong-session results refuse admission. The exact normalized full recipient name must match Stripe's verified first and last names; no fuzzy match is used. Two unsuccessful knowledge attempts, including attempts reported in one hosted session, lock the invitation and notify its sender once in Activity and configured email. Five incorrect voice checks do the same. A sender correction issues a fresh invitation for recovery.
+
+Starts are spaced by one minute with ten allowed per invitation. Checking is limited to a thirty-minute local attempt lifetime. Creation is durably claimed before calling a provider; an uncertain request never retries automatically. The recipient may explicitly start again after the spacing interval. Neither test-mode providers nor the permitted network-edge fakes establish live-provider qualification.
+
+These privacy, consent and failure-count semantics are adopted conservatively and await ct approval; IDV-004 and IDV-005 remain PARTIAL.
+
+Provider references: [Stripe Identity sessions](https://docs.stripe.com/api/identity/verification_sessions/create), [Stripe verification reports](https://docs.stripe.com/api/identity/verification_reports/object), [Authenticate hosted sessions](https://docs.authenticate.com/reference/post_user-jwt), [Authenticate session results](https://docs.authenticate.com/reference/get_user-medallion-medallion-verification-token-status), [Twilio voice verification](https://www.twilio.com/docs/verify/api/verification), [Twilio verification checks](https://www.twilio.com/docs/verify/api/verification-check).

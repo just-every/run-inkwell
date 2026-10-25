@@ -18,6 +18,7 @@ export async function openOwnSigning(env: Env, context: CommandContext, input: R
   active(before)
   const signer = currentSigners(before).find(i => !before.signers[i].inPerson && before.signers[i].email.toLowerCase() === context.actor.email.toLowerCase())
   insist(signer !== undefined, 'It is not your turn to sign this envelope.', 409)
+  insist(!before.signers[signer].providerAuth, 'Open your invitation and complete its required provider verification.', 403)
   const after = structuredClone(before), token = secret(), session = secret()
   await appendEvent(after, 'signer.session_verified', context.actor.id, { signer, email: after.signers[signer].email, operator: context.actor.id, method: 'inkwell-session', signIn: await signInMethod(env, context.actor.sessionId), ...context.client })
   const result = { id: after.id, status: after.status }

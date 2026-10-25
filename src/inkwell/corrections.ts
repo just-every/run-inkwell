@@ -1,4 +1,5 @@
 import { apiCommandActor } from './api-command'
+import { providerChoice, requireProvider } from './provider-auth'
 import { smsIdentity } from './sms'
 import { recipientRole, witnessRule, validateRoleFields, validateRecipientCount } from './recipient-roles'
 import { remapCopyAudience } from './document-visibility'
@@ -31,7 +32,7 @@ import { memberLinkWrites } from './signing-groups'
 const maxPlaces = 999, maxActive = 100
 /** A recipient who has acted (signed, declined, or uploaded a paper scan awaiting review) or was removed: fixed for good. */
 const settled = (s: Signer) => Boolean(s.signedAt || s.completedAt || s.declinedAt || s.paper?.status === 'pending' || s.removedAt || s.routeResult?.state === 'skipped')
-const identity = (s: Signer, place: number) => ({ ...(s.role?{role:s.role}:{}), ...(s.delegates?{delegates:s.delegates}:{}), ...(s.unresolvedIdentity?{unresolvedIdentity:true}:{}), ...(s.witnesses?{witnesses:s.witnesses}:{}), ...(s.includeWhen?{includeWhen:s.includeWhen}:{}), name: s.name, email: s.email, ...(s.phone ? { phone: s.phone } : {}), ...(s.sms ? { sms: true } : {}), order: s.order ?? place + 1, ...(s.inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(s.message ? { message: s.message } : {}) })
+const identity = (s: Signer, place: number) => ({ ...(s.role?{role:s.role}:{}), ...(s.delegates?{delegates:s.delegates}:{}), ...(s.unresolvedIdentity?{unresolvedIdentity:true}:{}), ...(s.witnesses?{witnesses:s.witnesses}:{}), ...(s.includeWhen?{includeWhen:s.includeWhen}:{}), providerAuth:s.providerAuth, name: s.name, email: s.email, ...(s.phone ? { phone: s.phone } : {}), ...(s.sms ? { sms: true } : {}), order: s.order ?? place + 1, ...(s.inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(s.message ? { message: s.message } : {}) })
 /** An optional text: absent keeps the current value, an empty string clears it. */
 function edit(value: unknown, current: string | undefined, label: string, max: number, oneLine = false) {
   if (value === undefined) return current
@@ -43,7 +44,7 @@ function edit(value: unknown, current: string | undefined, label: string, max: n
 
 /** One recipient as the correction names them. A recipient whose name or email changes is a new person at that place:
  * nothing the previous person agreed to carries over. */
-function readRecipient(value: unknown, place: number, previous?: Signer): { signer: Signer; code?: string } {
+function readRecipient(env: Env, value: unknown, place: number, previous?: Signer): { signer: Signer; code?: string } {
   const s = object(value), role = recipientRole(s.role ?? previous?.role), witnesses = witnessRule(s.witnesses ?? previous?.witnesses, role), email = text(s.email, 'the signer email', 254).toLowerCase(), order = s.order === undefined ? previous?.order ?? place + 1 : s.order
   insist(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), 'Provide a valid signer email.')
   insist(Number.isInteger(order) && (order as number) >= 1 && (order as number) <= 100, 'Give each signer a whole-number routing order from 1 to 100.')
@@ -51,9 +52,10 @@ function readRecipient(value: unknown, place: number, previous?: Signer): { sign
   insist(code === undefined || /^\S{4,32}$/.test(code), 'Use an access code of 4–32 characters with no spaces.')
   const name = text(s.name, 'the signer name', 100), message = edit(s.message, previous?.message, 'the private message', 1000)
   insist(!previous || canonical(role) === canonical(previous.role ?? 'signer') && canonical(witnesses ?? null) === canonical(previous.witnesses ?? null), 'A sent recipient’s role and witness requirement cannot change.',409)
+  const provider = providerChoice({...s,inPerson:previous?.inPerson ?? s.inPerson}, previous); requireProvider(env, provider.providerAuth)
   const mobile = smsIdentity({ ...s, inPerson: previous?.inPerson ?? s.inPerson }, previous)
-  const same = previous && previous.name === name && previous.email === email && previous.phone === mobile.phone && Boolean(previous.sms) === Boolean(mobile.sms)
-  const { message: _, linkOnly: __, includeWhen: _rule, ...kept } = same ? previous : {} as Signer
+  const same = previous && previous.name === name && previous.email === email && previous.phone === mobile.phone && Boolean(previous.sms) === Boolean(mobile.sms) && previous.providerAuth === provider.providerAuth
+  const { message: _, linkOnly: __, providerAuth: _provider, includeWhen: _rule, ...kept } = same ? previous : {} as Signer
   insist(s.linkOnly === undefined || typeof s.linkOnly === 'boolean', 'Choose email code or link only for each recipient.')
   insist(s.inPerson === undefined || typeof s.inPerson === 'boolean', 'Choose whether each recipient signs in person.')
   // A correction keeps the approved signing method even when the recipient's name or email changes.
@@ -61,7 +63,7 @@ function readRecipient(value: unknown, place: number, previous?: Signer): { sign
   insist(!previous || s.inPerson === undefined || s.inPerson === Boolean(previous.inPerson), 'A sent recipient’s signing method cannot change. Prepare and approve a new envelope to change between in-person and remote signing.', 409)
   const includeWhen = s.includeWhen === undefined ? previous?.includeWhen : normalizeRoutingRule(s.includeWhen)
   const inPerson = previous ? previous.inPerson : s.inPerson === true
-  return { signer: { ...kept, ...mobile, ...(previous?.delegates?{delegates:previous.delegates}:{}), ...(role!=='signer'?{role}:{}), ...(witnesses?{witnesses}:{}), ...(includeWhen?{includeWhen}:{}), name, email, order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}), ...(code || previous?.accessCode ? { accessCode: true } : {}) }, code }
+  return { signer: { ...kept, ...provider, ...mobile, ...(previous?.delegates?{delegates:previous.delegates}:{}), ...(role!=='signer'?{role}:{}), ...(witnesses?{witnesses}:{}), ...(includeWhen?{includeWhen}:{}), name, email, order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}), ...(code || previous?.accessCode ? { accessCode: true } : {}) }, code }
 }
 
 export async function correctEnvelope(env: Env, context: CommandContext, input: Record<string, unknown>) {
@@ -80,14 +82,14 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
         return previous
       }
       if (previous && settled(previous)) {
-        insist(previous.removedAt ? entry.remove === true : entry.remove !== true && entry.accessCode === undefined && canonical(identity(readRecipient(value, i, previous).signer, i)) === canonical(identity(previous, i)), signedFixed(i), 409)
+        insist(previous.removedAt ? entry.remove === true : entry.remove !== true && entry.accessCode === undefined && canonical(identity(readRecipient(env, value, i, previous).signer, i)) === canonical(identity(previous, i)), signedFixed(i), 409)
         return previous
       }
       if (entry.remove === true) { insist(previous, 'Only a recipient already on the envelope can be removed.'); return { ...previous, removedAt: at } }
       // ROUTE-005: a signing group keeps the members snapshotted when its draft was saved; it stays as it is or is removed.
       if (previous?.group) { insist(entry.group === previous.group.id && Object.keys(entry).every(k => k === 'group'), `${previous.group.name} is a signing group: keep it as it is ({"group": "${previous.group.id}"}) or remove it.`, 409); return previous }
       insist(entry.group === undefined, 'A correction cannot add a signing group. Prepare a new envelope instead.', 409)
-      const { signer, code } = readRecipient(value, i, previous)
+      const { signer, code } = readRecipient(env, value, i, previous)
       if (code) codes.set(i, code)
       return signer
     })
@@ -131,7 +133,7 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
     if (canonical(identity(s, i)) !== canonical(identity(previous, i)) || codes.has(i)) {
       await appendEvent(after, 'signer.corrected', context.actor.id, { signer: i, before: identity(previous, i), after: identity(s, i), ...(codes.has(i) ? { accessCodeReplaced: true } : {}) })
       // IDV-001: a changed authentication method is a new link, like a new access code.
-      if (s.name !== previous.name || s.email !== previous.email || codes.has(i) || Boolean(s.linkOnly) !== Boolean(previous.linkOnly) || s.phone !== previous.phone || Boolean(s.sms) !== Boolean(previous.sms)) rotated.add(i)
+      if (s.name !== previous.name || s.email !== previous.email || codes.has(i) || Boolean(s.linkOnly) !== Boolean(previous.linkOnly) || s.phone !== previous.phone || Boolean(s.sms) !== Boolean(previous.sms) || s.providerAuth !== previous.providerAuth) rotated.add(i)
     }
   }
   if(canonical(before.documents??null)!==canonical(after.documents??null))await appendEvent(after,'document.audience_updated',context.actor.id,{before:before.documents,after:after.documents})

@@ -1,5 +1,6 @@
 import { customEnvelopeFields, envelopeTags } from './envelope-metadata'
 import { delegatedPlaces, validateDelegationGrants, validateActionDocuments, requireDelegationAuthority } from './delegation-grants'
+import { providerChoice, requireProvider } from './provider-auth'
 import { smsIdentity, smsReady } from './sms'
 import { recipientRole, witnessRule, validateRoleFields, validateRecipientCount } from './recipient-roles'
 import { validateDocumentAudience } from './document-visibility'
@@ -40,7 +41,7 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
     const raw = object(value)
     const chosen = previous?.signers[i]
     const inheritedLink = Boolean(previous ? chosen?.linkOnly : defaults?.authentication === 'link')
-    const s = raw.linkOnly === undefined && raw.sms === undefined && raw.inPerson === undefined ? { ...raw, linkOnly: !raw.unresolvedIdentity && inheritedLink } : raw, role = recipientRole(s.role), witnesses = witnessRule(s.witnesses, role), group = groups[i], order = s.order === undefined ? i + 1 : s.order
+    const s = raw.linkOnly === undefined && raw.sms === undefined && raw.inPerson === undefined && raw.providerAuth === undefined ? { ...raw, linkOnly: !raw.unresolvedIdentity && inheritedLink } : raw, role = recipientRole(s.role), witnesses = witnessRule(s.witnesses, role), group = groups[i], order = s.order === undefined ? i + 1 : s.order
     // ROUTE-005: a group recipient, snapshotted now; no access code, in-person signing or mail-less links in v1.
     if (group) insist(s.name === undefined && s.email === undefined, 'Name either a person or a signing group for each recipient, not both.')
     insist(!group || ((s.accessCode === undefined || s.accessCode === '') && s.keepAccessCode !== true && s.inPerson !== true), 'Signing groups cannot use access codes or in-person signing.', 409)
@@ -64,9 +65,11 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
     insist(!group || role === 'signer', 'A signing group fills a signer role.')
     insist(!inPerson || role === 'signer', 'In-person recipients sign their own signature.')
     insist(!witnesses?.linkOnly || !mailSuppressed(env), 'Link-only witnesses need mail.')
+    const provider = providerChoice({...s,inPerson}, previous?.signers[i]); requireProvider(env, provider.providerAuth)
+    insist(provider.providerAuth !== 'voice' || s.phone || previous?.signers[i]?.phone, 'Enter a US phone number for voice verification.')
     const sms = smsIdentity({sms:s.sms,phone:s.phone,linkOnly:s.linkOnly,inPerson,group:s.group},previous?.signers[i])
     insist(!sms.sms || smsReady(env), 'SMS delivery is not configured. Ask the owner to configure Twilio.',503)
-    return { ...sms, ...(unresolved ? {unresolvedIdentity:true as const} : {}), ...(s.delegates === undefined ? {} : {delegates:delegatedPlaces(s.delegates)}), ...(role !== 'signer' ? { role } : {}), ...(witnesses ? { witnesses } : {}), ...(s.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(s.includeWhen)}), ...(group ? groupPlace(group) : { name: unresolved ? '' : text(s.name, 'the signer name', 100), email }), order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
+    return { ...provider, ...sms, ...(unresolved ? {unresolvedIdentity:true as const} : {}), ...(s.delegates === undefined ? {} : {delegates:delegatedPlaces(s.delegates)}), ...(role !== 'signer' ? { role } : {}), ...(witnesses ? { witnesses } : {}), ...(s.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(s.includeWhen)}), ...(group ? groupPlace(group) : { name: unresolved ? '' : text(s.name, 'the signer name', 100), email }), order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
   })
   validateDelegationGrants(signers);requireDelegationAuthority(signers,actor)
   const addresses = signers.filter(s=>!s.unresolvedIdentity).flatMap(s => s.group ? s.group.members.map(m => m.email) : [s.email])
