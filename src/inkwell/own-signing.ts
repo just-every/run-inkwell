@@ -18,13 +18,13 @@ export async function openOwnSigning(env: Env, context: CommandContext, input: R
   active(before)
   const signer = currentSigners(before).find(i => !before.signers[i].inPerson && before.signers[i].email.toLowerCase() === context.actor.email.toLowerCase())
   insist(signer !== undefined, 'It is not your turn to sign this envelope.', 409)
-  insist(!before.signers[signer].providerAuth, 'Open your invitation and complete its required provider verification.', 403)
+  const provider = before.signers[signer].providerAuth
   const after = structuredClone(before), token = secret(), session = secret()
-  await appendEvent(after, 'signer.session_verified', context.actor.id, { signer, email: after.signers[signer].email, operator: context.actor.id, method: 'inkwell-session', signIn: await signInMethod(env, context.actor.sessionId), ...context.client })
+  await appendEvent(after, provider ? 'signer.provider_opened' : 'signer.session_verified', context.actor.id, { signer, email: after.signers[signer].email, operator: context.actor.id, method: provider ?? 'inkwell-session', signIn: await signInMethod(env, context.actor.sessionId), ...context.client })
   const result = { id: after.id, status: after.status }
   await commitEnvelope(env, before, after, null, [
-    env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=NULL,code_hash=NULL,code_expires=NULL,code_attempts=0,session_hash=?,session_expires=? WHERE envelope_id=? AND signer=?').bind(await sha256(token), await sha256(session), Date.now() + 24 * 60 * 60_000, after.id, signer),
+    env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=NULL,code_hash=NULL,code_expires=NULL,code_attempts=0,session_hash=?,session_expires=? WHERE envelope_id=? AND signer=?').bind(await sha256(token), provider ? null : await sha256(session), provider ? null : Date.now() + 24 * 60 * 60_000, after.id, signer),
     env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND signer=? AND state='pending'").bind(after.id, signer),
     commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)], [roleGuard(context.actor, ['owner', 'admin', 'sender', 'viewer'])])
-  return { ...result, signing: { url: new URL('/sign/' + token, env.AUTH_ORIGIN).href }, cookie: signerCookie(env, token, session) }
+  return { ...result, signing: { url: new URL('/sign/' + token, env.AUTH_ORIGIN).href }, cookie: provider ? signerCookie(env,token,'').replace('Max-Age=86400','Max-Age=0') : signerCookie(env, token, session) }
 }

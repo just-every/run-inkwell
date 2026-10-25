@@ -874,7 +874,7 @@ test('Identity provider gates signing, retries failed and mismatched checks, pre
   await h.command('template.combine',{ids:[template.id,voice],recipients:[{name:'Mara Quinn',email:'conflict.mara@harbour.example',accessCode:'new-secret'}]},h.owner,400)
   const explicit=(await h.command('template.combine',{ids:[template.id,voice],choices:{identity:{[JSON.stringify(['Signer 1',1])]:'identity'}},recipients:[{name:'Mara Quinn',email:'chosen.mara@harbour.example',accessCode:'new-secret'}]})).result.id
   assert.equal((await h.send('/api/inkwell/envelopes/'+explicit,undefined,h.owner)).value.envelope.signers[0].providerAuth,'identity')
-  const own=(await h.command('envelope.prepare',{title:'Owner identity',filename:'owner.pdf',pdfBase64:await pdf(),signers:[{name:'Harbour Owner',email:'owner@harbour.example',providerAuth:'identity'}],fields})).result.id;await h.command('envelope.approve',{id:own,eligible:true});await h.command('envelope.open_signing',{id:own},h.owner,403)
+  const own=(await h.command('envelope.prepare',{title:'Owner identity',filename:'owner.pdf',pdfBase64:await pdf(),signers:[{name:'Harbour Owner',email:'owner@harbour.example',providerAuth:'identity'}],fields})).result.id;await h.command('envelope.approve',{id:own,eligible:true});const ownLink=(await h.command('envelope.open_signing',{id:own})).result.signing.url,ownPath='/api'+new URL(ownLink).pathname;assert.equal((await h.send(ownPath,undefined,h.owner)).value.verified,false);assert.equal((await h.send(ownPath+'/document',undefined,h.owner)).status,401)
   const copied=await h.command('envelope.copy',{id});assert.equal((await h.send('/api/inkwell/envelopes/'+copied.result.id,undefined,h.owner)).value.envelope.signers[0].providerAuth,'identity')
  } finally {await h.close()}
 })

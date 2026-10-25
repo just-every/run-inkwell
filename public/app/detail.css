@@ -18,14 +18,14 @@
 .iw-app .iw-detail h3 { margin: 22px 0 14px; font-size: 16px; font-weight: 750; }
 
 .iw-signers { margin: 0; padding: 0; list-style: none; }
-.iw-signers li { position: relative; display: flex; gap: 14px; min-height: 52px; padding-bottom: 10px; }
-.iw-signers li:not(:last-child)::after { content: ""; position: absolute; top: 34px; bottom: 2px; left: 15px; border-left: 1px solid #abb6c7; }
-.iw-signers li.iw-signed:not(:last-child)::after { border-color: #78e6be; }
+.iw-signers > li { position: relative; display: flex; gap: 14px; min-height: 52px; padding-bottom: 10px; }
+.iw-signers > li:not(:last-child)::after { content: ""; position: absolute; top: 34px; bottom: 2px; left: 15px; border-left: 1px solid #abb6c7; }
+.iw-signers > li.iw-signed:not(:last-child)::after { border-color: #78e6be; }
 .iw-order { z-index: 1; display: grid; place-items: center; flex: none; width: 31px; height: 31px; border-radius: 50%; background: linear-gradient(120deg, #edf1f5, #cfd5db); color: var(--ink); font-size: 16px; font-weight: 700; }
 .iw-signed .iw-order { background: none; }
 .iw-signed .iw-check-mark { width: 31px; height: 31px; }
 .iw-turn .iw-order { background: linear-gradient(120deg, #e8f4ff, #b9dcff); color: #00337a; }
-.iw-signers li > div { display: grid; min-width: 0; line-height: 1.45; font-size: 14px; }
+.iw-signers > li > div { display: grid; min-width: 0; line-height: 1.45; font-size: 14px; }
 .iw-signers strong { font-size: 15.5px; font-weight: 700; letter-spacing: -.02em; overflow-wrap: anywhere; }
 .iw-signer-email { color: #5a6882; overflow-wrap: anywhere; }
 .iw-signers small { color: #5a6882; font-size: 13.5px; }
