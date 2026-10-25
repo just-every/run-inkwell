@@ -4005,7 +4005,7 @@
       "executable": false
     },
     "tests/harness.mjs": {
-      "sha256": "af3cc09de85534df185467ed4cfdfd276d22151284350405442a82cbf0acb71b",
+      "sha256": "afda74d9dc3df71d9826208b5b8ee5a3033401c45c50efc0bafa586d828d9c66",
       "executable": false
     },
     "tests/import-retention.test.mjs": {
@@ -4093,7 +4093,7 @@
       "executable": false
     },
     "tests/journeys/mail-worker.mjs": {
-      "sha256": "f74c1ba8a53ebb612425ce66ddf327bd4afee456caa89805a740400656796af3",
+      "sha256": "feb05816c3f3984ca8bac12e62fd6746212f47081e90ad7d705d16f57075aee8",
       "executable": false
     },
     "tests/journeys/mobile-sending.mjs": {
@@ -4169,7 +4169,7 @@
       "executable": false
     },
     "tests/journeys/worker.mjs": {
-      "sha256": "81d1087f484778d5ed90a55e98ff6f28fd42ebdc215f18fc5e385b46fbf2c512",
+      "sha256": "304dc900687a5ff7b837c4098c7c378398eb13be40e514870d741e85e112840a",
       "executable": false
     },
     "tests/manual-invitations.test.mjs": {
@@ -4189,7 +4189,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "72a7e6dffce3bdd86799ffa8daca3f042de3bb1a695721ed5e0fb3821a6f3cd6",
+      "sha256": "dffe3196aa0835016a3341f6027361c64a69fc8987d395ebde8be5372b8605d9",
       "executable": false
     },
     "tests/send-policies.test.mjs": {
@@ -4206,6 +4206,10 @@
     },
     "tests/web-forms.test.mjs": {
       "sha256": "df8b5058181d946c580d91b78f92ae63d9642719647c6092432369d7cec5f3b5",
+      "executable": false
+    },
+    "tests/worker-port.mjs": {
+      "sha256": "f07ca7ede90f33e8a9688b85c7bdbb144292cfbe5b0ed34310f9c9e18ec4c315",
       "executable": false
     },
     "tsconfig.json": {

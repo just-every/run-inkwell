@@ -2,15 +2,12 @@ import {queuedEntrypoint} from '@runeditrun/rer/queued-entry';
 const queued=await queuedEntrypoint(import.meta.url,'verify:runtime');if(queued!==null)process.exit(queued);
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
-import { createServer } from 'node:net'
+import { reserveWorkerPort } from './worker-port.mjs'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const socket = createServer()
-await new Promise(resolve => socket.listen(0, '127.0.0.1', resolve))
-const port = socket.address().port
-await new Promise(resolve => socket.close(resolve))
+const { port, origin, release } = await reserveWorkerPort()
 // The installed homepage reads the claim state from D1: run the emitted Worker
 // on its own migrated store, never the checkout's local data.
 const persist = await mkdtemp(join(tmpdir(), 'foundation-runtime-'))
@@ -21,7 +18,6 @@ try {
   let output = ''
   worker.stdout.on('data', chunk => { output += chunk })
   worker.stderr.on('data', chunk => { output += chunk })
-  const origin = `http://127.0.0.1:${port}`
   let ready = false
   for (let attempt = 0; attempt < 120; attempt++) {
     if (worker.exitCode !== null) throw new Error(output)
@@ -51,6 +47,7 @@ try {
     worker.kill('SIGTERM')
     await new Promise(resolve => worker.exitCode !== null ? resolve() : worker.once('exit', resolve))
   }
+  await release()
   await rm(persist, { recursive: true, force: true })
   // wrangler dev keeps its scratch (.wrangler/tmp) beside the config it runs, which here is the emitted Worker; the artifact producer refuses that folder in dist/server, so leave the build output as rer build wrote it.
   await rm('dist/server/.wrangler', { recursive: true, force: true })

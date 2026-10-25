@@ -3,18 +3,15 @@
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { createServer } from 'node:net'
+import { reserveWorkerPort } from '../worker-port.mjs'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { chromium } from '@playwright/test'
 
 export async function startInkwell() {
-  const socket = createServer()
-  await new Promise(resolve => socket.listen(0, '127.0.0.1', resolve))
-  const port = socket.address().port
-  await new Promise(resolve => socket.close(resolve))
-  const origin = `http://127.0.0.1:${port}`, setupToken = randomBytes(32).toString('hex')
+  const { port, origin, release } = await reserveWorkerPort()
+  const setupToken = randomBytes(32).toString('hex')
   const persist = await mkdtemp(join(tmpdir(), 'inkwell-journey-'))
   let worker, browser
   async function close() {
@@ -23,6 +20,7 @@ export async function startInkwell() {
       worker.kill('SIGTERM')
       await new Promise(resolve => worker.exitCode !== null ? resolve() : worker.once('exit', resolve))
     }
+    await release()
     await rm(persist, { recursive: true, force: true })
     // wrangler dev keeps its scratch (.wrangler/tmp) beside the config it runs, which here is the emitted Worker; the artifact producer refuses that folder in dist/server, so leave the build output as rer build wrote it.
     await rm('dist/server/.wrangler', { recursive: true, force: true })

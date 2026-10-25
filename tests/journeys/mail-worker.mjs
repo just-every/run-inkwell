@@ -3,7 +3,7 @@
 // and answered with a fresh message id; delivery webhooks are signed with the installation's MAIL_WEBHOOK_KEY.
 import assert from 'node:assert/strict'
 import { createHmac, randomBytes } from 'node:crypto'
-import { createServer } from 'node:net'
+import { reserveWorkerPort } from '../worker-port.mjs'
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -12,11 +12,8 @@ import { unstable_splitSqlQuery } from 'wrangler'
 import { chromium } from '@playwright/test'
 
 export async function startInkwellWithMail({ inbound = false, sms = false, smsPrice, turnstile = false, pdfPrint = false } = {}) {
-  const socket = createServer()
-  await new Promise(resolve => socket.listen(0, '127.0.0.1', resolve))
-  const port = socket.address().port
-  await new Promise(resolve => socket.close(resolve))
-  const origin = `http://127.0.0.1:${port}`, setupToken = randomBytes(32).toString('hex'), secret = randomBytes(24)
+  const { port, origin, release } = await reserveWorkerPort()
+  const setupToken = randomBytes(32).toString('hex'), secret = randomBytes(24)
   const inboundMessages = new Map(), inboundSecret = Buffer.from('synthetic-inkwell-4').toString('base64')
   const persist = await mkdtemp(join(tmpdir(), 'inkwell-mail-journey-')), captured = [], smsCaptured = []
   // The entry module first; Miniflare loads the emitted chunks it imports from the same folder.
@@ -28,7 +25,7 @@ export async function startInkwellWithMail({ inbound = false, sms = false, smsPr
     outboundService: async request => { if(turnstile&&new URL(request.url).hostname==='challenges.cloudflare.com'){const form=new URLSearchParams(await request.text()),token=form.get('response');assert.equal(form.get('secret'),'synthetic-inkwell-6');return Response.json({success:true,hostname:new URL(origin).hostname,action:token?.includes('submit')?'inkwell_form_submit':token?.includes('verify')?'inkwell_form_verify':'inkwell_form_code'})} if (sms && new URL(request.url).hostname === 'api.twilio.com') { const form=new URLSearchParams(await request.text()); smsCaptured.push({to:form.get('To'),body:form.get('Body')}); return Response.json({sid:'synthetic-inkwell-'+(smsCaptured.length+2),status:'queued',...(smsPrice===undefined?{}:{price:smsPrice,price_unit:'USD'})},{status:201}) } if (new URL(request.url).hostname !== 'api.resend.com') throw new Error('Unexpected journey network request'); if (request.method === 'GET') { const message = inboundMessages.get(new URL(request.url).pathname.split('/')[3]); return message ? Response.json(message) : new Response(null, { status: 404 }) } const id = crypto.randomUUID(); captured.push({ ...await request.json(), id }); return Response.json({ id }) },
   }))
   let browser
-  async function close() { await browser?.close(); await mf.dispose(); await rm(persist, { recursive: true, force: true }) }
+  async function close() { await browser?.close(); await mf.dispose(); await release(); await rm(persist, { recursive: true, force: true }) }
   try {
     await mf.ready
     const db = await mf.getD1Database('DB')

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
-import { createServer } from 'node:net'
+import { reserveWorkerPort } from './worker-port.mjs'
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -20,8 +20,8 @@ const edges = {
 // a Nook installation's Slack-compatible incoming webhook (NOOK-063), which answers like Slack's.
 const hooks = { 'hooks.slack.com': 'slack', 'harbour.webhook.office.com': 'teams', 'nook.harbour.example': 'nook' }
 export async function harness({ mailProvider = 'resend', bindings = {}, networkEdge, now } = {}) {
- const socket = createServer(); await new Promise(r => socket.listen(0,'127.0.0.1',r)); const port = socket.address().port; await new Promise(r => socket.close(r))
- const origin = `http://127.0.0.1:${port}`, directory = await mkdtemp(join(tmpdir(),'inkwell-test-'))
+ const { port, origin, release } = await reserveWorkerPort()
+ const directory = await mkdtemp(join(tmpdir(),'inkwell-test-'))
  const bundle = await build({entryPoints:['tests/api-worker.ts'],bundle:true,write:false,format:'esm',platform:'neutral',mainFields:['module','main'],conditions:['workerd','worker','browser'],external:['node:*','cloudflare:*'],target:'es2023'})
  const bootstrapToken = randomBytes(32).toString('hex')
  const inbound = new Map(), inboundAttachments = new Map()
@@ -58,6 +58,6 @@ export async function harness({ mailProvider = 'resend', bindings = {}, networkE
   const sent=()=>capturedMail.length
   // DELIV-001: every request the mail edge received, including ones it failed, and failing the next n.
   const attempted=()=>[...attempts],failSends=n=>{failing=n}
-  return {mf,db,origin,owner,advanceTo:at=>{assert.ok(Number.isSafeInteger(at)&&at>=now,'test clock only advances');now=at},attachment:(id,item)=>inboundAttachments.set(id,item),inbound:message=>inbound.set(message.id,message),logs:()=>[...logs],send,post,command,mail,invite,agree,scheduled,sent,attempted,failSends,posts:()=>[...posts],async close(){await mf.dispose();await rm(directory,{recursive:true,force:true})}}
- }catch(e){await mf.dispose();await rm(directory,{recursive:true,force:true});throw e}
+  return {mf,db,origin,owner,advanceTo:at=>{assert.ok(Number.isSafeInteger(at)&&at>=now,'test clock only advances');now=at},attachment:(id,item)=>inboundAttachments.set(id,item),inbound:message=>inbound.set(message.id,message),logs:()=>[...logs],send,post,command,mail,invite,agree,scheduled,sent,attempted,failSends,posts:()=>[...posts],async close(){await mf.dispose();await release();await rm(directory,{recursive:true,force:true})}}
+ }catch(e){await mf.dispose();await release();await rm(directory,{recursive:true,force:true});throw e}
 }
