@@ -16,21 +16,26 @@ export async function startInkwell() {
   await new Promise(resolve => socket.close(resolve))
   const origin = `http://127.0.0.1:${port}`, setupToken = randomBytes(32).toString('hex')
   const persist = await mkdtemp(join(tmpdir(), 'inkwell-journey-'))
-  await writeFile(join(persist, 'journey.env'), `AUTH_ORIGIN=${origin}\nAUTH_LOCAL=true\nOWNER_EMAIL=owner@harbour.example\nSESSION_SECRET=${randomBytes(32).toString('hex')}\nSETUP_TOKEN=${setupToken}\n`)
-  const wrangler = ['node_modules/wrangler/bin/wrangler.js'], env = { ...process.env, CI: '1', WRANGLER_SEND_METRICS: 'false' }
-  execFileSync(process.execPath, [...wrangler, 'd1', 'migrations', 'apply', 'foundation', '--local', '--persist-to', persist, '--config', 'dist/server/wrangler.json'], { stdio: 'pipe', env })
-  const worker = spawn(process.execPath, [...wrangler, 'dev', '--inspector-port', '0', '--local', '--persist-to', persist, '--env-file', join(persist, 'journey.env'), '--ip', '127.0.0.1', '--config', 'dist/server/wrangler.json', '--port', String(port)], { stdio: ['ignore', 'pipe', 'pipe'], env })
-  let output = ''
-  worker.stdout.on('data', chunk => { output += chunk })
-  worker.stderr.on('data', chunk => { output += chunk })
-  const browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+  let worker, browser
   async function close() {
-    await browser.close()
-    worker.kill('SIGTERM')
-    await new Promise(resolve => worker.exitCode !== null ? resolve() : worker.once('exit', resolve))
+    await browser?.close()
+    if (worker) {
+      worker.kill('SIGTERM')
+      await new Promise(resolve => worker.exitCode !== null ? resolve() : worker.once('exit', resolve))
+    }
     await rm(persist, { recursive: true, force: true })
+    // wrangler dev keeps its scratch (.wrangler/tmp) beside the config it runs, which here is the emitted Worker; the artifact producer refuses that folder in dist/server, so leave the build output as rer build wrote it.
+    await rm('dist/server/.wrangler', { recursive: true, force: true })
   }
   try {
+    await writeFile(join(persist, 'journey.env'), `AUTH_ORIGIN=${origin}\nAUTH_LOCAL=true\nOWNER_EMAIL=owner@harbour.example\nSESSION_SECRET=${randomBytes(32).toString('hex')}\nSETUP_TOKEN=${setupToken}\n`)
+    const wrangler = ['node_modules/wrangler/bin/wrangler.js'], env = { ...process.env, CI: '1', WRANGLER_SEND_METRICS: 'false' }
+    execFileSync(process.execPath, [...wrangler, 'd1', 'migrations', 'apply', 'foundation', '--local', '--persist-to', persist, '--config', 'dist/server/wrangler.json'], { stdio: 'pipe', env })
+    worker = spawn(process.execPath, [...wrangler, 'dev', '--inspector-port', '0', '--local', '--persist-to', persist, '--env-file', join(persist, 'journey.env'), '--ip', '127.0.0.1', '--config', 'dist/server/wrangler.json', '--port', String(port)], { stdio: ['ignore', 'pipe', 'pipe'], env })
+    let output = ''
+    worker.stdout.on('data', chunk => { output += chunk })
+    worker.stderr.on('data', chunk => { output += chunk })
+    browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
     for (let attempt = 0; attempt < 120; attempt++) {
       if (worker.exitCode !== null) throw new Error(output)
       try { if ((await fetch(`${origin}/health`)).ok) break } catch {}
