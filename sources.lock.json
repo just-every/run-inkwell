@@ -3845,7 +3845,7 @@
       "executable": false
     },
     "src/ui/prepare-envelope.tsx": {
-      "sha256": "da700fff939ebdcdbd5290c7ba50f2f29a7d28d9f80c824d9d3bfd24464cf347",
+      "sha256": "73b19887bac1d694e9b0b0c0b9822123426e190dbff58a5086e1f3ad49ea0061",
       "executable": false
     },
     "src/ui/provider-authentication.tsx": {
