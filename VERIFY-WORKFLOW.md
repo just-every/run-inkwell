@@ -290,7 +290,7 @@ permissions, and add `actions: read` only here.
 +        env:
 +          GITHUB_TOKEN: ${{ github.token }}
 +        run: node scripts/verify-ci.mjs --main-skip
-       # Existing matrix/planning steps stay here.
+       # Existing matrix and planning steps stay here.
    shards:
      needs: plan
 +    if: ${{ needs.plan.outputs.skip != 'true' }}

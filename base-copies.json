@@ -447,6 +447,15 @@
       },
       "modes": {
         "scripts/edition-authoring/adopt.mjs": "100644"
+      },
+      "adapted": {
+        "scripts/edition-authoring/adopt.mjs": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
+      },
+      "acknowledged": {
+        "scripts/edition-authoring/adopt.mjs": {
+          "sha256": "5371f1877e82035acdb668e1e50508130a3c224b2dfe88768cf39aeadcf48490",
+          "mode": "100644"
+        }
       }
     },
     {
@@ -513,6 +522,15 @@
       },
       "modes": {
         "scripts/edition-authoring/lock.mjs": "100644"
+      },
+      "adapted": {
+        "scripts/edition-authoring/lock.mjs": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
+      },
+      "acknowledged": {
+        "scripts/edition-authoring/lock.mjs": {
+          "sha256": "4c719411ecbe7133e7beee0b69c46b385e0388435e4958769a08d22ce240401f",
+          "mode": "100644"
+        }
       }
     },
     {
@@ -1443,6 +1461,15 @@
         "src/modules/import-kit/src/storage/schema.ts": "100644",
         "src/modules/import-kit/src/storage/sqlite.ts": "100644",
         "src/modules/import-kit/src/types.ts": "100644"
+      },
+      "adapted": {
+        "src/modules/import-kit/README.md": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
+      },
+      "acknowledged": {
+        "src/modules/import-kit/README.md": {
+          "sha256": "d3d4c882ed3cdd6a0f8b17a1e2a36c67f0a6adf5b758a14e67d3ad3c3dbc45a9",
+          "mode": "100644"
+        }
       }
     },
     {
@@ -1578,6 +1605,15 @@
         "src/modules/mail/src/sendgrid-email/index.d.mts": "100644",
         "src/modules/mail/src/sendgrid-email/index.mjs": "100644",
         "src/modules/mail/src/unsubscribe/index.mjs": "100644"
+      },
+      "adapted": {
+        "src/modules/mail/README.md": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
+      },
+      "acknowledged": {
+        "src/modules/mail/README.md": {
+          "sha256": "d551371533cff8c966d239d65636e8c7776b202750777b16b56a0086e24dc77e",
+          "mode": "100644"
+        }
       }
     },
     {
@@ -1797,6 +1833,25 @@
         "src/modules/operator-auth/signin/index.d.mts": "100644",
         "src/modules/operator-auth/signin/index.mjs": "100644",
         "src/modules/operator-auth/signin/one-click.mjs": "100644"
+      },
+      "adapted": {
+        "src/modules/operator-auth/conformance/README.md": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
+        "src/modules/operator-auth/docs/vite-spa.md": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
+        "src/modules/operator-auth/representation.mjs": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
+      },
+      "acknowledged": {
+        "src/modules/operator-auth/conformance/README.md": {
+          "sha256": "142c2ef58f58a2f7a6c9dafcf0530cf74502aceac060a9dd0a44367bde8f3653",
+          "mode": "100644"
+        },
+        "src/modules/operator-auth/docs/vite-spa.md": {
+          "sha256": "0c9cb19046087f55390368e9983be52a24ce8804cda0a621c7f74d12b90288b6",
+          "mode": "100644"
+        },
+        "src/modules/operator-auth/representation.mjs": {
+          "sha256": "4dc602fe73ce6fa83ade350ca4bd8a1b86dfa96e743598eb7379d2382de8445f",
+          "mode": "100644"
+        }
       }
     },
     {
@@ -1848,6 +1903,15 @@
       },
       "modes": {
         "VERIFY-WORKFLOW.md": "100644"
+      },
+      "adapted": {
+        "VERIFY-WORKFLOW.md": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
+      },
+      "acknowledged": {
+        "VERIFY-WORKFLOW.md": {
+          "sha256": "a9a21f39f2b8ce484541f8352bceb70f342e681cf5b18aaf4080e91b88268d90",
+          "mode": "100644"
+        }
       }
     }
   ]
