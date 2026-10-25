@@ -16,8 +16,9 @@ async function stripe(env: Env, path: string, form?: URLSearchParams, key?: stri
     })
   } catch { insist(false, 'Identity provider unavailable. Try checking the existing verification again.', 503) }
   insist(response.ok, 'Identity provider could not complete this request. Contact the sender if it continues.', 503)
-  const body = await response.text()
-  insist(body.length <= 128 * 1024, 'Identity provider receipt is too large.', 503)
+  const reader = response.body?.getReader(); insist(reader, 'Identity provider returned no receipt.', 503)
+  const decoder = new TextDecoder(); let body = '', size = 0
+  try { for (;;) { const part = await reader.read(); if (part.done) break; size += part.value.byteLength; if (size > 128 * 1024) { await reader.cancel(); insist(false, 'Identity provider receipt is too large.', 503) }; body += decoder.decode(part.value, {stream:true}) }; body += decoder.decode() } finally { reader.releaseLock() }
   try { return JSON.parse(body) } catch { insist(false, 'Identity provider returned an invalid receipt.', 503) }
 }
 
