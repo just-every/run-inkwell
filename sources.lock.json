@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "41476edf0a762735713f3ccc3a0753d4511a44bec2be9942794920f38cd060de",
+      "sha256": "6c928d45a2a0a22a1a581a512532d3d9714ad5635b23aa08abc3c707c025c0a8",
       "executable": false
     },
     "DEMO.md": {
@@ -1109,7 +1109,7 @@
       "executable": false
     },
     "src/inkwell/archive-policy.mjs": {
-      "sha256": "df6e34acc93de2055af687fa8a2039ae8c4e2af2222e055b6ce284e837e06f35",
+      "sha256": "acc5a79e98b9e97de6b0fd6fd4651d2f9f9ae5c7d6b6735b1361495586ad7214",
       "executable": false
     },
     "src/inkwell/archive-transfers.ts": {
@@ -3989,7 +3989,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "7e1dc50fa4ac01e7d949f55232db804eb8d714af6f857337a41f8fc7a25dfdfe",
+      "sha256": "69e1617b7733c1329405e0dcb30f60ab1b047026f5a67e4b489217b017368618",
       "executable": false
     },
     "tests/document-fields.test.mjs": {

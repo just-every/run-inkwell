@@ -908,6 +908,7 @@ test('Knowledge questions admit a passing recipient and lock two failures with o
   const path=async email=>'/api'+new URL((await h.mail(email,'Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
   const first=await path(emails[0]);await h.post(first+'/provider/start',{consent:false,dateOfBirth:'1985-06-15'},'',400);assert.equal(edge.knowledge.size,0)
   await h.post(first+'/provider/start',{consent:true,dateOfBirth:'1985-06-15'},'')
+  const sealed=(await h.db.prepare('SELECT sealed_token FROM iw_provider_auth WHERE envelope_id=?').bind(id).first()).sealed_token;assert.ok(sealed);assert.ok(!JSON.stringify((await h.send('/api/inkwell/archive',undefined,h.owner)).value).includes(sealed),'active hosted capability custody never exports')
   const providerState=[...edge.knowledge.values()].at(-1),originalWorkflow=providerState.medallion.currentSession.workflowId
   providerState.medallion.currentSession.workflowId='unapproved-workflow';await h.post(first+'/provider/check',{},'',503)
   providerState.medallion.currentSession.workflowId=originalWorkflow;await h.post(first+'/provider/check',{},'')
