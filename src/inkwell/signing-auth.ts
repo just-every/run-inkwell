@@ -1,3 +1,4 @@
+import { admitSmsUsage } from './usage'
 import { appendEvent, insist, randomCode, secret, sha256, text, type Env } from './model'
 import { commitEnvelope } from './storage'
 import { dispatchMail, mailWrite } from './mail'
@@ -13,6 +14,7 @@ export async function requestCode(env: Env, context: SigningContext) {
   const r = context.recipient, at = Date.now()
   insist(!r.code_sent_at || r.code_sent_at < at - 60_000, 'Wait one minute before requesting another verification code.', 429)
   insist(r.code_generation < 10, 'The verification request limit was reached. Contact the sender.', 429)
+  if (sms) await admitSmsUsage(env)
   const code = randomCode(), generation = r.code_generation + 1, hash = await sha256(`${env.SESSION_SECRET}:${r.token_hash}:${generation}:${code}`), after = structuredClone(context.envelope)
   await appendEvent(after, 'signer.code_requested', `signer:${r.signer + 1}`, { signer: r.signer, ...(r.member === undefined ? {} : { member: r.member }), ...(sms ? { method: 'sms', maskedPhone: maskedMobile(person.phone!) } : {}) })
   const body = `Your Inkwell verification code is ${code}.\n\nIt expires in 10 minutes. Do not share it.\nDocument: ${after.title}`

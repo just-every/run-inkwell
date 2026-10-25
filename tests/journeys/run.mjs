@@ -25,7 +25,8 @@ const journeys = [
  "tests/journeys/freeform.mjs",
  "tests/journeys/template-release.mjs",
  "tests/journeys/send-policies.mjs",
- "tests/journeys/forms.mjs"
+ "tests/journeys/forms.mjs",
+ "tests/journeys/sms.mjs"
 ]
 const selector = process.env.INKWELL_JOURNEY_SHARD
 if (selector && !/^[123]\/3$/.test(selector)) throw new Error('INKWELL_JOURNEY_SHARD must be 1/3, 2/3 or 3/3')

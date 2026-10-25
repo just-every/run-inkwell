@@ -1,3 +1,4 @@
+import { envelopeUsageWrite } from './usage'
 import { policySendQuota, ApiRateLimit } from './api-limits'
 import { freeFormPolicy, freeFormSendGuard, snapshotFreeFormPolicy } from './freeform-policy'
 import { appendEvent, currentSigners, insist, object, secret, sha256, text, type Envelope, type Env } from './model'
@@ -57,7 +58,7 @@ async function send(env: Env, before: Envelope, at: number) {
   const inApp = (after.events.findLast(e => e.action === 'envelope.approved')?.detail.signsInApp as number[] | undefined) ?? []
   const first = currentSigners(after).filter(i => !inApp.includes(i) && !after.signers[i].inPerson)
   await appendEvent(after, 'envelope.sent_scheduled', 'inkwell', { ...(after.freeForm ? { freeForm: true, freeFormSetting: after.freeFormSetting } : {}), sendPolicy: decision.record, scheduledFor: schedule.at, local: schedule.local, timeZone: schedule.timeZone, passAt: new Date(at).toISOString(), invited: first })
-  const writes: D1PreparedStatement[] = [...quota.writes]
+  const writes: D1PreparedStatement[] = [envelopeUsageWrite(env), ...quota.writes]
   for (const i of first) { if (after.signers[i].group) { writes.push(...await memberLinkWrites(env, after, i, false, true)); continue }; const token = secret(); writes.push(env.DB.prepare('UPDATE iw_signers SET token_hash=?,link_sealed=? WHERE envelope_id=? AND signer=?').bind(await sha256(token), await sealLink(env, after.id, i, token), after.id, i), invitationWrite(env, after, i, token)) }
   await commitEnvelope(env, before, after, null, writes, [guard,...quota.guards])
   await dispatchMail(env, after.id)

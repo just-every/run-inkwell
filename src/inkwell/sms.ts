@@ -1,3 +1,4 @@
+import { usageMonth, admitSmsUsage, smsReceiptCharge } from './usage'
 import { dayOfWeek, localDate, localHour } from './followup-time'
 import { id, insist, now, type Envelope, type Env } from './model'
 
@@ -49,7 +50,7 @@ export function smsWrite(env: Env, e: Envelope, signer: number, phone: string, k
 }
 
 /** Read a small provider response without retaining/logging its potentially private payload. */
-async function providerResult(response: Response): Promise<{ sid: string; status: string }> {
+async function providerResult(response: Response): Promise<{ sid: string; status: string; charge: number | null }> {
   const reader = response.body?.getReader()
   insist(reader, 'SMS provider returned no receipt.', 503)
   const chunks: Uint8Array[] = []; let size = 0
@@ -63,10 +64,10 @@ async function providerResult(response: Response): Promise<{ sid: string; status
   } finally { reader.releaseLock() }
   const bytes = new Uint8Array(size); let offset = 0
   for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length }
-  const result = JSON.parse(new TextDecoder().decode(bytes)) as { sid?: unknown; status?: unknown }
+  const result = JSON.parse(new TextDecoder().decode(bytes)) as { sid?: unknown; status?: unknown; price?: unknown; price_unit?: unknown }
   insist(typeof result.sid === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(result.sid), 'SMS provider returned an invalid receipt.', 503)
   insist(typeof result.status === 'string' && ['accepted', 'queued', 'sending', 'sent', 'delivered', 'failed', 'undelivered'].includes(result.status), 'SMS provider returned an invalid status.', 503)
-  return { sid: result.sid, status: result.status }
+  return { sid: result.sid, status: result.status, charge: smsReceiptCharge(result.price, result.price_unit) }
 }
 
 /** One durable claim, one network attempt. A crash in sending stays claimed; an uncertain response never retries.
@@ -78,7 +79,12 @@ export async function dispatchSms(env: Env, envelopeId?: string): Promise<void> 
   insist(smsReady(env), 'SMS delivery is not configured. Ask the owner to configure Twilio.', 503)
   const settings = env as Env & SmsBindings
   for (const job of jobs) {
-    const claimed = await env.DB.prepare(`UPDATE iw_sms SET state='sending' WHERE id=? AND state='pending'
+    try { await admitSmsUsage(env) } catch (error) {
+      await env.DB.prepare("UPDATE iw_sms SET state='cancelled',body='' WHERE id=? AND state='pending'").bind(job.id).run()
+      throw error
+    }
+    let claimed: { id: string; recipient: string; body: string } | null
+    try { claimed = await env.DB.prepare(`UPDATE iw_sms SET state='sending',usage_month=? WHERE id=? AND state='pending'
       AND EXISTS(SELECT 1 FROM iw_envelopes e JOIN iw_signers s ON s.envelope_id=e.id AND s.signer=iw_sms.signer
         WHERE e.id=iw_sms.envelope_id AND s.token_hash=iw_sms.token_hash
         AND (iw_sms.kind!='code' OR s.code_generation=iw_sms.code_generation AND s.code_expires>?)
@@ -104,12 +110,17 @@ export async function dispatchSms(env: Env, envelopeId?: string): Promise<void> 
           AND (o.role IN ('owner','admin') OR (o.role='member'
             AND COALESCE((SELECT role FROM iw_member_roles WHERE operator_id=o.id),'viewer')='sender'
             AND (json_extract(e.data,'$.createdBy')=o.id OR EXISTS(SELECT 1 FROM iw_effective_shares WHERE envelope_id=e.id AND operator_id=o.id AND access='edit')))))))
-      RETURNING id,recipient,body`).bind(job.id, Date.now(), now(), dayOfWeek(localDate(Date.now())), localHour(Date.now()), localHour(Date.now())).first<{ id: string; recipient: string; body: string }>()
+      RETURNING id,recipient,body`).bind(usageMonth(), job.id, Date.now(), now(), dayOfWeek(localDate(Date.now())), localHour(Date.now()), localHour(Date.now())).first<{ id: string; recipient: string; body: string }>()
+    } catch (error) {
+      if (!String(error).includes('SMS monthly cap reached')) throw error
+      await env.DB.prepare("UPDATE iw_sms SET state='cancelled',body='' WHERE id=? AND state='pending'").bind(job.id).run()
+      await admitSmsUsage(env); throw error
+    }
     if (!claimed) {
       await env.DB.prepare("UPDATE iw_sms SET state='cancelled',body='' WHERE id=? AND state='pending'").bind(job.id).run()
       continue
     }
-    let state: 'sent' | 'failed' | 'uncertain' = 'uncertain', messageId: string | null = null
+    let state: 'sent' | 'failed' | 'uncertain' = 'uncertain', messageId: string | null = null, charge: number | null = null
     const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 10_000)
     try {
       const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${settings.TWILIO_ACCOUNT_SID}/Messages.json`, {
@@ -118,7 +129,7 @@ export async function dispatchSms(env: Env, envelopeId?: string): Promise<void> 
         body: new URLSearchParams({ To: claimed.recipient, From: settings.TWILIO_FROM!, Body: claimed.body }).toString(),
       })
       if (response.ok) {
-        const receipt = await providerResult(response); messageId = receipt.sid
+        const receipt = await providerResult(response); messageId = receipt.sid; charge = receipt.charge
         state = ['failed', 'undelivered'].includes(receipt.status) ? 'failed' : 'sent'
       } else {
         // A definite client refusal failed; server errors may have accepted the message.
@@ -126,6 +137,7 @@ export async function dispatchSms(env: Env, envelopeId?: string): Promise<void> 
         await response.body?.cancel()
       }
     } catch { state = 'uncertain' } finally { clearTimeout(timeout) }
+    await env.DB.prepare('UPDATE iw_usage_sms SET charged_micros=?,outcome=? WHERE id=?').bind(charge, state, claimed.id).run()
     await env.DB.prepare("UPDATE iw_sms SET state=?,provider='twilio',provider_message_id=?,sent_at=CASE WHEN ?='sent' THEN ? END,body='' WHERE id=? AND state='sending'")
       .bind(state, messageId, state, now(), claimed.id).run()
     insist(state === 'sent', 'The signing change was saved, but SMS delivery could not be confirmed. Check Twilio before sending another message.', 503)

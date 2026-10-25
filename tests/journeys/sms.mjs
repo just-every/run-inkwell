@@ -86,4 +86,53 @@ export async function smsJourney(){
   console.log(`SMS preparation, correction, resend, follow-up and signing passed at 1440/390 with light/dark axe and keyboard controls. Screens: ${images}`)
  }catch(error){await screenshots(app.browser,'sms-failure');throw error}finally{await app.close()}
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)await smsJourney()
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){if(!process.argv.includes('--usage'))await smsJourney();await usageJourney()}
+
+
+/** ADMIN-006 uses the real built Settings page and signing HTTP doors; only Twilio is replaced. */
+export async function usageJourney(){
+ const images=join(process.env.INKWELL_PROOF_DIR??'test-results','usage');await mkdir(images,{recursive:true})
+ for(const width of [1440,390]){
+  const app=await startInkwellWithMail({sms:true,smsPrice:'-1.000000'})
+  try {
+   const context=await app.browser.newContext({viewport:{width,height:width===390?844:1000}});await context.addCookies([app.ownerCookie()])
+   const page=await context.newPage();page.setDefaultTimeout(20000);await page.goto(app.origin+'/app');await page.getByRole('button',{name:'Settings',exact:true}).click()
+   const usage=page.getByRole('region',{name:'Usage and cost',exact:true})
+   await usage.getByLabel('Monthly SMS cap in USD (blank for no cap)',{exact:true}).fill('5')
+   await usage.getByLabel('SMS allowance per attempt in USD',{exact:true}).fill('1')
+   await tabTo(page,usage.getByRole('checkbox'));await page.keyboard.press('Space');await page.keyboard.press('Tab');await page.keyboard.press('Enter')
+   await expect(usage.getByRole('checkbox')).not.toBeChecked()
+   await expect(usage.getByRole('button',{name:'Refresh usage'})).toBeEnabled()
+   const pdf=await PDFDocument.create();pdf.addPage([612,792]);const pdfBase64=Buffer.from(await pdf.save()).toString('base64')
+   const paths=[]
+   for(let i=0;i<6;i++){
+    const email=`usage-${width}-${i}@harbour.example`,id=(await app.command('envelope.prepare',{title:'Usage agreement '+i,filename:'usage.pdf',pdfBase64,signers:[{name:'Usage client',email,...(i<5?{sms:true,phone:'+12025550102'}:{})}],fields:[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.4,height:.07}]})).id
+    await app.command('envelope.approve',{id,eligible:true});paths.push('/api'+new URL(app.mail(email,'Please sign:').text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname)
+   }
+   const capture=async state=>{
+    await usage.getByRole('button',{name:'Refresh usage'}).click()
+    await expect(usage.getByRole('button',{name:'Refresh usage'})).toBeEnabled()
+    await usage.scrollIntoViewIfNeeded()
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'usage has no sideways scroll')
+    // Every button on this Settings surface has visible text; no icon-only control is introduced.
+    assert.equal(await usage.locator('button').evaluateAll(buttons=>buttons.filter(b=>!b.textContent.trim()).length),0)
+    for(const theme of ['light','dark']){await page.emulateMedia({colorScheme:theme});await axe(page,`ADMIN-006 ${width} ${state} ${theme}`)}
+    await page.emulateMedia({colorScheme:'light'});await page.screenshot({path:join(images,`${width}-${state}-page.png`),fullPage:false});await usage.screenshot({path:join(images,`${width}-${state}.png`)})
+   }
+   for(let i=0;i<4;i++)await app.call(paths[i]+'/code',{body:{}})
+   await capture('warning');await expect(usage.getByRole('status')).toContainText('SMS warning:')
+   await expect(usage.locator('dd').nth(2)).toHaveText('$4.00 USD')
+   await app.call(paths[4]+'/code',{body:{}})
+   await capture('stopped');await expect(usage.getByRole('status')).toContainText('SMS stopped:')
+   await expect(usage.locator('dd').nth(0)).toHaveText('6');await expect(usage.locator('dd').nth(1)).toHaveText('5');await expect(usage.locator('dd').nth(2)).toHaveText('$5.00 USD')
+   // A fresh code request on a new SMS place has no resend delay to obscure the cap refusal.
+   const extra=(await app.command('envelope.prepare',{title:'Blocked paid code',filename:'usage.pdf',pdfBase64,signers:[{name:'Blocked client',email:'blocked@harbour.example',sms:true,phone:'+12025550103'}],fields:[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.4,height:.07}]})).id
+   await app.command('envelope.approve',{id:extra,eligible:true});const blocked='/api'+new URL(app.mail('blocked@harbour.example','Please sign:').text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+   await app.call(blocked+'/code',{body:{},status:409});assert.equal(app.smsMessages().length,5)
+   await app.call(paths[5]+'/code',{body:{}});const code=app.mail(`usage-${width}-5@harbour.example`,'Your Inkwell verification code').text.match(/\b\d{6}\b/)[0]
+   const verified=await app.call(paths[5]+'/verify',{body:{code}});assert.ok(verified.cookie)
+   await context.close()
+  } finally {await app.close()}
+ }
+ console.log('ADMIN-006: usage settings, 5 USD warning and stop, matching provider totals and unaffected email passed at 1440 and 390.')
+}
