@@ -578,7 +578,7 @@ async function smsHarness({price,onAttempt}={}){
   const form=new URLSearchParams(await request.text());assert.equal(form.get('From'),smsTestBindings.TWILIO_FROM)
   texts.push({to:form.get('To'),body:form.get('Body')})
   await onAttempt?.()
-  return failed?new Response('',{status:503}):Response.json({sid:'synthetic-inkwell-'+(texts.length+2),status:'queued',...(price===undefined?{}:{price,price_unit:'USD'})},{status:201})
+  return failed?new Response('',{status:503}):Response.json({sid:'synthetic-inkwell-'+(texts.length+2),status:'queued',...(price===undefined?{}:{price,price_unit:'usd'})},{status:201})
  }})
  return {h,texts,fail:()=>{failed=true},recover:()=>{failed=false}}
 }

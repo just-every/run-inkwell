@@ -57,6 +57,6 @@ export async function setUsagePolicy(env: Env, context: CommandContext, input: R
 }
 /** Provider prices are negative charges in Twilio receipts. No price is never treated as free. */
 export function smsReceiptCharge(value: unknown, currency: unknown): number | null {
-  if (currency !== 'USD' || typeof value !== 'string' || !/^-?\d{1,6}(\.\d{1,6})?$/.test(value)) return null
+  if (typeof currency !== 'string' || currency.toUpperCase() !== 'USD' || typeof value !== 'string' || !/^-?\d{1,6}(\.\d{1,6})?$/.test(value)) return null
   return Math.round(Math.abs(Number(value)) * 1_000_000)
 }
