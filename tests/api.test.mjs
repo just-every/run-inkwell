@@ -751,28 +751,39 @@ test('MANAGE-001: with 5,000 envelopes, search by recipient email answers in und
  assert.equal((await h.send('/api/inkwell/envelopes')).status,401)
 })
 // MANAGE-004: counts and turnaround over whole days in the account's zone (America/New_York), both days included.
-test('MANAGE-004: a fixture of 300 envelopes produces the expected counts and median turnaround, per sender and in total, and the CSV matches the report',async t=>{
+test('MANAGE-004: a fixture of 300 envelopes produces the expected counts and median turnaround, per sender, per template and in total, and the CSV matches the report',async t=>{
  t.after(()=>h.db.prepare("DELETE FROM iw_envelopes WHERE id LIKE 'report-%'").run())
+ const reportClock=String(Date.UTC(2026,9,26,14))
  const sam=await sender('report.sender@harbour.example'),ownerId=(await h.send('/api/inkwell',undefined,h.owner)).value.actor.id,hour=3_600_000,start=Date.UTC(2026,1,25,14)
  const rows=Array.from({length:300},(_,i)=>{const sent=start+i*4*hour,kind=i%5,createdBy=[ownerId,sam.id,'sender-gone'][i%3],done=sent+((i%7)+1)*5*hour,iso=t=>new Date(t).toISOString()
   const events=[{action:'envelope.prepared',at:iso(sent-hour)},{action:'envelope.approved',at:iso(sent)},...(kind<3?[{action:'envelope.completed',at:iso(done)}]:[])].map(e=>({...e,actor:'fixture',detail:{},previousHash:'',hash:'1'.repeat(64)}))
-  return {id:`report-${String(i).padStart(3,'0')}`,version:1,title:`Report fixture ${i}`,filename:'r.pdf',status:kind<3?'completed':kind===3?'declined':'awaiting_signature',createdAt:iso(sent-hour),createdBy,expiresAt:iso(sent+20*24*hour),signers:[{name:'R',email:`r${i}@harbour.example`,...(kind===3?{declinedAt:iso(sent+10*hour)}:{})}],fields:[],pageSizes:[{width:595,height:842}],originalSha256:'0'.repeat(64),events,facts:{sent,done,kind}}})
+  return {id:`report-${String(i).padStart(3,'0')}`,version:1,title:`Report fixture ${i}`,filename:'r.pdf',status:kind<3?'completed':kind===3?'declined':'awaiting_signature',createdAt:iso(sent-hour),createdBy,...(i%4<2?{template:{id:'report-template-'+i%4,title:['Consulting','Supplier terms'][i%4],version:1+i%3}}:createdBy===ownerId?{template:{id:'report-private-template',title:'Owner-only terms',version:1}}:{}),expiresAt:iso(sent+20*24*hour),signers:[{name:'R',email:`r${i}@harbour.example`,...(kind===3?{declinedAt:iso(sent+10*hour)}:{})}],fields:[],pageSizes:[{width:595,height:842}],originalSha256:'0'.repeat(64),events,facts:{sent,done,kind}}})
  await h.db.batch(rows.map(({facts,...e})=>h.db.prepare('INSERT INTO iw_envelopes(id,version,data) VALUES(?,?,?)').bind(e.id,1,JSON.stringify(e))))
  // 1 March 00:00 EST to 1 April 00:00 EDT: the zone's own midnights either side of the DST change.
  const from=Date.UTC(2026,2,1,5),to=Date.UTC(2026,3,1,4),inside=t=>t>=from&&t<to
  const expect=list=>{const hours=list.filter(r=>r.facts.kind<3&&inside(r.facts.done)).map(r=>(r.facts.done-r.facts.sent)/hour).sort((a,b)=>a-b),m=hours.length/2,round=x=>Math.round(x*10)/10
   return {sent:list.filter(r=>inside(r.facts.sent)).length,completed:list.filter(r=>r.facts.kind<3&&inside(r.facts.done)).length,declined:list.filter(r=>r.facts.kind===3&&inside(r.facts.sent+10*hour)).length,expired:list.filter(r=>r.facts.kind===4&&inside(r.facts.sent+20*24*hour)).length,
    medianHoursToComplete:hours.length?round(hours.length%2?hours[Math.floor(m)]:(hours[m-1]+hours[m])/2):null,averageHoursToComplete:hours.length?round(hours.reduce((a,b)=>a+b,0)/hours.length):null}}
- const report=async(cookie,query={from:'2026-03-01',to:'2026-03-31'})=>h.send('/api/inkwell/reports/envelopes?'+new URLSearchParams(query),undefined,cookie)
+ const report=async(cookie,query={from:'2026-03-01',to:'2026-03-31'})=>h.send('/api/inkwell/reports/envelopes?'+new URLSearchParams(query),undefined,cookie,{'x-inkwell-test-time':reportClock})
  const all=(await report(h.owner)).value
  assert.deepEqual(all.totals,expect(rows));assert.ok(all.totals.sent>150&&all.totals.completed>50&&all.totals.expired>0,'the fixture exercises every count')
  for(const id of [ownerId,sam.id,'sender-gone']) assert.deepEqual(Object.fromEntries(Object.entries(all.senders.find(s=>s.id===id)).filter(([k])=>!['id','name','email'].includes(k))),expect(rows.filter(r=>r.createdBy===id)),id)
  assert.equal(all.senders.find(s=>s.id===sam.id).email,'report.sender@harbour.example')
  const mine=(await report(sam.cookie)).value;assert.deepEqual(mine.senders.map(s=>s.id),[sam.id],'a sender reports on their own envelopes');assert.deepEqual(mine.totals,expect(rows.filter(r=>r.createdBy===sam.id)))
- const csv=await h.send('/api/inkwell/reports/envelopes.csv?from=2026-03-01&to=2026-03-31',undefined,h.owner);assert.equal(csv.status,200);assert.match(csv.headers.get('content-type'),/^text\/csv/)
- const lines=csv.value.trim().split('\r\n').map(line=>line.split(','));assert.deepEqual(lines[0],['sender','email','sent','completed','declined','expired','median_hours_to_complete','average_hours_to_complete'])
- const asCsv=(name,email,s)=>[name,email,s.sent,s.completed,s.declined,s.expired,s.medianHoursToComplete??'',s.averageHoursToComplete??''].map(String)
- assert.deepEqual(lines.slice(1),[...all.senders.map(s=>asCsv(s.name,s.email,s)),asCsv('All senders','',all.totals)],'the CSV matches the report')
+ const expectedTemplates=list=>[...new Set(list.filter(r=>r.template&&Object.values(expect([r])).some(v=>v!==null&&v!==0)).map(r=>r.template.id))].sort()
+ assert.deepEqual(all.templates.map(t=>t.id).sort(),expectedTemplates(rows))
+ for(const template of all.templates)assert.deepEqual(Object.fromEntries(Object.entries(template).filter(([k])=>!['id','title'].includes(k))),expect(rows.filter(r=>r.template?.id===template.id)),template.id)
+ assert.deepEqual(mine.templates.map(t=>t.id).sort(),expectedTemplates(rows.filter(r=>r.createdBy===sam.id)))
+ assert.ok(!mine.templates.some(t=>t.id==='report-private-template'),'private template names and metrics are absent from a sender report')
+ for(const template of mine.templates)assert.deepEqual(Object.fromEntries(Object.entries(template).filter(([k])=>!['id','title'].includes(k))),expect(rows.filter(r=>r.template?.id===template.id&&r.createdBy===sam.id)))
+ const csv=await h.send('/api/inkwell/reports/envelopes.csv?from=2026-03-01&to=2026-03-31',undefined,h.owner,{'x-inkwell-test-time':reportClock});assert.equal(csv.status,200);assert.match(csv.headers.get('content-type'),/^text\/csv/)
+ const lines=csv.value.trim().split('\r\n').map(line=>line.split(','));assert.deepEqual(lines[0],['sender','email','sent','completed','declined','expired','median_hours_to_complete','average_hours_to_complete','template_id','template'])
+ const asCsv=(name,email,s,templateId='',template='')=>[name,email,s.sent,s.completed,s.declined,s.expired,s.medianHoursToComplete??'',s.averageHoursToComplete??'',templateId,template].map(String)
+ assert.deepEqual(lines.slice(1),[...all.senders.map(s=>asCsv(s.name,s.email,s)),asCsv('All senders','',all.totals),...all.templates.map(t=>asCsv('','',t,t.id,t.title))],'the CSV matches the report')
+ const senderCsv=(await h.send('/api/inkwell/reports/envelopes.csv?from=2026-03-01&to=2026-03-31',undefined,sam.cookie,{'x-inkwell-test-time':reportClock})).value
+ assert.ok(!senderCsv.includes('Owner-only terms'),'CSV preserves sender visibility')
+ const empty=(await report(h.owner,{from:'2025-01-01',to:'2025-01-31'})).value
+ assert.deepEqual(empty.templates,[],'templates without events in the chosen range are absent')
  assert.equal((await report(h.owner,{from:'2026-03-31',to:'2026-03-01'})).status,400);assert.equal((await report(h.owner,{from:'March',to:'2026-03-01'})).status,400);assert.equal((await report('')).status,401)
 })
 test('DocuSeal dry run, explicit fingerprint, journal, downloads and undo preserve custody',async()=>{
@@ -849,7 +860,7 @@ test('fresh-store restore refuses resurrection with the later journal and restor
 // settings; each send names only the people (and a role's access code), and nothing is placed again.
 test('TMPL-001: a three-role template sends twice to different people with its fields, routing, reminders and expiry',async()=>{
  const tara=await sender('tara.templates@harbour.example'),uma=await sender('uma.templates@harbour.example'),viewer=await h.invite('vera.templates@harbour.example','member')
- const roleFields=[0,1,2].map(signer=>({id:`role-${signer}`,label:'Signature',type:'signature',signer,page:0,x:.1,y:.3+signer*.15,width:.35,height:.06})).concat([{id:'client-date',label:'Date',type:'date',signer:0,page:0,x:.55,y:.3,width:.25,height:.05}])
+ const roleFields=[0,1,2].map(signer=>({id:`role-${signer}`,label:'Signature',type:'signature',signer,page:0,x:.1,y:.3+signer*.15,width:.35,height:.06})).concat([{id:'client-date',label:'Date',type:'date',signer:0,page:0,x:.55,y:.3,width:.25,height:.05},{id:'client-amount',label:'Project amount',type:'number',signer:0,page:0,x:.55,y:.4,width:.25,height:.05},{id:'client-note',label:'Note',type:'text',signer:0,page:0,x:.55,y:.5,width:.25,height:.05,required:false,prefill:{value:'Saved note',source:'Template author'},readOnly:true}])
  const roles=[{role:'Client',order:1,accessCode:true},{role:'Guarantor',order:1},{role:'Company Signer',order:2,message:'Countersign once the client has signed.'}]
  const definition={title:'Harbour Studio — services agreement',filename:'services.pdf',pdfBase64:Buffer.from(original).toString('base64'),roles,fields:roleFields,expiryDays:30,reminders:{afterDays:2,everyDays:3},subject:'Services agreement to sign',message:'Please review and sign.'}
  await h.command('template.save',definition,viewer,403)
@@ -866,10 +877,13 @@ test('TMPL-001: a three-role template sends twice to different people with its f
  await h.command('template.use',{id:templateId,recipients:people(1).map(({accessCode,...p})=>p)},tara.cookie,400)
  const sent=[]
  for(const n of [1,2]){
-  const before=Date.now(),{id}=(await h.command('template.use',{id:templateId,recipients:people(n)},tara.cookie)).result,draft=await stored(id,tara.cookie)
+  const prefill={'client-amount':{value:n===1?'1250.25':'2400.50',source:'Sender-approved budget',readOnly:true},...(n===2?{'client-note':null}:{})}
+  const before=Date.now(),{id}=(await h.command('template.use',{id:templateId,recipients:people(n),prefill},tara.cookie)).result,draft=await stored(id,tara.cookie)
   assert.equal(draft.status,'prepared');assert.deepEqual(draft.template,{id:templateId,title:definition.title,version:1})
   assert.deepEqual(draft.signers.map(({name,email,order,accessCode,message})=>({name,email,order,accessCode,message})),[{name:`Client ${n}`,email:`client${n}@tmpl.example`,order:1,accessCode:true,message:undefined},{name:`Guarantor ${n}`,email:`guarantor${n}@tmpl.example`,order:1,accessCode:undefined,message:undefined},{name:`Signer ${n}`,email:`signer${n}@tmpl.example`,order:2,accessCode:undefined,message:roles[2].message}],'routing order and identity settings from the roles')
-  assert.deepEqual(draft.fields,roleFields,'every field placed by the template');assert.deepEqual(draft.reminders,definition.reminders)
+  const expectedFields=roleFields.map(field=>field.id==='client-amount'?{...field,prefill:{value:prefill['client-amount'].value,source:'Sender-approved budget'},readOnly:true}:field.id==='client-note'&&n===2?Object.fromEntries(Object.entries(field).filter(([key])=>!['prefill','readOnly'].includes(key))):field)
+  assert.deepEqual(draft.fields,expectedFields,'all template placements are preserved with the explicitly supplied business values');assert.deepEqual(draft.reminders,definition.reminders)
+  assert.deepEqual(draft.events[0].detail.fields.find(f=>f.id==='client-amount').prefill,{value:prefill['client-amount'].value,source:'Sender-approved budget'},'prepared evidence binds the sender source')
   assert.equal(draft.subject,definition.subject);assert.equal(draft.message,definition.message)
   const days=(Date.parse(draft.expiresAt)-before)/86_400_000;assert.ok(days>29.99&&days<=30.01,`expires 30 days out (${days})`)
   assert.equal(digest((await h.send('/api/inkwell/envelopes/'+id+'/artifacts/original',undefined,tara.cookie)).bytes),draft.originalSha256)
@@ -877,6 +891,10 @@ test('TMPL-001: a three-role template sends twice to different people with its f
   await h.command('envelope.approve',{id,eligible:true},tara.cookie)
   sent.push(id)
  }
+ await h.command('template.use',{id:templateId,recipients:people(3),prefill:{'client-amount':{value:'3',source:''}}},tara.cookie,400)
+ await h.command('template.use',{id:templateId,recipients:people(3),prefill:{'role-0':null}},tara.cookie,400)
+ const unchanged=(await h.send('/api/inkwell/templates',undefined,tara.cookie)).value.templates.find(t=>t.id===templateId)
+ assert.deepEqual(unchanged.fields,roleFields,'send-time values and clearing never edit the saved template')
  const byTemplate=(await h.send('/api/inkwell/envelopes?template='+templateId,undefined,h.owner)).value
  assert.deepEqual(byTemplate.envelopes.map(e=>e.id).sort(),[...sent].sort(),'the template filter finds exactly the envelopes sent from it');assert.equal(byTemplate.total,2)
  for(const n of [1,2]){

@@ -10,7 +10,7 @@ const pdfText = async bytes => {
  return (await (await pdf.getPage(1)).getTextContent()).items.map(item=>item.str).join('\n')
 }
 
-test('PREP-008: sender/API prefill, reported provenance, template merge and server-enforced locked terms survive signing and custody', async()=>{
+test('PREP-008: sender and API prefill, reported provenance, template merge and server-enforced locked terms survive signing and custody', async()=>{
  const h=await harness()
  try {
   const pdf=await PDFDocument.create(),page=pdf.addPage([612,792]),font=await pdf.embedFont(StandardFonts.Helvetica)

@@ -103,7 +103,7 @@ export async function dispatchSms(env: Env, envelopeId?: string): Promise<void> 
           AND e.version=iw_sms.followup_envelope_version AND o.status='active' AND o.version=g.member_version
           AND (o.role IN ('owner','admin') OR (o.role='member'
             AND COALESCE((SELECT role FROM iw_member_roles WHERE operator_id=o.id),'viewer')='sender'
-            AND (json_extract(e.data,'$.createdBy')=o.id OR EXISTS(SELECT 1 FROM iw_shares WHERE envelope_id=e.id AND operator_id=o.id AND access='edit')))))))
+            AND (json_extract(e.data,'$.createdBy')=o.id OR EXISTS(SELECT 1 FROM iw_effective_shares WHERE envelope_id=e.id AND operator_id=o.id AND access='edit')))))))
       RETURNING id,recipient,body`).bind(job.id, Date.now(), now(), dayOfWeek(localDate(Date.now())), localHour(Date.now()), localHour(Date.now())).first<{ id: string; recipient: string; body: string }>()
     if (!claimed) {
       await env.DB.prepare("UPDATE iw_sms SET state='cancelled',body='' WHERE id=? AND state='pending'").bind(job.id).run()

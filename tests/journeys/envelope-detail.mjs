@@ -5,15 +5,25 @@
 // reminder, to the current signer only; its Resend actions send the same link again or a new one (DELIV-005).
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import { axe } from './a11y.mjs'
 import { PDFDocument } from 'pdf-lib'
 import { screenshots } from './worker.mjs'
 import { startInkwellWithMail } from './mail-worker.mjs'
 
-const inkwell = await startInkwellWithMail({ inbound: true })
+const inkwell = await startInkwellWithMail({ inbound: true, pdfPrint: true })
 // Browsers and Node may space "10:02 AM" with different space characters; compare with plain spaces.
 const plain = text => text.replace(/\s+/g, ' ')
 const zoned = at => plain(`${new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).format(new Date(at))} · ${new Date(at).toISOString().slice(11, 16)} UTC`)
+const observePrint = () => {
+  window.__printedDocuments = []
+  document.addEventListener('load', event => {
+    const frame = event.target
+    if (frame instanceof HTMLIFrameElement && frame.className === 'iw-print-frame') {
+      frame.contentWindow.print = () => window.__printedDocuments.push(frame.src)
+    }
+  }, true)
+}
 try {
   const pdf = await PDFDocument.create(); pdf.addPage([612, 792])
   const signers = [['Mara Quinn', 'mara@clients.example'], ['Noor Haddad', 'noor@clients.example'], ['Owen Price', 'owen@clients.example']].map(([name, email], i) => ({ name, email, order: i + 1 }))
@@ -41,6 +51,38 @@ try {
     [['Sent', invitation(1).sentAt], ['Delivered', new Date(delivered[1]).toISOString()], ['Viewed', audit('signer.viewed', 1)]],
     [],
   ]
+
+  // SIGNX-008: observe the browser print boundary; headless Chromium has no print dialog.
+  // The real control must load the same bytes as the document the signer sees and downloads.
+  const printImages = process.env.INKWELL_PRINT_IMAGES ?? '/tmp/inkwell-print-screens'
+  await mkdir(printImages, { recursive: true })
+  const visibleResponse = await fetch(inkwell.origin + second.path + '/document', { headers: { cookie: second.cookie } })
+  assert.equal(visibleResponse.status, 200)
+  const visibleBytes = Buffer.from(await visibleResponse.arrayBuffer())
+  const fingerprint = bytes => createHash('sha256').update(bytes).digest('hex')
+  for (const width of [1440, 390]) {
+    const context = await inkwell.browser.newContext({ viewport: { width, height: 900 } })
+    await context.addCookies([{ name: second.cookie.split('=')[0], value: second.cookie.slice(second.cookie.indexOf('=') + 1), url: inkwell.origin }])
+    await context.addInitScript(observePrint)
+    const page = await context.newPage()
+    page.on('pageerror', error => console.error('Signing browser:', error.message))
+    await page.goto(inkwell.origin + second.path.replace('/api/sign/', '/sign/'))
+    await page.locator('.iw-pdf-page[data-rendered]').first().waitFor()
+    assert.equal(await page.getByRole('button', { name: 'Sign on paper instead…', exact: true }).count(), 0, 'paper signing is absent when not allowed')
+    const download = page.waitForEvent('download')
+    await page.getByRole('link', { name: 'Download PDF', exact: true }).click()
+    const stream = await (await download).createReadStream(), chunks = []
+    for await (const chunk of stream) chunks.push(chunk)
+    assert.equal(fingerprint(Buffer.concat(chunks)), fingerprint(visibleBytes), 'download is the visible pre-signing document')
+    await page.getByRole('button', { name: 'Print', exact: true }).click()
+    await page.waitForFunction(() => window.__printedDocuments.length === 1)
+    const printed = await page.evaluate(async () => Array.from(new Uint8Array(await (await fetch(window.__printedDocuments[0])).arrayBuffer())))
+    assert.equal(fingerprint(Buffer.from(printed)), fingerprint(visibleBytes), 'Print invokes the browser viewer with the exact visible document')
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+    await page.screenshot({ path: `${printImages}/${width}-pre-signing-print.png`, fullPage: true })
+    await context.close()
+  }
+  console.log('SIGNX-008 pre-signing download and Print passed at 1440 and 390')
 
   let reminders = 0
   for (const [width, height] of [[1440, 900], [390, 844]]) {
@@ -82,12 +124,21 @@ try {
   // AGENT-003: authorize, inspect the three causes, correct a proposal, resume and revoke through the built page.
   const images=process.env.INKWELL_FOLLOWUP_IMAGES??'/tmp/inkwell-followup-screens'
   await mkdir(images,{recursive:true})
+  const editorEmail='followup.folder.editor@harbour.example'
+  await inkwell.call('/auth/invite',{cookie:inkwell.owner,body:{email:editorEmail,displayName:'Folder Editor',role:'member'},status:202})
+  const editorToken=new URL(inkwell.mail(editorEmail,'').text.match(/http:\/\/[^\s]+\/auth\/confirm\?token=[^\s]+/)[0]).searchParams.get('token')
+  const editorCookie=(await inkwell.call('/auth/confirm',{body:{token:editorToken},status:303})).cookie
+  const editor=(await inkwell.call('/api/inkwell',{cookie:editorCookie})).value.actor
+  await inkwell.command('member.role',{operatorId:editor.id,role:'sender'})
+  const followupFolder=await inkwell.command('folder.change',{action:'create',name:'Follow-up folder'})
+  await inkwell.command('folder.change',{action:'share',id:followupFolder.id,expectedVersion:followupFolder.version,email:editorEmail,access:'edit'})
   for(const width of [1440,390]){
     const title=`Harbour supplier follow-up ${width}`, emails=[`alex${width}@clients.example`,`blair${width}@clients.example`,`casey${width}@clients.example`]
     const {id}=await inkwell.command('envelope.prepare',{title,filename:'supply.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),signers:emails.map((email,i)=>({name:['Alex Client','Blair Away','Casey Client'][i],email,order:1})),fields:emails.map((_,signer)=>({id:'sig'+signer,label:'Signature',type:'signature',signer,page:0,x:.1,y:.2+signer*.15,width:.4,height:.05}))})
+    await inkwell.command('envelope.folder',{id,expectedVersion:1,folderId:followupFolder.id})
     await inkwell.command('envelope.approve',{id,eligible:true})
     await inkwell.call('/api/inkwell/contacts',{cookie:inkwell.owner,body:{name:'Alex Client',email:`correct${width}@clients.example`}})
-    const context=await inkwell.browser.newContext({viewport:{width,height:width===390?844:1000}});await context.addCookies([inkwell.ownerCookie()])
+    const context=await inkwell.browser.newContext({viewport:{width,height:width===390?844:1000}});await context.addCookies([{name:editorCookie.split('=')[0],value:editorCookie.slice(editorCookie.indexOf('=')+1),url:inkwell.origin}])
     const page=await context.newPage();page.setDefaultTimeout(20000)
     const open=async()=>{await page.goto(inkwell.origin+'/app');await page.getByRole('row',{name:new RegExp(title)}).click();await page.getByRole('region',{name:'Signer follow-up',exact:true}).getByRole('status').first().waitFor()}
     const capture=async(name,target)=>{const panel=page.getByRole('region',{name:'Signer follow-up',exact:true});await (target??panel).scrollIntoViewIfNeeded();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${width} no sideways scroll`);await page.screenshot({path:`${images}/${width}-${name}.png`})}
@@ -95,6 +146,7 @@ try {
     let followup=page.getByRole('region',{name:'Signer follow-up',exact:true})
     await followup.locator('summary').filter({hasText:'Turn on follow-up'}).click()
     await followup.getByLabel('Maximum contacts per recipient').fill('2')
+    await followup.getByLabel('Escalation owner').selectOption(editor.id)
     await followup.getByLabel('I authorize follow-up for this envelope under these settings.').check()
     await capture('grant-settings-top',followup.getByLabel('Maximum contacts per recipient'));await capture('grant-settings');await axe(page,`follow-up settings ${width}`)
     const enable=followup.getByRole('button',{name:'Turn on follow-up',exact:true});await enable.focus();await page.keyboard.press('Enter')
@@ -182,6 +234,54 @@ try {
     await context.close()
   }
   console.log('MANAGE-002 built management screens passed at 1440 and 390: required metadata, folders, retention, shares, scoped export, keyboard and tooltips')
+  // MANAGE-004: real template sends supply the report and its downloadable CSV.
+  const reportImages=process.env.INKWELL_REPORT_IMAGES??'/tmp/inkwell-report-screens'
+  await mkdir(reportImages,{recursive:true})
+  const reportTemplate=await inkwell.command('template.save',{title:'Report turnaround template',filename:'report.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),roles:[{role:'Client',order:1}],fields:[{id:'report-sig',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.2,width:.4,height:.05}]})
+  const sentReport=await inkwell.command('template.use',{id:reportTemplate.id,recipients:[{name:'Report Client',email:'report@clients.example'}]})
+  await inkwell.command('envelope.approve',{id:sentReport.id,eligible:true})
+  const reportSigner=await inkwell.verify('report@clients.example')
+  await inkwell.call(reportSigner.path+'/sign',{body:{values:{'report-sig':'Report Client'},consent:true,commandId:crypto.randomUUID()},cookie:reportSigner.cookie})
+  const zoneDay=at=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(at))
+  const range={from:zoneDay(Date.now()-86400000),to:zoneDay(Date.now()+86400000)},query=new URLSearchParams(range)
+  const report=(await inkwell.call('/api/inkwell/reports/envelopes?'+query,{cookie:inkwell.owner})).value
+  const templateLine=report.templates.find(t=>t.id===reportTemplate.id)
+  assert.equal(templateLine.completed,1)
+  const displayHours=value=>value===null?'—':value<48?`${value} h`:`${Math.round(value/2.4)/10} days`
+  const expectedCsv=(await inkwell.call('/api/inkwell/reports/envelopes.csv?'+query,{cookie:inkwell.owner})).value
+  for(const width of [1440,390]){
+    const context=await inkwell.browser.newContext({viewport:{width,height:900}});await context.addCookies([inkwell.ownerCookie()])
+    await context.addInitScript(observePrint)
+    await context.addCookies([{name:reportSigner.cookie.split('=')[0],value:reportSigner.cookie.slice(reportSigner.cookie.indexOf('=')+1),url:inkwell.origin}])
+    const signingPage=await context.newPage()
+    await signingPage.goto(inkwell.origin+reportSigner.path.replace('/api/sign/','/sign/'))
+    await signingPage.locator('.iw-pdf-page[data-rendered]').first().waitFor()
+    await signingPage.getByRole('heading',{name:'All signatures are complete.'}).waitFor()
+    await signingPage.getByRole('button',{name:'Print',exact:true}).click()
+    await signingPage.waitForFunction(()=>window.__printedDocuments.length===1)
+    const printed=await signingPage.evaluate(async()=>Array.from(new Uint8Array(await(await fetch(window.__printedDocuments[0])).arrayBuffer())))
+    const executed=await fetch(inkwell.origin+reportSigner.path+'/artifacts/signed',{headers:{cookie:reportSigner.cookie}})
+    assert.equal(executed.status,200)
+    assert.equal(fingerprint(Buffer.from(printed)),fingerprint(Buffer.from(await executed.arrayBuffer())),'post-signing Print uses the visible executed document')
+    await signingPage.screenshot({path:`${printImages}/${width}-completed-print.png`,fullPage:true})
+    await signingPage.close()
+    const page=await context.newPage()
+    await page.goto(inkwell.origin+'/app');await page.getByRole('button',{name:'Reports',exact:true}).click()
+    await page.getByLabel('From',{exact:true}).fill(range.from);await page.getByLabel('To',{exact:true}).fill(range.to)
+    await page.getByRole('button',{name:'Show report',exact:true}).click()
+    const section=page.getByRole('region',{name:'Turnaround by template',exact:true})
+    const row=section.getByRole('listitem').filter({hasText:'Report turnaround template'})
+    await row.getByText(`${displayHours(templateLine.medianHoursToComplete)} median · ${displayHours(templateLine.averageHoursToComplete)} average`,{exact:true}).waitFor()
+    assert.ok((await row.textContent()).includes('1 sent · 1 completed'))
+    const downloading=page.waitForEvent('download');await page.getByRole('link',{name:'Export CSV',exact:true}).click()
+    const stream=await (await downloading).createReadStream(),chunks=[];for await(const chunk of stream)chunks.push(chunk)
+    assert.equal(Buffer.concat(chunks).toString(),expectedCsv,'download matches the visible report range')
+    await axe(page,`report ${width}`)
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+    await page.screenshot({path:`${reportImages}/${width}-template-turnaround.png`,fullPage:true})
+    await context.close()
+  }
+  console.log('MANAGE-004 template turnaround and matching CSV passed at 1440 and 390')
   console.log('AGENT-003 built controls passed at 1440/390: explicit grant, three causes, private reply, human correction, resume and revoke')
   console.log('MANAGE-005 passed at 1440 and 390 pixels: sent, delivered, viewed and signed times match the provider events and audit trail; Remind reached only the current signer')
 } catch (error) {

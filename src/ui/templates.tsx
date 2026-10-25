@@ -1,3 +1,5 @@
+import { FieldPrefillEditor } from './field-prefill-editor'
+import { generatedField } from '../inkwell/business-fields'
 import { CustomEnvelopeFields } from './envelope-metadata'
 import { TemplateComposition } from './template-composition'
 import { TemplateMaintenance } from './template-maintenance'
@@ -50,6 +52,8 @@ export function Templates({ onSent }: { onSent: (id: string) => Promise<void> })
 
 function SendFromTemplate({ template, onCancel, onSent }: { template: Template; onCancel: () => void; onSent: (id: string) => Promise<void> }) {
   const [customFields,setCustomFields]=useState(template.customFields??[])
+  const [prefillFields,setPrefillFields]=useState(template.fields)
+  const businessFields=prefillFields.filter(field=>!generatedField(field)&&!field.calculation)
   const [people, setPeople] = useState<Person[]>(template.roles.map(() => ({ name: '', email: '', phone: '', accessCode: '' })))
   const action = useAction()
   // ROUTE-005: a role may be filled by a signing group instead of a person.
@@ -58,15 +62,16 @@ function SendFromTemplate({ template, onCancel, onSent }: { template: Template; 
   async function submit(event: FormEvent) {
     event.preventDefault()
     await action.run(async () => {
-      const { id } = await command<{ id: string }>('template.use', { id: template.id, customFields, recipients: people.map(({ accessCode, ...person }, i) => chosen[i] ? { group: chosen[i]!.id } : ({ ...person, ...(template.roles[i].accessCode ? { accessCode } : {}) })) })
+      const { id } = await command<{ id: string }>('template.use', { id: template.id, customFields, prefill: Object.fromEntries(businessFields.map(field=>[field.id,field.prefill?{...field.prefill,readOnly:Boolean(field.readOnly)}:null])), recipients: people.map(({ accessCode, ...person }, i) => chosen[i] ? { group: chosen[i]!.id } : ({ ...person, ...(template.roles[i].accessCode ? { accessCode } : {}) })) })
       await onSent(id)
     })
   }
   return <section className="iw-panel iw-prepare"><div className="iw-section-head"><div><h1>Send {template.title}</h1><p>Name who fills each role. Fields, routing, messages, reminders and expiry come from the template.</p></div><button type="button" onClick={onCancel} disabled={action.busy}>Cancel</button></div>
     <form onSubmit={submit} className="iw-stack">
       <fieldset disabled={action.busy}><legend>Roles <span>· in routing order</span></legend><div className="iw-stack">{template.roles.map((role, index) => <div key={index} className="iw-recipient"><span className="iw-order" aria-hidden="true">{role.order}</span>{!role.sms && !role.accessCode && !role.witnesses && (!role.action || role.action === 'signer') && <GroupChoice label={role.role} groups={groups} value={chosen[index]?.id} onChange={group => setChosen(current => current.map((g, k) => k === index ? group : g))} />}{role.unresolvedIdentity?<p className="iw-muted">{role.role}: the granted earlier agent names this person.</p>:chosen[index] ? <span className="iw-muted">{groupSummary(chosen[index]!)}</span> : <><label><span className="iw-sr">{role.role} name</span><input aria-label={`${role.role} name`} placeholder={`${role.role}: full name`} required maxLength={100} value={people[index].name} onChange={event => set(index, 'name', event.target.value)} /></label><label><span className="iw-sr">{role.role} email</span><input aria-label={`${role.role} email`} placeholder="Email" type="email" required value={people[index].email} onChange={event => set(index, 'email', event.target.value)} /></label></>}{role.sms && <label style={{gridColumn:'1 / -1'}}>US mobile number<input aria-label={`${role.role} mobile number`} type="tel" required placeholder="+1 202 555 0146" value={people[index].phone} onChange={event=>set(index,'phone',event.target.value)} /></label>}{role.accessCode && <label><span className="iw-sr">{role.role} access code</span><input aria-label={`${role.role} access code`} placeholder="Access code" required autoComplete="off" pattern="\S{4,32}" title="4–32 characters, no spaces" maxLength={32} value={people[index].accessCode} onChange={event => set(index, 'accessCode', event.target.value)} /></label>}</div>)}</div></fieldset>
+      {businessFields.length>0&&<section className="iw-stack" aria-label="Sender business values"><h2>Sender business values</h2>{businessFields.map(field=><section className="iw-callout iw-stack" aria-label={`${field.label} sender value`} key={field.id}><h3>{field.label}</h3><FieldPrefillEditor field={field} change={changed=>setPrefillFields(current=>current.map(item=>item.id===field.id?changed:item))}/></section>)}</section>}
       <CustomEnvelopeFields fields={customFields} onChange={setCustomFields} fixed/>
-      <RoutingPreview signers={template.roles.map((role, index) => ({ ...role, role: role.action ?? 'signer', name: chosen[index]?.name || people[index].name || role.role }))} fields={template.fields} />
+      <RoutingPreview signers={template.roles.map((role, index) => ({ ...role, role: role.action ?? 'signer', name: chosen[index]?.name || people[index].name || role.role }))} fields={prefillFields} />
       <ErrorNotice error={action.error} /><div className="iw-actions iw-submit"><button className="iw-primary" disabled={action.busy} type="submit">{action.busy ? 'Preparing…' : 'Prepare to send'}</button><p className="iw-muted">You approve it next, as with any envelope.</p></div>
     </form>
   </section>

@@ -15,7 +15,7 @@ export async function followupGrant(env:Env, envelopeId:string):Promise<Followup
 export const grantActor=(g:FollowupGrant):Actor=>({id:g.memberId,version:g.memberVersion,role:g.memberRole,name:'',email:''})
 export function grantGuard(envelope:Envelope,g:FollowupGrant):Guard {
  const role=roleGuard(grantActor(g))
- return {sql:`${role.sql} AND EXISTS(SELECT 1 FROM iw_followup_grants WHERE envelope_id=? AND version=? AND state='active') AND (? IN ('owner','admin') OR EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND (json_extract(data,'$.createdBy')=? OR EXISTS(SELECT 1 FROM iw_shares WHERE envelope_id=? AND operator_id=? AND access='edit'))))`,values:[...role.values,envelope.id,g.version,g.memberRole,envelope.id,g.memberId,envelope.id,g.memberId]}
+ return {sql:`${role.sql} AND EXISTS(SELECT 1 FROM iw_followup_grants WHERE envelope_id=? AND version=? AND state='active') AND (? IN ('owner','admin') OR EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND (json_extract(data,'$.createdBy')=? OR EXISTS(SELECT 1 FROM iw_effective_shares WHERE envelope_id=? AND operator_id=? AND access='edit'))))`,values:[...role.values,envelope.id,g.version,g.memberRole,envelope.id,g.memberId,envelope.id,g.memberId]}
 }
 export async function liveGrant(env:Env,e:Envelope,g:FollowupGrant) {
  const guard=grantGuard(e,g)

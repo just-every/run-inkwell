@@ -34,6 +34,12 @@ export function applyPrefillPayload(fields: Field[], payload: unknown, where = '
   return fields.map(field => {
     const key = Object.hasOwn(entries, field.id) ? field.id : field.name !== undefined && Object.hasOwn(entries, field.name) ? field.name : undefined
     if (key === undefined) return field
+    // A person starting a new template send may explicitly clear a saved business default.
+    if (entries[key] === null) {
+      insist(!generatedField(field) && !field.calculation, 'Only business defaults can be cleared.')
+      const { prefill: _prefill, readOnly: _readOnly, ...empty } = field
+      return empty
+    }
     const entry = object(entries[key])
     return { ...field, prefill: { value: entry.value as string, source: entry.source as string }, ...(entry.readOnly === undefined ? {} : { readOnly: entry.readOnly as boolean }) }
   })

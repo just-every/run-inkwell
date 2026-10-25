@@ -462,7 +462,7 @@ test('Follow-up: stalled signers, authenticated reply custody and contact limits
 })
 
 test('Follow-up: human grants, authority narrowing and shared reminder limits', async () => {
- const h=await harness()
+ const clock=Date.UTC(2026,9,26,14),h=await harness({now:clock})
  try{
   const sender=await h.invite('sender@harbour.example','member'),shared=await h.invite('reader@harbour.example','member')
   const people=(await h.send('/api/inkwell',undefined,h.owner)).value.people,senderId=people.find(p=>p.email==='sender@harbour.example').id,readerId=people.find(p=>p.email==='reader@harbour.example').id
@@ -490,9 +490,33 @@ test('Follow-up: human grants, authority narrowing and shared reminder limits', 
   await h.command('envelope.unshare',{id,operatorId:readerId},sender)
   await h.command('envelope.share',{id,email:'reader@harbour.example',access:'edit'},sender)
   assert.equal((await h.send(`/api/inkwell/envelopes/${id}/followup`,undefined,shared)).value.grant.state,'suspended')
+  // A folder-only editor keeps an active grant and actually follows up through the scheduled door.
+  let folder=(await h.command('folder.change',{action:'create',name:'Follow-up records'},sender)).result
+  const folderChange=async input=>{folder=(await h.command('folder.change',{id:folder.id,expectedVersion:folder.version,...input},sender)).result}
+  await folderChange({action:'share',email:'reader@harbour.example',access:'edit'})
+  await h.command('envelope.unshare',{id,operatorId:readerId},sender)
+  const folderId=(await h.command('envelope.prepare',{title:'Folder-only follow-up',filename:'folder.pdf',pdfBase64:await pdf(),signers:[{name:'Client',email:'folder-followup@clients.example'}],fields:[{id:'sig',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.2,width:.4,height:.05}]},sender)).result.id
+  const move=async folderIdValue=>{const e=(await h.send('/api/inkwell/envelopes/'+folderId,undefined,sender)).value.envelope;await h.command('envelope.folder',{id:folderId,expectedVersion:e.version,folderId:folderIdValue},sender)}
+  await move(folder.id);await h.command('envelope.approve',{id:folderId,eligible:true},sender)
+  const folderGrant={...grant,id:folderId,escalationOwner:readerId}
+  const followup=async()=>(await h.send(`/api/inkwell/envelopes/${folderId}/followup`,undefined,shared)).value
+  await h.command('envelope.followup',folderGrant,shared)
+  assert.equal((await followup()).grant.state,'active','folder-only edit authority retains the grant')
+  await h.scheduled(clock+2*86400000)
+  assert.equal((await followup()).states[0].contacts,1,'the folder-only grant sends a follow-up')
+  assert.ok(h.attempted().some(m=>m.to.includes('folder-followup@clients.example')&&m.subject.startsWith('Reminder to sign:')))
+  for(const loss of ['remove','narrow','move']){
+   await h.command('envelope.followup',folderGrant,shared)
+   assert.equal((await followup()).grant.state,'active')
+   if(loss==='move'){await move(null);await move(folder.id)}
+   else {await folderChange(loss==='remove'?{action:'unshare',email:'reader@harbour.example'}:{action:'share',email:'reader@harbour.example',access:'view'});await folderChange({action:'share',email:'reader@harbour.example',access:'edit'})}
+   assert.equal((await followup()).grant.state,'suspended',`${loss} permanently suspends even when authority returns before another read`)
+   const contacts=(await followup()).states[0].contacts
+   await h.scheduled(clock+2*86400000)
+   assert.equal((await followup()).states[0].contacts,contacts,'restored access never revives follow-up')
+  }
   await h.command('envelope.followup',grant,sender)
-  const localDay=Number(new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',weekday:'short'}).format(new Date()).replace(/Sun|Sat/,'0').replace(/Mon|Tue|Wed|Thu|Fri/,'1'))
-  if(localDay){
+  { // The pinned clock is Monday during the allowed window.
    await h.command('envelope.remind',{id},sender)
    await h.command('envelope.remind',{id},sender,409)
    const reminderCount=h.attempted().filter(m=>m.subject==='Reminder to sign: Follow-up authority').length
@@ -610,7 +634,13 @@ test('SMS follow-up inherits grant channels, phone authority, limits, windows, p
  const {h,texts}=await smsHarness()
  try{
   const {id,person}=await prepareSmsEnvelope(h,{reminders:{afterDays:1,everyDays:1}})
-  await h.command('envelope.followup',{id,enabled:true,channels:['sms'],maxContacts:2,days:[1,2,3,4,5],startHour:9,endHour:17,escalationOwner:(await smsTestDetail(h,id)).createdBy})
+  const editor=await h.invite('sms-folder-editor@harbour.example','member'),actor=(await h.send('/api/inkwell',undefined,editor)).value.actor
+  await h.command('member.role',{operatorId:actor.id,role:'sender'})
+  const folder=(await h.command('folder.change',{action:'create',name:'SMS follow-up folder'})).result
+  await h.command('folder.change',{action:'share',id:folder.id,expectedVersion:folder.version,email:actor.email,access:'edit'})
+  await h.command('envelope.folder',{id,expectedVersion:(await smsTestDetail(h,id)).version,folderId:folder.id})
+  await h.command('envelope.followup',{id,enabled:true,channels:['sms'],maxContacts:2,days:[1,2,3,4,5],startHour:9,endHour:17,escalationOwner:(await smsTestDetail(h,id)).createdBy},editor)
+  assert.equal((await h.send('/api/inkwell/envelopes/'+id+'/followup',undefined,editor)).value.grant.state,'active','folder-only authority also retains an SMS grant')
   h.advanceTo(Date.parse('2026-10-28T02:00:00Z'));await smsTestDetail(h,id);await h.scheduled('2026-10-28T02:00:00Z');assert.equal(texts.length,0,'quiet hours send nothing')
   h.advanceTo(Date.parse('2026-10-28T15:00:00Z'));await smsTestDetail(h,id);await h.scheduled('2026-10-28T15:00:00Z');assert.equal(texts.length,1)
   await h.scheduled('2026-10-28T16:00:00Z');assert.equal(texts.length,1,'one contact per business day')

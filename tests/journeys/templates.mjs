@@ -10,6 +10,8 @@
 // saves its next version, and a third sender cannot find it.
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
+import { mkdir } from 'node:fs/promises'
+import { axe } from './a11y.mjs'
 import { PDFDocument, StandardFonts } from 'pdf-lib'
 import { screenshots } from './worker.mjs'
 import { startInkwellWithMail } from './mail-worker.mjs'
@@ -17,6 +19,8 @@ import { agreementPdf, w9Pdf } from '../fixtures/forms.mjs'
 
 const inkwell = await startInkwellWithMail()
 try {
+  const prefillImages=process.env.INKWELL_TEMPLATE_IMAGES??'/tmp/inkwell-template-screens'
+  await mkdir(prefillImages,{recursive:true})
   const pdf = await PDFDocument.create(), font = await pdf.embedFont(StandardFonts.Helvetica)
   pdf.addPage([612, 792]).drawText('Harbour Studio services agreement', { x: 60, y: 720, size: 18, font })
   const pdfBuffer = Buffer.from(await pdf.save()), title = 'Harbour Studio — services template', roles = ['Client', 'Guarantor', 'Company Signer']
@@ -44,12 +48,22 @@ try {
         await page.locator('.iw-field-tools select').first().selectOption(String(index))
         await sheet.click({ position: { x: box.width * .15, y: box.height * (.3 + index * .2) } })
       }
+      await page.locator('.iw-field-tools select').first().selectOption('0')
+      await page.getByLabel('Field type').selectOption('number')
+      await page.getByLabel('Field label',{exact:true}).fill('Project amount')
+      await sheet.click({position:{x:box.width*.6,y:box.height*.18}})
       await page.getByRole('button', { name: 'Save template' }).click()
     }
     await page.getByRole('button', { name: `Use ${title}` }).click()
     await page.getByRole('heading', { name: `Send ${title}` }).waitFor()
     const people = roles.map((role, index) => ({ role, name: `${role} ${width}`, email: `${role.toLowerCase().replace(' ', '.')}.${width}@clients.example`, index }))
     for (const person of people) { await page.getByLabel(`${person.role} name`).fill(person.name); await page.getByLabel(`${person.role} email`).fill(person.email) }
+    const business=page.getByRole('region',{name:'Project amount sender value',exact:true})
+    await business.getByLabel('Prefill value',{exact:true}).fill('1250.25')
+    await business.getByLabel(/^Source \(reported/).fill('Sender-approved budget')
+    await business.getByLabel('Read-only for signer').focus();await page.keyboard.press('Space')
+    await axe(page,`template send prefill ${width}`)
+    await page.screenshot({path:`${prefillImages}/${width}-sender-prefill.png`,fullPage:true})
     assert.equal(await page.getByRole('button', { name: /Place field/ }).count(), 0, `${width}px: sending from a template places nothing`)
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}px: no sideways scroll on the send form`)
     await page.getByRole('button', { name: 'Prepare to send' }).click()
@@ -69,7 +83,9 @@ try {
   for (const envelope of stored) {
     assert.equal(envelope.template.title, title)
     assert.deepEqual(envelope.signers.map(s => s.order), [1, 2, 3], 'routing order from the roles')
-    assert.deepEqual(envelope.fields.map(f => f.signer).sort(), [0, 1, 2], 'one signature field per role')
+    assert.deepEqual(envelope.fields.filter(f=>f.type==='signature').map(f => f.signer).sort(), [0, 1, 2], 'one signature field per role')
+    const business=envelope.fields.find(f=>f.label==='Project amount')
+    assert.deepEqual(business.prefill,{value:'1250.25',source:'Sender-approved budget'});assert.equal(business.readOnly,true,'both template sends carry the sender value, source and signer lock')
     assert.deepEqual(envelope.reminders, { afterDays: 2, everyDays: 3 })
     const days = (Date.parse(envelope.expiresAt) - Date.parse(envelope.createdAt)) / 86_400_000
     assert.ok(Math.abs(days - 30) < .01, `expires 30 days after it was prepared (${days})`)

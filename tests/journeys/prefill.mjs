@@ -19,7 +19,7 @@ try {
   const configure=async(index,label,value,locked=false)=>{
    await page.getByRole('checkbox',{name:new RegExp(`Select field ${index}: ${label}`)}).check()
    const input=page.getByLabel('Prefill value',{exact:true});await input.fill(value)
-   assert.equal(await page.getByLabel('Source (reported by sender/API)',{exact:true}).inputValue(),'Sender input')
+   assert.equal(await page.getByLabel('Source (reported by sender or API)',{exact:true}).inputValue(),'Sender input')
    await page.getByLabel('Read-only for signer',{exact:true}).setChecked(locked)
    await input.scrollIntoViewIfNeeded()
    assert.ok((await page.locator('.iw-inspector').ariaSnapshot()).includes('Sender prefill'),'accessibility tree exposes sender prefill')
@@ -36,7 +36,7 @@ try {
   assert.equal(await page.getByLabel('Prefill value',{exact:true}).inputValue(),'1250.25');assert.ok(await page.getByLabel('Read-only for signer',{exact:true}).isChecked())
   await page.getByRole('button',{name:'Clear selection',exact:true}).click();await page.getByRole('checkbox',{name:/Select field 3: Address/}).check()
   const address=page.getByLabel('Prefill value',{exact:true});await tabTo(page,address);await page.keyboard.press('ControlOrMeta+A');await page.keyboard.type('50 River Street')
-  await page.getByLabel('Source (reported by sender/API)',{exact:true}).fill('Sender correction')
+  await page.getByLabel('Source (reported by sender or API)',{exact:true}).fill('Sender correction')
   await axe(page,`PREP-008 draft inspector ${width}`);await address.scrollIntoViewIfNeeded();await capture('draft-inspector')
   await page.getByRole('button',{name:'Save draft',exact:true}).click();await page.getByRole('button',{name:'Edit draft',exact:true}).waitFor()
   const invitation=(await app.command('envelope.approve',{id,eligible:true})).invitations[0]

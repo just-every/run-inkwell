@@ -35,7 +35,7 @@ export async function dispatchMail(env: Env, envelopeId: string) {
   const claimed=await env.DB.prepare(`UPDATE iw_mail SET state='sending' WHERE id=? AND state='pending'
    AND (followup_version IS NULL OR EXISTS(SELECT 1 FROM iw_followup_grants g JOIN oa_operators o ON o.id=g.member_id
     JOIN iw_envelopes e ON e.id=g.envelope_id WHERE g.envelope_id=iw_mail.envelope_id AND g.version=iw_mail.followup_version AND g.state='active'
-    AND o.status='active' AND o.version=g.member_version AND (o.role IN ('owner','admin') OR (o.role='member' AND COALESCE((SELECT role FROM iw_member_roles WHERE operator_id=o.id),'viewer')='sender' AND (json_extract(e.data,'$.createdBy')=o.id OR EXISTS(SELECT 1 FROM iw_shares WHERE envelope_id=e.id AND operator_id=o.id AND access='edit'))))
+    AND o.status='active' AND o.version=g.member_version AND (o.role IN ('owner','admin') OR (o.role='member' AND COALESCE((SELECT role FROM iw_member_roles WHERE operator_id=o.id),'viewer')='sender' AND (json_extract(e.data,'$.createdBy')=o.id OR EXISTS(SELECT 1 FROM iw_effective_shares WHERE envelope_id=e.id AND operator_id=o.id AND access='edit'))))
     AND e.version=iw_mail.followup_envelope_version))
    AND EXISTS(SELECT 1 FROM iw_envelopes WHERE id=iw_mail.envelope_id AND (iw_mail.kind NOT IN ('invitation','code') OR COALESCE(json_extract(data,'$.signers[' || iw_mail.signer || '].inPerson'),0)<>1)
     AND ((json_extract(data,'$.status')='awaiting_signature' AND json_extract(data,'$.expiresAt')>?) OR (iw_mail.kind='code' AND json_extract(data,'$.status')='completed') OR (iw_mail.kind='notice' AND json_extract(data,'$.status') IN ('prepared','declined','completed')) OR (iw_mail.kind IN ('copy','copy_code') AND json_extract(data,'$.status')='completed')))

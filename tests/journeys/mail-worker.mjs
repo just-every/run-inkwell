@@ -11,7 +11,7 @@ import { Miniflare, convertV4MiniflareOptions } from 'miniflare'
 import { unstable_splitSqlQuery } from 'wrangler'
 import { chromium } from '@playwright/test'
 
-export async function startInkwellWithMail({ inbound = false, sms = false, turnstile = false } = {}) {
+export async function startInkwellWithMail({ inbound = false, sms = false, turnstile = false, pdfPrint = false } = {}) {
   const socket = createServer()
   await new Promise(resolve => socket.listen(0, '127.0.0.1', resolve))
   const port = socket.address().port
@@ -33,7 +33,7 @@ export async function startInkwellWithMail({ inbound = false, sms = false, turns
     await mf.ready
     const db = await mf.getD1Database('DB')
     for (const file of (await readdir('migrations/core')).filter(f => f.endsWith('.sql')).sort()) await db.batch(unstable_splitSqlQuery(await readFile('migrations/core/' + file, 'utf8')).map(sql => db.prepare(sql)))
-    browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+    browser = await chromium.launch({ headless: true, ...(pdfPrint ? { channel: 'chromium' } : {}), args: ['--use-mock-keychain', '--password-store=basic'] })
     const call = async (path, { body, cookie = '', headers = {}, status = 200 } = {}) => {
       const response = await fetch(origin + path, { method: body === undefined ? 'GET' : 'POST', redirect: 'manual', headers: { origin, cookie, 'content-type': 'application/json', ...headers }, ...(body === undefined ? {} : { body: typeof body === 'string' ? body : JSON.stringify(body) }) })
       const text = await response.text(); let value; try { value = JSON.parse(text) } catch { value = text }

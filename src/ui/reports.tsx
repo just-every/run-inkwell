@@ -1,11 +1,11 @@
-// MANAGE-004: what happened to envelopes over whole days in the account's zone, per sender and in total, with the
+// MANAGE-004: what happened to envelopes over whole days in the account's zone, per sender, per template and in total, with the
 // same numbers as CSV.
 import { useEffect, useState } from 'react'
 import { request } from './types'
 import { ErrorNotice, useAction } from './feedback'
 
 type Line = { sent: number; completed: number; declined: number; expired: number; medianHoursToComplete: number | null; averageHoursToComplete: number | null }
-type Report = { from: string; to: string; timeZone: string; totals: Line; senders: (Line & { id: string; name: string; email: string })[] }
+type Report = { from: string; to: string; timeZone: string; totals: Line; senders: (Line & { id: string; name: string; email: string })[]; templates: (Line & { id: string; title: string })[] }
 // Today in the account's zone, and the day 29 days before it: a 30-day range by default.
 const zoneDay = (at: number) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(at))
 const hours = (value: number | null) => value === null ? '—' : value < 48 ? `${value} h` : `${Math.round(value / 2.4) / 10} days`
@@ -33,6 +33,7 @@ export function Reports() {
         <div className="iw-table-head" role="row"><span role="columnheader">Sender</span><span role="columnheader">Sent</span><span role="columnheader">Completed</span><span role="columnheader">Declined · expired</span><span role="columnheader">Median</span></div>
         {report.senders.map(line => <div key={line.id} role="row" className="iw-row"><span role="cell"><strong>{line.name}</strong>{line.email && <small> {line.email}</small>}</span><span role="cell">{line.sent} sent</span><span role="cell">{line.completed} completed</span><span role="cell">{line.declined} declined · {line.expired} expired</span><span role="cell">{hours(line.medianHoursToComplete)} median</span></div>)}
       </div></div>}
+      {report.templates.length > 0 && <section className="iw-stack" aria-label="Turnaround by template"><h2>Turnaround by template</h2><ul className="iw-contact-results">{report.templates.map(line => <li key={line.id}><span><strong>{line.title}</strong><small className="iw-muted">{line.sent} sent · {line.completed} completed · {line.declined} declined · {line.expired} expired</small><span>{hours(line.medianHoursToComplete)} median · {hours(line.averageHoursToComplete)} average</span></span></li>)}</ul></section>}
     </>}
   </section>
 }
