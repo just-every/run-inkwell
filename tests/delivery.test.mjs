@@ -569,7 +569,7 @@ test('Follow-up: session causes and separate group-member replies',async()=>{
 
 
 const smsTestBindings={TWILIO_ACCOUNT_SID:'synthetic-inkwell-1',TWILIO_AUTH_TOKEN:'synthetic-inkwell-2',TWILIO_FROM:'+12025550101'}
-async function smsHarness({price}={}){
+async function smsHarness({price,onAttempt}={}){
  const texts=[];let failed=false
  const h=await harness({now:Date.parse('2026-10-26T15:00:00Z'),bindings:smsTestBindings,networkEdge:async request=>{
   if(new URL(request.url).hostname!=='api.twilio.com')return
@@ -577,6 +577,7 @@ async function smsHarness({price}={}){
   assert.equal(request.headers.get('authorization'),'Basic '+Buffer.from('synthetic-inkwell-1:synthetic-inkwell-2').toString('base64'))
   const form=new URLSearchParams(await request.text());assert.equal(form.get('From'),smsTestBindings.TWILIO_FROM)
   texts.push({to:form.get('To'),body:form.get('Body')})
+  await onAttempt?.()
   return failed?new Response('',{status:503}):Response.json({sid:'synthetic-inkwell-'+(texts.length+2),status:'queued',...(price===undefined?{}:{price,price_unit:'USD'})},{status:201})
  }})
  return {h,texts,fail:()=>{failed=true}}
@@ -720,6 +721,7 @@ test('ADMIN-006: monthly SMS cap warns, atomically stops concurrent paid codes a
  try {
   const usage=async()=>(await h.post('/api/inkwell/usage',undefined)).value
   assert.equal((await h.send('/api/inkwell/usage')).status,401)
+  assert.deepEqual((await usage()).history,[])
   const viewer=await h.invite('usage-viewer@harbour.example','member')
   assert.equal((await h.send('/api/inkwell/usage',undefined,viewer)).status,403)
   await h.command('account.usage',{capUsd:'5',reserveUsd:'1',expectedVersion:0,consent:false},h.owner,400)
@@ -727,19 +729,26 @@ test('ADMIN-006: monthly SMS cap warns, atomically stops concurrent paid codes a
   await h.command('account.usage',{capUsd:'5',reserveUsd:'1',expectedVersion:0,consent:true},viewer,403)
   await h.command('account.usage',{capUsd:'5',reserveUsd:'1',expectedVersion:0,consent:true})
   await h.command('account.usage',{capUsd:'50',reserveUsd:'1',expectedVersion:0,consent:true},h.owner,409)
+  const saved=(await usage()).history
+  assert.equal(saved.length,1);assert.ok(saved[0].actor);assert.equal(saved[0].at,'2026-10-26T15:00:00.000Z')
+  assert.equal(saved[0].before.capMicros,null);assert.equal(saved[0].after.capMicros,5_000_000)
   const first=await prepareSmsEnvelope(h)
   for(let i=0;i<4;i++){
    h.advanceTo(Date.parse('2026-10-26T15:00:00Z')+i*61_000)
    await h.post(first.path+'/code',{},'')
   }
   let view=await usage();assert.equal(view.sms.chargedMicros,4_000_000);assert.equal(view.sms.warning,true);assert.equal(view.sms.stopped,false)
+  assert.deepEqual(view.notices.map(n=>n.threshold),[80])
   const second=await prepareSmsEnvelope(h)
   h.advanceTo(Date.parse('2026-10-26T15:05:00Z'))
   const raced=await Promise.all([h.send(first.path+'/code',{},''),h.send(second.path+'/code',{},'')])
   assert.deepEqual(raced.map(r=>r.status).sort(),[200,409]);assert.equal(texts.length,5,'only one remaining allowance can cross the network edge')
   view=await usage();assert.equal(view.sms.chargedMicros,5_000_000);assert.equal(view.sms.committedMicros,5_000_000);assert.equal(view.sms.stopped,true)
+  assert.deepEqual(view.notices.map(n=>n.threshold),[80,100]);assert.equal(view.notices[1].committedMicros,5_000_000)
   h.advanceTo(Date.parse('2026-10-26T15:07:00Z'));await h.post(first.path+'/code',{},'',409);assert.equal(texts.length,5)
   await h.command('envelope.resend',{id:first.id,signer:0,channel:'sms'},h.owner,409);assert.equal(texts.length,5,'invitation SMS shares the same cap')
+  const cancelled=(await smsTestDetail(h,first.id)).messages.find(m=>m.subject==='SMS invitation'&&m.status==='not_sent')
+  assert.match(cancelled.label,/monthly cap reached/)
   const email=await prepareSmsEnvelope(h,{sms:false});await h.post(email.path+'/code',{},'')
   const message=await h.mail(email.person.email,'Your Inkwell verification code')
   const emailCookie=(await h.post(email.path+'/verify',{code:message.text.match(/\b\d{6}\b/)[0]},'')).cookie
@@ -760,15 +769,34 @@ test('ADMIN-006: monthly SMS cap warns, atomically stops concurrent paid codes a
 })
 
 test('ADMIN-006: unpriced and uncertain SMS attempts retain their allowance and policy changes never erase monthly usage',async()=>{
- const {h,texts,fail}=await smsHarness()
+ let arrived,release
+ const reached=new Promise(resolve=>{arrived=resolve}),held=new Promise(resolve=>{release=resolve})
+ const {h,texts,fail}=await smsHarness({onAttempt:async()=>{arrived();await held}})
  try {
   await h.command('account.usage',{capUsd:'5',reserveUsd:'3',expectedVersion:0,consent:true})
-  const {id,path}=await prepareSmsEnvelope(h);fail();await h.post(path+'/code',{},'',503)
+  const {id,path}=await prepareSmsEnvelope(h);fail()
+  const inFlight=h.post(path+'/code',{},'',503)
+  await reached
+  try {
+   const reserved=(await h.post('/api/inkwell/usage',undefined)).value
+   assert.equal(reserved.sms.committedMicros,3_000_000);assert.equal(reserved.sms.stopped,true)
+   const other=await prepareSmsEnvelope(h)
+   await h.post(other.path+'/code',{},'',409);assert.equal(texts.length,1,'an in-flight reservation stops another signer before the network')
+   await h.post(other.path+'/verify',{code:'000000'},'',401)
+   assert.equal((await h.send(other.path,undefined,'')).value.sms,true,'cap refusal never downgrades authentication')
+  } finally {release();await inFlight}
   let view=(await h.post('/api/inkwell/usage',undefined)).value
   assert.equal(view.sms.chargedMicros,0);assert.equal(view.sms.unpriced,1);assert.equal(view.sms.committedMicros,3_000_000);assert.equal(view.sms.stopped,true)
   h.advanceTo(Date.parse('2026-10-26T15:02:00Z'));await h.post(path+'/code',{},'',409);assert.equal(texts.length,1)
+  await h.command('envelope.resend',{id,signer:0,channel:'sms'},h.owner,409)
+  const cancelled=(await smsTestDetail(h,id)).messages.find(m=>m.subject==='SMS invitation'&&m.status==='not_sent')
+  assert.match(cancelled.label,/monthly cap reached/)
   await h.command('account.usage',{capUsd:'10',reserveUsd:'3',expectedVersion:1,consent:true})
   view=(await h.post('/api/inkwell/usage',undefined)).value;assert.equal(view.sms.committedMicros,3_000_000);assert.equal(view.sms.stopped,false)
+  assert.equal(view.history.length,2);assert.equal(view.history[1].after.capMicros,5_000_000);assert.equal(view.history[0].before.capMicros,5_000_000);assert.equal(view.history[0].after.capMicros,10_000_000)
   assert.equal((await smsTestDetail(h,id)).messages.find(m=>m.subject==='SMS code').status,'uncertain')
+  await h.post(path+'/code',{},'',503)
+  assert.equal(texts.length,2,'raising the cap permits only a fresh request, not the cancelled invitation')
+  assert.equal((await smsTestDetail(h,id)).messages.find(m=>m.id===cancelled.id).status,'not_sent')
  } finally { await h.close() }
 })

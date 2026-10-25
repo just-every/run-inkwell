@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "c4038b5da55af7c535a104df0cca35236b91d71d5a02a7703184d819fad6c984",
+      "sha256": "ac95e9561e95ab9d26679ad9f62b6a5a4cf189f76eb188c644ca60cab3f63180",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "bc79ee38d67708c279273e1ebfdafae54790fd2e45a67231faf12a611b324036",
+      "sha256": "8a2a69e66f4fee81966c07d1d96d57767a7d3444ea713aff4834e5d0859950f2",
       "executable": false
     },
     "DEMO.md": {
@@ -526,6 +526,10 @@
     },
     "migrations/core/0059_usage.sql": {
       "sha256": "3455e7bde8e2dc957c2c91503370e3ccf28d16de90b9444479de1886913a7502",
+      "executable": false
+    },
+    "migrations/core/0060_usage_notices.sql": {
+      "sha256": "4696640d57ee63e292cee8a9a3746970fb5e29fec085a6342ad36a4eecc17828",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -1093,7 +1097,7 @@
       "executable": false
     },
     "src/inkwell/archive-policy.mjs": {
-      "sha256": "276a71bdb35baa044ebd12f636a61ea800b37aa74ec0e3fcbaffe79c6610e971",
+      "sha256": "df6e34acc93de2055af687fa8a2039ae8c4e2af2222e055b6ce284e837e06f35",
       "executable": false
     },
     "src/inkwell/archive-transfers.ts": {
@@ -1573,7 +1577,7 @@
       "executable": false
     },
     "src/inkwell/sms.ts": {
-      "sha256": "b6c69b6dd146520f938c0855a2b9d9cdbb0f60ae4e2da38e49fb251569711f3c",
+      "sha256": "804a3a8e157aed31986ee1e727d1e5dc3b9b81063dfd929b8da55aefa1aacd53",
       "executable": false
     },
     "src/inkwell/stamp-evidence.d.mts": {
@@ -1657,7 +1661,7 @@
       "executable": false
     },
     "src/inkwell/usage.ts": {
-      "sha256": "a49c32b373b7fd1bf15d095f7006cd04ee4836eb2a5c1fcf059ebf0517cec593",
+      "sha256": "b88e869b91cd55bcf3a3f0a85535ae0901f71c2121450fdbd1706a87f0522573",
       "executable": false
     },
     "src/inkwell/verification.ts": {
@@ -3921,7 +3925,7 @@
       "executable": false
     },
     "src/ui/usage.tsx": {
-      "sha256": "b50122ff5d3f17fb4442a608fd0c07b187382cd2929843523263adfdf02d5708",
+      "sha256": "99fc8b114039fb117656433fb8a9b66e9399be3216b28f982011579b36f115cd",
       "executable": false
     },
     "src/ui/witness-nomination.tsx": {
@@ -3949,7 +3953,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "91da18996557f71343e06fd47a71fa5085f7bff4675e74d94717ad2684507a6d",
+      "sha256": "6d491bee485e3bd3dbd170245d3056dfdc7eee4a53e4f2a7fafa9e42fac620f4",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
@@ -4137,7 +4141,7 @@
       "executable": false
     },
     "tests/journeys/sms.mjs": {
-      "sha256": "5a87b42f2809b2179c3c8921a683a5d6397aaea7f6e229f52410b483b3169d77",
+      "sha256": "45866abe09bd17f4e0d25875f8a20b60da5994436e59900250c1d19bcf8619a6",
       "executable": false
     },
     "tests/journeys/supplements.mjs": {

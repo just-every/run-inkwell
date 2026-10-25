@@ -16,7 +16,9 @@ export async function usageView(env: Env, month = usageMonth()) {
   const sent = (await env.DB.prepare('SELECT total FROM iw_usage_envelopes WHERE month=?').bind(month).first<{ total: number }>())?.total ?? 0
   const stopped = policy.capMicros !== null && (policy.reserveMicros <= 0 || sms.committedMicros + policy.reserveMicros > policy.capMicros)
   const warning = policy.capMicros !== null && (stopped || sms.committedMicros >= policy.capMicros * .8)
-  return { month, currency: 'USD', policy, sms: { ...sms, stopped, warning }, envelopesSent: sent }
+  const notices = (await env.DB.prepare('SELECT threshold,at,committed_micros AS committedMicros,cap_micros AS capMicros FROM iw_usage_notices WHERE month=? ORDER BY policy_version,threshold').bind(month).all<{ threshold: number; at: string; committedMicros: number; capMicros: number }>()).results
+  const history = (await env.DB.prepare('SELECT version,actor,at,before_value AS beforeValue,after_value AS afterValue FROM iw_usage_policy_history ORDER BY version DESC LIMIT 50').all<{ version: number; actor: string; at: string; beforeValue: string; afterValue: string }>()).results.map(row => ({ version: row.version, actor: row.actor, at: row.at, before: JSON.parse(row.beforeValue) as UsagePolicy, after: JSON.parse(row.afterValue) as UsagePolicy }))
+  return { month, currency: 'USD', policy, sms: { ...sms, stopped, warning }, notices, history, envelopesSent: sent }
 }
 /** Kept in the invitation transaction: restoring old record events never manufactures a new send. */
 export function envelopeUsageWrite(env: Env) {
@@ -24,7 +26,14 @@ export function envelopeUsageWrite(env: Env) {
 }
 export async function admitSmsUsage(env: Env) {
   const view = await usageView(env)
-  if (view.sms.stopped) throw new Refusal('SMS monthly cap reached. Ask an owner or admin to review Usage and cost in Settings. Email verification remains available for email recipients.', 409)
+  if (view.sms.stopped) {
+    await cancelCappedSms(env)
+    throw new Refusal('SMS monthly cap reached. Ask an owner or admin to review Usage and cost in Settings. Email verification remains available for email recipients.', 409)
+  }
+}
+/** A cap stops queued work too; raising it never releases cancelled messages. */
+export async function cancelCappedSms(env: Env) {
+  await env.DB.prepare("UPDATE iw_sms SET state='cancelled',body='',cancellation_reason='monthly_cap' WHERE state='pending'").run()
 }
 const micros = (value: unknown, nullable = false): number | null => {
   if (nullable && value === null) return null

@@ -14,6 +14,7 @@ export function UsageSettings() {
       <p>{data.month} · UTC calendar month. Inkwell has no envelope quotas or seat fees.</p>
       <dl className="iw-account"><dt>Envelopes sent</dt><dd>{data.envelopesSent}</dd><dt>SMS attempts</dt><dd>{data.sms.attempts}</dd><dt>SMS provider-reported charges</dt><dd>{usd(data.sms.chargedMicros)} USD</dd><dt>SMS committed allowance</dt><dd>{usd(data.sms.committedMicros)} USD</dd><dt>Awaiting provider price</dt><dd>{data.sms.unpriced}</dd><dt>Monthly SMS cap</dt><dd>{data.policy.capMicros === null ? 'No cap' : usd(data.policy.capMicros) + ' USD'}</dd></dl>
       {data.sms.warning && <p role="status">{data.sms.stopped ? 'SMS stopped: the next allowance would exceed the monthly cap.' : 'SMS warning: at least 80% of the monthly cap is committed.'} Email verification continues for email recipients.</p>}
+      {data.notices.length > 0 && <div aria-label="SMS usage notices">{data.notices.map((notice, index) => <p key={index}>SMS {notice.threshold}% notice: {usd(notice.committedMicros)} USD committed against {usd(notice.capMicros)} USD. Recorded {notice.at}.</p>)}</div>}
       <p>Allowances cover each network attempt, including uncertain results, and do not promise a final provider invoice. Unpriced attempts remain reserved. Historical SMS before usage tracking has no recorded cost. Identity checks and AI are not connected; storage and email billing are not measured here.</p>
       <form className="iw-stack" onSubmit={e => { e.preventDefault(); void action.run(async () => { await command('account.usage', { capUsd: cap === '' ? null : cap, reserveUsd: reserve, expectedVersion: data.policy.version, consent }); setConsent(false); await load() }) }}>
         <label>Monthly SMS cap in USD (blank for no cap)<input inputMode="decimal" value={cap} onChange={e => { setCap(e.target.value); setConsent(false) }} /></label>
@@ -21,6 +22,7 @@ export function UsageSettings() {
         <label className="iw-check"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />I approve this allowance, including provider fees, and the monthly cap.</label>
         <div className="iw-actions"><button disabled={action.busy || !consent}>Save usage settings</button><button type="button" disabled={action.busy} onClick={() => void action.run(load)}>Refresh usage</button></div>
       </form>
+      <details><summary>Usage setting history</summary><ol>{data.history.map(change => <li key={change.version}>Version {change.version} · {change.at} · Actor {change.actor}. Cap: {change.before.capMicros === null ? 'No cap' : usd(change.before.capMicros)} → {change.after.capMicros === null ? 'No cap' : usd(change.after.capMicros)}. Allowance: {usd(change.before.reserveMicros)} → {usd(change.after.reserveMicros)} USD.</li>)}</ol></details>
     </>}
   </section>
 }

@@ -1,6 +1,6 @@
-import { usageMonth, admitSmsUsage, smsReceiptCharge } from './usage'
+import { usageMonth, admitSmsUsage, smsReceiptCharge, cancelCappedSms } from './usage'
 import { dayOfWeek, localDate, localHour } from './followup-time'
-import { id, insist, now, type Envelope, type Env } from './model'
+import { id, insist, now, Refusal, type Envelope, type Env } from './model'
 
 export interface SmsBindings { TWILIO_ACCOUNT_SID?: string; TWILIO_AUTH_TOKEN?: string; TWILIO_FROM?: string }
 type SmsKind = 'code' | 'invitation' | 'followup'
@@ -79,10 +79,7 @@ export async function dispatchSms(env: Env, envelopeId?: string): Promise<void> 
   insist(smsReady(env), 'SMS delivery is not configured. Ask the owner to configure Twilio.', 503)
   const settings = env as Env & SmsBindings
   for (const job of jobs) {
-    try { await admitSmsUsage(env) } catch (error) {
-      await env.DB.prepare("UPDATE iw_sms SET state='cancelled',body='' WHERE id=? AND state='pending'").bind(job.id).run()
-      throw error
-    }
+    await admitSmsUsage(env)
     let claimed: { id: string; recipient: string; body: string } | null
     try { claimed = await env.DB.prepare(`UPDATE iw_sms SET state='sending',usage_month=? WHERE id=? AND state='pending'
       AND EXISTS(SELECT 1 FROM iw_envelopes e JOIN iw_signers s ON s.envelope_id=e.id AND s.signer=iw_sms.signer
@@ -113,8 +110,8 @@ export async function dispatchSms(env: Env, envelopeId?: string): Promise<void> 
       RETURNING id,recipient,body`).bind(usageMonth(), job.id, Date.now(), now(), dayOfWeek(localDate(Date.now())), localHour(Date.now()), localHour(Date.now())).first<{ id: string; recipient: string; body: string }>()
     } catch (error) {
       if (!String(error).includes('SMS monthly cap reached')) throw error
-      await env.DB.prepare("UPDATE iw_sms SET state='cancelled',body='' WHERE id=? AND state='pending'").bind(job.id).run()
-      await admitSmsUsage(env); throw error
+      await cancelCappedSms(env)
+      throw new Refusal('SMS monthly cap reached. Queued SMS messages were cancelled and will not retry automatically.', 409)
     }
     if (!claimed) {
       await env.DB.prepare("UPDATE iw_sms SET state='cancelled',body='' WHERE id=? AND state='pending'").bind(job.id).run()
@@ -146,9 +143,9 @@ export async function dispatchSms(env: Env, envelopeId?: string): Promise<void> 
 
 /** Installation-local per-message facts; acceptance is never presented as delivery. */
 export async function smsMessages(env: Env, envelopeId: string): Promise<import('./delivery').Message[]> {
-  const rows = (await env.DB.prepare('SELECT id,kind,signer,recipient,state,created_at,sent_at FROM iw_sms WHERE envelope_id=? ORDER BY created_at,rowid').bind(envelopeId).all<{id:string;kind:string;signer:number;recipient:string;state:string;created_at:string;sent_at:string|null}>()).results
+  const rows = (await env.DB.prepare('SELECT id,kind,signer,recipient,state,created_at,sent_at,cancellation_reason FROM iw_sms WHERE envelope_id=? ORDER BY created_at,rowid').bind(envelopeId).all<{id:string;kind:string;signer:number;recipient:string;state:string;created_at:string;sent_at:string|null;cancellation_reason:string|null}>()).results
   return rows.map(r => ({ id:r.id, kind:r.kind, signer:r.signer, recipient:maskedMobile(r.recipient), subject:'SMS ' + r.kind,
     status:r.state==='pending'?'queued':r.state==='sending'?'uncertain':r.state==='cancelled'?'not_sent':r.state as 'sent'|'failed'|'uncertain',
-    label:r.state==='sent'?'SMS accepted by Twilio; delivery not confirmed':r.state==='pending'?'SMS queued':r.state==='sending'?'SMS delivery uncertain':'SMS ' + r.state,
+    label:r.state==='sent'?'SMS accepted by Twilio; delivery not confirmed':r.state==='pending'?'SMS queued':r.state==='sending'?'SMS delivery uncertain':r.state==='cancelled'?(r.cancellation_reason==='monthly_cap'?'SMS not sent: monthly cap reached. Cancelled messages will not retry; the recipient still requires SMS verification.':'SMS not sent: recipient or signing authority changed.'):'SMS ' + r.state,
     createdAt:r.created_at, ...(r.sent_at?{sentAt:r.sent_at}:{}) }))
 }
