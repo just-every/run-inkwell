@@ -374,8 +374,8 @@ SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing pu
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 10 | 0 | 0 | 10 |
-| Target and push further | 56 | 18 | 33 | 107 |
-| All | 66 | 18 | 33 | 117 |
+| Target and push further | 56 | 20 | 31 | 107 |
+| All | 66 | 20 | 31 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
