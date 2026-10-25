@@ -12,7 +12,7 @@ export type Step = 'recipients named' | 'recipient edits completed' | 'certified
 export type Place = 'signed' | 'declined' | 'current' | 'waiting' | 'stopped' | 'removed'
 export interface RecipientTimeline { signer: number; order: number; place: Place; waitingOn: string | null; bounced?: boolean; steps: { step: Step; at: string; detail?: string }[] }
 
-const verifications: Record<string, string> = { 'signer.sms_verified': 'SMS one-time code', 'signer.in_person_hosted': 'identity attested in person by the host, not verified by Inkwell', 'signer.email_verified': 'emailed code', 'signer.code_verified': 'sender-provided code', 'signer.session_verified': 'signed-in session', 'signer.link_opened': 'link only, no code' }
+const verifications: Record<string, string> = { 'signer.provider_verified': 'provider verification', 'signer.sms_verified': 'SMS one-time code', 'signer.in_person_hosted': 'identity attested in person by the host, not verified by Inkwell', 'signer.email_verified': 'emailed code', 'signer.code_verified': 'sender-provided code', 'signer.session_verified': 'signed-in session', 'signer.link_opened': 'link only, no code' }
 
 export async function envelopeTimeline(env: Env, envelope: Envelope) {
   const messages = await envelopeMessages(env, envelope.id)
@@ -34,7 +34,7 @@ function recipientTimeline(envelope: Envelope, messages: Message[], signer: numb
   const viewed = mine('signer.viewed')[0]
   if (viewed) steps.push({ step: 'viewed', at: viewed.at })
   const verified = theirs.find(e => e.action in verifications && e.detail.signer === signer)
-  if (verified) steps.push({ step: 'authenticated', at: verified.at, detail: verifications[verified.action]+(verified.action==='signer.sms_verified'?` to ${verified.detail.maskedPhone}`:'') })
+  if (verified) steps.push({ step: 'authenticated', at: verified.at, detail: (verified.action==='signer.provider_verified'?`${verified.detail.method==='identity'?'Stripe Identity ID and selfie, name matched':verified.detail.method==='knowledge'?'Authenticate knowledge questions':'Twilio voice-call code'}, verified; reference ${verified.detail.reference}`:verifications[verified.action])+(verified.action==='signer.sms_verified'?` to ${verified.detail.maskedPhone}`:'') })
   // The audit trail's time for the signature (the signer record's own time can differ by a millisecond).
   const signed = envelope.events.find(e => ['signer.signed', 'signer.signed_on_paper'].includes(e.action) && e.detail.signer === signer)
   if (recipient.signedAt) steps.push({ step: 'signed', at: signed?.at ?? recipient.signedAt, ...(recipient.paper?.status === 'accepted' ? { detail: 'On paper' } : {}) })

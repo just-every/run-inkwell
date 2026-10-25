@@ -9,7 +9,7 @@ export async function recordFollowupView(env:Env,context:SigningContext){
  const before=await getEnvelope(env.DB,context.envelope.id),g=await followupGrant(env,before.id)
  if(!g||g.state!=='active'||!await liveGrant(env,before,g))return
  const r=context.recipient,s=await followupState(env,before,r.row),at=now()
- const verified=before.events.findLast(event=>['signer.sms_verified','signer.email_verified','signer.session_verified','signer.link_opened'].includes(event.action)&&event.detail.signer===r.signer&&event.detail.member===r.member)
+ const verified=before.events.findLast(event=>['signer.provider_verified','signer.sms_verified','signer.email_verified','signer.session_verified','signer.link_opened'].includes(event.action)&&event.detail.signer===r.signer&&event.detail.member===r.member)
  if(s.viewSession===verified?.hash&&s.lastViewedAt&&localDate(Date.parse(s.lastViewedAt))===localDate(Date.parse(at)))return
  s.viewSession=verified?.hash;s.lastViewedAt=at
  const after=structuredClone(before);await appendEvent(after,'followup.viewed','inkwell-followup',{signer:r.row,version:g.version,member:g.memberId})
