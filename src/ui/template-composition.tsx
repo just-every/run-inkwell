@@ -6,12 +6,12 @@ import { command, request } from './types'
 import { ErrorNotice, useAction } from './feedback'
 import { uploadDocument } from './ordered-documents'
 
-type Identity = 'email' | 'link' | 'sms'
+type Identity = 'email' | 'link' | 'sms' | 'identity' | 'knowledge' | 'voice'
 type Choices = { orders?: Record<string, number | null>; settingsTemplate?: string; identity?: Record<string, Identity> }
 type Person = { name: string; email: string; phone: string; accessCode: string }
 type PreviewRole = {
   role: string; key: string; order: number; action?: Exclude<import('./types').RecipientRole,'witness'>;delegates?:number[];unresolvedIdentity?:true
-  identity: Identity; accessCode?: boolean; witnesses?: { minimum: number; maximum: number }
+  identity: Identity; needsIdentityChoice?:boolean; accessCode?: boolean; witnesses?: { minimum: number; maximum: number }
   sources: { template: number; role: number }[]; messages: { template: number; role: number; message: string }[]
 }
 type Preview = {
@@ -22,10 +22,10 @@ type Preview = {
   settings: { expiryDays: number; reminders?: { afterDays: number; everyDays: number } | null; subject?: string; message?: string; allowPaper?: boolean; allowReassign?: boolean }
 }
 const emptyPerson = (): Person => ({ name: '', email: '', phone: '', accessCode: '' })
-const identityLabel = (method: Identity) => method === 'sms' ? 'SMS code' : method === 'email' ? 'Email code' : 'Link only'
+const identityLabel = (method: Identity) => method === 'identity' ? 'Identity document and selfie' : method === 'knowledge' ? 'Knowledge questions (US)' : method === 'voice' ? 'Voice-call code' : method === 'sms' ? 'SMS code' : method === 'email' ? 'Email code' : 'Link only'
 function resolution(value: unknown): string {
   if (value === null) return 'None'
-  if (typeof value === 'string') return ['email', 'link', 'sms'].includes(value) ? identityLabel(value as Identity) : value
+  if (typeof value === 'string') return ['email', 'link', 'sms', 'identity', 'knowledge', 'voice'].includes(value) ? identityLabel(value as Identity) : value
   if (typeof value === 'number' || typeof value === 'boolean') return String(value)
   if (value && typeof value === 'object' && 'afterDays' in value && 'everyDays' in value) return `After ${value.afterDays}, then every ${value.everyDays} business days`
   return JSON.stringify(value) ?? ''
@@ -65,7 +65,7 @@ export function TemplateComposition({ templates, onSent, onCancel }: { templates
   const busy = action.busy || previewAction.busy || previewPending
   const documentCount = (current?.documents.length ?? 0) + files.length
   const recipientCount = current?.roles.reduce((n, role) => n + 1 + (role.witnesses?.maximum ?? 0), 0) ?? 0
-  const fits = Boolean(current && documentCount <= 20 && recipientCount <= 100)
+  const fits = Boolean(current && !current.roles.some(r=>r.needsIdentityChoice) && documentCount <= 20 && recipientCount <= 100)
   function move(index: number, offset: number) {
     setOrdered(previous => { const next = [...previous]; [next[index], next[index + offset]] = [next[index + offset], next[index]]; return next })
   }
@@ -86,7 +86,7 @@ export function TemplateComposition({ templates, onSent, onCancel }: { templates
         const recipients = current.roles.map(role => {
           if(role.unresolvedIdentity)return {}
           const person = people[role.key] ?? emptyPerson()
-          return { name: person.name, email: person.email, ...(role.identity === 'sms' ? { phone: person.phone } : {}), ...(role.accessCode ? { accessCode: person.accessCode } : {}) }
+          return { name: person.name, email: person.email, ...(['sms','voice'].includes(role.identity) ? { phone: person.phone } : {}), ...(role.accessCode ? { accessCode: person.accessCode } : {}) }
         })
         const { id } = await command<{ id: string }>('template.combine', { ids, choices, recipients, customFields, ...(documents.length ? { documents } : {}) })
         await onSent(id)
@@ -110,8 +110,8 @@ export function TemplateComposition({ templates, onSent, onCancel }: { templates
         if(role.unresolvedIdentity)return <div key={role.key}><h3>{role.role}</h3><p className="iw-muted">Routing order {role.order} · the granted earlier agent names this person. Email verification is required.</p></div>
         const person = people[role.key] ?? emptyPerson(), label = `${role.role}, routing order ${role.order}`
         return <div key={role.key} className="iw-stack"><h3>{role.role}</h3><p>Routing order {role.order}{role.action === 'approver' ? ' · approves without signing' : role.action === 'form_filler' ? ' · fills business fields' : ''}</p><p className="iw-muted">From {role.sources.map(source => current.templates[source.template]?.title).join(', ')}</p><div className="iw-two"><label>{label} name<input required maxLength={100} value={person.name} onChange={e => changePerson(role.key, 'name', e.target.value)} /></label><label>{label} email<input required type="email" maxLength={254} value={person.email} onChange={e => changePerson(role.key, 'email', e.target.value)} /></label></div>
-          <label>{label} authentication<select aria-label={`${label} authentication`} value={role.identity} onChange={e => setChoices(previous => ({ ...previous, identity: { ...previous.identity, [role.key]: e.target.value as Identity } }))}><option value="email">Email code</option><option value="link">Link only</option><option value="sms">SMS code</option></select></label>
-          {role.identity === 'sms' && <label>{label} mobile number<input required type="tel" autoComplete="tel" placeholder="+1 202 555 0146" value={person.phone} onChange={e => changePerson(role.key, 'phone', e.target.value)} /><small>Use a US mobile number with country code +1.</small></label>}
+          <label>{label} authentication<select aria-label={`${label} authentication`} value={role.needsIdentityChoice?'':role.identity} onChange={e => setChoices(previous => ({ ...previous, identity: { ...previous.identity, [role.key]: e.target.value as Identity } }))}><option value="" disabled>Choose authentication</option><option value="email">Email code</option><option value="link">Link only</option><option value="sms">SMS code</option><option value="identity">Identity document and selfie</option><option value="knowledge">Knowledge questions (US)</option><option value="voice">Voice-call code</option></select></label>
+          {['sms','voice'].includes(role.identity) && <label>{label} mobile number<input required type="tel" autoComplete="tel" placeholder="+1 202 555 0146" value={person.phone} onChange={e => changePerson(role.key, 'phone', e.target.value)} /><small>Use a US mobile number with country code +1.</small></label>}
           {role.accessCode && <label>{label} access code<input required autoComplete="off" pattern="\S{4,32}" maxLength={32} title="4–32 characters, no spaces" value={person.accessCode} onChange={e => changePerson(role.key, 'accessCode', e.target.value)} /></label>}
           {role.witnesses && <p>{role.witnesses.minimum} witnesses required, up to {role.witnesses.maximum}; nominated by this signer.</p>}
           {role.messages.map((message, n) => <p key={`${index}-${n}`}>Private message from {current.templates[message.template]?.title}: {message.message}</p>)}
@@ -127,7 +127,7 @@ export function TemplateComposition({ templates, onSent, onCancel }: { templates
         }} /></label>
         {files.length > 0 && <><p className="iw-muted">Additional PDFs are view only. You can edit the prepared draft to add fields.</p><ul className="iw-stack">{files.map(item => <li key={item.key}>{item.file.name} · View only <button type="button" disabled={busy} onClick={() => setFiles(previous => previous.filter(file => file.key !== item.key))} aria-label={`Remove ${item.file.name}`}>Remove</button></li>)}</ul></>}
       </section>
-      {!fits && <p className="iw-error" role="alert">Use at most 20 documents and 100 recipient places, including reserved witnesses.</p>}
+      {!fits && <p className="iw-error" role="alert">Resolve authentication choices and use at most 20 documents and 100 recipient places, including reserved witnesses.</p>}
       <CustomEnvelopeFields fields={customFields} onChange={setCustomFields} fixed/><ErrorNotice error={action.error} /><div className="iw-actions iw-submit"><button type="submit" className="iw-primary" disabled={busy || !fits}>{action.busy ? 'Preparing…' : 'Prepare combined envelope'}</button><p className="iw-muted">Review and approve the prepared draft before any invitations are sent.</p></div>
     </form>}
   </section>

@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "b75e0ebed5fde56dc35ce2d81f6faf83eb8b38f5f0e219198215b249deb08f72",
+      "sha256": "06d3b392a03a31e36c07869d8bdfcbf8de7cbf02c8406e3b03b3490bab44b467",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "ce6f20f06138e3703fcd7e3d730e5a01f1565b71fc5e73b889e8f3e9b4ebac08",
+      "sha256": "b77d4f23daf1d0b9d56409136309d015ef8a7ae3157a465e1f1c243b4fb88074",
       "executable": false
     },
     "DEMO.md": {
@@ -257,7 +257,7 @@
       "executable": false
     },
     "docs/provider-verification.md": {
-      "sha256": "9f3361c81f0a9e5015f8b206d3c08d42def243113c7dee8ea5556f5d308aa851",
+      "sha256": "85081b8bd7e1c7a784136c3b7f44db1aaec2b530697eded5d2c5cf22c89dfbc0",
       "executable": false
     },
     "docs/send-an-agreement.md": {
@@ -1645,11 +1645,11 @@
       "executable": false
     },
     "src/inkwell/template-combine.ts": {
-      "sha256": "dd32f8826578161d9fe74c571b025676303eca22cecc4d4f373b6c469b9e6ff0",
+      "sha256": "b5a4cf3487f3bc89fd6fb23d309b06831033cb33166482823adebf53b1aca174",
       "executable": false
     },
     "src/inkwell/template-composition.ts": {
-      "sha256": "3d3b8844bc903998f4fe7329abc0b624773894d1ba0154a9de3781f2acd42fa3",
+      "sha256": "8569613777e6c6ccfff6358ae750209c1bc1800181f5897857c22bbab54996c4",
       "executable": false
     },
     "src/inkwell/template-confirmation.ts": {
@@ -3933,7 +3933,7 @@
       "executable": false
     },
     "src/ui/template-composition.tsx": {
-      "sha256": "de0be2aac35c1822c7dddd9a62a776017650c172dc4ca38a0dcaa03aff3e898f",
+      "sha256": "1c0442cc43e8cef8af6b370d0a890d18f4991de854f0ab917b5ddfae6f797543",
       "executable": false
     },
     "src/ui/template-maintenance.tsx": {
@@ -3989,7 +3989,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "15ba47ac5d1808ee5fa096d852a1957b8329a9007896794201c0f6ab4a2f70d2",
+      "sha256": "7e1dc50fa4ac01e7d949f55232db804eb8d714af6f857337a41f8fc7a25dfdfe",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
@@ -4137,7 +4137,7 @@
       "executable": false
     },
     "tests/journeys/provider-auth.mjs": {
-      "sha256": "587f31db80ce8ba304f224a0b02fe43464d794deb10bd9cbfe0fbc95ee634c79",
+      "sha256": "a5a2bdb8ec5ed02b3f3244d1ff4b49062d64f21ab34ad6b5092299d3177b9d01",
       "executable": false
     },
     "tests/journeys/recipient-actions.mjs": {

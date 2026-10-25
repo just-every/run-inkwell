@@ -16,7 +16,7 @@ function choicesOf(value: unknown): CompositionChoices {
   const raw = object(value)
   insist(Object.keys(raw).every(key => key === 'settingsTemplate' || key === 'identity' || key === 'orders'), 'Choose only envelope settings and role authentication.')
   const identity = raw.identity === undefined ? undefined : object(raw.identity)
-  if (identity) insist(Object.values(identity).every(method => ['email', 'link', 'sms'].includes(String(method))), 'Choose email code, SMS code or link only.')
+  if (identity) insist(Object.values(identity).every(method => ['email', 'link', 'sms', 'identity', 'knowledge', 'voice'].includes(String(method))), 'Choose an authentication method.')
   const orders = raw.orders === undefined ? undefined : object(raw.orders)
   if(orders)insist(Object.values(orders).every(order=>order===null||Number.isSafeInteger(order)), 'Choose an existing whole-number routing order or keep separate recipients.')
   return { ...(orders?{orders:orders as Record<string,number|null>}:{}), ...(raw.settingsTemplate === undefined ? {} : { settingsTemplate: text(raw.settingsTemplate, 'a settings template ID') }), ...(identity ? { identity: identity as NonNullable<CompositionChoices['identity']> } : {}) }
@@ -43,6 +43,7 @@ export async function previewComposition(env: Env, actor: Actor, input: Record<s
 export async function combineTemplates(env: Env, context: CommandContext, input: Record<string, unknown>) {
   const sources = await sourcesOf(env, context.actor, input), choices = choicesOf(input.choices)
   const plan = composition(sources.map(source => source.template), choices)
+  insist(plan.roles.every(r=>!r.needsIdentityChoice), 'Choose authentication explicitly for every conflicting provider role.')
   insist(Array.isArray(input.recipients) && input.recipients.length === plan.roles.length, `Name one person for each of the ${plan.roles.length} combined roles.`)
   const recipients = input.recipients
   const signers = plan.roles.map((role, index) => {
@@ -52,7 +53,7 @@ export async function combineTemplates(env: Env, context: CommandContext, input:
     insist(role.accessCode || code === undefined, `The ${role.role} role does not use an access code.`)
     return { name:role.unresolvedIdentity?'':person.name, email:role.unresolvedIdentity?'':person.email, ...(role.unresolvedIdentity?{unresolvedIdentity:true as const}:{}), ...(role.delegates?{delegates:role.delegates}:{}), order: role.order, ...(role.action ? { role: role.action } : {}),
       ...(role.witnesses ? { witnesses: structuredClone(role.witnesses) } : {}), ...(role.includeWhen ? { includeWhen: role.includeWhen } : {}),
-      sms: role.identity === 'sms', linkOnly: role.identity === 'link', ...(role.identity === 'sms' ? { phone: person.phone } : {}),
+      ...(role.providerAuth?{providerAuth:role.providerAuth}:{}), sms: role.identity === 'sms', linkOnly: role.identity === 'link', ...(['sms','voice'].includes(role.identity) ? { phone: person.phone } : {}),
       ...(code === undefined ? {} : { accessCode: code }), ...(role.message ? { message: role.message } : {}) }
   })
   const additional = input.documents === undefined ? [] : input.documents

@@ -837,10 +837,11 @@ test('Identity provider gates signing, retries failed and mismatched checks, pre
  const {providerEdges,providerBindings}=await import('./provider-edge.mjs'),edge=providerEdges(),clock=Date.parse('2026-10-26T16:00:00Z')
  const h=await harness({bindings:providerBindings,networkEdge:edge.networkEdge,now:clock})
  try {
-  const email='mara.id@harbour.example',fields=[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.4,height:.07}]
+  let email='mara.id@harbour.example';const fields=[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.4,height:.07}]
   const id=(await h.command('envelope.prepare',{title:'Harbour identity agreement',filename:'identity.pdf',pdfBase64:await pdf(),signers:[{name:'Mara Quinn',email,providerAuth:'identity',accessCode:'separate-secret'}],fields})).result.id
   await h.command('envelope.approve',{id,eligible:true})
-  const path='/api'+new URL((await h.mail(email,'Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+  let path='/api'+new URL((await h.mail(email,'Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+  const oldPath=path;email='mara.corrected@harbour.example';await h.command('envelope.correct',{id,signers:[{name:'Mara Quinn',email,providerAuth:'identity'}]});assert.equal((await h.send(oldPath)).status,404);path='/api'+new URL((await h.mail(email,'Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
   await h.post(path+'/provider/start',{consent:true},'',403)
   await h.post(path+'/access',{accessCode:'separate-secret'},'')
   await h.post(path+'/provider/start',{consent:false},'',400);assert.equal(edge.sessions.size,0)
@@ -866,6 +867,14 @@ test('Identity provider gates signing, retries failed and mismatched checks, pre
   const template=(await h.command('template.from_envelope',{id,title:'Identity client'})).result
   const reused=await h.command('template.use',{id:template.id,recipients:[{name:'Mara Quinn',email:'new.mara@harbour.example',accessCode:'new-secret'}]})
   assert.equal((await h.send('/api/inkwell/envelopes/'+reused.result.id,undefined,h.owner)).value.envelope.signers[0].providerAuth,'identity')
+  const companion=(await h.command('template.save',{title:'Identity schedule',filename:'schedule.pdf',pdfBase64:await pdf(),roles:[{role:'Signer 1',order:1,providerAuth:'identity'}],fields})).result.id
+  const combined=(await h.command('template.combine',{ids:[template.id,companion],recipients:[{name:'Mara Quinn',email:'combined.mara@harbour.example',accessCode:'new-secret'}]})).result.id
+  assert.equal((await h.send('/api/inkwell/envelopes/'+combined,undefined,h.owner)).value.envelope.signers[0].providerAuth,'identity')
+  const voice=(await h.command('template.save',{title:'Voice schedule',filename:'schedule.pdf',pdfBase64:await pdf(),roles:[{role:'Signer 1',order:1,providerAuth:'voice'}],fields})).result.id
+  await h.command('template.combine',{ids:[template.id,voice],recipients:[{name:'Mara Quinn',email:'conflict.mara@harbour.example',accessCode:'new-secret'}]},h.owner,400)
+  const explicit=(await h.command('template.combine',{ids:[template.id,voice],choices:{identity:{[JSON.stringify(['Signer 1',1])]:'identity'}},recipients:[{name:'Mara Quinn',email:'chosen.mara@harbour.example',accessCode:'new-secret'}]})).result.id
+  assert.equal((await h.send('/api/inkwell/envelopes/'+explicit,undefined,h.owner)).value.envelope.signers[0].providerAuth,'identity')
+  const own=(await h.command('envelope.prepare',{title:'Owner identity',filename:'owner.pdf',pdfBase64:await pdf(),signers:[{name:'Harbour Owner',email:'owner@harbour.example',providerAuth:'identity'}],fields})).result.id;await h.command('envelope.approve',{id:own,eligible:true});await h.command('envelope.open_signing',{id:own},h.owner,403)
   const copied=await h.command('envelope.copy',{id});assert.equal((await h.send('/api/inkwell/envelopes/'+copied.result.id,undefined,h.owner)).value.envelope.signers[0].providerAuth,'identity')
  } finally {await h.close()}
 })

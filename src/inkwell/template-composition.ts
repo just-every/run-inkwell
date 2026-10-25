@@ -4,11 +4,11 @@ import type { Role, Template } from './templates'
 import type { EnvelopeDocument } from './documents'
 import { validateRecipientCount } from './recipient-roles'
 
-type Identity = 'email' | 'link' | 'sms'
+type Identity = 'email' | 'link' | 'sms' | 'identity' | 'knowledge' | 'voice'
 type Source = { template: number; role: number }
 export interface CompositionChoices { settingsTemplate?: string; identity?: Record<string, Identity>; orders?: Record<string, number | null> }
 export interface CompositionRole extends Role {
-  key: string; sms?: boolean; identity: Identity; sources: Source[]
+  key: string; needsIdentityChoice?:boolean; sms?: boolean; identity: Identity; sources: Source[]
   messages: { template: number; role: number; message: string }[]
 }
 export interface CompositionConflict {
@@ -16,8 +16,8 @@ export interface CompositionConflict {
   message: string; templates: number[]; role?: string; proposed?: unknown; selected?: unknown; orders?: number[]
 }
 export type CompositionDocument = Omit<EnvelopeDocument, 'bytes' | 'signedSha256'> & { bytes?: number }
-const method = (r: Role & { sms?: boolean }): Identity => r.sms ? 'sms' : r.linkOnly ? 'link' : 'email'
-const priority: Record<Identity, number> = { link: 0, email: 1, sms: 2 }
+const method = (r: Role & { sms?: boolean }): Identity => r.providerAuth ?? (r.sms ? 'sms' : r.linkOnly ? 'link' : 'email')
+const priority: Record<Identity, number> = { link: 0, email: 1, sms: 2, voice:2, knowledge:2, identity:2 }
 
 function combineWitnesses(a: WitnessRule | undefined, b: WitnessRule | undefined): WitnessRule | undefined {
   if (!a || !b) return structuredClone(a ?? b)
@@ -57,7 +57,6 @@ export function composition(templates: Template[], choices: CompositionChoices =
   }
   const rule = (template: number, value?: RoutingRule): RoutingRule | undefined => value ? { ...value, field: fieldId(template, value.field) } : undefined
   for (const [ti, t] of templates.entries()) for (const [ri, original] of t.roles.entries()) {
-    insist(!original.providerAuth, 'Use identity and voice verification templates individually; combining these methods is not yet supported.',409)
     const label = original.role.trim(), key = JSON.stringify([label, original.order]), identity = method(original), source = { template: ti, role: ri }
     insist(label, 'Every template role needs a name.', 409)
     const includeWhen = rule(ti, original.includeWhen), existing = byKey.get(key)
@@ -87,11 +86,12 @@ export function composition(templates: Template[], choices: CompositionChoices =
   for (const key of Object.keys(choices.identity ?? {})) insist(byKey.has(key), 'An identity choice names an unknown merged role.')
   for (const r of roles) {
     const alternatives = [...new Set(methods.get(r.key)!)], proposed = alternatives.reduce((a, b) => priority[a] >= priority[b] ? a : b)
+    r.needsIdentityChoice = alternatives.length>1 && alternatives.some(m=>['identity','voice','knowledge'].includes(m)) && choices.identity?.[r.key]===undefined
     const selected = choices.identity?.[r.key] ?? proposed
-    insist(['email', 'link', 'sms'].includes(selected), 'Choose email code, SMS code or link only.')
-    r.identity = selected; r.linkOnly = selected === 'link'; r.sms = selected === 'sms'
-    if (alternatives.length > 1) conflicts.push({ kind: 'identity', role: r.key, templates: r.sources.map(s => s.template), proposed, selected,
-      message: `${r.role}: authentication methods conflict (${alternatives.join(', ')}); propose ${proposed === 'sms' ? 'SMS code' : proposed === 'email' ? 'email code' : 'link only'}.` })
+    insist(['email', 'link', 'sms', 'identity', 'knowledge', 'voice'].includes(selected), 'Choose an authentication method.')
+    r.providerAuth = ['identity','voice','knowledge'].includes(selected) ? selected as Role['providerAuth'] : undefined; r.identity = selected; r.linkOnly = selected === 'link'; r.sms = selected === 'sms'
+    if (alternatives.length > 1) conflicts.push({ kind: 'identity', role: r.key, templates: r.sources.map(s => s.template), proposed, ...(r.needsIdentityChoice?{}:{selected}),
+      message: `${r.role}: authentication methods conflict (${alternatives.join(', ')}); ${r.needsIdentityChoice?'choose the recipient method explicitly':`selected ${selected}`}.` })
     const messages = [...new Set(r.messages.map(m => m.message))]
     r.message = messages.length > 1 ? r.messages.map(m => `${templates[m.template].title}: ${m.message}`).join('\n\n') : messages[0]
     insist(!r.message || r.message.length <= 1000, `The merged private message for ${r.role} exceeds 1000 characters. Shorten the source messages.`, 409)

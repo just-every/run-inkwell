@@ -1,6 +1,6 @@
 # Provider verification
 
-The sender chooses Identity document and selfie, Knowledge questions (US), or Voice-call code beside the existing authentication methods. Optional access codes are still checked first. Drafts, corrections and individual template roles retain the choice. Changing the method, name, email or phone rotates the signing link. Copies retain the requirement but never an authentication result. Provider-authentication templates cannot yet be combined.
+The sender chooses Identity document and selfie, Knowledge questions (US), or Voice-call code beside the existing authentication methods. Optional access codes are still checked first. Drafts, corrections and individual template roles retain the choice. Changing the method, name, email or phone rotates the signing link. Copies retain the requirement but never an authentication result. Combined roles retain provider authentication; conflicting provider methods require an explicit sender choice.
 
 The installation owner configures provider bindings using the installation's private settings. They are never entered into an envelope or exported:
 
