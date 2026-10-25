@@ -4209,7 +4209,7 @@
       "executable": false
     },
     "tests/worker-port.mjs": {
-      "sha256": "f07ca7ede90f33e8a9688b85c7bdbb144292cfbe5b0ed34310f9c9e18ec4c315",
+      "sha256": "518dd67f182f4a56351eccb5ad3e142edc2a3fbd1e85939c73d3513dd1973b6f",
       "executable": false
     },
     "tsconfig.json": {

@@ -4,6 +4,8 @@ import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+let nextPort = process.pid
+
 // Worker listeners must stay below the kernel's ephemeral range: closing a
 // listen(0) probe otherwise lets an unrelated outbound connection take its port.
 // A shared lease also keeps concurrent harnesses from choosing the same port
@@ -14,7 +16,10 @@ export async function reserveWorkerPort() {
     : 49152
   const directory = join(tmpdir(), 'inkwell-worker-ports')
   await mkdir(directory, { recursive: true })
-  for (let port = 12000; port < Math.min(20000, ephemeralStart); port++) {
+  const count = Math.min(20000, ephemeralStart) - 12000
+  // Fresh origins also avoid pooled connections to an already disposed Worker.
+  for (let attempt = 0; attempt < count; attempt++) {
+    const port = 12000 + nextPort++ % count
     const lease = join(directory, String(port))
     try { await mkdir(lease) } catch (error) { if (error.code === 'EEXIST') continue; throw error }
     const socket = createServer()
