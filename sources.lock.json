@@ -4013,11 +4013,11 @@
       "executable": false
     },
     "tests/journeys/a11y.mjs": {
-      "sha256": "be20fec7328e2261074789dedc7f1bb7f2e0a3c9fa764288d1411a68164a0d65",
+      "sha256": "7c3d657118ee74d6380f685bb2b92e2901e433a83ecc0e8be21d3e1c08c661fd",
       "executable": false
     },
     "tests/journeys/accessible-signing.mjs": {
-      "sha256": "cb3b318270478ffed9b310227c0fafd5b6b1ce995cb7d7ecf174350bd181fbf9",
+      "sha256": "042f236f35328de703e9d8551a1aaa027a2cacd2e71d5a8ca725ec26835a477c",
       "executable": false
     },
     "tests/journeys/api-capacity.mjs": {

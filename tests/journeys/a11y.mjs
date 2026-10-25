@@ -19,7 +19,6 @@ export async function tabTo(page, target, { backwards = false } = {}) {
   await target.waitFor({ state: 'visible' })
   // Async loads can show a control before it enters the keyboard tab order.
   await expect(target).toBeEnabled()
-  if (await target.evaluate(el => el === document.activeElement)) return
   for (let presses = 0; presses < 80; presses++) {
     await page.keyboard.press(backwards ? 'Shift+Tab' : 'Tab')
     // Focus styles fade in (a 0.15 s transition): read them at their end state. A date field's own calendar button is
