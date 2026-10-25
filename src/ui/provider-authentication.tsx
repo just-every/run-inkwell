@@ -15,7 +15,7 @@ export function ProviderAuthentication({ base, method, phone, onVerified }: { ba
     })}>{started ? 'Start a new verification' : identity ? 'Start identity verification' : knowledge ? 'Start knowledge questions' : 'Call me with a code'}</button>
     {url && <a className="iw-button iw-fit" href={url} target="_blank" rel="noreferrer">{identity?'Open Stripe verification':'Open Authenticate questions'}</a>}
     <form className="iw-stack" onSubmit={e => { e.preventDefault(); void action.run(async () => {
-      const result = await request<{pending?: boolean}>(`${base}/provider/check`, hosted ? {} : {code}); setCode(''); setPending(result.pending === true); if (!result.pending) await onVerified()
+      try { const result = await request<{pending?: boolean}>(`${base}/provider/check`, hosted ? {} : {code}); setPending(result.pending === true) } finally { setCode(''); await onVerified() }
     }) }}>
       {!hosted && <label>Voice-call code<input required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{4,10}" maxLength={10} value={code} onChange={e => setCode(e.target.value)}/></label>}
       <button className="iw-fit" disabled={action.busy}>{hosted ? 'Check verification result' : 'Verify voice-call code'}</button>

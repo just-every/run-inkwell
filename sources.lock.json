@@ -1101,7 +1101,7 @@
       "executable": false
     },
     "src/inkwell/api.ts": {
-      "sha256": "8332b048b43cb50e9e08510b7461632fd7f8a0523831e86991b649ed2fbfe819",
+      "sha256": "1bd0565d109c1b64ff915b0e784d2a4c38239eccb0bba4342bc52e03d5675558",
       "executable": false
     },
     "src/inkwell/archive-policy.d.mts": {
@@ -1469,7 +1469,7 @@
       "executable": false
     },
     "src/inkwell/provider-auth.ts": {
-      "sha256": "69698670ea8ca4e738e5b99a03cbea7f5359aa22be6a503e074c08306c2de540",
+      "sha256": "c13c03ee84c6a5234bd2301e09a6bc89f8c0d0c15c1dd750649637d894ca9996",
       "executable": false
     },
     "src/inkwell/provider-notice.ts": {
@@ -3849,7 +3849,7 @@
       "executable": false
     },
     "src/ui/provider-authentication.tsx": {
-      "sha256": "4c973c413597d8a11a89d7d33d4ad47cd9ba6253c36ce9d770b32472bef18b46",
+      "sha256": "c54591705e435dcf83706121f6361b2d272a4801adae1719eef15abbb718ca56",
       "executable": false
     },
     "src/ui/public-form.tsx": {
@@ -3901,7 +3901,7 @@
       "executable": false
     },
     "src/ui/signer-app.tsx": {
-      "sha256": "33dac92743ee2c26d8c606e89b499b93d6007a6d9b7f5d622eea58afef6fb924",
+      "sha256": "939ed3439efc24008d2db778099e3b9b9bf09a1eea89c39ea8cf32f316a48cb4",
       "executable": false
     },
     "src/ui/signing-field-input.tsx": {
@@ -4137,7 +4137,7 @@
       "executable": false
     },
     "tests/journeys/provider-auth.mjs": {
-      "sha256": "18a2dcac8a8c307859bd02e55507ab385f07091744ee09161427ce21b0c12a00",
+      "sha256": "587f31db80ce8ba304f224a0b02fe43464d794deb10bd9cbfe0fbc95ee634c79",
       "executable": false
     },
     "tests/journeys/recipient-actions.mjs": {

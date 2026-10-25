@@ -23,6 +23,7 @@ interface Attempt { token_hash: string; method: ProviderAuth; generation: number
 interface Started { reference: string; url?: string; session?: string; token?: string }
 interface Result { outcome: 'pending' | 'passed' | 'failed'; nameMatch?: boolean; failedAttempts?: number }
 const attempt = (env: Env, c: SigningContext) => env.DB.prepare('SELECT * FROM iw_provider_auth WHERE envelope_id=? AND signer=? AND token_hash=?').bind(c.envelope.id, c.recipient.row, c.recipient.token_hash).first<Attempt>()
+export async function providerAuthView(env: Env, c: SigningContext) { return c.envelope.signers[c.recipient.signer].providerAuth ? {providerLocked:(await attempt(env,c))?.outcome==='locked'} : {} }
 function gate(env: Env, c: SigningContext) { turn(c); accessGate(c); const s = recipientOf(c); insist(s.providerAuth, 'This invitation does not use provider verification.', 409); requireProvider(env, s.providerAuth); return s }
 const fence = (c: SigningContext, a: Attempt) => ({ sql: 'EXISTS(SELECT 1 FROM iw_provider_auth WHERE envelope_id=? AND signer=? AND token_hash=? AND generation=? AND outcome=? AND attempts=?)', values: [c.envelope.id, c.recipient.row, c.recipient.token_hash, a.generation, a.outcome, a.attempts] })
 const tokenBinding = (c: SigningContext) => `${c.envelope.id}:${c.recipient.row}:${c.recipient.token_hash}`
@@ -31,6 +32,7 @@ const tokenBinding = (c: SigningContext) => `${c.envelope.id}:${c.recipient.row}
 export async function startProviderAuth(env: Env, c: SigningContext, input: Record<string, unknown>) {
   const s = gate(env, c), prior = await attempt(env, c)
   insist(prior?.outcome !== 'locked', 'This invitation is locked after failed verification. Contact the sender.', 423)
+  insist(prior?.outcome !== 'passed', 'This invitation is already verified.', 409)
   insist(input.consent === true, 'Agree to verification by this provider before continuing.')
   const dob = s.providerAuth === 'knowledge' ? text(input.dateOfBirth, 'your date of birth', 10) : undefined
   insist(!dob || /^\d{4}-\d{2}-\d{2}$/.test(dob), 'Enter your date of birth.')
@@ -41,6 +43,7 @@ export async function startProviderAuth(env: Env, c: SigningContext, input: Reco
   await commitEnvelope(env, c.envelope, after, null, [env.DB.prepare(`INSERT INTO iw_provider_auth(envelope_id,signer,token_hash,method,generation,outcome,requested_at,failures) VALUES(?,?,?,?,?,'starting',?,?) ON CONFLICT(envelope_id,signer) DO UPDATE SET token_hash=excluded.token_hash,method=excluded.method,generation=excluded.generation,reference=NULL,provider_session=NULL,sealed_token=NULL,outcome='starting',attempts=0,requested_at=excluded.requested_at,failures=excluded.failures`).bind(after.id, c.recipient.row, c.recipient.token_hash, s.providerAuth!, generation, Date.now(), failures)], [liveGuard(c)])
   const key = await sha256(c.recipient.token_hash + ':' + generation)
   const result: Started = s.providerAuth === 'identity' ? await startIdentity(env, key) : s.providerAuth === 'knowledge' ? await startKnowledge(env, {name:s.name,email:s.email,dob:dob!}, prior?.reference ?? undefined) : await requestVoice(env, usMobile(s.phone))
+  insist(!result.session || result.session !== prior?.provider_session, 'The provider reused a closed session. Contact the sender.', 409)
   const sealed = result.token ? await seal(env, 'knowledge-verification', tokenBinding(c), result.token) : null
   const updated = await env.DB.prepare("UPDATE iw_provider_auth SET reference=?,provider_session=?,sealed_token=?,outcome='pending' WHERE envelope_id=? AND signer=? AND token_hash=? AND generation=? AND outcome='starting'").bind(result.reference, result.session ?? null, sealed, after.id, c.recipient.row, c.recipient.token_hash, generation).run()
   insist(updated.meta.changes === 1, 'Verification changed. Open your current invitation.', 409)

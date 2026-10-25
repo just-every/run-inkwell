@@ -1,4 +1,4 @@
-import { startProviderAuth, checkProviderAuth } from './provider-auth'
+import { startProviderAuth, checkProviderAuth, providerAuthView } from './provider-auth'
 import { usageView, setUsagePolicy } from './usage'
 import { envelopeFolders, changeFolder, changeEnvelopeFolder } from './envelope-folders'
 import { envelopeCsv } from './envelope-metadata'
@@ -167,7 +167,7 @@ api.post('/api/inkwell/sms/replies',async c=>{await receiveSmsReply(c.env,c.req.
 api.post('/api/inkwell/mail/replies',async c=>receiveFollowupReply(c.env,c.req.raw))
 api.post('/api/verify',async c=>c.json(await publicVerification(c.env,c.req.raw)))
 // ROUTE-009: a member signing with their session is offered the signature they saved.
-api.get('/api/sign/:token',async c=>{const context=await signingContext(c.env,c.req.param('token'),c.req.raw),member=context.verified?sessionMember(context.envelope,context.recipient.signer):undefined;return c.json({...signingView(context),...(context.verified&&context.envelope.part11?{signingMeanings:await signingMeanings(c.env)}:{}),mailSuppressed:mailSuppressed(c.env),...(member?await savedMarkView(c.env,member):{})})})
+api.get('/api/sign/:token',async c=>{const context=await signingContext(c.env,c.req.param('token'),c.req.raw),member=context.verified?sessionMember(context.envelope,context.recipient.signer):undefined;return c.json({...signingView(context),...await providerAuthView(c.env,context),...(context.verified&&context.envelope.part11?{signingMeanings:await signingMeanings(c.env)}:{}),mailSuppressed:mailSuppressed(c.env),...(member?await savedMarkView(c.env,member):{})})})
 api.get('/api/sign/:token/documents/:index',async c=>signingDocument(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),Number(c.req.param('index'))))
 api.get('/api/sign/:token/supplements/:id/document',async c=>supplementDocument(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),c.req.param('id')))
 api.post('/api/sign/:token/supplements/:id/acknowledge',async c=>{sameOrigin(c.req.raw,c.env);return c.json({ok:true,result:await acknowledgeSupplement(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),c.req.param('id'),await readJson(c.req.raw,4096))})})
