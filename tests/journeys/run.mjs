@@ -1,4 +1,4 @@
-// CI runs three disjoint browser groups; ordinary verification runs every journey.
+// CI runs four disjoint browser groups; ordinary verification runs every journey.
 import { spawnSync } from 'node:child_process'
 const journeys = [
  "tests/journeys/signing-mobile.mjs",
@@ -29,8 +29,8 @@ const journeys = [
  "tests/journeys/sms.mjs"
 ]
 const selector = process.env.INKWELL_JOURNEY_SHARD
-if (selector && !/^[123]\/3$/.test(selector)) throw new Error('INKWELL_JOURNEY_SHARD must be 1/3, 2/3 or 3/3')
-const selected = selector ? journeys.filter((_, index) => index % 3 === Number(selector[0]) - 1) : journeys
+if (selector && !/^[1234]\/4$/.test(selector)) throw new Error('INKWELL_JOURNEY_SHARD must be a shard from 1 to 4 with a total of 4')
+const selected = selector ? journeys.filter((_, index) => index % 4 === Number(selector[0]) - 1) : journeys
 console.log(`Browser journeys ${selector ?? 'all'}: ${selected.join(', ')}`)
 for (const file of selected) {
  const result = spawnSync(process.execPath, [file], { stdio: 'inherit', env: process.env })

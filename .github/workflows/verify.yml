@@ -15,10 +15,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        journey_shard: [1, 2, 3]
+        journey_shard: [1, 2, 3, 4]
     env:
       CI: 'true'
-      INKWELL_JOURNEY_SHARD: ${{ matrix.journey_shard }}/3
+      INKWELL_JOURNEY_SHARD: ${{ matrix.journey_shard }}/4
       WRANGLER_SEND_METRICS: 'false'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1; action runtime Node 24
