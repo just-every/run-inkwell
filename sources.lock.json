@@ -4137,7 +4137,7 @@
       "executable": false
     },
     "tests/journeys/provider-auth.mjs": {
-      "sha256": "861f4cdc4e301156a7a03b820b86a36b237df63f0fa71629da2310d7c93695eb",
+      "sha256": "aa074b36b22348df27e4823c331a0fba2893af922d03abe859b5bb2ec2ed5f5e",
       "executable": false
     },
     "tests/journeys/recipient-actions.mjs": {
