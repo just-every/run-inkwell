@@ -15,6 +15,33 @@
         "paths": [
           "src/base",
           "src/modules"
+        ],
+        "origin": {
+          "repository": "runeditrun/base",
+          "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
+          "path": ".",
+          "paths": [
+            "default-seed/scripts/base-cli/edition-authoring/adopt.mjs",
+            "default-seed/scripts/base-cli/edition-authoring/lock.mjs",
+            "export/VERIFY-WORKFLOW.md",
+            "foundation/runtime/contract-style.ts",
+            "modules/import-kit/README.md",
+            "modules/mail/README.md"
+          ]
+        },
+        "mappings": [
+          {
+            "path": "src/modules/import-kit/README.md",
+            "originPath": "modules/import-kit/README.md"
+          },
+          {
+            "path": "src/modules/mail/README.md",
+            "originPath": "modules/mail/README.md"
+          },
+          {
+            "path": "src/base/contract-style.ts",
+            "originPath": "foundation/runtime/contract-style.ts"
+          }
         ]
       }
     },
@@ -54,6 +81,45 @@
           {
             "path": "scripts/delivery/base/setup-manifest.mjs",
             "originPath": "modules/delivery-producer/setup-manifest.mjs"
+          }
+        ]
+      }
+    },
+    {
+      "id": "signatures/inkwell-publication-prose",
+      "role": "module",
+      "source": {
+        "kind": "local",
+        "paths": [
+          "VERIFY-WORKFLOW.md",
+          "scripts/edition-authoring/adopt.mjs",
+          "scripts/edition-authoring/lock.mjs"
+        ],
+        "origin": {
+          "repository": "runeditrun/base",
+          "revision": "11f94fec479228d71ba6d7dd6ea7796c0d42c544",
+          "path": ".",
+          "paths": [
+            "default-seed/scripts/base-cli/edition-authoring/adopt.mjs",
+            "default-seed/scripts/base-cli/edition-authoring/lock.mjs",
+            "export/VERIFY-WORKFLOW.md",
+            "foundation/runtime/contract-style.ts",
+            "modules/import-kit/README.md",
+            "modules/mail/README.md"
+          ]
+        },
+        "mappings": [
+          {
+            "path": "VERIFY-WORKFLOW.md",
+            "originPath": "export/VERIFY-WORKFLOW.md"
+          },
+          {
+            "path": "scripts/edition-authoring/adopt.mjs",
+            "originPath": "default-seed/scripts/base-cli/edition-authoring/adopt.mjs"
+          },
+          {
+            "path": "scripts/edition-authoring/lock.mjs",
+            "originPath": "default-seed/scripts/base-cli/edition-authoring/lock.mjs"
           }
         ]
       }

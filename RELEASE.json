@@ -1,7 +1,7 @@
 {
   "version": "0.1.0",
   "previousVersion": null,
-  "publicReleaseNotes": "Prepare Inkwell for hosted installation with a generated delivery descriptor, deployment specification, managed mail configuration and recorded shared-source provenance. Existing project and archive identities are preserved.",
+  "publicReleaseNotes": "Prepare Inkwell for hosted installation with a generated delivery descriptor, deployment specification, managed mail configuration and recorded shared-source provenance refreshed for rer 0.2.80. Existing project and archive identities are preserved.",
   "migrations": [
     "0001_owner.sql",
     "0002_outbox.sql",
@@ -59,7 +59,8 @@
     "0054_envelope_folders.sql",
     "0055_last_signin.sql",
     "0056_scheduled_policy.sql",
-    "0057_dependency_keys_sealed.sql"
+    "0057_dependency_keys_sealed.sql",
+    "0058_followup_folder_authority.sql"
   ],
   "breaking": false,
   "agentUpdateInstructions": "Use the declared setup manifest and packaging operations. Preserve the signatures project identity and applied migration bytes. This metadata prepares a future release; no release tag has been published."
