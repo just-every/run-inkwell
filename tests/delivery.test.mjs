@@ -755,8 +755,12 @@ test('ADMIN-006: monthly SMS cap warns, atomically stops concurrent paid codes a
   assert.equal((await capNotices()).length,2,'blocked retries never duplicate threshold notifications')
   const administrator=(await h.post('/api/inkwell',undefined,admin)).value.actor
   await h.post('/auth/operator/role',{operatorId:administrator.id,role:'member'})
-  assert.equal((await capNotices(admin)).length,0,'losing the administrative role hides previously received usage notices')
-  assert.equal((await h.send('/api/inkwell/usage',undefined,admin)).status,403)
+  assert.equal((await h.send('/api/inkwell/notices',undefined,admin)).status,401,'role changes revoke the previous session')
+  await h.post('/auth/magic-link',{email:administrator.email},'',202)
+  const signIn=await h.mail(administrator.email),token=new URL(signIn.text.match(/http:\/\/[^\s]+\/auth\/confirm\?token=[^\s]+/)[0]).searchParams.get('token')
+  const member=(await h.post('/auth/confirm',{token},'',303)).cookie
+  assert.equal((await capNotices(member)).length,0,'a fresh member session cannot read previously received usage notices')
+  assert.equal((await h.send('/api/inkwell/usage',undefined,member)).status,403)
   const cancelled=(await smsTestDetail(h,first.id)).messages.find(m=>m.subject==='SMS invitation'&&m.status==='not_sent')
   assert.match(cancelled.label,/monthly cap reached/)
   const email=await prepareSmsEnvelope(h,{sms:false});await h.post(email.path+'/code',{},'')
