@@ -24,11 +24,9 @@
             "default-seed/scripts/base-cli/edition-authoring/adopt.mjs",
             "default-seed/scripts/base-cli/edition-authoring/lock.mjs",
             "export/VERIFY-WORKFLOW.md",
+            "foundation/runtime/contract-style.ts",
             "modules/import-kit/README.md",
-            "modules/mail/README.md",
-            "modules/operator-auth/conformance/README.md",
-            "modules/operator-auth/docs/vite-spa.md",
-            "modules/operator-auth/representation.mjs"
+            "modules/mail/README.md"
           ]
         },
         "mappings": [
@@ -41,16 +39,8 @@
             "originPath": "modules/mail/README.md"
           },
           {
-            "path": "src/modules/operator-auth/conformance/README.md",
-            "originPath": "modules/operator-auth/conformance/README.md"
-          },
-          {
-            "path": "src/modules/operator-auth/docs/vite-spa.md",
-            "originPath": "modules/operator-auth/docs/vite-spa.md"
-          },
-          {
-            "path": "src/modules/operator-auth/representation.mjs",
-            "originPath": "modules/operator-auth/representation.mjs"
+            "path": "src/base/contract-style.ts",
+            "originPath": "foundation/runtime/contract-style.ts"
           }
         ]
       }
@@ -113,11 +103,9 @@
             "default-seed/scripts/base-cli/edition-authoring/adopt.mjs",
             "default-seed/scripts/base-cli/edition-authoring/lock.mjs",
             "export/VERIFY-WORKFLOW.md",
+            "foundation/runtime/contract-style.ts",
             "modules/import-kit/README.md",
-            "modules/mail/README.md",
-            "modules/operator-auth/conformance/README.md",
-            "modules/operator-auth/docs/vite-spa.md",
-            "modules/operator-auth/representation.mjs"
+            "modules/mail/README.md"
           ]
         },
         "mappings": [
