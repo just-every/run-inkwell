@@ -15,7 +15,7 @@ async function capture(page,panel,width,state){
  await panel.getByRole('heading',{name:'Automatic filing',exact:true}).scrollIntoViewIfNeeded()
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${state} at ${width}: no sideways scroll`)
  await axe(page,`Automatic filing ${state} at ${width}`)
- await page.screenshot({path:join(proof,`${width}-${state}.png`),fullPage:true})
+ await panel.screenshot({path:join(proof,`${width}-${state}.png`)})
 }
 try{
  await mkdir(proof,{recursive:true})
