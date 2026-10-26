@@ -1,3 +1,4 @@
+import { matchedRoutes } from 'hono/route'
 import { withAuditDatabase } from './account-audit-db'
 import { listAccountAudit, auditCsv } from './account-audit'
 import { paymentSessionState } from './payment-state'
@@ -88,7 +89,15 @@ export function sameOrigin(request: Request, original: Bindings) { const env=run
 export async function readJson(request: Request, max=3_000_000) { insist(request.headers.get('content-type')?.split(';')[0]==='application/json','Send JSON with Content-Type application/json.',415);const bytes=await readBytes(request,max);try{return object(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)))}catch(error){if(error instanceof Refusal)throw error;throw new Refusal('Provide valid JSON.')} }
 type ApiContext = { Bindings: Bindings; Variables: { apiPrincipal: string } }
 export const api=new Hono<ApiContext>()
-api.use('*',async(c,next)=>{const native=runtimeBindings(c.env),session=await operatorAuth(native).getSession(c.req.raw);c.env={...native,DB:withAuditDatabase(native.DB,session?.operator.id??{kind:'system',id:'authentication'})};await next();c.header('cache-control','no-store');c.header('referrer-policy','no-referrer');c.header('x-content-type-options','nosniff')})
+api.use('*',async(c,next)=>{
+ const native=runtimeBindings(c.env);c.env=native
+ if(c.req.path.startsWith('/api/') && matchedRoutes(c).some(route=>route.method!=='ALL')) {
+  const memberRoute=c.req.path==='/api/inkwell'||c.req.path.startsWith('/api/inkwell/')
+  const session=memberRoute?await operatorAuth(native).getSession(c.req.raw):null
+  c.env={...native,DB:withAuditDatabase(native.DB,session?.operator.id??{kind:'system',id:'authentication'})}
+ }
+ await next();c.header('cache-control','no-store');c.header('referrer-policy','no-referrer');c.header('x-content-type-options','nosniff')
+})
 // COMPLY-002: a successful API-key request counts for its bound member; failed requests do not.
 // The outer compliance dispatcher retains fixed-schema logs without credentials, URLs or document content.
 api.use('/api/v1/*', async (c, next) => {

@@ -105,8 +105,13 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
 }
 
 export async function authResponse(request: Request, original: Bindings): Promise<Response | null> {
- const native = runtimeBindings(original), session = await operatorAuth(native).getSession(request)
- const established = session || await native.DB.prepare('SELECT 1 AS present FROM oa_operators LIMIT 1').first()
- const response = await handleAuthResponse(request, established ? { ...native, DB: withAuditDatabase(native.DB, session?.operator.id ?? {kind:'system',id:'authentication'}) } : native)
+ const native = runtimeBindings(original), path = new URL(request.url).pathname
+ let scoped = native
+ if (path.startsWith('/auth/') || path.startsWith('/.well-known/rer-') || ['/signin','/setup','/app'].includes(path) || path.startsWith('/app/')) {
+  const session = await operatorAuth(native).getSession(request)
+  const established = session || await native.DB.prepare('SELECT 1 AS present FROM oa_operators LIMIT 1').first()
+  if (established) scoped = { ...native, DB: withAuditDatabase(native.DB, session?.operator.id ?? {kind:'system',id:'authentication'}) }
+ }
+ const response = await handleAuthResponse(request, scoped)
  return response ? rejectedResponse(request, response) : null
 }
