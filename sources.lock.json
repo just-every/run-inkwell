@@ -565,7 +565,7 @@
       "executable": false
     },
     "migrations/core/0067_account_audit.sql": {
-      "sha256": "d2bca492158cf476825457a65683e618ed85e35951bcc4f928c33f8634b2c35f",
+      "sha256": "10e014c653c7b8be2aeeb4dc49bd69c1bd82f29f000de1ceda8b4e99479c31f5",
       "executable": false
     },
     "migrations/core/0068_account_audit_families.sql": {
@@ -4097,7 +4097,7 @@
       "executable": false
     },
     "tests/account-audit.test.mjs": {
-      "sha256": "77a93c253103384c4217f3e2837fd2917c50487f7c48399a99a75c10926698cf",
+      "sha256": "f01ab13d7a381aa0a3a9bc9226cd104416cd588899799dbab2a6aac097ae0e17",
       "executable": false
     },
     "tests/api-keys.test.mjs": {

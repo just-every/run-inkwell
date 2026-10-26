@@ -79,6 +79,7 @@ test('Account audit adopts earlier policy history and appends new policy and cre
   assert.ok(entries.some(e=>e.action==='api_key.revoked'&&e.before.revokedAt===null&&e.after.revokedAt))
   assert.ok(!JSON.stringify(entries).includes(issued.token))
   for(const sql of ["UPDATE iw_account_audit SET action='changed'","DELETE FROM iw_account_audit"]){await assert.rejects(h.db.prepare(sql).run(),/append only/)}
+  await assert.rejects(h.db.prepare("INSERT OR REPLACE INTO iw_account_audit SELECT id,at,actor_id,'changed',target,before_json,after_json FROM iw_account_audit LIMIT 1").run(),/append only/)
   assert.deepEqual((await audit(legacy)).map(e=>e.id).sort(),adopted.map(e=>e.id).sort())
  }finally{await h.close()}
 })

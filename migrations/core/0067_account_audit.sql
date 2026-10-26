@@ -48,6 +48,7 @@ END;
 
 -- Redactions append a durable fence; original events never change.
 CREATE TABLE iw_account_audit_redactions(target TEXT PRIMARY KEY,at TEXT NOT NULL,actor_id TEXT NOT NULL);
+CREATE TRIGGER iw_account_audit_no_replace BEFORE INSERT ON iw_account_audit WHEN EXISTS(SELECT 1 FROM iw_account_audit WHERE id=NEW.id) BEGIN SELECT RAISE(ABORT,'Account audit is append only'); END;
 CREATE TRIGGER iw_account_audit_no_update BEFORE UPDATE ON iw_account_audit BEGIN SELECT RAISE(ABORT,'Account audit is append only'); END;
 CREATE TRIGGER iw_account_audit_no_delete BEFORE DELETE ON iw_account_audit BEGIN SELECT RAISE(ABORT,'Account audit is append only'); END;
 CREATE TRIGGER iw_account_redactions_no_update BEFORE UPDATE ON iw_account_audit_redactions BEGIN SELECT RAISE(ABORT,'Audit redactions are append only'); END;
