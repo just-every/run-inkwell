@@ -8,7 +8,7 @@ const key=process.env.STRIPE_PAYMENTS_SECRET_KEY
 assert.ok(key&&process.env.INKWELL_STRIPE_SANDBOX==='true','Run with the held Stripe test key and explicit sandbox flag')
 const h=await harness({bindings:{STRIPE_PAYMENTS_SECRET_KEY:key,STRIPE_PAYMENTS_TEST_MODE:'true',STRIPE_PAYMENTS_BUYER_NAME:'Run Edit Run sandbox'},networkEdge:async request=>{
  if(new URL(request.url).hostname!=='api.stripe.com')return
- const response=await fetch(request.url,{method:request.method,headers:Object.fromEntries(request.headers),...(request.method==='GET'?{}:{body:await request.arrayBuffer()})})
+ const response=await fetch(request.url,{method:request.method,headers:Object.fromEntries(['authorization','content-type','idempotency-key'].filter(name=>request.headers.has(name)).map(name=>[name,request.headers.get(name)])),...(request.method==='GET'?{}:{body:await request.arrayBuffer()})})
  if(!response.ok){const detail=await response.clone().json().catch(()=>null);console.log(JSON.stringify({stripeProviderError:{status:response.status,type:detail?.error?.type,code:detail?.error?.code,param:detail?.error?.param}}))}
  return new Response(await response.arrayBuffer(),{status:response.status,headers:response.headers})
 }})
