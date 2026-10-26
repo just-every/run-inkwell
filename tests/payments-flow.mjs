@@ -23,6 +23,9 @@ export async function paymentFlowCases(){
   const sender=await h.invite('payments-sender@harbour.example','member'),person=(await h.send('/api/inkwell',undefined,sender)).value.actor
   await h.command('member.role',{operatorId:person.id,role:'sender'})
   await h.command('template.save',template(deposit),sender,403)
+  const admin=await h.invite('payments-admin@harbour.example','admin')
+  const configured=(await h.command('template.save',template(deposit),admin)).result
+  assert.ok(configured.id,'a signed-in admin can configure a requirement')
   const paid=await open('deposit@harbour.example')
   assert.deepEqual((await read(paid.id)).signers[0].payment,deposit)
   const frozen=(await read(paid.id)).signers[0].paymentAuthority
@@ -32,8 +35,15 @@ export async function paymentFlowCases(){
   await sign(paid,409)
   await h.post(paid.path+'/payment/start',await consent(paid),'',401)
   await h.post(paid.path+'/payment/start',{},paid.cookie,400)
+  await h.post(paid.path+'/payment/start',{...await consent(paid),cardNumber:'synthetic-inkwell-2'},paid.cookie,400)
+  const unrelated=await open('other-invitation@harbour.example')
+  await h.post(paid.path+'/payment/start',await consent(paid),unrelated.cookie,401)
+  await h.post(paid.path+'/payment/start',await consent(paid),h.owner,401)
   const checkout=(await h.post(paid.path+'/payment/start',await consent(paid),paid.cookie)).value
   assert.equal((await h.post(paid.path+'/payment/start',await consent(paid),paid.cookie)).value.reference,checkout.reference,'opening again resumes the same Stripe obligation')
+  const authorized=(await read(paid.id)).events.find(event=>event.action==='signer.payment_authorized')
+  assert.equal(authorized.detail.requirementVersion,frozen.version);assert.equal(authorized.detail.buyer,frozen.buyer.reference);assert.ok(authorized.detail.invitation);assert.ok(authorized.detail.consentText.includes('500.00 USD'));assert.ok(authorized.at)
+  assert.equal((await h.post(paid.path+'/payment/check',{},paid.cookie)).value.outcome,'pending');await sign(paid,409)
   provider.decline(checkout.reference)
   assert.equal((await h.post(paid.path+'/payment/check',{},paid.cookie)).value.outcome,'failed')
   await sign(paid,409)
@@ -62,11 +72,24 @@ export async function paymentFlowCases(){
   try{await restored.post('/api/inkwell/archive/restore',{archive});assert.equal((await restored.send('/api/inkwell/envelopes/'+paid.id,undefined,restored.owner)).value.envelope.signers[0].paymentReceipt.paymentIntent,completed.signers[0].paymentReceipt.paymentIntent)}finally{await restored.close()}
   for(const [kind,requirement] of [['payment',{kind:'payment',amount:10000,currency:'usd',method:'card'}],['saved_card',{kind:'saved_card',currency:'usd'}],['ach_mandate',{kind:'ach_mandate',currency:'usd'}]]){
    const session=await open(kind+'@harbour.example',requirement),started=(await h.post(session.path+'/payment/start',await consent(session),session.cookie)).value
-   provider.succeed(started.reference);await h.post(session.path+'/payment/check',{},session.cookie);await sign(session)
+   provider.succeed(started.reference)
+   const value=provider.sessions.get(started.reference),intent=value[kind==='payment'?'payment_intent':'setup_intent']
+   if(kind==='saved_card'){
+    const customer=intent.payment_method.customer;intent.payment_method.customer='cus_synthetic_inkwell_other';await sign(session,503);intent.payment_method.customer=customer
+   }
+   if(kind==='ach_mandate'){
+    provider.mandates.set(intent.mandate,'inactive');await sign(session,409);provider.mandates.set(intent.mandate,'active')
+   }
+   await h.post(session.path+'/payment/check',{},session.cookie);await sign(session)
    const record=await read(session.id);assert.equal(record.status,'completed');assert.ok(record.signers[0].paymentReceipt[kind==='payment'?'paymentIntent':'setupIntent']);if(kind==='ach_mandate')assert.ok(record.signers[0].paymentReceipt.mandate)
   }
   const malformed=await open('different-amount@harbour.example'),bad=(await h.post(malformed.path+'/payment/start',await consent(malformed),malformed.cookie)).value;provider.succeed(bad.reference);provider.sessions.get(bad.reference).amount_total=1
   await sign(malformed,503);assert.equal((await read(malformed.id)).signers[0].signedAt,undefined)
+  const unconfirmed=await open('unconfirmed@harbour.example'),attempt=(await h.post(unconfirmed.path+'/payment/start',await consent(unconfirmed),unconfirmed.cookie)).value,value=provider.sessions.get(attempt.reference),intent=value.payment_intent
+  provider.succeed(attempt.reference)
+  for(const status of ['processing','requires_action','canceled','unknown']){intent.status=status;await sign(unconfirmed,409);assert.equal((await read(unconfirmed.id)).signers[0].signedAt,undefined)}
+  intent.status='succeeded';value.client_reference_id=checkout.reference;await sign(unconfirmed,503)
+  assert.equal((await read(unconfirmed.id)).signers[0].signedAt,undefined,'another successful payment cannot satisfy this obligation')
   // Stripe can answer after an origin is revoked; the signature transaction must still refuse.
   const race=await open('revoked-embed-payment@harbour.example'),origin='https://portal.harbour.example'
   await h.post('/api/inkwell/embed-origins',{origin,enabled:true,consent:true})

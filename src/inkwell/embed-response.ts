@@ -85,7 +85,7 @@ export async function embedResponse(request:Request,env:Env,serve:(request:Reque
    const member=await operatorAuth(scope).getSession(new Request(request.url,{headers}))
    if(member)await scope.DB.prepare(`INSERT INTO iw_member_access(operator_id,last_access_at) VALUES(?,?) ON CONFLICT(operator_id) DO UPDATE SET last_access_at=MAX(iw_member_access.last_access_at,excluded.last_access_at)`).bind(member.operator.id,new Date().toISOString()).run()
   }
-  if(launch.mode==='sign'&&out.has('set-cookie'))out.set('set-cookie',out.get('set-cookie')!.replace('Path=/api/sign/','Path=/api/embed/'+id+'/api/sign/').replace('SameSite=Strict','SameSite=None; Secure; Partitioned'))
+  if(launch.mode==='sign'&&out.has('set-cookie')){const cookies=out.getSetCookie();out.delete('set-cookie');for(const cookie of cookies)out.append('set-cookie',cookie.replaceAll('Path=/api/sign/','Path=/api/embed/'+id+'/api/sign/').replace('SameSite=Strict','SameSite=None; Secure; Partitioned'))}
   out.set('cache-control','no-store');out.set('referrer-policy','no-referrer')
   return new Response(response.body,{status:response.status,headers:out})
  }catch(error){

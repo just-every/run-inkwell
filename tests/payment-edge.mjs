@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 
 /** Stripe alone is faked; all invitation, consent, policy and signed custody run through native doors. */
 export function paymentEdge(){
- const sessions=new Map(),customers=new Map();let count=0,block
+ const sessions=new Map(),customers=new Map(),mandates=new Map();let count=0,block
  const reference=(prefix,n)=>`${prefix}_synthetic_inkwell_${n}`
  const edge=async request=>{
   const url=new URL(request.url);if(url.hostname!=='api.stripe.com')return
@@ -16,9 +16,9 @@ export function paymentEdge(){
   }
   const match=/^\/v1\/checkout\/sessions\/([^/]+)$/.exec(url.pathname)
   if(match){if(block){const pending=block;block=undefined;pending.reached();await pending.wait}const value=sessions.get(match[1]);return value?Response.json(value):Response.json({error:'not found'},{status:404})}
-  if(url.pathname.startsWith('/v1/mandates/')){const id=url.pathname.split('/').at(-1),n=id.split('_').at(-1);return Response.json({id,livemode:false,status:'active',payment_method:reference('pm',n)})}
+  if(url.pathname.startsWith('/v1/mandates/')){const id=url.pathname.split('/').at(-1),n=id.split('_').at(-1);return Response.json({id,livemode:false,status:mandates.get(id)??'active',payment_method:reference('pm',n)})}
   throw new Error('Unexpected Stripe test edge request')
  }
  const outcome=(id,succeeded)=>{const value=sessions.get(id);assert.ok(value);const intent=value[value.mode==='setup'?'setup_intent':'payment_intent'];intent.status=succeeded?'succeeded':'requires_payment_method';if(succeeded&&value.mode==='payment')intent.amount_received=value.amount_total;if(succeeded){value.status='complete';value.payment_status=value.mode==='setup'?'no_payment_required':'paid';if(value.payment_method_types[0]==='us_bank_account')intent.mandate=reference('mandate',id.split('_').at(-1))}else intent[value.mode==='setup'?'last_setup_error':'last_payment_error']={code:'card_declined'}}
- return{edge,sessions,succeed:id=>outcome(id,true),decline:id=>outcome(id,false),blockNext(){let reached,release;const ready=new Promise(r=>reached=r),wait=new Promise(r=>release=r);block={reached,wait};return{ready,release}}}
+ return{edge,sessions,mandates,succeed:id=>outcome(id,true),decline:id=>outcome(id,false),blockNext(){let reached,release;const ready=new Promise(r=>reached=r),wait=new Promise(r=>release=r);block={reached,wait};return{ready,release}}}
 }

@@ -198,32 +198,52 @@ test('Signature controls: explicit owner/admin consent, fresh per-signature emai
  }finally{await h.close()}
 })
 
-test('Signature controls: signed-in, link-only, signing-group and hosted doors cannot bypass fresh recipient proof',async()=>{
+test('Signature controls: signed-in, link-only, signing-group, hosted and embedded doors cannot bypass fresh recipient proof',async()=>{
  const h=await harness()
  try{
   const pdf=await PDFDocument.create();pdf.addPage([612,792]);const bytes=Buffer.from(await pdf.save()).toString('base64'),field={id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.5,height:.05}
   const host=await h.invite('host@harbour.example','admin'),members=[{name:'Ada Park',email:'ada@harbour.example'},{name:'Ben Ortiz',email:'ben@harbour.example'}],group=(await h.command('account.signing_group',{name:'Qualified approvers',members})).result.groups[0]
-  for(const mode of ['member','link','group','hosted']){
-   const person=mode==='member'?{name:'Harbour Owner',email:'owner@harbour.example'}:mode==='group'?{group:group.id}:mode==='hosted'?{name:'Hosted signer',email:'hosted@harbour.example',inPerson:true}:{name:'Link signer',email:'link@harbour.example',linkOnly:true}
+  for(const mode of ['member','link','group','hosted','embedded']){
+   const person=mode==='member'?{name:'Harbour Owner',email:'owner@harbour.example'}:mode==='group'?{group:group.id}:mode==='hosted'?{name:'Hosted signer',email:'hosted@harbour.example',inPerson:true}:mode==='embedded'?{name:'Embedded signer',email:'embedded@harbour.example'}:{name:'Link signer',email:'link@harbour.example',linkOnly:true}
    const id=(await h.command('envelope.prepare',{title:'Signature profile '+mode,filename:'agreement.pdf',pdfBase64:bytes,signers:[person],fields:[field]})).result.id
    await h.command('envelope.part11',{id,confirm:true},mode==='hosted'?host:h.owner);await h.command('envelope.approve',{id,eligible:true})
-   let path,cookie,email=mode==='group'?members[1].email:person.email
+   let path,cookie,invitationCode,email=mode==='group'?members[1].email:person.email
    if(mode==='member'||mode==='hosted'){
     const opened=await h.post('/api/inkwell/commands',{command:mode==='member'?'envelope.open_signing':'envelope.host',input:{id,...(mode==='hosted'?{signer:0,confirmed:true,method:'personally-known',screen:{width:1440,height:900}}:{})},commandId:crypto.randomUUID()},mode==='member'?h.owner:host)
     path='/api'+new URL(opened.value.result.signing.url).pathname;cookie=opened.cookie
    }else{
     const invitation=await h.mail(email,'Please sign:'),link=new URL(invitation.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]);path='/api'+link.pathname
-    if(mode==='link')cookie=(await h.post(path+'/open',{},'')).cookie
+    if(mode==='embedded'){
+     const origin='https://portal.harbour.example'
+     await h.post('/api/inkwell/embed-origins',{origin,enabled:true,consent:true},h.owner)
+     const issued=await h.post('/api/inkwell/embeds',{origin,mode:'sign',token:link.pathname.split('/').at(-1),consent:true},h.owner)
+     const launch=await h.send(new URL(issued.value.url).pathname)
+     assert.equal(launch.status,303)
+     assert.match(launch.headers.get('location'),/^\/embed\/[a-f0-9]{64}$/)
+     path='/api'+launch.headers.get('location')+path;cookie=launch.cookie
+     await h.post(path+'/code',{},cookie)
+     invitationCode=(await h.mail(email,'verification code')).text.match(/\b\d{6}\b/)[0]
+     const verified=await h.post(path+'/verify',{code:invitationCode},cookie)
+     assert.ok(verified.headers.get('set-cookie').includes('Path='+path+';'),'embedded invitation proof remains scoped to its recipient')
+     cookie+='; '+verified.cookie
+    }else if(mode==='link')cookie=(await h.post(path+'/open',{},'')).cookie
     else{await h.post(path+'/code',{},'');cookie=(await h.post(path+'/verify',{code:(await h.mail(email,'verification code')).text.match(/\b\d{6}\b/)[0]},'')).cookie}
    }
    await h.agree(path,cookie)
    const body={values:{signature:mode==='group'?members[1].name:person.name},consent:true,signingReason:'Authorship',commandId:crypto.randomUUID()}
    await h.post(path+'/sign',body,cookie,403)
    await h.post(path+'/signature-code',{},cookie,403)
+   if(mode==='embedded'){
+    const enrolled=await enrolledSigner(h,email,person.name)
+    await h.post(path+'/signature-code',{},cookie+'; '+enrolled.cookie,403)
+    await h.post(path+'/sign',body,cookie+'; '+enrolled.cookie,403)
+   }
    cookie=await identify(h,path,cookie,email,mode==='group'?members[1].name:person.name)
    await h.post(path+'/sign',body,cookie,400)
+   if(mode==='embedded')await h.post(path+'/sign',{...body,signatureCode:invitationCode},cookie,401)
    await h.post(path+'/signature-code',{},cookie)
    let code=(await h.mail(email,'signature code')).text.match(/\b\d{6}\b/)[0]
+   if(mode==='embedded')await h.post(path+'/sign',{...body,signatureCode:code},cookie.split('; ').slice(0,-1).join('; '),403)
    if(mode==='member'){
     const oldPath=path,oldCookie=cookie,opened=await h.post('/api/inkwell/commands',{command:'envelope.open_signing',input:{id},commandId:crypto.randomUUID()})
     path='/api'+new URL(opened.value.result.signing.url).pathname;cookie=await identify(h,path,opened.cookie,email,person.name)
