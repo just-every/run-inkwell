@@ -128,9 +128,16 @@ export async function embeddingAuthorityCases(){
    for(const key of ['expiresAt','grantVersion','status'])if(detail[key]!==undefined)assert.equal(entry.after[key],detail[key])
   }
   const accountHistory=JSON.stringify(unified),digest=value=>createHash('sha256').update(value).digest('hex')
-  const confidential=[launched.url,launched.url.split('/').at(-1),session.id,session.cookie.split('=')[1],...signingTokens,...signingTokens.map(digest),'Mara Quinn','embed-mara@harbour.example','replacement@harbour.example','synthetic-inkwell-1','synthetic-inkwell-2',...audit.flatMap(row=>{const detail=JSON.parse(row.detail);return[detail.launch,detail.recipient,detail.allocation].filter(Boolean)})]
+  const documentIds=new Set(audit.map(row=>row.envelope_id).filter(Boolean))
+  const confidential=[['launch URL',launched.url],['launch credential',launched.url.split('/').at(-1)],['session ID',session.id],['session credential',session.cookie.split('=')[1]],...signingTokens.map(value=>['signing credential',value]),...signingTokens.map(value=>['signing digest',digest(value)]),...['Mara Quinn','embed-mara@harbour.example','replacement@harbour.example','synthetic-inkwell-1','synthetic-inkwell-2'].map(value=>['private value',value]),...audit.flatMap(row=>{
+   const detail=JSON.parse(row.detail)
+   // A prepared allocation becomes its document's opaque ID. Other allocation
+   // identifiers stay private, and the projection never publishes an allocation field.
+   return [['launch digest',detail.launch],['recipient digest',detail.recipient],['unpublished allocation',documentIds.has(detail.allocation)?null:detail.allocation]].filter(([,value])=>value)
+  })]
   assert.ok(audit.some(row=>JSON.parse(row.detail).launch)&&audit.some(row=>JSON.parse(row.detail).recipient),'real source records contain launch and recipient hashes that must be withheld')
-  for(const value of confidential)assert.ok(!accountHistory.includes(value),'embedding account history excludes credentials, hashes, recipient identity and private document values')
+  assert.ok(unified.some(entry=>entry.after.envelopeId===envelope),'the immutable history retains the erased document’s opaque context')
+  for(const [label,value] of confidential)assert.ok(!accountHistory.includes(value),'embedding account history excludes '+label)
   console.log('Embedded authority: canonical origins, roles, concurrent single redemption, lost response, cookie refusal, idempotent draft, explicit send, revocation, absolute expiry, audit and archive custody passed.')
  }finally{await h.close()}
 }
