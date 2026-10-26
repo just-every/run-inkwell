@@ -1,3 +1,6 @@
+import { fontHead } from '../base/font-head'
+import { pageStyle } from '../base/page-style'
+import { appStyles } from '../ui/styles'
 import { operatorAuth } from '../auth.server'
 import { insist, object, Refusal, secret, sha256, type Env } from './model'
 import { unseal } from './seal'
@@ -92,7 +95,7 @@ export async function embedResponse(request:Request,env:Env,serve:(request:Reque
   if(auditLaunch)await embedAudit(env,auditLaunch.actor,'request.refused',auditLaunch.origin,{purpose:auditLaunch.mode,grantVersion:auditLaunch.grant_version,launch:auditLaunch.token_hash,outcome:'refused',status:error instanceof Refusal?error.status:500},auditLaunch.envelope_id).run()
   else if(!(error instanceof ApiRateLimit))await embedAudit(env,'opaque:'+await sha256(request.headers.get('cf-connecting-ip')??'unavailable'),'authority.refused','',{purpose:entry?'redeem':'request',reference:await sha256((entry??api)![1]),outcome:'refused',status:error instanceof Refusal?error.status:500}).run()
   const status=error instanceof Refusal?error.status:500
-  if(entry)return new Response('<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app/shell.css"><title>Inkwell · Embedded session</title><body class="iw-app iw-signer"><main class="iw-main"><h1>Embedded session unavailable</h1><p>This launch expired, was already used, or its authorization ended. Ask for a fresh launch.</p><a href="/app" target="_blank" rel="noreferrer">Continue in Inkwell</a></main></body></html>',{status,headers:{...privateHeaders,'content-type':'text/html; charset=utf-8',...(error instanceof ApiRateLimit?{'retry-after':String(error.retryAfter)}:{})}})
+  if(entry)return new Response(`<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1">${fontHead}<link rel="stylesheet" href="/rer-theme.css">${appStyles.map(link=>'<link rel="stylesheet" href="'+link.href+'">').join('')}<style>${pageStyle}</style><title>Inkwell · Embedded session</title></head><body class="iw-app iw-signer"><main class="iw-main"><h1>Embedded session unavailable</h1><p>This launch expired, was already used, or its authorization ended. Ask for a fresh launch.</p><a href="/app" target="_blank" rel="noreferrer">Continue in Inkwell</a></main></body></html>`,{status,headers:{...privateHeaders,'content-type':'text/html; charset=utf-8',...(error instanceof ApiRateLimit?{'retry-after':String(error.retryAfter)}:{})}})
   return Response.json({error:error instanceof Refusal?error.message:'Embedded session could not be opened. Continue in Inkwell or ask for a fresh launch.'},{status,headers:{...privateHeaders,...(error instanceof ApiRateLimit?{'retry-after':String(error.retryAfter)}:{})}})
  }
 }

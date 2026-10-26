@@ -1281,7 +1281,7 @@
       "executable": false
     },
     "src/inkwell/embed-response.ts": {
-      "sha256": "a85caf8d998527959d9d17f87fc2f02a57a61f07d3e61e62d35d4bd5aae8c043",
+      "sha256": "067499cd38a36d0e5189dfa3a1f30a25dd84bc7092091f38f665c63d26cfcf58",
       "executable": false
     },
     "src/inkwell/embedding.ts": {
@@ -3997,7 +3997,7 @@
       "executable": false
     },
     "src/ui/signer-app.tsx": {
-      "sha256": "b3e637ef08b35a9cce84eddf1f5171ea5524f4a8e8bda7d4965793e8f0026074",
+      "sha256": "a8d3fe449340c7ba698e0fd9a798612ff51970727342c39da3db5837970eef37",
       "executable": false
     },
     "src/ui/signing-field-input.tsx": {
