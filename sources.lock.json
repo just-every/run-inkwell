@@ -4093,7 +4093,7 @@
       "executable": false
     },
     "tests/embedding-cases.mjs": {
-      "sha256": "dd94b0eb42bab951be71b09e68c3eca403cb52f57e0e0da3f406e914de846791",
+      "sha256": "ca7587c94bd39d21c1dcf2fd9a9155dd7dd98e1b6ffc7b72baff968767c68358",
       "executable": false
     },
     "tests/embedding-limits.mjs": {
@@ -4345,7 +4345,7 @@
       "executable": false
     },
     "tests/payments-flow.mjs": {
-      "sha256": "0236785b77e70ff7d3de1d9b3cb7770e5b86743d7bc549de3dda3ae651adb5a3",
+      "sha256": "fafdfd63c3ea7877582e47374894f5e1599451e22b3bee5ed9ea8b16ea7d5681",
       "executable": false
     },
     "tests/prefill.test.mjs": {

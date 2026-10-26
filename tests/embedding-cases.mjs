@@ -16,6 +16,8 @@ export async function embeddingAuthorityCases(){
   await h.post(base+'/embed-origins',{origin,enabled:true,consent:true},viewer,403)
   await h.command('member.role',{operatorId:person.id,role:'sender'})
   await h.post(base+'/embeds',{origin,mode:'prepare',consent:true},viewer,403)
+  const agent=(await h.command('agent.issue')).result.token
+  assert.equal((await h.send(base+'/embeds',{origin,mode:'prepare',consent:true},'',{authorization:'Bearer '+agent})).status,403,'a preparation agent cannot authorize an embedded launch')
   await h.post(base+'/embed-origins',{origin:'https://PORTAL.HARBOUR.EXAMPLE:443/',enabled:true,consent:true},admin)
   assert.deepEqual((await h.send(base+'/embed-origins',undefined,h.owner)).value.origins,[origin])
   for(const invalid of ['null','https://*.harbour.example','https://portal.harbour.example/path','https://user@portal.harbour.example','https://portal.harbour.example?x=1','https://portal.harbour.example#x'])await h.post(base+'/embed-origins',{origin:invalid,enabled:true,consent:true},h.owner,400)
@@ -53,8 +55,13 @@ export async function embeddingAuthorityCases(){
   const restored=await harness({now:start})
   try{await restored.post(base+'/archive/restore',{archive});assert.deepEqual((await restored.send(base+'/embed-origins',undefined,restored.owner)).value.origins,[]);assert.equal((await restored.send('/api/embed/'+session.id+'/meta',undefined,session.cookie)).status,403)}finally{await restored.close()}
   const beforeErasure=await redeem((await issue(h.owner,{mode:'sign',token:new URL((await h.mail('embed-mara@harbour.example','Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)})).value.url)
+  await h.command('envelope.correct',{id:envelope,signers:[{name:'Mara Quinn',email:'replacement@harbour.example'}]})
+  assert.equal((await api(beforeErasure,'/meta')).status,403,'recipient replacement refuses the next embedded read')
+  await h.command('envelope.correct',{id:envelope,signers:[{name:'Mara Quinn',email:'embed-mara@harbour.example'}]})
+  assert.equal((await api(beforeErasure,'/meta')).status,403,'restoring the earlier address never revives its old embedded authority')
+  const current=await redeem((await issue(h.owner,{mode:'sign',token:new URL((await h.mail('embed-mara@harbour.example','Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)})).value.url)
   await h.command('envelope.void',{id:envelope,reason:'Erasure after review'})
-  assert.equal((await api(beforeErasure,'/meta')).status,403,'voiding refuses the next read')
+  assert.equal((await api(current,'/meta')).status,403,'voiding refuses the next read')
   await h.post(base+'/erase',{id:envelope,confirmation:'ERASE'})
   assert.equal((await api(beforeErasure,'/api/sign/anything',{})).status,403)
   const later=(await h.send(base+'/archive',undefined,h.owner)).value,refusedRestore=await harness({now:start})

@@ -4,7 +4,7 @@ import { harness } from './harness.mjs'
 import { paymentEdge } from './payment-edge.mjs'
 
 export async function paymentFlowCases(){
- const provider=paymentEdge(),h=await harness({bindings:{STRIPE_PAYMENTS_SECRET_KEY:'synthetic-inkwell-1',STRIPE_PAYMENTS_TEST_MODE:'true'},networkEdge:provider.edge})
+ const start=Date.UTC(2026,9,26,12),provider=paymentEdge(),h=await harness({now:start,bindings:{STRIPE_PAYMENTS_SECRET_KEY:'synthetic-inkwell-1',STRIPE_PAYMENTS_TEST_MODE:'true'},networkEdge:provider.edge})
  const pdf=await PDFDocument.create();pdf.addPage([612,792]).drawText('Harbour Studio consulting agreement',{x:40,y:720});const bytes=Buffer.from(await pdf.save()).toString('base64')
  const field={id:'signature',label:'Client signature',type:'signature',signer:0,page:0,x:.1,y:.6,width:.4,height:.06},deposit={kind:'deposit',amount:50000,currency:'usd',method:'card'}
  const template=requirement=>({title:'Harbour consulting deposit',filename:'consulting.pdf',pdfBase64:bytes,roles:[{role:'Client',payment:requirement,paymentConsent:true}],fields:[field]})
@@ -68,6 +68,7 @@ export async function paymentFlowCases(){
   const copy=(await h.command('envelope.copy',{id:paid.id})).result.id;assert.deepEqual((await read(copy)).signers[0].payment,deposit);assert.equal((await read(copy)).signers[0].paymentReceipt,undefined)
   const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
   assert.ok(!archive.ndjson.includes(checkout.url),'active Checkout URL does not enter archive custody')
+  assert.ok(!archive.ndjson.split('\n').filter(Boolean).map(line=>JSON.parse(line)).flatMap(record=>record.items??[]).some(item=>item.kind==='row'&&item.table==='iw_payments'),'installation-local payment authority is excluded from the archive')
   const restored=await harness()
   try{await restored.post('/api/inkwell/archive/restore',{archive});assert.equal((await restored.send('/api/inkwell/envelopes/'+paid.id,undefined,restored.owner)).value.envelope.signers[0].paymentReceipt.paymentIntent,completed.signers[0].paymentReceipt.paymentIntent)}finally{await restored.close()}
   for(const [kind,requirement] of [['payment',{kind:'payment',amount:10000,currency:'usd',method:'card'}],['saved_card',{kind:'saved_card',currency:'usd'}],['ach_mandate',{kind:'ach_mandate',currency:'usd'}]]){
@@ -98,6 +99,18 @@ export async function paymentFlowCases(){
   const block=provider.blockNext(),pending=h.send(embedded+'/sign',{values:{signature:'Mara Quinn'},adoption:{method:'typed',style:'serif'},consent:true,commandId:crypto.randomUUID()},cookies)
   await block.ready;await h.post('/api/inkwell/embed-origins',{origin,enabled:false});block.release()
   assert.ok([403,409].includes((await pending).status));assert.equal((await read(race.id)).signers[0].signedAt,undefined,'revocation during provider verification fences the signature transaction')
+  await h.command('envelope.hold',{id:paid.id,reason:'Preserve the signed deposit agreement'})
+  await h.post('/api/inkwell/erase',{id:paid.id,confirmation:'ERASE'},h.owner,409)
+  await h.command('envelope.lift_hold',{id:paid.id})
+  await h.command('account.retention',{years:7})
+  await h.scheduled(start+86400000)
+  assert.equal((await read(paid.id)).status,'completed','the retained payment agreement survives the pre-due retention pass')
+  await h.command('account.retention',{years:null})
+  await h.post('/api/inkwell/erase',{id:paid.id,confirmation:'ERASE'})
+  assert.equal((await h.send(paid.path,undefined,paid.cookie)).status,404)
+  assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM iw_payments WHERE envelope_id=?').bind(paid.id).first()).n,0)
+  const later=(await h.send('/api/inkwell/archive',undefined,h.owner)).value,destination=await harness()
+  try{await destination.post('/api/inkwell/archive/restore',{archive,laterJournal:later},destination.owner,400)}finally{await destination.close()}
   console.log('Payments: template authority, deposit decline and success, payment, saved card, ACH mandate, provider binding, explicit signature, copies, archive custody and concurrent embedded revocation passed.')
  }finally{await h.close()}
 }
