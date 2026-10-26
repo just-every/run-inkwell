@@ -25,7 +25,7 @@ export async function saveFiling(env: Env, context: CommandContext, input: Recor
  insist(!input.enabled || input.consent === true, 'Explicitly authorize automatic transfer before enabling filing.')
  insist(!input.enabled || credential(env,provider), 'Configure the provider credential in this installation first.', 409)
  const folder = typeof input.folder === 'string' ? input.folder.trim() : ''
- insist(folder.length <= 1000 && !/[\x00-\x1f\x7f]/.test(folder), 'Provide a valid provider folder.')
+ insist(folder.length <= 1000 && !/[\\\x00-\x1f\x7f]/.test(folder), 'Provide a valid provider folder.')
  insist(provider === 'box' ? /^\d+$/.test(folder) : folder === '' || folder.startsWith('/') && !folder.endsWith('/') && !folder.includes('//') && !folder.split('/').some(p=>p==='.'||p==='..'), 'Use a Box folder ID or an absolute Dropbox folder path.')
  const before = await env.DB.prepare('SELECT * FROM iw_filing_rules WHERE template_id=? AND provider=?').bind(templateId,provider).first<Rule>()
  insist(input.expectedVersion === (before?.version ?? 0), 'Filing settings changed. Refresh and try again.',409)

@@ -988,6 +988,7 @@ test('Automatic filing requires administrative consent, stays within its templat
   assert.equal((await h.send('/api/inkwell/filing',payload,viewer)).status,403)
   assert.equal((await h.send('/api/inkwell/filing',{...payload,consent:false},h.owner)).status,400)
   assert.equal((await h.send('/api/inkwell/filing',payload,h.owner,{origin:'https://elsewhere.example'})).status,403)
+  assert.equal((await h.send('/api/inkwell/filing',{...payload,provider:'dropbox',folder:'/Harbour\\escape'},h.owner)).status,400)
   await saveFilingRule(h,templateId,'box')
   await finishFilingEnvelope(h,other,'supplier@harbour.example');assert.equal(edge.files().length,0,'a different template never files')
   edge.failNext('box','after')
