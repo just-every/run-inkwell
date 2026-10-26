@@ -19,9 +19,10 @@ import { scheduledPass } from './inkwell/scheduled'
 // Start documents keep their own cache policy and add no-transform, so no proxy
 // rewrites the HTML React hydrates (Cloudflare's email address obfuscation
 // honours it; src/base/hydration/README.md).
-function noTransform(response: Response): Response {
+function noTransform(response: Response, request: Request): Response {
   const headers = new Headers(response.headers), policy = headers.get('cache-control')
-  if (!headers.has('content-security-policy')) headers.set('content-security-policy', "frame-ancestors 'self'")
+  const path = new URL(request.url).pathname
+  if ((path === '/app' || path.startsWith('/app/') || path.startsWith('/sign/')) && !headers.has('content-security-policy')) headers.set('content-security-policy', "frame-ancestors 'self'")
   headers.set('cache-control', policy ? `${policy}, no-transform` : 'no-transform')
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
 }
@@ -33,7 +34,7 @@ export default withDemo({
     if (asset) return asset
     const hosted = await hostedResponse(request, runtimeBindings(env))
     if (hosted) return hosted
-    const embedded = await embedResponse(request, runtimeBindings(env), async req => new URL(req.url).pathname.startsWith('/api/') ? api.fetch(req, env, execution) : noTransform(await start.fetch(req)))
+    const embedded = await embedResponse(request, runtimeBindings(env), async req => new URL(req.url).pathname.startsWith('/api/') ? api.fetch(req, env, execution) : noTransform(await start.fetch(req), req))
     if (embedded) return embedded
     const auth = await authResponse(request, env)
     if (auth) return auth
@@ -45,7 +46,7 @@ export default withDemo({
     if (state) return state
     const lobby = await lobbyResponse(request, runtimeBindings(env), identity)
     if (lobby) return lobby
-    return rejectedResponse(request, await dispatch(request, () => api.fetch(request, env, execution), async () => noTransform(await start.fetch(request))))
+    return rejectedResponse(request, await dispatch(request, () => api.fetch(request, env, execution), async () => noTransform(await start.fetch(request), request)))
     })
   },
   // The hourly pass: DELIV-004 expiry warnings and DELIV-003 reminders.
