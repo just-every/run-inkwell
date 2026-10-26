@@ -134,8 +134,8 @@ member's current record access. Folder placement remains a member-session action
 
 ## Embedded signing and preparation
 
-Embedding is currently partial pending approval of its conservative authorization
-and credential-custody defaults. The following member-session doors are available
+The embedding authorization and custody defaults have CT policy approval with
+riders; implementation acceptance is recorded in CONTRACT.md. These member-session doors are available
 only to an owner or admin on the application's own origin; API keys and agent
 preparation credentials cannot use them.
 
@@ -147,23 +147,37 @@ preparation credentials cannot use them.
    additionally accept exact loopback HTTP origins for development.
 2. POST `/api/inkwell/embeds` with `origin`, `consent: true` and `mode: "sign"`
    plus the existing recipient `token`, or `envelopeId` and zero-based `signer`,
-   creates a recipient view URL without bypassing verification. With
-   `mode: "prepare"`, a native sign-in no older than 15 minutes authorizes the
+   creates a recipient view URL without bypassing verification. Either mode
+   requires a native sign-in no older than 15 minutes. With `mode: "prepare"`, it authorizes the
    existing preparation editor and explicit human sending review. That launch
    can create one envelope, then read, edit and approve only that envelope.
 3. Use the returned `url` as the iframe source in the allowed application's
-   page. Treat it as a private credential. Launches expire after 15 minutes.
+   page. Treat it as a private credential. A launch expires after 15 minutes and
+   is redeemed once, atomically. Redemption redirects to a separate public
+   session location. Reload that session to resume; retrying the original
+   launch refuses. A lost redemption response requires a fresh authorized
+   launch. The session never extends the original launch deadline.
    Embedded authentication uses Secure, HttpOnly partitioned cookies; a browser
    must support partitioned cookies. The ordinary native session is sealed on
-   the server, checked on each preparation request and never exposed to the
+   the server, checked on every embedded request and never exposed to the
    parent, embedded JavaScript or document archives.
+
+Before granting an origin or authorizing a launch, explain the exact parent,
+purpose, recipient or single draft allocation, and expiry. Consent allows only
+the status events below. It neither signs for a recipient nor automatically
+sends an invitation or grants the parent access to document content. The
+recipient separately authenticates and consents inside Inkwell. Changing or
+removing an origin permanently invalidates its outstanding authority; adding it
+again cannot revive an old launch or session. If browser cookie custody is
+unavailable, use the native continuation or obtain a fresh launch.
 
 The real signing screen retains recipient verification, access codes, routing,
 disclosure and document visibility. Successful actions send `inkwell.signed`,
 `inkwell.declined` and `inkwell.closed` messages to the exact authorized parent
-origin. Successful send submission additionally sends `inkwell.sent` with
-`envelopeId`; the record's status remains authoritative when internal approval
-or scheduling delays invitation. Signing and closing messages contain no
+origin. Sending that reaches the awaiting-signature state additionally sends
+`inkwell.sent` with `envelopeId`. Internal approval, a sending hold or a deferred
+release does not emit that event. The record's status remains authoritative.
+Signing and closing messages contain no
 recipient details, values, documents or credentials. Closing revokes the launch.
 No incoming parent message can sign, prepare or approve a document.
 
