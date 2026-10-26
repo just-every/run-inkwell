@@ -33,6 +33,16 @@ test('ADMIN-005: template, role, integration and native member changes have atom
  const first=await audit('limit=2'),second=await audit('limit=2&cursor='+encodeURIComponent(first.nextCursor));assert.equal(new Set([...first.entries,...second.entries].map(e=>e.id)).size,4,'timestamp ties do not repeat or lose page rows')
  const csv=await h.send('/api/inkwell/audit.csv?q='+encodeURIComponent(template),undefined,admin);assert.equal(csv.status,200);assert.match(csv.value,/Harbour account audit NDA revised/);assert.match(csv.value,/Harbour account audit NDA/)
  const unchanged=(await audit('target='+encodeURIComponent('member-role:'+person.id))).entries.length;await h.command('member.role',{operatorId:person.id,role:'sender'});assert.equal((await audit('target='+encodeURIComponent('member-role:'+person.id))).entries.length,unchanged,'setting the same role creates no fictitious change')
+ const memberTarget='member:'+ownerId
+ const originalEntries=(await audit('target='+encodeURIComponent(memberTarget))).entries
+ await h.db.prepare('INSERT INTO iw_account_audit_redactions(target,at,actor_id) VALUES(?,?,?)').bind(memberTarget,'2026-10-26T14:00:00.000Z',ownerId).run()
+ const redacted=(await audit('target='+encodeURIComponent(memberTarget))).entries
+ assert.deepEqual(redacted.map(e=>e.id),originalEntries.map(e=>e.id),'Redaction retains the original event identities')
+ assert.ok(!JSON.stringify(redacted).includes('Harbour Audit Owner'))
+ assert.equal((await audit('q='+encodeURIComponent('Harbour Audit Owner'))).entries.length,0,'Search does not match redacted values')
+ const redactedCsv=await h.send('/api/inkwell/audit.csv?target='+encodeURIComponent(memberTarget),undefined,h.owner)
+ assert.ok(!redactedCsv.value.includes('Harbour Audit Owner'))
+
 
  }finally{await h.close()}
 })

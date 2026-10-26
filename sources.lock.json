@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "e2745379c04559ff739c310c23a25dd63d6450b9c35411d46aba8258450d46bb",
+      "sha256": "cf337f62e418b74abcf01697c32a0e3ce6a7ce114a6a1db4808ccefe7f93b6ec",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "8fec7b9a45277c32e74aaf36112c83eaadfc27867256d22e53c201c23d219bd0",
+      "sha256": "84fd8edecab1e5b590f46f9605d7d2068e931624ca4f5e071bc8c60b4fd6c2fb",
       "executable": false
     },
     "DEMO.md": {
@@ -565,15 +565,15 @@
       "executable": false
     },
     "migrations/core/0067_account_audit.sql": {
-      "sha256": "fd4c2f1a88e33872a7efe38ebefeee22a26932a4418baa83eda00224810ef0b3",
+      "sha256": "d2bca492158cf476825457a65683e618ed85e35951bcc4f928c33f8634b2c35f",
       "executable": false
     },
     "migrations/core/0068_account_audit_families.sql": {
-      "sha256": "2773d9dd907a9d7c62b81a6d647bcb15e036af6d99cf7a81c230b49a9004b698",
+      "sha256": "9901898e3ca64166c36520432ae4561abded467b8fbca87c24f85f11b2c936a3",
       "executable": false
     },
     "migrations/core/0069_account_audit_activity.sql": {
-      "sha256": "39240f84555346961daa7399ac84bd76ad0af6a2068b7054f933471a4135666e",
+      "sha256": "057bb712767841795102805cd659253310451867aea6cdee24a75063eb836614",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -4097,7 +4097,7 @@
       "executable": false
     },
     "tests/account-audit.test.mjs": {
-      "sha256": "3cffea7cadb16b59352c1d6391b37f70cb5b6b3da5fc06a98c7bec02496a26a2",
+      "sha256": "77a93c253103384c4217f3e2837fd2917c50487f7c48399a99a75c10926698cf",
       "executable": false
     },
     "tests/api-keys.test.mjs": {

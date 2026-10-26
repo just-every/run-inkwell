@@ -61,7 +61,7 @@ CREATE TRIGGER iw_audit_member_role_insert AFTER INSERT ON iw_member_roles
 WHEN EXISTS(SELECT 1 FROM iw_account_audit_context WHERE singleton=1)
 BEGIN
  INSERT INTO iw_account_audit(id,at,actor_id,action,target,before_json,after_json)
- VALUES(lower(hex(randomblob(16))),strftime('%Y-%m-%dT%H:%M:%fZ','now'),(SELECT actor_id FROM iw_account_audit_context WHERE singleton=1),'member_role.assigned','member-role:'||NEW.operator_id,NULL,json_object('role',NEW.role));
+ VALUES(lower(hex(randomblob(16))),strftime('%Y-%m-%dT%H:%M:%fZ','now'),(SELECT actor_id FROM iw_account_audit_context WHERE singleton=1),'member_role.assigned','member-role:'||NEW.operator_id,json_object('role','viewer'),json_object('role',NEW.role));
 END;
 
 CREATE TRIGGER iw_audit_member_role_update AFTER UPDATE ON iw_member_roles
