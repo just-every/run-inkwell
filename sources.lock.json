@@ -3777,7 +3777,7 @@
       "executable": false
     },
     "src/ui/account-audit.tsx": {
-      "sha256": "29f7ef121ff2f78261caf3b53b5d4e95d4a28460a75418e51b24a6f1f9a9d34d",
+      "sha256": "f6daa62803cbbb00b4fc673220cc104ff5dadc3396d3193ca93127cd0d686e65",
       "executable": false
     },
     "src/ui/account-defaults.tsx": {

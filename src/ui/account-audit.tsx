@@ -34,7 +34,7 @@ export function AccountAudit() {
       const next = Object.fromEntries(Object.entries(filters).map(([key, value]) => [key, value.trim()])) as Filters
       void action.run(() => load(next))
     }}>
-      <label>Search account changes<input type="search" maxLength={300} disabled={action.busy} value={filters.q} onChange={event => setFilters(current => ({ ...current, q: event.target.value }))} /></label>
+      <label>Search account changes<input type="text" role="searchbox" inputMode="search" maxLength={300} disabled={action.busy} value={filters.q} onChange={event => setFilters(current => ({ ...current, q: event.target.value }))} /></label>
       <details><summary>Filter account changes</summary><div className="iw-stack">
         {(['actor', 'action', 'target'] as const).map(key => <label key={key}>{({ actor: 'Actor ID', action: 'Action', target: 'Target' })[key]}<input maxLength={300} disabled={action.busy} value={filters[key]} onChange={event => setFilters(current => ({ ...current, [key]: event.target.value }))} /></label>)}
       </div></details>
