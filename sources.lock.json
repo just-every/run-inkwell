@@ -1281,7 +1281,7 @@
       "executable": false
     },
     "src/inkwell/embed-response.ts": {
-      "sha256": "e775700b855b3ba45b4b8747242814f320aeeefc3d7055762195fe92dda80ff0",
+      "sha256": "a85caf8d998527959d9d17f87fc2f02a57a61f07d3e61e62d35d4bd5aae8c043",
       "executable": false
     },
     "src/inkwell/embedding.ts": {
@@ -4097,7 +4097,7 @@
       "executable": false
     },
     "tests/embedding-cases.mjs": {
-      "sha256": "ca7587c94bd39d21c1dcf2fd9a9155dd7dd98e1b6ffc7b72baff968767c68358",
+      "sha256": "aeca7d6ccbbbb229662d34ce3167f1675caf3c9490d3829b1c8017c69e714986",
       "executable": false
     },
     "tests/embedding-limits.mjs": {

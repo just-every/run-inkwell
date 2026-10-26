@@ -68,6 +68,8 @@ export async function embeddingAuthorityCases(){
   try{await refusedRestore.post(base+'/archive/restore',{archive,laterJournal:later},refusedRestore.owner,400)}finally{await refusedRestore.close()}
   const rows=(await h.db.prepare('SELECT detail FROM iw_embed_audit').all()).results
   assert.ok(rows.some(r=>JSON.parse(r.detail).consentVersion));assert.ok(!JSON.stringify(rows).includes(launched.url.split('/').at(-1))&&!JSON.stringify(rows).includes(session.cookie.split('=')[1]))
+  assert.ok(rows.some(r=>JSON.parse(r.detail).purpose==='authorization'&&JSON.parse(r.detail).outcome==='refused'),'unauthorized native embedding configuration is audited without credentials')
+  assert.ok(rows.some(r=>JSON.parse(r.detail).purpose==='redeem'&&JSON.parse(r.detail).outcome==='refused'),'unknown and replayed launches retain a safe refusal event')
   const adminActor=(await h.send(base,undefined,admin)).value.actor,revokedRole=await redeem((await issue(admin)).value.url)
   await h.post('/auth/operator/status',{operatorId:adminActor.id,status:'inactive'})
   await h.post('/auth/operator/status',{operatorId:adminActor.id,status:'active'})
