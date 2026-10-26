@@ -1261,7 +1261,7 @@
       "executable": false
     },
     "src/inkwell/embed-response.ts": {
-      "sha256": "2e9bd8bae94f3431b51939e2c65645c97f31345cedd63319aea52a06f3713f92",
+      "sha256": "7ac7a9cd96c1c8756afa0486e0745cf2593e6739d99530be95ab228e1e4a0716",
       "executable": false
     },
     "src/inkwell/embedding.ts": {

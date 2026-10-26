@@ -23,11 +23,17 @@ export async function embedResponse(request:Request,env:Env,serve:(request:Reque
   insist(credential,'Embedded session cannot be opened.',403)
   insist(!request.headers.has('authorization'),'Bearer credentials cannot use embedded sessions.',403)
   const headers=new Headers(request.headers);if(launch.mode==='prepare')headers.set('cookie',credential)
+  // COMPLY-002: the outer request carries only the embedded cookie. Count successful
+  // preparation access against its live native member without exposing that session.
+  const memberResponse=async(response:Response)=>{
+   if(launch.mode==='prepare'&&response.status<400){const member=await operatorAuth(env).getSession(new Request(request.url,{headers}));if(member)await env.DB.prepare(`INSERT INTO iw_member_access(operator_id,last_access_at) VALUES(?,?) ON CONFLICT(operator_id) DO UPDATE SET last_access_at=MAX(iw_member_access.last_access_at,excluded.last_access_at)`).bind(member.operator.id,new Date().toISOString()).run()}
+   return response
+  }
   let proxyRequest=request
   const path=api![2]
-  if(path==='/close'){insist(request.method==='POST','Use POST to close a session.',405);await env.DB.batch([env.DB.prepare('DELETE FROM iw_embed_launches WHERE token_hash=?').bind(launch.token_hash),env.DB.prepare('INSERT INTO iw_embed_audit VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),launch.actor,'launch.closed',launch.origin,new Date().toISOString())]);return Response.json({closed:true},{headers:{'cache-control':'no-store'}})}
+  if(path==='/close'){insist(request.method==='POST','Use POST to close a session.',405);await env.DB.batch([env.DB.prepare('DELETE FROM iw_embed_launches WHERE token_hash=?').bind(launch.token_hash),env.DB.prepare('INSERT INTO iw_embed_audit VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),launch.actor,'launch.closed',launch.origin,new Date().toISOString())]);return memberResponse(Response.json({closed:true},{headers:{'cache-control':'no-store'}}))}
   if(path==='/meta'&&launch.mode==='prepare')insist(await operatorAuth(env).getSession(new Request(request.url,{headers})),'The authorizing member session ended.',401)
-  if(path==='/meta')return Response.json({mode:launch.mode,origin:launch.origin,envelopeId:launch.envelope_id,...(launch.mode==='sign'?{token:credential}:{})},{headers:{'cache-control':'no-store'}})
+  if(path==='/meta')return memberResponse(Response.json({mode:launch.mode,origin:launch.origin,envelopeId:launch.envelope_id,...(launch.mode==='sign'?{token:credential}:{})},{headers:{'cache-control':'no-store'}}))
   let target:string
   if(launch.mode==='sign'){
    insist(path.startsWith('/api/sign/'+credential)&& (path==='/api/sign/'+credential||path.startsWith('/api/sign/'+credential+'/')),'This session opens only its recipient request.',403)
@@ -49,7 +55,7 @@ export async function embedResponse(request:Request,env:Env,serve:(request:Reque
   }
   url.pathname=target
   const response=await serve(new Request(url, new Request(proxyRequest,{headers}))),out=new Headers(response.headers)
-  if(launch.mode==='prepare'&&path==='/api/inkwell'&&response.ok){const body=await response.json() as {signingGroups?:unknown};return Response.json({signingGroups:body.signingGroups??[]},{headers:{'cache-control':'no-store'}})}
+  if(launch.mode==='prepare'&&path==='/api/inkwell'&&response.ok){const body=await response.json() as {signingGroups?:unknown};return memberResponse(Response.json({signingGroups:body.signingGroups??[]},{headers:{'cache-control':'no-store'}}))}
   if(launch.mode==='prepare'&&path==='/api/inkwell/commands'&&response.ok){
    const result=await response.clone().json() as {result?:{id?:string}}
    if(!launch.envelope_id&&result.result?.id)await env.DB.prepare('UPDATE iw_embed_launches SET envelope_id=? WHERE token_hash=? AND envelope_id IS NULL').bind(result.result.id,launch.token_hash).run()
@@ -59,6 +65,6 @@ export async function embedResponse(request:Request,env:Env,serve:(request:Reque
    if(set){out.set('set-cookie',set.replace('Path=/api/sign/','Path=/api/embed/'+id+'/api/sign/').replace('SameSite=Strict',new URL(env.AUTH_ORIGIN).protocol==='https:'?'SameSite=None; Partitioned':'SameSite=None; Secure; Partitioned'))}
   }
   out.set('cache-control','no-store')
-  return new Response(response.body,{status:response.status,headers:out})
+  return memberResponse(new Response(response.body,{status:response.status,headers:out}))
  }catch(error){return Response.json({error:error instanceof Refusal?error.message:'Embedded session could not be opened.'},{status:error instanceof Refusal?error.status:500,headers:{'content-security-policy':"frame-ancestors 'none'",'cache-control':'no-store'}})}
 }
