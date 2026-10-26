@@ -34,6 +34,7 @@ export async function embeddingAuthorityCases(){
   assert.equal((await api(session,'/api/inkwell/api-keys')).status,403)
   assert.equal((await h.send('/api/embed/'+session.id+'/close',{},session.cookie,{origin:'https://attacker.example'})).status,403)
   const lost=(await issue()).value;await redeem(lost.url);await redeem(lost.url,403)
+  await redeem(new URL('/embed/'+'b'.repeat(64),h.origin).href,403)
   const recovery=await redeem((await issue()).value.url);assert.equal((await api(recovery,'/meta')).status,200)
   console.log('Embedding authority: redemption passed')
   const pdf=await PDFDocument.create();pdf.addPage([612,792]).drawText('Harbour consulting deposit agreement',{x:40,y:720});const bytes=await pdf.save()
