@@ -38,7 +38,7 @@ export function withAuditDatabase(db: D1Database, actor: AccountAuditActor): D1D
       function statement(native: D1PreparedStatement): D1PreparedStatement {
         const write = writes(sql)
         const execute = async <T>() => (await batch<T>([wrapped]))[0]
-        const wrapped: D1PreparedStatement = {
+        const methods: Pick<D1PreparedStatement, 'bind' | 'first' | 'run' | 'all' | 'raw'> = {
           bind: (...values: unknown[]) => statement(native.bind(...values)),
           async first<T = Record<string, unknown>>(column?: string): Promise<T | null> {
             if (!write) return column === undefined ? native.first<T>() : native.first<T>(column)
@@ -57,6 +57,12 @@ export function withAuditDatabase(db: D1Database, actor: AccountAuditActor): D1D
             return options?.columnNames ? native.raw({ columnNames: true }) : native.raw()
           }) as D1PreparedStatement['raw'],
         }
+        // Preserve the native statement metadata used by composed D1 transports.
+        const wrapped = new Proxy(native, { get(target, property) {
+          if (Object.prototype.hasOwnProperty.call(methods, property)) return Reflect.get(methods, property)
+          const value = Reflect.get(target, property, target) as unknown
+          return typeof value === 'function' ? value.bind(target) : value
+        } })
         statements.set(wrapped, { native, writes: write })
         return wrapped
       }
