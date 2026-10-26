@@ -1,3 +1,4 @@
+import { filingView, saveFiling, retryFiling } from './filing'
 import { startProviderAuth, checkProviderAuth, providerAuthView } from './provider-auth'
 import { usageView, setUsagePolicy } from './usage'
 import { envelopeFolders, changeFolder, changeEnvelopeFolder } from './envelope-folders'
@@ -99,6 +100,18 @@ api.onError((error,c)=>{if(error instanceof ApiRateLimit)c.header('Retry-After',
 api.get('/health',c=>c.json({status:'ok',product:'Inkwell',...deploymentHealth(c.env)}))
 // MANAGE-001: the workspace is who is signed in, their agent tokens and people; envelopes are read a page or one at a time.
 api.get('/api/inkwell',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json({actor:{id:actor.id,name:actor.name,email:actor.email,role:actor.role},agents:actor.role==='owner'?await listAgents(c.env):[],people:['owner','admin'].includes(actor.role)?await listPeople(c.env):[],...(['owner','admin'].includes(actor.role)?{settings:{envelopeDefaults:await envelopeDefaults(c.env),freeForm:await freeFormPolicy(c.env),freeFormHistory:await freeFormHistory(c.env),completedCopies:await completedCopyDelivery(c.env),retention:await retentionView(c.env),healthcare:await healthcareProfile(c.env),internalApproval:await approvalView(c.env),sendPolicies:await sendPolicies(c.env),sendPolicyHistory:await sendPolicyHistory(c.env)}}:{}),...(actor.role==='viewer'?{}:{signingGroups:await listGroups(c.env)})})})
+api.get('/api/inkwell/filing',async c=>c.json(await filingView(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))
+api.post('/api/inkwell/filing',async c=>{
+ sameOrigin(c.req.raw,c.env)
+ const actor=await requireActor(c.req.raw,c.env,['owner','admin']),body=object(await readJson(c.req.raw,8192)),commandId=text(body.commandId,'a command ID',100),fingerprint=await sha256(canonical({filing:body}))
+ const previous=await previousCommand(c.env.DB,actor.id,commandId,fingerprint)
+ if(previous)return c.json(previous)
+ return c.json(await saveFiling(c.env,{actor,commandId,fingerprint,client:clientEvidence(c.req.raw)},body))
+})
+api.post('/api/inkwell/filing/retry',async c=>{
+ sameOrigin(c.req.raw,c.env)
+ return c.json(await retryFiling(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),object(await readJson(c.req.raw,4096))))
+})
 api.get('/api/inkwell/usage',async c=>{await requireActor(c.req.raw,c.env,['owner','admin']);return c.json(await usageView(c.env,new URL(c.req.url).searchParams.get('month')??undefined))})
 api.get('/api/inkwell/compliance/part11',async c=>{await requireActor(c.req.raw,c.env,['owner','admin']);return c.json(await complianceRecords(c.env))})
 api.post('/api/inkwell/compliance/password',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await enrollPassword(c.env,await requireActor(c.req.raw,c.env),await readJson(c.req.raw,4096)))})

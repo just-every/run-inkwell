@@ -7,7 +7,7 @@ type Portability = Awaited<ReturnType<typeof createPortability>>
  * events, codes, copy links, shares, activity-feed notices (DELIV-008) and command results, with Base's erasure record so
  * an earlier archive's restore is refused naming the erasure. The owner's erase and RECORD-005's purge both use it. */
 export async function erasureWrites(db: D1Database, service: Portability, envelopeId: string) {
- const deleted = ['iw_provider_auth','iw_sms','iw_part11_security_alerts','iw_part11_challenges','iw_comment_threads','iw_followup_grants','iw_followup_states','iw_followup_replies','iw_followup_capabilities','iw_blobs','iw_events','iw_signers','iw_mail','iw_access_codes','iw_copy_links','iw_shares'].map(table => db.prepare(`DELETE FROM ${table} WHERE envelope_id=?`).bind(envelopeId))
+ const deleted = ['iw_filing_jobs','iw_provider_auth','iw_sms','iw_part11_security_alerts','iw_part11_challenges','iw_comment_threads','iw_followup_grants','iw_followup_states','iw_followup_replies','iw_followup_capabilities','iw_blobs','iw_events','iw_signers','iw_mail','iw_access_codes','iw_copy_links','iw_shares'].map(table => db.prepare(`DELETE FROM ${table} WHERE envelope_id=?`).bind(envelopeId))
  return [
   ...await invalidateExitStatements(db,envelopeId),
   ...archiveMailErasure([`envelope:${envelopeId}`]).map(s=>db.prepare(s.sql).bind(...s.params??[])),

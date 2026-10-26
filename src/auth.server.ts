@@ -44,6 +44,8 @@ export interface Bindings {
  MAIL_RELAY_URL?: string
  MAIL_FROM?: string
  MAIL_API_KEY?: string
+ BOX_ACCESS_TOKEN?: string
+ DROPBOX_ACCESS_TOKEN?: string
  TWILIO_ACCOUNT_SID?: string
  TWILIO_AUTH_TOKEN?: string
  TWILIO_FROM?: string

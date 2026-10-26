@@ -1,3 +1,4 @@
+import { dispatchFiling } from './filing'
 import { recipientPdf, recipientCertificate } from './document-visibility'
 import { followupRecipients } from './followup-recipients'
 import { mailSuppressed } from './manual-invitations'
@@ -25,6 +26,7 @@ export function htmlBody(body: string, label: string) { return body.split('\n').
  * the provider that took it and the id it returned, so that provider's signed delivery events find it (delivery.ts). */
 /** ROUTE-004's approval notices are about a draft, so notices also go while an envelope is prepared. */
 export async function dispatchMail(env: Env, envelopeId: string) {
+ await dispatchFiling(env,envelopeId)
  await dispatchNotices(env)
  if(mailSuppressed(env)){await env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND state='pending'").bind(envelopeId).run();return}
  await env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND state='pending' AND kind IN ('invitation','code') AND EXISTS(SELECT 1 FROM iw_envelopes WHERE id=iw_mail.envelope_id AND json_extract(data,'$.signers[' || iw_mail.signer || '].inPerson')=1)").bind(envelopeId).run()

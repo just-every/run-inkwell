@@ -933,3 +933,76 @@ test('Knowledge questions admit a passing recipient and lock two failures with o
   for(const marker of [token,'1985-06-15','15-06-1985','private-provider-jwt','private-kba-question','private-kba-answer']) {assert.ok(!archive.includes(marker));assert.ok(!JSON.stringify(h.logs()).includes(marker))}
  }finally{await h.close()}
 })
+
+// INTEG-006: both official file edges receive the exact completed artifacts, with durable retries.
+async function filingTemplate(h,title='Harbour client agreement') {
+ return (await h.command('template.save',{title,filename:'agreement.pdf',pdfBase64:await pdf(),roles:[{role:'Client',order:1}],fields:[{id:'client-signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.6,width:.4,height:.07}]})).result.id
+}
+async function finishFilingEnvelope(h,templateId,email) {
+ const id=(await h.command('template.use',{id:templateId,recipients:[{name:'Mara Quinn',email}]})).result.id
+ await h.command('envelope.approve',{id,eligible:true})
+ const message=await h.mail(email,'Please sign:'),path='/api/sign/'+new URL(message.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)
+ await h.post(path+'/code',{},'')
+ const cookie=(await h.post(path+'/verify',{code:(await h.mail(email,'Your Inkwell verification code')).text.match(/\b\d{6}\b/)[0]},'')).cookie
+ await h.agree(path,cookie)
+ const body={commandId:crypto.randomUUID(),values:{'client-signature':'Mara Quinn'},consent:true,adoption:{method:'typed',style:'sans'}}
+ await h.post(path+'/sign',body,cookie)
+ return {id,path,cookie,body}
+}
+const saveFilingRule=(h,templateId,provider,extra={})=>h.post('/api/inkwell/filing',{commandId:crypto.randomUUID(),templateId,provider,folder:provider==='box'?'123456':'/Harbour completed',enabled:true,consent:true,expectedVersion:0,...extra})
+
+test('Box and Dropbox file the completed PDF and certificate exactly once despite interrupted responses, concurrent retries and signing replay',async()=>{
+ const {filingEdge}=await import('./filing-edge.mjs'),edge=filingEdge(),h=await harness({bindings:{BOX_ACCESS_TOKEN:'synthetic-inkwell-1',DROPBOX_ACCESS_TOKEN:'synthetic-inkwell-2'},networkEdge:edge.networkEdge})
+ try {
+  const templateId=await filingTemplate(h)
+  for(const provider of ['box','dropbox'])await saveFilingRule(h,templateId,provider)
+  edge.failNext('box','after');edge.failNext('dropbox','before')
+  const signed=await finishFilingEnvelope(h,templateId,'mara@harbour.example')
+  let view=(await h.send('/api/inkwell/filing',undefined,h.owner)).value
+  assert.equal(view.jobs.filter(job=>job.state==='uncertain').length,2,'both provider interruptions remain visible')
+  await Promise.all([h.post('/api/inkwell/filing/retry',{id:signed.id}),h.post('/api/inkwell/filing/retry',{id:signed.id})])
+  await h.post(signed.path+'/sign',signed.body,signed.cookie)
+  await h.post('/api/inkwell/filing/retry',{id:signed.id})
+  view=(await h.send('/api/inkwell/filing',undefined,h.owner)).value
+  assert.equal(view.jobs.length,4);assert.ok(view.jobs.every(job=>job.state==='filed'&&job.remote_id&&job.filed_at))
+  assert.equal(edge.files().length,4,'each provider has only one PDF and one certificate')
+  for(const provider of ['box','dropbox'])for(const kind of ['signed','certificate']){
+   const file=edge.files().find(file=>file.provider===provider&&file.name===`inkwell-${signed.id}-${kind}.pdf`)
+   assert.ok(file);const artifact=await h.send(`/api/inkwell/envelopes/${signed.id}/artifacts/${kind}`,undefined,h.owner)
+   assert.equal(artifact.status,200);assert.deepEqual(file.bytes,Buffer.from(artifact.bytes),'provider bytes equal the public completed artifact')
+  }
+  const attempts=edge.attempts().length
+  await h.scheduled(Date.now());assert.equal(edge.attempts().length,attempts,'filed jobs are never uploaded again')
+  assert.ok(!(JSON.stringify(h.logs())+JSON.stringify(view)).includes(JSON.stringify('synthetic-inkwell-1')),'provider credentials never enter views or logs')
+ }finally{await h.close()}
+})
+
+test('Automatic filing requires administrative consent, stays within its template, refuses conflicting bytes and cancels disabled rules',async()=>{
+ const {filingEdge}=await import('./filing-edge.mjs'),edge=filingEdge(),h=await harness({bindings:{BOX_ACCESS_TOKEN:'synthetic-inkwell-1',DROPBOX_ACCESS_TOKEN:'synthetic-inkwell-2'},networkEdge:edge.networkEdge})
+ try {
+  const templateId=await filingTemplate(h),other=await filingTemplate(h,'Supplier agreement')
+  assert.equal((await h.send('/api/inkwell/filing')).status,401)
+  const viewer=await h.invite('reader@harbour.example','member')
+  assert.equal((await h.send('/api/inkwell/filing',undefined,viewer)).status,403)
+  const payload={commandId:crypto.randomUUID(),templateId,provider:'box',folder:'123456',enabled:true,consent:true,expectedVersion:0}
+  assert.equal((await h.send('/api/inkwell/filing',payload,viewer)).status,403)
+  assert.equal((await h.send('/api/inkwell/filing',{...payload,consent:false},h.owner)).status,400)
+  assert.equal((await h.send('/api/inkwell/filing',payload,h.owner,{origin:'https://elsewhere.example'})).status,403)
+  await saveFilingRule(h,templateId,'box')
+  await finishFilingEnvelope(h,other,'supplier@harbour.example');assert.equal(edge.files().length,0,'a different template never files')
+  edge.failNext('box','after')
+  const signed=await finishFilingEnvelope(h,templateId,'client@harbour.example'),initial=(await h.send('/api/inkwell/filing',undefined,h.owner)).value,failedKind=initial.jobs.find(job=>job.state==='uncertain').kind,remote=edge.files().find(file=>file.name===`inkwell-${signed.id}-${failedKind}.pdf`)
+  edge.corrupt(remote.id)
+  await h.post('/api/inkwell/filing/retry',{id:signed.id})
+  let view=(await h.send('/api/inkwell/filing',undefined,h.owner)).value
+  assert.equal(view.jobs.find(job=>job.kind===failedKind).state,'uncertain','a conflicting remote file is never accepted or overwritten')
+  edge.repair(remote.id)
+  await saveFilingRule(h,templateId,'box',{enabled:false,expectedVersion:1})
+  const attempts=edge.attempts().length
+  await h.post('/api/inkwell/filing/retry',{id:signed.id})
+  view=(await h.send('/api/inkwell/filing',undefined,h.owner)).value
+  assert.equal(view.jobs.find(job=>job.kind===failedKind).state,'cancelled');assert.equal(edge.attempts().length,attempts,'disabling consent stops remaining outbound work')
+  const history=(await h.db.prepare('SELECT * FROM iw_filing_history ORDER BY rowid').all()).results
+  assert.equal(history.length,2);assert.ok(history[0].consent&&history[0].actor&&history[0].at)
+ }finally{await h.close()}
+})

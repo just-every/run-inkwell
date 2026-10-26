@@ -294,3 +294,11 @@ addresses). `rer door restart` drains and restarts the door: checkouts that
 were starting finish starting, and open tabs reconnect. After a reboot or logout the door needs `rer door start` (or any
 `rer dev` in a checkout that uses it); `rer door stop` and `rer door disable`
 stop it and opt this computer out.
+
+## Completed record filing
+
+Box and Dropbox filing uses an existing provider folder and an installation-held access token. Configure `BOX_ACCESS_TOKEN` for Box and `DROPBOX_ACCESS_TOKEN` for Dropbox through the installation's private environment. Use credentials authorized to upload and read file metadata in the selected folder. Never put credentials in source, templates or filing rules. Token expiry requires the installation administrator to reconnect the provider; no automatic credential refresh is claimed.
+
+In Settings, Automatic filing, choose a template, provider and folder, then explicitly authorize the transfer. Box uses a numeric folder ID; Dropbox uses an absolute folder path (empty means its root). Each completed envelope creates one job for its executed PDF and one for its certificate at each selected destination. Deterministic filenames and verified provider fingerprints prevent duplicate files on a manual retry. Unconfirmed uploads remain visible; Retry filing verifies a pre-existing file before accepting it and never overwrites different content. Disabling a rule cancels remaining work. A request already in flight may finish.
+
+Filing credentials, rules, consent history and dispatch receipts are installation state and are excluded from archives. The envelope audit retains the authorization reference. Restore never resumes provider uploads. Erasing an envelope removes its local filing jobs; it does not delete copies already transferred to a provider. RECORD-005, PORT-001, ERASE-001 and COMPLY-002 retain their existing custody, erasure and logging boundaries. Live provider provisioning and token lifecycle operation are separate from the network-edge fake acceptance of INTEG-006.
