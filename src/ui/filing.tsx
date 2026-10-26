@@ -24,8 +24,8 @@ export function FilingSettings({ templates }: { templates:{id:string;title:strin
    await request('/api/inkwell/filing',{commandId:crypto.randomUUID(),templateId,provider,folder,enabled,consent,expectedVersion:rule?.version??0})
    await load();setSaved(true)
   })}}>
-   <label>Filing template<select required value={templateId} onChange={event=>{setTemplateId(event.target.value);setSaved(false)}}><option value="">Choose a template</option>{templates.map(template=><option key={template.id} value={template.id}>{template.title}</option>)}</select></label>
-   <label>Filing provider<select value={provider} onChange={event=>{setProvider(event.target.value as Provider);setSaved(false)}}><option value="box">Box</option><option value="dropbox">Dropbox</option></select></label>
+   <label>Filing template<select aria-label="Filing template" required value={templateId} onChange={event=>{setTemplateId(event.target.value);setSaved(false)}}><option value="">Choose a template</option>{templates.map(template=><option key={template.id} value={template.id}>{template.title}</option>)}</select></label>
+   <label>Filing provider<select aria-label="Filing provider" value={provider} onChange={event=>{setProvider(event.target.value as Provider);setSaved(false)}}><option value="box">Box</option><option value="dropbox">Dropbox</option></select></label>
    <p role="status">{providerName(provider)} credential {view.providers[provider]?'configured':'not configured; ask your installation administrator to connect this provider'}.</p>
    <label>{provider==='box'?'Box folder ID':'Dropbox folder path'}<input required={provider==='box'} value={folder} onChange={event=>setFolder(event.target.value)} maxLength={1000} placeholder={provider==='box'?'123456789':'/Completed agreements'}/></label>
    <label className="iw-check"><input type="checkbox" checked={enabled} onChange={event=>{setEnabled(event.target.checked);setConsent(false)}}/>Enable automatic filing for this template and provider</label>
