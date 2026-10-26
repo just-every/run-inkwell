@@ -74,7 +74,3 @@ export function auditCsv(data: AccountAuditPage | readonly AccountAuditEntry[] |
   })()
 }
 
-/** Erasure appends a redaction fence; immutable source entries retain their identity. */
-export function accountAuditIdentityRedaction(db: D1Database, operatorId: string): D1PreparedStatement[] {
-  return [db.prepare("INSERT OR IGNORE INTO iw_account_audit_redactions(target,at,actor_id) VALUES(?,strftime('%Y-%m-%dT%H:%M:%fZ','now'),'system:erasure')").bind(`member:${operatorId}`)]
-}

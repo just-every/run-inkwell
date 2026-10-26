@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "cf337f62e418b74abcf01697c32a0e3ce6a7ce114a6a1db4808ccefe7f93b6ec",
+      "sha256": "ba69e321b2a27b6732f05faa88fbdaeb341b17104d768a4e2eefb8a11c387e5b",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "84fd8edecab1e5b590f46f9605d7d2068e931624ca4f5e071bc8c60b4fd6c2fb",
+      "sha256": "8749a7599717b6eb49a765e8ac8e7d50f529dc7f233100c903912d0588e27d13",
       "executable": false
     },
     "DEMO.md": {
@@ -1109,7 +1109,7 @@
       "executable": false
     },
     "src/inkwell/account-audit.ts": {
-      "sha256": "265397fa0b86167d805f2a5e9dee2e6ab3007777fb84ba57d8f371c82e638774",
+      "sha256": "bd9aa8176c8496e8aeebe73db2dfa35a53a3798233bf6b408f816edfcd8eba4c",
       "executable": false
     },
     "src/inkwell/agents.ts": {
