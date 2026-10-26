@@ -130,7 +130,7 @@ try {
   await tabTo(app, app.getByRole('button', { name: 'New envelope' })); await app.keyboard.press('Enter')
   await tabTo(app, app.getByLabel('Envelope title')); await app.keyboard.type('Keyboard supply agreement')
   await tabTo(app, app.getByLabel('Fixed PDF document'))
-  const [chooser] = await Promise.all([app.waitForEvent('filechooser'), app.keyboard.press('Space')])
+  const [chooser] = await Promise.all([app.waitForEvent('filechooser'), app.getByLabel('Fixed PDF document').press('Space')])
   await chooser.setFiles({ name: 'supply.pdf', mimeType: 'application/pdf', buffer: pdfBuffer })
   for (const [index, name] of ['Mara Quinn', 'Theo Park'].entries()) { await tabTo(app, app.getByLabel(`Recipient ${index + 1} name`)); await app.keyboard.type(name); await tabTo(app, app.getByLabel(`Recipient ${index + 1} email`)); await app.keyboard.type(`${name.split(' ')[0].toLowerCase()}@harbour.example`) }
   await tabTo(app, app.getByRole('button', { name: /^Place field on page 1/ })); await app.keyboard.press('Enter')
