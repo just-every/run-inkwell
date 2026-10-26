@@ -63,6 +63,6 @@ export async function startInkwellWithMail({ inbound = false, sms = false, smsPr
       const body = JSON.stringify({ type: 'email.received', data: { email_id: messageId } })
       return call('/api/inkwell/mail/replies', { body, headers: { 'svix-id': eventId, 'svix-timestamp': timestamp, 'svix-signature': 'v1,' + createHmac('sha256', Buffer.from(inboundSecret, 'base64')).update(`${eventId}.${timestamp}.${body}`).digest('base64') } })
     }
-    return { smsMessages:()=>[...smsCaptured], origin, owner, ownerCookie, reply, call, command, mail, sent: () => [...captured], deliver, verify, scheduled, browser, close }
+    return { db, smsMessages:()=>[...smsCaptured], origin, owner, ownerCookie, reply, call, command, mail, sent: () => [...captured], deliver, verify, scheduled, browser, close }
   } catch (error) { await close(); throw error }
 }

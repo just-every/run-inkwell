@@ -75,7 +75,8 @@ export function composition(templates: Template[], choices: CompositionChoices =
     if (canonical(merged.witnesses ?? null) !== canonical(original.witnesses ?? null)) conflicts.push({ kind: 'witnesses', role: key, templates: [...merged.sources.map(s => s.template), ti],
       message: `${label}: witness requirements differ; the merged role retains the stricter requirements.` })
     if (merged.payment && original.payment) insist(samePaymentRequirement(merged.payment, original.payment), `Role ${label} has conflicting payment requirements. Change the templates before combining.`, 409)
-    if (!merged.payment && original.payment) merged.payment = structuredClone(original.payment)
+    if(merged.payment&&original.payment)insist(merged.paymentAuthority?.buyer.reference===original.paymentAuthority?.buyer.reference,`Role ${label} has conflicting Stripe buyers. Change the templates before combining.`,409)
+    if (!merged.payment && original.payment){merged.payment=structuredClone(original.payment);merged.paymentAuthority=structuredClone(original.paymentAuthority)}
     merged.witnesses = combineWitnesses(merged.witnesses, original.witnesses)
     merged.accessCode = Boolean(merged.accessCode || original.accessCode)
     merged.sources.push(source)

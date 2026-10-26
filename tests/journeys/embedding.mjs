@@ -15,7 +15,7 @@ await embeddingAuthorityCases()
 await embeddingLimitCases()
 const app=await startInkwellWithMail(),proof=process.env.INKWELL_EMBED_PROOF_DIR??join(tmpdir(),'inkwell-embedding')
 let launchUrl=''
-const host=()=>createServer((req,res)=>{res.setHeader('content-type','text/html');res.end(`<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harbour Studio client portal</title><style>body{margin:0;font:16px system-ui;background:#f5f7f8;color:#162a32}header{padding:16px}h1{font-size:22px}iframe{width:100%;height:calc(100vh - 180px);border:0;background:white}output{display:block;padding:16px}</style><header><h1>Harbour Studio client portal</h1><p>Review your consulting agreement securely.</p></header><iframe title="Inkwell document workspace" src="${launchUrl}"></iframe><output aria-live="polite">Waiting for the document workspace</output><script>window.events=[];const frame=document.querySelector('iframe');addEventListener('message',e=>{if(e.origin!==${JSON.stringify(app.origin)}||e.source!==frame.contentWindow||!e.data?.type?.startsWith('inkwell.'))return;window.events.push(e.data);document.querySelector('output').textContent=e.data.type})</script></html>`)})
+const host=()=>createServer((req,res)=>{if(req.url==='/nested'){res.setHeader('content-type','text/html');res.end('<!doctype html><title>Unlisted outer portal</title><iframe title="Allowed intermediary" src="'+allowedOrigin+'"></iframe>');return}res.setHeader('content-type','text/html');res.end(`<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harbour Studio client portal</title><style>body{margin:0;font:16px system-ui;background:#f5f7f8;color:#162a32}header{padding:16px}h1{font-size:22px}iframe{width:100%;height:calc(100vh - 180px);border:0;background:white}output{display:block;padding:16px}</style><header><h1>Harbour Studio client portal</h1><p>Review your consulting agreement securely.</p></header><iframe title="Inkwell document workspace" src="${launchUrl}"></iframe><output aria-live="polite">Waiting for the document workspace</output><script>window.events=[];const frame=document.querySelector('iframe');addEventListener('message',e=>{if(e.origin!==${JSON.stringify(app.origin)}||e.source!==frame.contentWindow||!e.data?.type?.startsWith('inkwell.'))return;window.events.push(e.data);document.querySelector('output').textContent=e.data.type})</script></html>`)})
 const allowed=host(),denied=host()
 await Promise.all([new Promise(r=>allowed.listen(0,'127.0.0.1',r)),new Promise(r=>denied.listen(0,'127.0.0.1',r))])
 const allowedOrigin=`http://localhost:${allowed.address().port}`,deniedOrigin=`http://localhost:${denied.address().port}`
@@ -53,9 +53,15 @@ try{
   await expect.poll(()=>refusedByPolicy).toBe(true)
   await expect(page.frameLocator('iframe').getByRole('heading',{name:`Harbour Studio consulting agreement ${width}`})).toHaveCount(0)
   await page.screenshot({path:join(proof,`${width}-origin-refused.png`),fullPage:true})
+  refusedByPolicy=false;launchUrl=await launch('sign',token);await page.goto(deniedOrigin+'/nested');await expect.poll(()=>refusedByPolicy).toBe(true)
   launchUrl=await launch('sign',token)
   await page.goto(allowedOrigin)
   const frame=page.frameLocator('iframe')
+  await frame.getByRole('button',{name:'Email me a code',exact:true}).waitFor()
+  const visibleLocation=await frame.locator('body').evaluate(()=>location.href)
+  assert.notEqual(visibleLocation,launchUrl,'redemption removes the launch credential from the visible location')
+  assert.equal(await frame.locator('body').evaluate((el,secret)=>[...Object.values(localStorage),...Object.values(sessionStorage)].some(value=>value.includes(secret)),new URL(launchUrl).pathname.split('/').at(-1)),false,'launch credentials never enter browser storage')
+  const popupPromise=page.waitForEvent('popup');await page.evaluate(url=>{window.open(url)},app.origin+'/payment-return');const popup=await popupPromise;await popup.setViewportSize({width,height:width===390?844:1000});await popup.waitForLoadState();await popup.evaluate(origin=>opener.postMessage({type:'inkwell.signed'},origin),allowedOrigin);await page.evaluate(()=>postMessage({type:'inkwell.signed'},location.origin));assert.deepEqual(await events(page),[],'wrong event origin and source window are ignored');await popup.screenshot({path:join(proof,`${width}-native-continuation.png`),fullPage:true});await axe(popup,'Payment return '+width);await popup.close()
   await frame.getByRole('button',{name:'Email me a code',exact:true}).click()
   await frame.getByRole('status').filter({hasText:'Code sent. Check your email.'}).waitFor()
   const code=app.mail(email,'Your Inkwell verification code').text.match(/\b\d{6}\b/)[0]
@@ -119,7 +125,7 @@ try{
   await axe(page.frames().find(f=>f.url().startsWith(app.origin+'/embed/')),'Embedded preparing '+width)
   await frame.getByRole('button',{name:'Save prepared envelope',exact:true}).click()
   await frame.getByRole('checkbox',{name:/I reviewed this envelope and authorize/}).waitFor().catch(async error=>{console.error('Preparation alerts:',await frame.getByRole('alert').allTextContents());throw error})
-  assert.equal(app.mail(`prepared-${width}@harbour.example`,'Please sign:'),undefined,'preparation never sends automatically')
+  await page.evaluate(()=>{const frame=document.querySelector('iframe');frame.contentWindow.postMessage({type:'inkwell.send'},new URL(frame.src).origin)});assert.equal(app.mail(`prepared-${width}@harbour.example`,'Please sign:'),undefined,'preparation never sends automatically')
   launchUrl=await frame.locator('body').evaluate(()=>location.href)
   await page.reload()
   await frame.getByRole('checkbox',{name:/I reviewed this envelope and authorize/}).check()
@@ -134,6 +140,10 @@ try{
   const base='/api/embed/'+(await frame.locator('body').evaluate(()=>location.pathname.split('/').at(-1)))
   assert.equal(await frame.locator('body').evaluate(async(el,base)=>(await fetch(base+'/api/inkwell/api-keys')).status,base),403)
   assert.equal(await frame.locator('body').evaluate(async(el,base)=>(await fetch(base+'/api/inkwell/commands',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({command:'agent.issue',commandId:crypto.randomUUID(),input:{}})})).status,base),403)
+  // Blocking browser cookie custody must yield an actionable native continuation.
+  await page.route('**/api/embed/**',route=>{const headers={...route.request().headers()};delete headers.cookie;return route.continue({headers})})
+  launchUrl=await launch('prepare');await page.reload();await frame.getByRole('link',{name:'Continue in Inkwell',exact:true}).waitFor();await capture(page,frame,width,'cookie-refused');await axe(page.frames().find(f=>f.url().startsWith(app.origin+'/embed/')),'Cookie refusal '+width);await page.unroute('**/api/embed/**')
+  const expiryUrl=await frame.locator('body').evaluate(()=>location.href),expiryId=new URL(expiryUrl).pathname.split('/').at(-1);await app.db.prepare('UPDATE iw_embed_launches SET expires_at=? WHERE session_id=?').bind(Date.now()-1,expiryId).run();const expired=await context.newPage();await expired.goto(expiryUrl);await expired.getByRole('heading',{name:'Embedded session unavailable',exact:true}).waitFor();assert.ok(await expired.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await expired.screenshot({path:join(proof,`${width}-expired.png`),fullPage:true});await axe(expired,'Embedded expiry '+width);await expired.close()
   await context.close()
  }
  // Native session revocation is checked again at the embedded public API door.

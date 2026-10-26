@@ -47,7 +47,7 @@ export function PaymentRequirementEditor({ label, value, consent = false, readOn
     <div className="iw-stack">
       <label>Stripe requirement<select aria-label={`${label} Stripe requirement`} disabled={disabled} value={value?.kind ?? ''} onChange={event => {
         const kind = event.target.value as PaymentRequirement['kind'] | ''
-        if (!kind) { onChange(undefined, false); return }
+        if (!kind) { onChange(undefined, true); return }
         const nextCurrency = kind === 'ach_mandate' ? 'usd' : value?.currency ?? 'usd'
         onChange(kind === 'saved_card' || kind === 'ach_mandate' ? { kind, currency: nextCurrency } : { kind, amount: minorAmount(amount, nextCurrency), currency: nextCurrency, method: charged ? charged.method : 'card' }, false)
       }}><option value="">No requirement</option><option value="payment">Payment</option><option value="deposit">Deposit</option><option value="saved_card">Saved card</option><option value="ach_mandate">ACH mandate</option></select></label>

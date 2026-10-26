@@ -43,7 +43,7 @@ export async function embedResponse(request:Request,env:Env,serve:(request:Reque
   insist(!request.headers.has('authorization'),'Bearer credentials cannot use embedded sessions.',403)
   const credential=await unseal(env,'embed-launch',launch.token_hash,launch.sealed)
   insist(credential,'Embedded session cannot be opened.',403)
-  const scope={...env,embedProvenance:{origin:launch.origin,purpose:launch.mode,grantVersion:launch.grant_version,launch:launch.token_hash},DB:embeddedDatabase(env.DB,embedGuard(launch)),...(launch.mode==='prepare'?{embedAllocation:launch.allocation}:{})}
+  const scope={...env,embedProvenance:{origin:launch.origin,purpose:launch.mode,grantVersion:launch.grant_version,launch:launch.token_hash},DB:embeddedDatabase(env.DB,()=>embedGuard(launch)),...(launch.mode==='prepare'?{embedAllocation:launch.allocation}:{})}
   const headers=new Headers(request.headers);if(launch.mode==='prepare')headers.set('cookie',credential)
   const path=api![2]
   if(path==='/close'){

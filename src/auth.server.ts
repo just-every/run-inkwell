@@ -16,6 +16,7 @@ const theme = { href: '/frame.css', productName: branding.name, accentColor: bra
 export interface Bindings {
  STRIPE_PAYMENTS_SECRET_KEY?: string
  STRIPE_PAYMENTS_TEST_MODE?: string
+ STRIPE_PAYMENTS_BUYER_NAME?: string
  RER_OWNER_CLAIM_ISSUER?: string
  RER_OWNER_CLAIM_INSTALLATION_ID?: string
  RER_OWNER_CLAIM_PUBLIC_KEYS?: string

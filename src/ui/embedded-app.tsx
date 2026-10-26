@@ -29,9 +29,9 @@ export function EmbeddedApp() {
     setClosed(true)
   })
   const submit = () => void action.run(async () => {
-    await command('envelope.approve', { id: envelope!.id, eligible })
+    const submitted=await command<{status:string}>('envelope.approve', { id: envelope!.id, eligible })
     await refresh(envelope!.id)
-    embedEvent(launch!.origin, 'sent', envelope!.id)
+    if(submitted.status==='awaiting_signature')embedEvent(launch!.origin, 'sent', envelope!.id)
   })
   if (!launch) return <div className="iw-app iw-signer"><main className="iw-main">
     <h1>Embedded session</h1><ErrorNotice error={action.error} />

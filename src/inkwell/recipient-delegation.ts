@@ -100,6 +100,7 @@ export async function completeDelegation(env: Env, context: SigningContext, inpu
     const name = text(entry.name, 'the recipient name', 100), email = text(entry.email, 'the recipient email', 254).toLowerCase()
     insist(!/[\r\n\t]/.test(name) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), 'Supply a real name and a valid recipient email.')
     const renamed = name !== original.name || email !== original.email
+    insist(!original.payment||!renamed,'A payment requirement stays with its authorized payer. Ask the sender to prepare a new envelope.',409)
     insist(!original.group || !renamed && entry.phone === undefined, 'A signing group’s snapshotted identity cannot be changed by a recipient.', 403)
     insist(!original.sms || !renamed || entry.phone !== undefined && entry.phone !== '', 'Supply this recipient’s mobile number explicitly when changing their SMS identity.')
     const mobile = smsIdentity({ sms: Boolean(original.sms), phone: entry.phone, linkOnly: original.linkOnly, inPerson: original.inPerson, ...(original.group ? { group: original.group } : {}) }, original)

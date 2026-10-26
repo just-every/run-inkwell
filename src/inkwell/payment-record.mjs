@@ -3,7 +3,8 @@ export function validPaymentRecord(envelope,canonical){
  try{
   for(const [index,signer] of envelope.signers.entries()){
    const prepared=envelope.events.findLast(event=>['envelope.prepared','envelope.updated'].includes(event.action))?.detail.orderedSigners?.[index];
-   if(canonical(signer.payment??null)!==canonical(prepared?.payment??null))return false;
+   if(canonical(signer.payment??null)!==canonical(prepared?.payment??null)||canonical(signer.paymentAuthority??null)!==canonical(prepared?.paymentAuthority??null))return false;
+   if(signer.payment&&(!signer.paymentAuthority?.buyer?.reference||!signer.paymentAuthority.buyer.name||!signer.paymentAuthority.version||!signer.paymentAuthority.actor||!Number.isFinite(Date.parse(signer.paymentAuthority.at))))return false;
    const receipt=signer.paymentReceipt;
    if(receipt){
     if(!signer.payment||!['pending','failed','succeeded'].includes(receipt.outcome)||typeof receipt.reference!=='string'||typeof receipt.livemode!=='boolean')return false;

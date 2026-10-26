@@ -1,23 +1,25 @@
 import { insist } from './model'
-import { parsePaymentRequirement, paymentMethodType, paymentMode, type PaymentReceipt, type PaymentRequirement } from './payment-requirement'
+import { parsePaymentRequirement, paymentMethodType, paymentMode, type PaymentAuthority, type PaymentReceipt, type PaymentRequirement } from './payment-requirement'
 
-export interface PaymentBindings { STRIPE_PAYMENTS_SECRET_KEY?: string; STRIPE_PAYMENTS_TEST_MODE?: string }
+export interface PaymentBindings { STRIPE_PAYMENTS_SECRET_KEY?: string; STRIPE_PAYMENTS_TEST_MODE?: string; STRIPE_PAYMENTS_BUYER_NAME?: string }
 type ProviderObject = Record<string, unknown>
 export interface StartPaymentCheckout {
   requirement: PaymentRequirement
   idempotencyKey: string
   /** Opaque, immutable identifier bound to this invitation and requirement by the caller. */
   reference: string
+  buyerReference: string
   /** The caller constructs this from its own trusted installation origin. */
   returnUrl: string
 }
-export interface CheckPaymentCheckout { requirement: PaymentRequirement; reference: string; clientReference: string }
+export interface CheckPaymentCheckout { requirement: PaymentRequirement; reference: string; clientReference: string; buyerReference: string }
 export const paymentsReady = (env: PaymentBindings) => Boolean(env.STRIPE_PAYMENTS_SECRET_KEY)
 
 function credential(env: PaymentBindings) {
   const key = env.STRIPE_PAYMENTS_SECRET_KEY
   insist(key, 'Payments are not configured. Ask the sender to configure Stripe.', 503)
-  return { key, livemode: env.STRIPE_PAYMENTS_TEST_MODE !== 'true' }
+  insist(env.STRIPE_PAYMENTS_TEST_MODE === 'true', 'Payment at signing currently requires Stripe test mode.', 503)
+  return { key, livemode: false }
 }
 
 function record(value: unknown): ProviderObject {
@@ -62,6 +64,25 @@ async function stripe(env: PaymentBindings, path: string, form?: URLSearchParams
   return record(parsed)
 }
 
+/** Account identity comes from authenticated Stripe data, never from a client-provided name. */
+export async function paymentBuyer(env: PaymentBindings): Promise<PaymentAuthority['buyer']> {
+  const account = await stripe(env, 'account')
+  const reference = providerReference(account.id, 'acct')
+  const profile = account.business_profile && typeof account.business_profile === 'object' ? account.business_profile as ProviderObject : undefined
+  const settings = account.settings && typeof account.settings === 'object' ? account.settings as ProviderObject : undefined
+  const dashboard = settings?.dashboard && typeof settings.dashboard === 'object' ? settings.dashboard as ProviderObject : undefined
+  const name = [profile?.name, dashboard?.display_name, env.STRIPE_PAYMENTS_BUYER_NAME].find(value => typeof value === 'string' && value.trim())
+  insist(typeof name === 'string' && name.trim().length <= 200 && !/[\u0000-\u001f\u007f]/.test(name), 'Configure an explicit Stripe buyer business name before requiring payment.', 503)
+  // Stripe Account has no livemode field. Sessions, intents, methods and mandates prove mode.
+  return { reference, name: name.trim() }
+}
+
+async function checkBuyer(env: PaymentBindings, expected: string) {
+  const reference = providerReference(expected, 'acct')
+  const buyer = await paymentBuyer(env)
+  insist(buyer.reference === reference, 'The configured Stripe account does not match this payment requirement.', 503)
+}
+
 function requirementOf(value: PaymentRequirement) {
   const requirement = parsePaymentRequirement(value)
   insist(requirement, 'Choose a payment requirement.')
@@ -82,14 +103,16 @@ function checkoutUrl(value: unknown) {
 }
 
 export async function startPaymentCheckout(env: PaymentBindings, input: StartPaymentCheckout): Promise<{ reference: string; url: string }> {
-  credential(env)
   const requirement = requirementOf(input.requirement), mode = paymentMode(requirement)
   insist(typeof input.reference === 'string' && /^[A-Za-z0-9:_-]{1,180}$/.test(input.reference), 'Provide the payment obligation reference.')
   insist(typeof input.idempotencyKey === 'string' && /^[A-Za-z0-9:_-]{1,220}$/.test(input.idempotencyKey), 'Provide a payment request identifier.')
   const returnUrl = continuation(input.returnUrl)
+  await checkBuyer(env, input.buyerReference)
   const form = new URLSearchParams({ mode, client_reference_id: input.reference, success_url: returnUrl, cancel_url: returnUrl, 'payment_method_types[0]': paymentMethodType(requirement) })
+  form.set('metadata[buyer_reference]', input.buyerReference)
+  form.set(`${mode === 'setup' ? 'setup_intent_data' : 'payment_intent_data'}[metadata][buyer_reference]`, input.buyerReference)
   if (mode === 'setup') {
-    // A setup must retain an attached method usable by the buyer later, not an orphaned token.
+    // Setup confirms attachment only; it confers no authority for unspecified future charges.
     const customer = await stripe(env, 'customers', new URLSearchParams({ 'metadata[signing_reference]': input.reference }), input.idempotencyKey + ':customer')
     checkMode(env, customer)
     form.set('customer', providerReference(customer.id, 'cus'))
@@ -112,11 +135,13 @@ export async function startPaymentCheckout(env: PaymentBindings, input: StartPay
 /** Only this authenticated read establishes an outcome; the browser's return address establishes none. */
 export async function checkPaymentCheckout(env: PaymentBindings, input: CheckPaymentCheckout): Promise<PaymentReceipt> {
   const requirement = requirementOf(input.requirement), mode = paymentMode(requirement), reference = providerReference(input.reference, 'cs')
+  await checkBuyer(env, input.buyerReference)
   const intentName = mode === 'payment' ? 'payment_intent' : 'setup_intent'
   const query = new URLSearchParams({ 'expand[]': intentName + '.payment_method' })
   const session = await stripe(env, 'checkout/sessions/' + encodeURIComponent(reference) + '?' + query)
   checkMode(env, session)
   insist(session.id === reference && session.mode === mode && session.client_reference_id === input.clientReference, 'Stripe returned a different payment obligation.', 503)
+  insist(record(session.metadata).buyer_reference === input.buyerReference, 'Stripe returned a different buyer payment obligation.', 503)
   insist(Array.isArray(session.payment_method_types) && session.payment_method_types.length === 1 && session.payment_method_types[0] === paymentMethodType(requirement), 'Stripe returned a different payment method.', 503)
   const receipt: PaymentReceipt = { reference, outcome: 'pending', livemode: session.livemode as boolean }
   const customer = optionalReference(session.customer, 'cus'); if (customer) receipt.customer = customer
@@ -130,7 +155,7 @@ export async function checkPaymentCheckout(env: PaymentBindings, input: CheckPay
   const intentReference = providerReference(intent.id, mode === 'payment' ? 'pi' : 'seti')
   insist(intentReference === providerReference(rawIntent, mode === 'payment' ? 'pi' : 'seti'), 'Stripe returned a different payment intent.', 503)
   const metadata = record(intent.metadata)
-  insist(metadata.signing_reference === input.clientReference, 'Stripe returned a different payment intent obligation.', 503)
+  insist(metadata.signing_reference === input.clientReference && metadata.buyer_reference === input.buyerReference, 'Stripe returned a different payment intent obligation.', 503)
   if (mode === 'payment') {
     receipt.paymentIntent = intentReference
     insist('amount' in requirement && intent.amount === requirement.amount && intent.currency === requirement.currency, 'Stripe returned a different payment amount.', 503)
@@ -144,12 +169,14 @@ export async function checkPaymentCheckout(env: PaymentBindings, input: CheckPay
     const details = typeof intent.payment_method === 'string' ? await stripe(env, 'payment_methods/' + encodeURIComponent(paymentMethod)) : record(intent.payment_method)
     checkMode(env, details)
     insist(details.id === paymentMethod && details.type === paymentMethodType(requirement), 'Stripe returned a different payment method.', 503)
+    if (mode === 'setup') insist(customer && optionalReference(details.customer, 'cus') === customer, 'Stripe has not attached the payment method to the buyer’s customer.', 503)
   }
   if (intent.status === 'canceled' || session.status === 'expired' || intent.status === 'requires_payment_method' && (intent.last_payment_error || intent.last_setup_error)) { receipt.outcome = 'failed'; return receipt }
   if (session.status !== 'complete' || intent.status !== 'succeeded') return receipt
   insist(paymentMethod, 'Stripe confirmed no payment method.', 503)
   if (mode === 'payment') {
     insist(session.payment_status === 'paid', 'Stripe has not confirmed the payment.', 409)
+    insist('amount' in requirement && intent.amount_received === requirement.amount, 'Stripe has not confirmed receipt of the required payment amount.', 503)
   } else if (requirement.kind === 'ach_mandate') {
     const mandateReference = providerReference(intent.mandate, 'mandate')
     const mandate = await stripe(env, 'mandates/' + encodeURIComponent(mandateReference))

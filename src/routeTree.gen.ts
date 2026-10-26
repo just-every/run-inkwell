@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/app'
+import { Route as PaymentReturnRouteImport } from './routes/payment-return'
 import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as CopyTokenRouteImport } from './routes/copy.$token'
 import { Route as EmbedIdRouteImport } from './routes/embed.$id'
@@ -19,6 +20,11 @@ import { Route as SignTokenRouteImport } from './routes/sign.$token'
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaymentReturnRoute = PaymentReturnRouteImport.update({
+  id: '/payment-return',
+  path: '/payment-return',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VerifyRoute = VerifyRouteImport.update({
@@ -49,6 +55,7 @@ const SignTokenRoute = SignTokenRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/app': typeof AppRoute
+  '/payment-return': typeof PaymentReturnRoute
   '/verify': typeof VerifyRoute
   '/copy/$token': typeof CopyTokenRoute
   '/embed/$id': typeof EmbedIdRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/app': typeof AppRoute
+  '/payment-return': typeof PaymentReturnRoute
   '/verify': typeof VerifyRoute
   '/copy/$token': typeof CopyTokenRoute
   '/embed/$id': typeof EmbedIdRoute
@@ -66,6 +74,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/app': typeof AppRoute
+  '/payment-return': typeof PaymentReturnRoute
   '/verify': typeof VerifyRoute
   '/copy/$token': typeof CopyTokenRoute
   '/embed/$id': typeof EmbedIdRoute
@@ -76,6 +85,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/app'
+    | '/payment-return'
     | '/verify'
     | '/copy/$token'
     | '/embed/$id'
@@ -84,6 +94,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/app'
+    | '/payment-return'
     | '/verify'
     | '/copy/$token'
     | '/embed/$id'
@@ -92,6 +103,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/app'
+    | '/payment-return'
     | '/verify'
     | '/copy/$token'
     | '/embed/$id'
@@ -101,6 +113,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRoute
+  PaymentReturnRoute: typeof PaymentReturnRoute
   VerifyRoute: typeof VerifyRoute
   CopyTokenRoute: typeof CopyTokenRoute
   EmbedIdRoute: typeof EmbedIdRoute
@@ -115,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/payment-return': {
+      id: '/payment-return'
+      path: '/payment-return'
+      fullPath: '/payment-return'
+      preLoaderRoute: typeof PaymentReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/verify': {
@@ -157,6 +177,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRoute,
+  PaymentReturnRoute: PaymentReturnRoute,
   VerifyRoute: VerifyRoute,
   CopyTokenRoute: CopyTokenRoute,
   EmbedIdRoute: EmbedIdRoute,

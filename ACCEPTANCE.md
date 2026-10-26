@@ -156,6 +156,17 @@ Run every changed origin-management, consent, preparation, signing, closure, ref
 - **INTEG-008 — Locket handoff** (partial). A Locket-initiated envelope completes and Locket shows the executed record against the approved revision; a downloaded handoff manifest still verifies offline. Objections routed to Locket inherit AGENT-003’s grant, pause, reply readers and envelope custody before shipping.
 - **INTEG-009 — Zapier, Make, Power Automate, n8n and Crank** (missing). Each app's test harness triggers on a completion and sends from a template.
 - **INTEG-010 — Payment at signing through Stripe** (missing). In Stripe test mode, a signer pays a 500 USD deposit and the envelope completes with the payment reference; a declined card leaves the envelope waiting with the signature unsaved.
+
+  **CT policy approved with riders; no implementation acceptance or status change.** Prove every INTEG-010 approved default and rider in CONTRACT.md through public doors, faking Stripe only at the network edge for deterministic assertions. Prove signed-in owner and admin configuration, refusal of unauthorized configuration, recorded immutable requirement versions, and preservation of an envelope’s frozen requirement after template edits.
+
+  Prove separate consent by the assigned authenticated signer, the exact applicable wording and audit evidence, refusal without consent, and refusal of unauthorized or cross-invitation starts. Prove successful PaymentIntent confirmation for payment and deposit with matching amount, currency and buyer account; successful SetupIntent confirmation and buyer Customer attachment for saved card; and the additional active mandate requirement for ACH. Show that setup success neither establishes payment nor authorizes unspecified later charges.
+
+  Prove that browser return, Checkout completion alone, pending, processing, declined, canceled, unknown, mismatched and replayed results cannot satisfy the wrong requirement, save the attempted signature or complete the envelope. Preserve earlier valid signatures and all existing authentication, consent and routing gates.
+
+  Prove reference-only provider custody with immutable requirements, normalized outcomes and minimum authorization audit evidence; absence of forbidden payment data and usable capabilities from records, certificates, logs, traces, errors and archives; installation-local credentials and active authority; historical restore without active authority; and copies with reset outcomes and fresh consent. Exercise existing retention, legal hold, export, erasure and restore fences.
+
+  Every changed screen requires keyboard, accessibility and browser evidence at 1440 and 390 pixels. Deterministic provider-fake evidence and actual Stripe test-mode operation must be reported separately. Payment Element, refunds and disputes handling, receipts, tax, recurring billing handoff to Nectar, and live mode remain named Gaps. No production money operation or compliance certification follows from this acceptance journey.
+
 - **INTEG-011 — Signing service for sibling products** (missing). A Lodge-style client sends an offer letter from a template with no approval step, the record names its key and the policy, and the client receives the completion webhook and executed PDF.
 
 ### Mobile

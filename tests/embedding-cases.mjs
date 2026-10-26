@@ -15,7 +15,7 @@ export async function embeddingAuthorityCases(){
   const admin=await h.invite('embed-admin@harbour.example','admin'),viewer=await h.invite('embed-viewer@harbour.example','member'),person=(await h.send(base,undefined,viewer)).value.actor
   await h.post(base+'/embed-origins',{origin,enabled:true,consent:true},viewer,403)
   await h.command('member.role',{operatorId:person.id,role:'sender'})
-  await issue(viewer).then(()=>assert.fail('sender cannot issue'),()=>{})
+  await h.post(base+'/embeds',{origin,mode:'prepare',consent:true},viewer,403)
   await h.post(base+'/embed-origins',{origin:'https://PORTAL.HARBOUR.EXAMPLE:443/',enabled:true,consent:true},admin)
   assert.deepEqual((await h.send(base+'/embed-origins',undefined,h.owner)).value.origins,[origin])
   for(const invalid of ['null','https://*.harbour.example','https://portal.harbour.example/path','https://user@portal.harbour.example','https://portal.harbour.example?x=1','https://portal.harbour.example#x'])await h.post(base+'/embed-origins',{origin:invalid,enabled:true,consent:true},h.owner,400)
@@ -35,7 +35,12 @@ export async function embeddingAuthorityCases(){
   const recovery=await redeem((await issue()).value.url);assert.equal((await api(recovery,'/meta')).status,200)
   console.log('Embedding authority: redemption passed')
   const pdf=await PDFDocument.create();pdf.addPage([612,792]).drawText('Harbour consulting deposit agreement',{x:40,y:720});const bytes=await pdf.save()
+  const uploadSession=await redeem((await issue()).value.url),upload=(await api(uploadSession,'/api/inkwell/documents/uploads',{filename:'agreement.pdf',bytes:bytes.length})).value
+  const part=await h.mf.dispatchFetch(h.origin+'/api/embed/'+uploadSession.id+'/api/inkwell/documents/uploads/'+upload.id+'/parts/0',{method:'PUT',headers:{origin:h.origin,cookie:uploadSession.cookie,'content-type':'application/octet-stream','x-inkwell-test-time':String(start)},body:bytes});assert.equal(part.status,200)
+  const inspected=await api(uploadSession,'/api/inkwell/documents/fields',{uploadId:upload.id});assert.equal(inspected.status,200)
+  assert.equal((await api(session,'/api/inkwell/documents/fields',{uploadId:upload.id})).status,404,'another embedded allocation cannot inspect staged bytes')
   const prepared={title:'Harbour embedded agreement',filename:'agreement.pdf',pdfBase64:Buffer.from(bytes).toString('base64'),signers:[{name:'Mara Quinn',email:'embed-mara@harbour.example'}],fields:[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.6,width:.4,height:.06}]}
+  const uploaded=await api(uploadSession,'/api/inkwell/commands',{command:'envelope.prepare',commandId:'upload-proof',input:{...prepared,documents:[{uploadId:upload.id,mode:'sign'}]}});assert.equal(uploaded.status,200,JSON.stringify(uploaded.value))
   const saved=await api(session,'/api/inkwell/commands',{command:'envelope.prepare',commandId:'first',input:prepared});assert.equal(saved.status,200,JSON.stringify(saved.value))
   const envelope=saved.value.result.id,retried=await api(session,'/api/inkwell/commands',{command:'envelope.prepare',commandId:'retry',input:prepared});assert.equal(retried.value.result.id,envelope)
   assert.equal(await h.mail('embed-mara@harbour.example','Please sign:'),undefined,'opening and preparing sends no invitation')

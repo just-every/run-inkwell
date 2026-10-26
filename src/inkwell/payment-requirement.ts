@@ -5,6 +5,25 @@ export type PaymentRequirement =
   | { kind: 'payment' | 'deposit'; amount: number; currency: string; method: 'card' | 'ach' }
   | { kind: 'saved_card' | 'ach_mandate'; currency: string }
 
+/** Configuration authority is frozen with the exact requirement on each envelope. */
+export interface PaymentAuthority {
+  actor: string
+  at: string
+  version: string
+  buyer: { reference: string; name: string }
+}
+
+/** Shared by signer display and consent audit evidence; amounts have no currency symbol. */
+export function paymentConsentText(requirement: PaymentRequirement, buyer: string): string {
+  if (requirement.kind === 'saved_card') return `I agree to continue to Stripe Checkout to save a card with ${buyer} for this signing request. Stripe collects my card details directly. This step does not charge my card or authorize unspecified future charges. Inkwell keeps the requirement, Stripe references, result and consent audit evidence. My signature will not be saved until Stripe confirms successful setup.`
+  if (requirement.kind === 'ach_mandate') return `I agree to continue to Stripe Checkout to review and authorize the ACH mandate for ${buyer} for the purpose shown here. Stripe collects my bank details directly. Establishing this mandate does not confirm a payment or authorize charges beyond the mandate’s disclosed terms. Inkwell keeps the requirement, Stripe references, result and consent audit evidence. My signature will not be saved until Stripe confirms successful setup and an active mandate.`
+  insist('amount' in requirement, 'A payment needs an amount.')
+  const currency = requirement.currency.toUpperCase()
+  const digits = new Intl.NumberFormat('en-US', { style: 'currency', currency }).resolvedOptions().maximumFractionDigits!
+  const amount = (requirement.amount / 10 ** digits).toFixed(digits)
+  return `I agree to continue to Stripe Checkout to pay ${amount} ${currency} to ${buyer} for this signing request. Stripe collects my payment details directly. Inkwell keeps the payment requirement, Stripe references, result and consent audit evidence. My signature will not be saved until Stripe confirms successful payment.`
+}
+
 export type PaymentOutcome = 'pending' | 'succeeded' | 'failed'
 /** Business custody contains only provider references and a normalized outcome. */
 export interface PaymentReceipt {
