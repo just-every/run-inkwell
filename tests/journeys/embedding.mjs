@@ -11,7 +11,7 @@ import { axe } from './a11y.mjs'
 // Real independent host pages embed the emitted application; only the mail provider is faked.
 const app=await startInkwellWithMail(),proof=process.env.INKWELL_EMBED_PROOF_DIR??join(tmpdir(),'inkwell-embedding')
 let launchUrl=''
-const host=()=>createServer((req,res)=>{res.setHeader('content-type','text/html');res.end(`<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harbour Studio client portal</title><style>body{margin:0;font:16px system-ui;background:#f5f7f8;color:#162a32}header{padding:16px}h1{font-size:22px}iframe{width:100%;height:1100px;border:0;background:white}output{display:block;padding:16px}</style><header><h1>Harbour Studio client portal</h1><p>Review your consulting agreement securely.</p></header><iframe title="Inkwell document workspace" src="${launchUrl}"></iframe><output aria-live="polite">Waiting for the document workspace</output><script>window.events=[];const frame=document.querySelector('iframe');addEventListener('message',e=>{if(e.origin!==${JSON.stringify(app.origin)}||e.source!==frame.contentWindow||!e.data?.type?.startsWith('inkwell.'))return;window.events.push(e.data);document.querySelector('output').textContent=e.data.type})</script></html>`)})
+const host=()=>createServer((req,res)=>{res.setHeader('content-type','text/html');res.end(`<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Harbour Studio client portal</title><style>body{margin:0;font:16px system-ui;background:#f5f7f8;color:#162a32}header{padding:16px}h1{font-size:22px}iframe{width:100%;height:calc(100vh - 180px);border:0;background:white}output{display:block;padding:16px}</style><header><h1>Harbour Studio client portal</h1><p>Review your consulting agreement securely.</p></header><iframe title="Inkwell document workspace" src="${launchUrl}"></iframe><output aria-live="polite">Waiting for the document workspace</output><script>window.events=[];const frame=document.querySelector('iframe');addEventListener('message',e=>{if(e.origin!==${JSON.stringify(app.origin)}||e.source!==frame.contentWindow||!e.data?.type?.startsWith('inkwell.'))return;window.events.push(e.data);document.querySelector('output').textContent=e.data.type})</script></html>`)})
 const allowed=host(),denied=host()
 await Promise.all([new Promise(r=>allowed.listen(0,'127.0.0.1',r)),new Promise(r=>denied.listen(0,'127.0.0.1',r))])
 const allowedOrigin=`http://localhost:${allowed.address().port}`,deniedOrigin=`http://localhost:${denied.address().port}`
@@ -73,6 +73,7 @@ try{
   await capture(page,frame,width,'signed')
   await frame.getByRole('button',{name:'Close embedded session',exact:true}).click()
   await expect(page.locator('output')).toHaveText('inkwell.closed')
+  await frame.getByRole('heading',{name:'Session closed',exact:true}).waitFor()
   await capture(page,frame,width,'closed')
   // A second real invitation proves the decline outcome and event.
   const declining=await prepare(`decline-${width}@harbour.example`,`Harbour Studio declined agreement ${width}`)
@@ -93,6 +94,8 @@ try{
   launchUrl=await launch('prepare');await page.reload()
   await frame.getByRole('heading',{name:'Prepare an envelope',exact:true}).waitFor().catch(async error=>{console.error(await frame.locator('body').innerText());throw error})
   await frame.getByLabel('Fixed PDF document',{exact:true}).setInputFiles({name:'consulting.pdf',mimeType:'application/pdf',buffer:bytes})
+  await frame.locator('.iw-pdf-page').first().scrollIntoViewIfNeeded()
+  await frame.locator('.iw-pdf-page[data-rendered]').first().waitFor()
   await frame.getByLabel('Envelope title',{exact:true}).fill(`Harbour Studio embedded send ${width}`)
   await frame.getByLabel('Recipient 1 name',{exact:true}).fill('Mara Quinn')
   await frame.getByLabel('Recipient 1 email',{exact:true}).fill(`prepared-${width}@harbour.example`)
@@ -116,7 +119,7 @@ try{
   await expect(page.locator('output')).toHaveText('inkwell.sent')
   const sent=(await events(page)).at(-1)
   const envelope=(await app.call('/api/inkwell/envelopes/'+sent.envelopeId,{cookie:app.owner})).value.envelope
-  assert.equal(envelope.status,'awaiting_signature');assert.ok(app.mail(`prepared-${width}@harbour.example`,'Please sign:'))
+  assert.equal(envelope.title,`Harbour Studio embedded send ${width}`);assert.equal(envelope.status,'awaiting_signature');assert.ok(app.mail(`prepared-${width}@harbour.example`,'Please sign:'))
   await capture(page,frame,width,'sent')
   const base='/api/embed/'+new URL(launchUrl).pathname.split('/').at(-1)
   assert.equal(await frame.locator('body').evaluate(async(el,base)=>(await fetch(base+'/api/inkwell/api-keys')).status,base),403)

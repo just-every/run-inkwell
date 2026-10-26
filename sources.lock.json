@@ -3753,7 +3753,7 @@
       "executable": false
     },
     "src/ui/embedded-app.tsx": {
-      "sha256": "a7a1105297c87099aa7c1a73f8beadd6bafc0f0460a8d1ed15779231602aee34",
+      "sha256": "7c7c06d3619a000532c8272c173e229a959db5730ba121f79cbe3052dc6b2b46",
       "executable": false
     },
     "src/ui/envelope-detail.tsx": {
@@ -4129,7 +4129,7 @@
       "executable": false
     },
     "tests/journeys/embedding.mjs": {
-      "sha256": "ebd72f7205ca931ffa3850fbec37163fc9593dfd570e0894da25a16d9f6822ca",
+      "sha256": "540c87f78324ae82b64f5f85ece41434067a40a4b1fcdcb982ab6063468f7149",
       "executable": false
     },
     "tests/journeys/envelope-detail.mjs": {
