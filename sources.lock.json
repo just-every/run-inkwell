@@ -4349,7 +4349,7 @@
       "executable": false
     },
     "tests/payments-flow.mjs": {
-      "sha256": "23d42a3b2fec6780bead346b61e91c160e94f8eaad2a99f09ca4603809c4e2c1",
+      "sha256": "adbdf69412eaac05877b3a8c2070fcca011d94d07f0e384ab3ad9bd879560b85",
       "executable": false
     },
     "tests/prefill.test.mjs": {

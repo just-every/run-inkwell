@@ -54,7 +54,7 @@ export async function paymentFlowCases(){
   assert.equal((await h.post(paid.path+'/payment/check',{},paid.cookie)).value.outcome,'succeeded')
   const unfinished=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
   for(const snapshot of [pendingSnapshot,unfinished]){
-  const recover=await harness({bindings:{STRIPE_PAYMENTS_SECRET_KEY:'synthetic-inkwell-1',STRIPE_PAYMENTS_TEST_MODE:'true'},networkEdge:provider.edge})
+  const recover=await harness({now:start,bindings:{STRIPE_PAYMENTS_SECRET_KEY:'synthetic-inkwell-1',STRIPE_PAYMENTS_TEST_MODE:'true'},networkEdge:provider.edge})
   try{
    await recover.post('/api/inkwell/archive/restore',{archive:snapshot})
    await recover.command('envelope.resend',{id:paid.id,signer:0})
@@ -77,7 +77,7 @@ export async function paymentFlowCases(){
   const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
   assert.ok(!archive.ndjson.includes(checkout.url),'active Checkout URL does not enter archive custody')
   assert.ok(!archive.ndjson.split('\n').filter(Boolean).map(line=>JSON.parse(line)).flatMap(record=>record.items??[]).some(item=>item.kind==='row'&&item.table==='iw_payments'),'installation-local payment authority is excluded from the archive')
-  const restored=await harness()
+  const restored=await harness({now:start})
   try{await restored.post('/api/inkwell/archive/restore',{archive});assert.equal((await restored.send('/api/inkwell/envelopes/'+paid.id,undefined,restored.owner)).value.envelope.signers[0].paymentReceipt.paymentIntent,completed.signers[0].paymentReceipt.paymentIntent)}finally{await restored.close()}
   for(const [kind,requirement] of [['payment',{kind:'payment',amount:10000,currency:'usd',method:'card'}],['saved_card',{kind:'saved_card',currency:'usd'}],['ach_mandate',{kind:'ach_mandate',currency:'usd'}]]){
    const session=await open(kind+'@harbour.example',requirement),started=(await h.post(session.path+'/payment/start',await consent(session),session.cookie)).value
@@ -117,7 +117,7 @@ export async function paymentFlowCases(){
   await h.post('/api/inkwell/erase',{id:paid.id,confirmation:'ERASE'})
   assert.equal((await h.send(paid.path,undefined,paid.cookie)).status,404)
   assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM iw_payments WHERE envelope_id=?').bind(paid.id).first()).n,0)
-  const later=(await h.send('/api/inkwell/archive',undefined,h.owner)).value,destination=await harness()
+  const later=(await h.send('/api/inkwell/archive',undefined,h.owner)).value,destination=await harness({now:start})
   try{await destination.post('/api/inkwell/archive/restore',{archive,laterJournal:later},destination.owner,400)}finally{await destination.close()}
   console.log('Payments: template authority, deposit decline and success, payment, saved card, ACH mandate, provider binding, explicit signature, copies, archive custody and concurrent embedded revocation passed.')
  }finally{await h.close()}
