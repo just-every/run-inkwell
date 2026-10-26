@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "ba69e321b2a27b6732f05faa88fbdaeb341b17104d768a4e2eefb8a11c387e5b",
+      "sha256": "ebbfd06ae904ee821b2b11e03f41922ba34983928cb0dc1117f0cdca069e5c1e",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "8749a7599717b6eb49a765e8ac8e7d50f529dc7f233100c903912d0588e27d13",
+      "sha256": "99355d9cab1b130a7918f0d304013ce12f0c6b0cdd8f0d2969afbc4647514f9e",
       "executable": false
     },
     "DEMO.md": {
@@ -4101,7 +4101,7 @@
       "executable": false
     },
     "tests/api-keys.test.mjs": {
-      "sha256": "8a4b50fd23a726d70d7faa2fe35650edd6253c256f809a05e794cfd4b4b8067b",
+      "sha256": "36ff4326da14ca95e36a1dc4dfc2d56952767c97e3bc3a34defe81c396d5b000",
       "executable": false
     },
     "tests/api-worker.ts": {
@@ -4125,7 +4125,7 @@
       "executable": false
     },
     "tests/embedding-cases.mjs": {
-      "sha256": "90f21583e2934a9d0cb8ad37ce6ac796e5919ea1860eae4e71503105645242c5",
+      "sha256": "9e9d183958cf419708e74d80c9fdde5b6cf8dc18c546862ac0730387848423f0",
       "executable": false
     },
     "tests/embedding-limits.mjs": {
@@ -4401,7 +4401,7 @@
       "executable": false
     },
     "tests/send-policies.test.mjs": {
-      "sha256": "961eef745c2fef36b857416148223eb95c8d244ff378101627b49bf2a0506131",
+      "sha256": "ef541fb96e64d19ed8091004555f13511cbee8cad113393814d6ed0f12e9d0fe",
       "executable": false
     },
     "tests/supplements.test.mjs": {
@@ -4413,7 +4413,7 @@
       "executable": false
     },
     "tests/web-forms.test.mjs": {
-      "sha256": "111b9d4dd3596b9844309d3b0a177aeeda5bd2a619d7e81a9502bb45aa625684",
+      "sha256": "890ab2bf837876aa49e66eb6372ad595758eb6264eb55b5ee02beb683e160969",
       "executable": false
     },
     "tests/worker-port.mjs": {

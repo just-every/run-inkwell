@@ -144,7 +144,7 @@ test('API-001: scopes and live record access constrain HTTP clients; draft prepa
 test('API-001: scope changes and revokes apply to the next call; rotation has bounded overlap and member restoration never revives suspended keys', async () => {
   const h = await harness()
   try {
-    const sam = await sender(h, 'sam.lifecycle@harbour.example'), key = await mint(h, sam.id, ['envelopes:read', 'envelopes:prepare'])
+    const owner = await actor(h), sam = await sender(h, 'sam.lifecycle@harbour.example'), key = await mint(h, sam.id, ['envelopes:read', 'envelopes:prepare'], { name: 'synthetic-inkwell-81' })
     await change(h, key.key, 'scopes', { scopes: ['templates:read'] })
     assert.equal((await client(h, key.token)).status, 403)
     assert.equal((await client(h, key.token, '/api/v1/templates')).status, 200)
@@ -177,6 +177,47 @@ test('API-001: scope changes and revokes apply to the next call; rotation has bo
     const listings = (await h.send('/api/inkwell/api-keys', undefined, h.owner)).value.keys
     assert.ok(listings.find(k => k.id === demoted.key.id).suspendedAt)
     assert.ok(listings.find(k => k.id === deactivated.key.id).suspendedAt)
+    const audit = await h.send('/api/inkwell/audit?limit=200', undefined, h.owner)
+    assert.equal(audit.status, 200)
+    const event = (action, id) => {
+      const matches = audit.value.entries.filter(entry => entry.action === action && entry.target === `api-key:${id}`)
+      assert.equal(matches.length, 1, 'each committed key transition has exactly one account audit entry')
+      assert.equal(matches[0].actorId, owner.id, 'key lifecycle changes retain the authenticated administrator')
+      return matches[0]
+    }
+    const issuedEvent = event('api_key.issued', key.key.id)
+    assert.equal(issuedEvent.at, key.key.createdAt); assert.equal(issuedEvent.before, null)
+    assert.equal(issuedEvent.after.memberId, sam.id); assert.deepEqual(issuedEvent.after.scopes, key.key.scopes)
+    const scopesEvent = event('api_key.scopes_changed', key.key.id)
+    assert.deepEqual(scopesEvent.before.scopes, key.key.scopes)
+    assert.deepEqual(scopesEvent.after.scopes, ['templates:read'])
+    assert.equal(scopesEvent.after.version, scopesEvent.before.version + 1)
+    for (const [predecessor, successor, retiresAt] of [[key.key, rotated.key, rotated.retiresAt], [rotated.key, immediate.key, immediate.retiresAt]]) {
+      const entry = event('api_key.rotated', predecessor.id)
+      assert.equal(entry.before.rotatedTo, null); assert.equal(entry.after.rotatedTo, successor.id)
+      assert.equal(entry.before.expiresAt, predecessor.expiresAt); assert.equal(entry.after.expiresAt, retiresAt)
+      assert.equal(entry.after.memberId, sam.id); assert.deepEqual(entry.after.scopes, successor.scopes)
+      assert.equal(entry.after.version, entry.before.version + 1)
+      assert.equal(event('api_key.issued', successor.id).after.memberId, sam.id)
+    }
+    const revokedEvent = event('api_key.revoked', immediate.key.id)
+    assert.equal(revokedEvent.before.revokedAt, null)
+    assert.equal(revokedEvent.after.revokedAt, listings.find(k => k.id === immediate.key.id).revokedAt)
+    assert.equal(revokedEvent.at, revokedEvent.after.revokedAt)
+    for (const suspended of [demoted, deactivated]) {
+      const entry = event('api_key.suspended', suspended.key.id)
+      assert.equal(entry.before.suspendedAt, null)
+      assert.equal(entry.after.suspendedAt, listings.find(k => k.id === suspended.key.id).suspendedAt)
+      assert.equal(entry.at, entry.after.suspendedAt)
+      assert.equal(entry.after.memberId, sam.id)
+    }
+    const auditText = JSON.stringify(audit.value)
+    for (const issued of [key, rotated, immediate, demoted, deactivated, replaced]) {
+      assert.ok(!auditText.includes(issued.token), 'account audit never reveals an issued credential')
+      assert.ok(!auditText.includes(createHash('sha256').update(issued.token).digest('hex')), 'account audit never reveals a credential hash')
+      assert.ok(!auditText.includes(issued.key.prefix), 'account audit omits credential prefixes')
+    }
+    assert.doesNotMatch(auditText, /token_hash|sealed|iwk_live_/, 'account audit contains only safe key metadata')
   } finally { await h.close() }
 })
 
@@ -416,8 +457,35 @@ test('API-001: explicit self-service permission lets a sender mint only self-bou
   await change(h,rotated.key,'rotate',{},sam.cookie,403)
   await grant(sam.id,false,1);assert.equal((await client(h,rotated.token)).status,401)
   await grant(sam.id,true,2);assert.equal((await client(h,rotated.token)).status,401,'restoring the permission cannot revive any old key')
-  const history=(await h.db.prepare('SELECT before_value,after_value FROM iw_api_key_permission_versions WHERE member_id=? ORDER BY version').bind(sam.id).all()).results
-  assert.equal(history.length,3);assert.equal(JSON.parse(history[1].before_value).enabled,true);assert.equal(JSON.parse(history[1].after_value).enabled,false)
+  const audit=await h.send('/api/inkwell/audit?limit=200',undefined,h.owner)
+  assert.equal(audit.status,200)
+  const history=audit.value.entries.filter(entry=>entry.action==='api_key_permission.changed'&&entry.target===`member:${sam.id}`).sort((a,b)=>a.after.version-b.after.version)
+  assert.deepEqual(history.map(({actorId,before,after})=>({actorId,before,after})),[
+   {actorId:owner.id,before:null,after:{enabled:true,version:1}},
+   {actorId:owner.id,before:{enabled:true,version:1},after:{enabled:false,version:2}},
+   {actorId:owner.id,before:{enabled:false,version:2},after:{enabled:true,version:3}}
+  ],'the public account log retains each permission grant, withdrawal and restoration with its authenticated actor')
+  const selfIssued=audit.value.entries.find(entry=>entry.action==='api_key.issued'&&entry.target===`api-key:${issued.key.id}`)
+  assert.ok(selfIssued);assert.equal(selfIssued.actorId,sam.id);assert.equal(selfIssued.before,null);assert.equal(selfIssued.after.memberId,sam.id)
+  const selfScopes=audit.value.entries.find(entry=>entry.action==='api_key.scopes_changed'&&entry.target===`api-key:${rotated.key.id}`)
+  assert.ok(selfScopes);assert.equal(selfScopes.actorId,sam.id)
+  assert.deepEqual(selfScopes.before.scopes,['envelopes:prepare','envelopes:read']);assert.deepEqual(selfScopes.after.scopes,['envelopes:read'])
+  const selfRotation=audit.value.entries.find(entry=>entry.action==='api_key.rotated'&&entry.target===`api-key:${issued.key.id}`)
+  assert.ok(selfRotation);assert.equal(selfRotation.actorId,sam.id);assert.equal(selfRotation.before.rotatedTo,null);assert.equal(selfRotation.after.rotatedTo,rotated.key.id)
+  for(const key of [issued,rotated]){
+   const suspended=audit.value.entries.filter(entry=>entry.action==='api_key.suspended'&&entry.target===`api-key:${key.key.id}`)
+   assert.equal(suspended.length,1);assert.equal(suspended[0].actorId,owner.id)
+   assert.equal(suspended[0].before.suspendedAt,null);assert.ok(suspended[0].after.suspendedAt)
+   assert.equal(suspended[0].at,suspended[0].after.suspendedAt)
+   assert.equal(suspended[0].after.memberId,sam.id)
+  }
+  const auditText=JSON.stringify(audit.value)
+  for(const key of [issued,rotated,foreign]){
+   assert.ok(!auditText.includes(key.token),'permission history never exposes issued credentials')
+   assert.ok(!auditText.includes(createHash('sha256').update(key.token).digest('hex')),'permission history never exposes credential hashes')
+   assert.ok(!auditText.includes(key.key.prefix),'permission history omits credential prefixes')
+  }
+  assert.doesNotMatch(auditText,/token_hash|sealed|iwk_live_/)
   const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
   const restored=await harness()
   try{await restored.post('/api/inkwell/archive/restore',{archive},restored.owner);assert.deepEqual((await restored.send('/api/inkwell/api-key-permissions',undefined,restored.owner)).value.permissions,[],'installation permission grants never travel with document archives')}finally{await restored.close()}

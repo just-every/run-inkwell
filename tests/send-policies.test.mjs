@@ -489,10 +489,32 @@ test('ADMIN-004: every group and profile narrows the account policy, with live m
   await h.command('envelope.internal_decide',{id:approval,decision:'approve'},admin);assert.equal((await read(h,approval)).status,'awaiting_signature')
   // A member newly assigned to an off group is constrained on the very next send.
   await scoped(group,'ad_hoc',{mode:'off'})
-  await h.post('/api/inkwell/send-policy-scopes',{id:group.id,kind:'group',name:'Field',members:[fieldId,officeId],expectedVersion:group.version,commandId:crypto.randomUUID()},h.owner)
+  const updatedGroup=(await h.post('/api/inkwell/send-policy-scopes',{id:group.id,kind:'group',name:'Field',members:[fieldId,officeId],expectedVersion:group.version,commandId:crypto.randomUUID()},h.owner)).value.scope
   const newlyAssigned=await make(officeSender,'New group assignment')
   await h.command('envelope.approve',{id:newlyAssigned,eligible:true},officeSender,403)
   await h.post('/api/inkwell/send-policy-scopes',{id:group.id,kind:'group',name:'Field',members:[],expectedVersion:group.version,commandId:crypto.randomUUID()},h.owner,409)
   assert.equal((await scopeState(office)).members.length,1)
+  const audit=(await h.send('/api/inkwell/audit?limit=200',undefined,h.owner)).value.entries
+  const scopeImage=scope=>({kind:scope.kind,name:scope.name,members:scope.members,version:scope.version})
+  for(const scope of [group,profile]) {
+   const created=audit.find(e=>e.action==='send_policy_scope.changed'&&e.target===`send-policy-scope:${scope.id}`&&e.after.version===scope.version)
+   assert.ok(created,'Both group and profile creation appear in the unified audit')
+   assert.deepEqual([created.actorId,created.at,created.before,created.after],[scope.actor,scope.at,null,scopeImage(scope)])
+  }
+  const membership=audit.filter(e=>e.action==='send_policy_scope.changed'&&e.target===`send-policy-scope:${group.id}`)
+  assert.equal(membership.length,2,'The rejected stale membership save adds no account audit event')
+  const changed=membership.find(e=>e.after.version===updatedGroup.version)
+  assert.deepEqual([changed.actorId,changed.at,changed.before,changed.after],[updatedGroup.actor,updatedGroup.at,scopeImage(group),scopeImage(updatedGroup)])
+  const policyHistory=(await policies(h)).history
+  for(const scope of [group,profile]) {
+   const saved=(await scopeState(scope)).policies.find(p=>p.source==='ad_hoc')
+   const historical=policyHistory.find(p=>p.scope===scope.kind&&p.scopeId===scope.id&&p.source===saved.source&&p.version===saved.version)
+   const entry=audit.find(e=>e.action==='send_policy.changed'&&e.target===`send-policy:${scope.kind}:${scope.id}:ad_hoc`&&e.after.version===saved.version)
+   assert.ok(entry,'Each scoped policy save appears in the unified audit')
+   assert.deepEqual([entry.actorId,entry.at,entry.after.mode,entry.after.requireInternalApproval,entry.after.deferredRelease],[saved.actor,saved.at,saved.mode,saved.requireInternalApproval,saved.deferredRelease])
+   assert.deepEqual(entry.before,historical.before,'The audit retains the actual configuration replaced by this scoped policy save')
+  }
+  const scopeAudit=JSON.stringify(audit.filter(e=>e.action==='send_policy_scope.changed'||e.action==='send_policy.changed'))
+  for(const privateValue of ['field.policy@harbour.example','field.template@clients.example','Mara Quinn','pdfBase64'])assert.ok(!scopeAudit.includes(privateValue),'Policy audit excludes identity and document payloads')
  } finally {await h.close()}
 })

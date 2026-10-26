@@ -56,18 +56,36 @@ test('FORM-001: native owner grants let senders publish only with live template 
   await h.command('member.role',{operatorId:person.id,role:'sender'})
   await publish({},sender,403)
   const grant=async(enabled,expectedVersion)=>h.post('/api/inkwell/web-form-permissions',{memberId:person.id,enabled,expectedVersion,commandId:crypto.randomUUID()},h.owner)
-  await grant(true,0)
+  const granted=(await grant(true,0)).value
   await publish({},sender,404)
   await h.command('template.share',{id:template.id,email:person.email,access:'use'})
   const owned=(await publish({},sender)).form;assert.equal(owned.ownerId,person.id)
   const viewer=await h.invite('vic.forms@harbour.example','member');await publish({},viewer,403)
   assert.equal((await h.send('/api/inkwell/web-form-permissions',undefined,sender)).status,403)
   await h.post('/api/inkwell/web-form-permissions',{memberId:person.id,enabled:false,expectedVersion:1,commandId:crypto.randomUUID()},sender,403)
-  await grant(false,1);await grant(true,2)
+  const removed=(await grant(false,1)).value,restored=(await grant(true,2)).value
   assert.equal((await h.send(`/api/forms/${owned.id}`)).status,404,'restoring a grant never revives a suspended form')
   const replacement=(await publish({},sender)).form;assert.notEqual(replacement.id,owned.id)
   await h.command('member.role',{operatorId:person.id,role:'viewer'});await h.command('member.role',{operatorId:person.id,role:'sender'})
   assert.equal((await h.send(`/api/forms/${replacement.id}`)).status,404,'restoring a role never revives a form')
+  const audit=(await h.send('/api/inkwell/audit?limit=200',undefined,h.owner)).value.entries
+  const permissions=audit.filter(e=>e.action==='form_permission.changed'&&e.target===`member:${person.id}`)
+  assert.equal(permissions.length,3,'The refused sender change adds no permission audit entry')
+  for(const [index,value] of [granted,removed,restored].entries()) {
+   const entry=permissions.find(e=>e.after.version===value.version)
+   assert.ok(entry,'Every permission save appears in the account audit')
+   assert.deepEqual([entry.actorId,entry.at,entry.after],[value.actor,value.at,{enabled:value.enabled,version:value.version}])
+   assert.deepEqual(entry.before,index===0?null:{enabled:index===1,version:value.version-1})
+  }
+  const suspension=audit.filter(e=>e.action==='form.suspended'&&e.target===`form:${owned.id}`)
+  assert.equal(suspension.length,1,'Regranting permission does not suspend or revive the old form again')
+  assert.equal(suspension[0].actorId,removed.actor)
+  assert.equal(suspension[0].before.suspendedAt,null)
+  assert.equal(suspension[0].after.ownerId,person.id)
+  assert.equal(suspension[0].at,suspension[0].after.suspendedAt)
+  assert.ok(Number.isFinite(Date.parse(suspension[0].at)))
+  const safeAudit=JSON.stringify([...permissions,...suspension])
+  for(const privateValue of [person.email,'company@harbour.example','synthetic-inkwell-1','synthetic-inkwell-2','pdfBase64','fixedRecipients'])assert.ok(!safeAudit.includes(privateValue),'Permission and suspension audit excludes secrets and document data')
   const agent=(await h.command('agent.issue',{name:'synthetic-inkwell-3'})).result.token
   for(const path of ['/api/inkwell/forms','/api/inkwell/web-form-permissions',`/api/forms/${owned.id}`]){
    assert.equal((await h.send(path,undefined,'',{authorization:`Bearer ${agent}`})).status,403)
