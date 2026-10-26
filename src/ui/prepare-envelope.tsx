@@ -1,3 +1,4 @@
+import { embedFetch } from './embed-client'
 import { CustomEnvelopeFields } from './envelope-metadata'
 import { RecipientAuthority } from './recipient-authority'
 import { RecipientRoleControls } from './recipient-role-controls'
@@ -76,12 +77,12 @@ export function PrepareEnvelope({ draft, correcting, asTemplate, template, folde
   useEffect(() => {
     if (!template) return
     void action.run(async () => {
-      const response = await fetch(`/api/inkwell/templates/${encodeURIComponent(template.id)}/document`, { credentials: 'same-origin' })
+      const response = await embedFetch(`/api/inkwell/templates/${encodeURIComponent(template.id)}/document`, { credentials: 'same-origin' })
       if (!response.ok) throw new Error('Could not load the template’s PDF.')
       const bytes = new Uint8Array(await response.arrayBuffer())
       setFile(new File([bytes], template.filename, { type: 'application/pdf' })); setPdf(bytes); setTitle(template.title)
       setSigners(template.roles.map(role => ({ name: role.role, recipientRole:role.action, witnesses:role.witnesses, delegates:role.delegates,unresolvedIdentity:role.unresolvedIdentity, email: '', accessCode: '', order: role.order, needsCode: Boolean(role.accessCode), providerAuth: role.providerAuth, sms: Boolean(role.sms), linkOnly: Boolean(role.linkOnly), includeWhen: role.includeWhen, message: role.message ?? '' })))
-      if(template.documents) setDocuments(await Promise.all(template.documents.map(async(d,i)=>{const response=await fetch(`/api/inkwell/templates/${template.id}/documents/${i}`,{credentials:'same-origin'});if(!response.ok)throw new Error('Could not load a template document.');return{key:crypto.randomUUID(),file:new File([await response.blob()],d.filename,{type:'application/pdf'}),mode:d.mode,pages:d.pages,visibleTo:d.visibleTo}})))
+      if(template.documents) setDocuments(await Promise.all(template.documents.map(async(d,i)=>{const response=await embedFetch(`/api/inkwell/templates/${template.id}/documents/${i}`,{credentials:'same-origin'});if(!response.ok)throw new Error('Could not load a template document.');return{key:crypto.randomUUID(),file:new File([await response.blob()],d.filename,{type:'application/pdf'}),mode:d.mode,pages:d.pages,visibleTo:d.visibleTo}})))
       setFields(template.fields); setAllowPaper(Boolean(template.allowPaper)); setAllowReassign(Boolean(template.allowReassign)); setSubject(template.subject ?? ''); setMessage(template.message ?? ''); setExpiryDays(template.expiryDays)
       setRemind(Boolean(template.reminders)); if (template.reminders) { setRemind(true); setAfterDays(template.reminders.afterDays); setEveryDays(template.reminders.everyDays) }
     })
@@ -90,13 +91,13 @@ export function PrepareEnvelope({ draft, correcting, asTemplate, template, folde
     if (!source) return
     const draft = source
     void action.run(async () => {
-      const response = await fetch(`/api/inkwell/envelopes/${encodeURIComponent(draft.id)}/artifacts/original`, { credentials: 'same-origin' })
+      const response = await embedFetch(`/api/inkwell/envelopes/${encodeURIComponent(draft.id)}/artifacts/original`, { credentials: 'same-origin' })
       if (!response.ok) throw new Error('Could not load the draft’s PDF.')
       const bytes = new Uint8Array(await response.arrayBuffer())
       setFile(new File([bytes], draft.filename ?? 'document.pdf', { type: 'application/pdf' })); setPdf(bytes); setTitle(draft.title)
       setSigners(draft.signers.map((signer, index) => ({ delegates:signer.delegates,unresolvedIdentity:signer.unresolvedIdentity,witnessFor: signer.witnessFor, recipientRole: signer.role, witnesses: signer.witnesses, completedAt: signer.completedAt, name: signer.name, email: signer.group ? '' : signer.email, ...(signer.group ? { group: signer.group.id, groupLabel: groupSummary(signer.group) } : {}), accessCode: '', order: signer.order ?? index + 1, keep: Boolean(signer.accessCode), providerAuth: signer.providerAuth, sms: Boolean(signer.sms), phone: signer.phone ?? '', linkOnly: Boolean(signer.linkOnly), inPerson: Boolean(signer.inPerson), message: signer.message ?? '', includeWhen: signer.includeWhen, ...(correcting ? { values: signer.values, routeResult: signer.routeResult, signedAt: signer.signedAt, activatedAt: signer.activatedAt, removedAt: signer.removedAt } : {}), routingLocked: Boolean(correcting && (signer.activatedAt || signer.signedAt || signer.completedAt || signer.removedAt || signer.routeResult?.state === 'skipped' || currentSigners(draft).includes(index))), ...(correcting ? { existing: true, ...(signer.removedAt ? { removed: true } : {}), ...(signer.routeResult?.state === 'skipped' ? { locked: 'Skipped' } : signer.completedAt ? { locked: 'Completed' } : signer.signedAt ? { locked: 'Signed' } : signer.paper?.status === 'pending' ? { locked: 'Signed on paper' } : {}) } : {}) })))
       if (correcting) setSigner(Math.max(0, draft.signers.findIndex(signer => !signer.signedAt && !signer.removedAt && signer.routeResult?.state !== 'skipped' && signer.paper?.status !== 'pending')))
-      if(draft.documents) setDocuments(await Promise.all(draft.documents.map(async(d,i)=>{const response=await fetch(`/api/inkwell/envelopes/${draft.id}/artifacts/document-${i}`,{credentials:'same-origin'});if(!response.ok)throw new Error('Could not load a draft document.');return{key:crypto.randomUUID(),file:new File([await response.blob()],d.filename,{type:'application/pdf'}),mode:d.mode,pages:d.pages,visibleTo:d.visibleTo}})))
+      if(draft.documents) setDocuments(await Promise.all(draft.documents.map(async(d,i)=>{const response=await embedFetch(`/api/inkwell/envelopes/${draft.id}/artifacts/document-${i}`,{credentials:'same-origin'});if(!response.ok)throw new Error('Could not load a draft document.');return{key:crypto.randomUUID(),file:new File([await response.blob()],d.filename,{type:'application/pdf'}),mode:d.mode,pages:d.pages,visibleTo:d.visibleTo}})))
       setFreeForm(Boolean(draft.freeForm)); setFields(draft.fields); setCopies((draft.copies ?? []).map(({ name, email, includeWhen }) => ({ name, email, ...(includeWhen ? { includeWhen } : {}) }))); setAllowPaper(Boolean(draft.allowPaper)); setAllowReassign(Boolean(draft.allowReassign)); setSubject(draft.subject ?? ''); setMessage(draft.message ?? '')
       setExpiryDays(Math.min(365, Math.max(1, Math.round((Date.parse(draft.expiresAt) - Date.now()) / 86_400_000))))
       if (draft.reminders) { setRemind(true); setAfterDays(draft.reminders.afterDays); setEveryDays(draft.reminders.everyDays) }

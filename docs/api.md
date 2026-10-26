@@ -130,3 +130,54 @@ The documented envelope-list query accepts `folder` (an exact folder ID),
 value used with `customField`), and `tag` (a case-insensitive exact tag). Omitting
 `customValue` matches any value for that field. Every filter retains the bound
 member's current record access. Folder placement remains a member-session action.
+
+
+## Embedded signing and preparation
+
+Embedding is currently partial pending approval of its conservative authorization
+and credential-custody defaults. The following member-session doors are available
+only to an owner or admin on the application's own origin; API keys and agent
+preparation credentials cannot use them.
+
+1. POST `/api/inkwell/embed-origins` with `origin`, `enabled: true` and
+   `consent: true` explicitly allows one exact HTTPS parent origin. No origins
+   are allowed initially. Wildcards, paths, credentials and opaque origins are
+   refused. GET of the same path lists allowed origins. Setting `enabled: false`
+   immediately revokes that origin's existing launches. Local installations
+   additionally accept exact loopback HTTP origins for development.
+2. POST `/api/inkwell/embeds` with `origin`, `consent: true` and `mode: "sign"`
+   plus the existing recipient `token`, or `envelopeId` and zero-based `signer`,
+   creates a recipient view URL without bypassing verification. With
+   `mode: "prepare"`, a native sign-in no older than 15 minutes authorizes the
+   existing preparation editor and explicit human sending review. That launch
+   can create one envelope, then read, edit and approve only that envelope.
+3. Use the returned `url` as the iframe source in the allowed application's
+   page. Treat it as a private credential. Launches expire after 15 minutes.
+   Embedded authentication uses Secure, HttpOnly partitioned cookies; a browser
+   must support partitioned cookies. The ordinary native session is sealed on
+   the server, checked on each preparation request and never exposed to the
+   parent, embedded JavaScript or document archives.
+
+The real signing screen retains recipient verification, access codes, routing,
+disclosure and document visibility. Successful actions send `inkwell.signed`,
+`inkwell.declined` and `inkwell.closed` messages to the exact authorized parent
+origin. Successful send submission additionally sends `inkwell.sent` with
+`envelopeId`; the record's status remains authoritative when internal approval
+or scheduling delays invitation. Signing and closing messages contain no
+recipient details, values, documents or credentials. Closing revokes the launch.
+No incoming parent message can sign, prepare or approve a document.
+
+Validate both the event origin and its source frame before accepting a message:
+
+```js
+const frame = document.querySelector('iframe')
+window.addEventListener('message', event => {
+  if (event.origin !== inkwellOrigin || event.source !== frame.contentWindow) return
+  if (event.data?.type === 'inkwell.signed') showSignedState()
+})
+```
+
+Origin changes, launch authorization and closure have local audit records.
+`ADMIN-005` retains the obligation to include these in the unified account log.
+The public-door journey is `tests/journeys/embedding.mjs`, named “Embedded signing
+and sending”, with independent allowed and refused host pages at 1440 and 390.

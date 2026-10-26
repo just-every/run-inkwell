@@ -1,3 +1,5 @@
+import { embedOrigins, changeEmbedOrigin, createEmbed } from './embedding'
+import { embedResponse } from './embed-response'
 import { filingView, saveFiling, retryFiling } from './filing'
 import { startProviderAuth, checkProviderAuth, providerAuthView } from './provider-auth'
 import { usageView, setUsagePolicy } from './usage'
@@ -96,7 +98,11 @@ async function apiClient(c: Context<ApiContext>, scope: ApiScope) {
   const actor = await authenticateApiKey(c.req.raw, c.env, scope)
   c.set('apiPrincipal', actor.id); return actor
 }
+api.use('/api/embed/*',async(c,next)=>{const response=await embedResponse(c.req.raw,c.env,async request=>await api.fetch(request,c.env,c.executionCtx));if(response)return response;await next()})
 api.onError((error,c)=>{if(error instanceof ApiRateLimit)c.header('Retry-After',String(error.retryAfter));return c.json({error:error instanceof Refusal?error.message:'The request could not be completed. Please try again.',...(error instanceof Refusal&&error.code?{code:error.code}:{})},(error instanceof Refusal?error.status:500) as 400)})
+api.get('/api/inkwell/embed-origins',async c=>{await requireActor(c.req.raw,c.env,['owner','admin']);return c.json(await embedOrigins(c.env))})
+api.post('/api/inkwell/embed-origins',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await changeEmbedOrigin(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),await readJson(c.req.raw,4096)))})
+api.post('/api/inkwell/embeds',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await createEmbed(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),c.req.raw,await readJson(c.req.raw,4096)))})
 api.get('/health',c=>c.json({status:'ok',product:'Inkwell',...deploymentHealth(c.env)}))
 // MANAGE-001: the workspace is who is signed in, their agent tokens and people; envelopes are read a page or one at a time.
 api.get('/api/inkwell',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json({actor:{id:actor.id,name:actor.name,email:actor.email,role:actor.role},agents:actor.role==='owner'?await listAgents(c.env):[],people:['owner','admin'].includes(actor.role)?await listPeople(c.env):[],...(['owner','admin'].includes(actor.role)?{settings:{envelopeDefaults:await envelopeDefaults(c.env),freeForm:await freeFormPolicy(c.env),freeFormHistory:await freeFormHistory(c.env),completedCopies:await completedCopyDelivery(c.env),retention:await retentionView(c.env),healthcare:await healthcareProfile(c.env),internalApproval:await approvalView(c.env),sendPolicies:await sendPolicies(c.env),sendPolicyHistory:await sendPolicyHistory(c.env)}}:{}),...(actor.role==='viewer'?{}:{signingGroups:await listGroups(c.env)})})})

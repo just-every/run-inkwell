@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as CopyTokenRouteImport } from './routes/copy.$token'
+import { Route as EmbedIdRouteImport } from './routes/embed.$id'
 import { Route as FormIdRouteImport } from './routes/form.$id'
 import { Route as SignTokenRouteImport } from './routes/sign.$token'
 
@@ -30,6 +31,11 @@ const CopyTokenRoute = CopyTokenRouteImport.update({
   path: '/copy/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EmbedIdRoute = EmbedIdRouteImport.update({
+  id: '/embed/$id',
+  path: '/embed/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FormIdRoute = FormIdRouteImport.update({
   id: '/form/$id',
   path: '/form/$id',
@@ -45,6 +51,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRoute
   '/verify': typeof VerifyRoute
   '/copy/$token': typeof CopyTokenRoute
+  '/embed/$id': typeof EmbedIdRoute
   '/form/$id': typeof FormIdRoute
   '/sign/$token': typeof SignTokenRoute
 }
@@ -52,6 +59,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppRoute
   '/verify': typeof VerifyRoute
   '/copy/$token': typeof CopyTokenRoute
+  '/embed/$id': typeof EmbedIdRoute
   '/form/$id': typeof FormIdRoute
   '/sign/$token': typeof SignTokenRoute
 }
@@ -60,19 +68,33 @@ export interface FileRoutesById {
   '/app': typeof AppRoute
   '/verify': typeof VerifyRoute
   '/copy/$token': typeof CopyTokenRoute
+  '/embed/$id': typeof EmbedIdRoute
   '/form/$id': typeof FormIdRoute
   '/sign/$token': typeof SignTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/app' | '/verify' | '/copy/$token' | '/form/$id' | '/sign/$token'
+  fullPaths:
+    | '/app'
+    | '/verify'
+    | '/copy/$token'
+    | '/embed/$id'
+    | '/form/$id'
+    | '/sign/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/app' | '/verify' | '/copy/$token' | '/form/$id' | '/sign/$token'
+  to:
+    | '/app'
+    | '/verify'
+    | '/copy/$token'
+    | '/embed/$id'
+    | '/form/$id'
+    | '/sign/$token'
   id:
     | '__root__'
     | '/app'
     | '/verify'
     | '/copy/$token'
+    | '/embed/$id'
     | '/form/$id'
     | '/sign/$token'
   fileRoutesById: FileRoutesById
@@ -81,6 +103,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRoute
   VerifyRoute: typeof VerifyRoute
   CopyTokenRoute: typeof CopyTokenRoute
+  EmbedIdRoute: typeof EmbedIdRoute
   FormIdRoute: typeof FormIdRoute
   SignTokenRoute: typeof SignTokenRoute
 }
@@ -108,6 +131,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CopyTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/embed/$id': {
+      id: '/embed/$id'
+      path: '/embed/$id'
+      fullPath: '/embed/$id'
+      preLoaderRoute: typeof EmbedIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/form/$id': {
       id: '/form/$id'
       path: '/form/$id'
@@ -129,6 +159,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRoute,
   VerifyRoute: VerifyRoute,
   CopyTokenRoute: CopyTokenRoute,
+  EmbedIdRoute: EmbedIdRoute,
   FormIdRoute: FormIdRoute,
   SignTokenRoute: SignTokenRoute,
 }

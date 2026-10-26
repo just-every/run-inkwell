@@ -1,3 +1,4 @@
+import { embedFetch } from './embed-client'
 export type { Field } from '../inkwell/model'
 import type { RoutingRule, RoutingResult } from '../inkwell/model'
 import type { Field } from '../inkwell/model'
@@ -30,7 +31,7 @@ export type Retention = { rule: { years: number; updatedAt: string; updatedBy: s
 export type EnvelopeDefaults = { disclosureText?: string; adoptionMethods?: import('../inkwell/model').AdoptionMethod[]; authentication?: 'email' | 'link'; allowReassignment?: boolean; hideDocumentsWithoutFields?:boolean; expiryDays: number; reminders: { afterDays: number; everyDays: number } | null; version: number; actor: string | null; at: string | null }
 export type Workspace = { actor: Actor; people?: Person[]; signingGroups?: SigningGroup[]; settings?: { envelopeDefaults: EnvelopeDefaults; sendPolicies: SendPolicy[]; sendPolicyHistory: SendPolicyVersion[]; freeForm: FreeFormPolicy; freeFormHistory: FreeFormChange[]; healthcare: boolean; completedCopies: 'link' | 'attachment'; retention: Retention; internalApproval: ApprovalRule | null }; agents?: { id: string; createdAt?: string; revokedAt?: string; label?: string }[] }
 export async function request<T>(url: string, body?: unknown): Promise<T> {
-  const response = await fetch(url, body === undefined ? { credentials: 'same-origin' } : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  const response = await embedFetch(url, body === undefined ? { credentials: 'same-origin' } : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   const parsed: unknown = await response.json().catch(() => null)
   const payload = parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : undefined
   if (!response.ok || payload?.ok === false) {
