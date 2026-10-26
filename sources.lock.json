@@ -4097,7 +4097,7 @@
       "executable": false
     },
     "tests/embedding-cases.mjs": {
-      "sha256": "98627ee773045f3f7f155a9e2e7f7d259a8c62435324602f1a4f42bffec7ef29",
+      "sha256": "90f21583e2934a9d0cb8ad37ce6ac796e5919ea1860eae4e71503105645242c5",
       "executable": false
     },
     "tests/embedding-limits.mjs": {

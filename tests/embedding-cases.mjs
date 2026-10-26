@@ -36,6 +36,7 @@ export async function embeddingAuthorityCases(){
   const lost=(await issue()).value;await redeem(lost.url);await redeem(lost.url,403)
   await redeem(new URL('/embed/'+'b'.repeat(64),h.origin).href,403)
   const recovery=await redeem((await issue()).value.url);assert.equal((await api(recovery,'/meta')).status,200)
+  assert.equal((await api(recovery,'/close',{})).status,200);assert.equal((await api(recovery,'/meta')).status,403,'closing refuses the next read')
   console.log('Embedding authority: redemption passed')
   const pdf=await PDFDocument.create();pdf.addPage([612,792]).drawText('Harbour consulting deposit agreement',{x:40,y:720});const bytes=await pdf.save()
   const uploadSession=await redeem((await issue()).value.url),upload=(await api(uploadSession,'/api/inkwell/documents/uploads',{filename:'agreement.pdf',bytes:bytes.length})).value
@@ -81,6 +82,13 @@ export async function embeddingAuthorityCases(){
   h.advanceTo(start+15*60_000);assert.equal((await api(expiring,'/meta')).status,403);await redeem(unredeemed,403)
   h.advanceTo(start+15*60_000+1)
   await h.post(base+'/embed-origins',{origin,enabled:true,consent:true},h.owner,403)
+  const audit=(await h.db.prepare('SELECT actor,action,origin,at,detail FROM iw_embed_audit').all()).results
+  for(const action of ['origin.changed','launch.authorized','launch.redeemed','launch.closed','authority.refused','request.refused','launch.expired']){
+   const row=audit.find(row=>row.action===action);assert.ok(row,action+' is audited');assert.ok(row.actor);assert.ok(Number.isFinite(Date.parse(row.at)));assert.ok(JSON.parse(row.detail).outcome)
+  }
+  const granted=audit.find(row=>row.action==='origin.changed'&&JSON.parse(row.detail).after===origin),authorized=audit.find(row=>row.action==='launch.authorized')
+  assert.equal(granted.origin,origin);assert.ok(JSON.parse(granted.detail).consentVersion);assert.ok(JSON.parse(granted.detail).version)
+  assert.equal(authorized.origin,origin);assert.ok(JSON.parse(authorized.detail).expiresAt);assert.ok(JSON.parse(authorized.detail).allocation);assert.ok(JSON.parse(authorized.detail).grantVersion)
   console.log('Embedded authority: canonical origins, roles, concurrent single redemption, lost response, cookie refusal, idempotent draft, explicit send, revocation, absolute expiry, audit and archive custody passed.')
  }finally{await h.close()}
 }
