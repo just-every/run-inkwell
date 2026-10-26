@@ -29,7 +29,7 @@
     "check": "rer check",
     "deps": "rer install",
     "rer": "rer",
-    "test:api": "rer queue test:api -- node --test --test-concurrency=1 tests/*.test.mjs",
+    "test:api": "rer queue test:api -- node tests/run-api.mjs",
     "delivery:spec": "node scripts/build-deployment-spec.mjs",
     "check:deployment-spec": "node scripts/build-deployment-spec.mjs --check"
   },

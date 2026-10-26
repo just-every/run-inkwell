@@ -589,7 +589,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "be29d9a3c9f06b740661c3e6c30fe21f2014f7ff8cc38b01be691482e0759f5d",
+      "sha256": "e849532bcc475cb7ea6b8b47215b4e1bf74b88ef13cf57998ae17e37b4b75e34",
       "executable": false
     },
     "packaging.json": {
@@ -4394,6 +4394,10 @@
     },
     "tests/routing.test.mjs": {
       "sha256": "b27f305d4dc753f969d6cc263e984d9fd5bc7ec62df12e4906ec43e5d91209e9",
+      "executable": false
+    },
+    "tests/run-api.mjs": {
+      "sha256": "5d55fbff90cdf2e41bf91de0b36bf02d881cae53d425e3c8c01c131bfe994ce2",
       "executable": false
     },
     "tests/runtime.mjs": {
