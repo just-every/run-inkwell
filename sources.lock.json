@@ -1480,6 +1480,14 @@
       "sha256": "012ab7b98f2026815f9b11f3ba1f393b0352a25ffc4b31563f8a1152a73560ca",
       "executable": false
     },
+    "src/inkwell/payment-provider.ts": {
+      "sha256": "84d5897e836da9377d3c23ca4f0461e67ace6a9c5a806fa3e95c4c3e37642adb",
+      "executable": false
+    },
+    "src/inkwell/payment-requirement.ts": {
+      "sha256": "384afeda8d094f43e04e6a3ab1f969d7dbb9de726d2703ca38eec6d6988ed947",
+      "executable": false
+    },
     "src/inkwell/pdf-layout.ts": {
       "sha256": "0f1576afb6cc5def466a90dab93ce8e584af05f99876036a03768b7c5074acfd",
       "executable": false
@@ -3966,6 +3974,10 @@
     },
     "src/ui/signing-guide.tsx": {
       "sha256": "9c8572a017fe37a9fa43e59c5719f449b1ab65f7ceb0643c050dd0c32f599ae6",
+      "executable": false
+    },
+    "src/ui/signing-payment.tsx": {
+      "sha256": "399dc9cd48f1dceafb1e25b76d651e6e3faccc10b66cac376a37fab072f94588",
       "executable": false
     },
     "src/ui/sms-authentication.tsx": {
