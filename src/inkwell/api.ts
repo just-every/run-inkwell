@@ -1,3 +1,5 @@
+import { withAuditDatabase } from './account-audit-db'
+import { listAccountAudit, auditCsv } from './account-audit'
 import { paymentSessionState } from './payment-state'
 import { startSigningPayment, checkSigningPayment } from './payments'
 import { embedOrigins, changeEmbedOrigin, createEmbed, embedAudit } from './embedding'
@@ -86,11 +88,11 @@ export function sameOrigin(request: Request, original: Bindings) { const env=run
 export async function readJson(request: Request, max=3_000_000) { insist(request.headers.get('content-type')?.split(';')[0]==='application/json','Send JSON with Content-Type application/json.',415);const bytes=await readBytes(request,max);try{return object(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)))}catch(error){if(error instanceof Refusal)throw error;throw new Refusal('Provide valid JSON.')} }
 type ApiContext = { Bindings: Bindings; Variables: { apiPrincipal: string } }
 export const api=new Hono<ApiContext>()
-api.use('*',async(c,next)=>{c.env=runtimeBindings(c.env);await next();c.header('cache-control','no-store');c.header('referrer-policy','no-referrer');c.header('x-content-type-options','nosniff')})
+api.use('*',async(c,next)=>{const native=runtimeBindings(c.env),session=await operatorAuth(native).getSession(c.req.raw);c.env={...native,DB:withAuditDatabase(native.DB,session?.operator.id??{kind:'system',id:'authentication'})};await next();c.header('cache-control','no-store');c.header('referrer-policy','no-referrer');c.header('x-content-type-options','nosniff')})
 // COMPLY-002: a successful API-key request counts for its bound member; failed requests do not.
 // The outer compliance dispatcher retains fixed-schema logs without credentials, URLs or document content.
 api.use('/api/v1/*', async (c, next) => {
-  if(new URL(c.req.url).pathname!=='/api/v1/openapi.json'){const actor=await authenticateApiKey(c.req.raw,c.env);await admitApiRequest(c.env,actor.apiKeyId!)}
+  if(new URL(c.req.url).pathname!=='/api/v1/openapi.json'){const actor=await authenticateApiKey(c.req.raw,c.env);c.env={...c.env,DB:withAuditDatabase(runtimeBindings(c.env).DB,`api-key:${actor.apiKeyId}`)};await admitApiRequest(c.env,actor.apiKeyId!)}
   await next()
   const principal = c.get('apiPrincipal')
   if (principal && c.res.status < 400) await c.env.DB.prepare(`INSERT INTO iw_member_access(operator_id,last_access_at) VALUES(?,?)
@@ -107,6 +109,8 @@ api.post('/api/inkwell/embed-origins',async c=>{sameOrigin(c.req.raw,c.env);retu
 api.post('/api/inkwell/embeds',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await createEmbed(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),c.req.raw,await readJson(c.req.raw,4096)))})
 api.post('/api/sign/:token/payment/start',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await startSigningPayment(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),await readJson(c.req.raw,4096)))})
 api.post('/api/sign/:token/payment/check',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await checkSigningPayment(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw)))})
+api.get('/api/inkwell/audit',async c=>{await requireActor(c.req.raw,c.env,['owner','admin']);return c.json(await listAccountAudit(c.env,new URL(c.req.url).searchParams))})
+api.get('/api/inkwell/audit.csv',async c=>{await requireActor(c.req.raw,c.env,['owner','admin']);return new Response(await auditCsv(c.env,new URL(c.req.url).searchParams),{headers:{'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="inkwell-account-audit.csv"'}})})
 api.get('/health',c=>c.json({status:'ok',product:'Inkwell',...deploymentHealth(c.env)}))
 // MANAGE-001: the workspace is who is signed in, their agent tokens and people; envelopes are read a page or one at a time.
 api.get('/api/inkwell',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json({actor:{id:actor.id,name:actor.name,email:actor.email,role:actor.role},agents:actor.role==='owner'?await listAgents(c.env):[],people:['owner','admin'].includes(actor.role)?await listPeople(c.env):[],...(['owner','admin'].includes(actor.role)?{settings:{envelopeDefaults:await envelopeDefaults(c.env),freeForm:await freeFormPolicy(c.env),freeFormHistory:await freeFormHistory(c.env),completedCopies:await completedCopyDelivery(c.env),retention:await retentionView(c.env),healthcare:await healthcareProfile(c.env),internalApproval:await approvalView(c.env),sendPolicies:await sendPolicies(c.env),sendPolicyHistory:await sendPolicyHistory(c.env)}}:{}),...(actor.role==='viewer'?{}:{signingGroups:await listGroups(c.env)})})})

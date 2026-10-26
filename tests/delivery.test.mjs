@@ -447,6 +447,9 @@ test('Follow-up: stalled signers, authenticated reply custody and contact limits
   const audit=(await h.send(`/api/inkwell/envelopes/${id}/artifacts/audit`,undefined,h.owner)).value
   assert.ok(!JSON.stringify(audit).includes('Clause 4 needs legal review'),'audit carries opaque reply ids only')
   await h.command('envelope.followup',{id,enabled:false})
+  const accountAudit=(await h.send('/api/inkwell/audit?target='+encodeURIComponent('envelope:'+id)+'&limit=200',undefined,h.owner)).value.entries
+  for(const action of ['followup.granted','followup.sent','followup.reply_received','followup.resumed','followup.revoked'])assert.ok(accountAudit.some(e=>e.action===action),action+' appears in account history')
+  assert.ok(!JSON.stringify(accountAudit).includes('Clause 4 needs legal review')&&!JSON.stringify(accountAudit).includes('Private attachment'),'Unified history retains opaque events without reply text')
   const stopped=h.attempted().length;await h.scheduled(next(3));assert.equal(h.attempted().length,stopped,'revocation cancels subsequent passes including DELIV-003')
   await h.post(clientPath+'/decline',{reason:'Sender review requested',commandId:crypto.randomUUID()},clientCookie)
   const certificate=(await h.send(`/api/inkwell/envelopes/${id}/artifacts/certificate`,undefined,h.owner)).bytes
@@ -956,6 +959,9 @@ test('Box and Dropbox file the completed PDF and certificate exactly once despit
  try {
   const templateId=await filingTemplate(h)
   for(const provider of ['box','dropbox'])await saveFilingRule(h,templateId,provider)
+  const accountAudit=(await h.send('/api/inkwell/audit?limit=200',undefined,h.owner)).value.entries
+  for(const provider of ['box','dropbox'])assert.ok(accountAudit.some(e=>e.action==='filing.changed'&&e.after.provider===provider&&e.after.enabled===true&&e.before===null),'Filing consent appears in unified history')
+  assert.ok(!JSON.stringify(accountAudit).includes('synthetic-inkwell-1')&&!JSON.stringify(accountAudit).includes('synthetic-inkwell-2'))
   edge.failNext('box','after');edge.failNext('dropbox','before')
   const signed=await finishFilingEnvelope(h,templateId,'mara@harbour.example')
   let view=(await h.send('/api/inkwell/filing',undefined,h.owner)).value

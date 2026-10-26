@@ -33,7 +33,8 @@ const groups = [[
  "tests/journeys/template-maintenance.mjs",
  "tests/journeys/supplements.mjs",
  "tests/journeys/send-policies.mjs",
- "tests/journeys/filing.mjs"
+ "tests/journeys/filing.mjs",
+ "tests/journeys/account-audit.mjs"
 ]]
 const selector = process.env.INKWELL_JOURNEY_SHARD
 if (selector && !/^[1234]\/4$/.test(selector)) throw new Error('INKWELL_JOURNEY_SHARD must be a shard from 1 to 4 with a total of 4')

@@ -41,6 +41,10 @@ test('FORM-001: publication pins one public role, every fixed recipient and boun
   const next=(await publish({templateVersion:2})).form;assert.notEqual(next.id,form.id)
   await h.post(`/api/inkwell/forms/${next.id}/disable`,{commandId:crypto.randomUUID()},h.owner)
   assert.equal((await h.send(`/api/forms/${next.id}`)).status,404)
+  const accountAudit=(await h.send('/api/inkwell/audit?limit=200',undefined,h.owner)).value.entries
+  assert.ok(accountAudit.some(e=>e.action==='form.published'&&e.target===`form:${form.id}`&&e.actorId===form.ownerId))
+  assert.ok(accountAudit.some(e=>e.action==='form.disabled'&&e.target===`form:${next.id}`&&e.before.disabledAt===null&&e.after.disabledAt))
+  assert.ok(!JSON.stringify(accountAudit).includes('company@harbour.example'),'Account audit excludes fixed recipient identities')
   const expiring=(await publish({templateVersion:2,expiryDays:1})).form;h.advanceTo(start+day);assert.equal((await h.send(`/api/forms/${expiring.id}`)).status,410);await h.post(`/api/forms/${expiring.id}/code`,{email:'expired@clients.example',turnstileToken:'synthetic-inkwell-code'},'',410)
  }finally{await h.close()}
 })

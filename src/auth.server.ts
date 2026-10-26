@@ -1,3 +1,4 @@
+import { withAuditDatabase } from './inkwell/account-audit-db'
 import { rejectedResponse } from './base/rejected-response'
 import { createDependencies } from './modules/dependencies/index.mjs'
 import { createOwnerClaimHandler, createIdpOwnerClaimHandler } from './modules/owner-claim/index.mjs'
@@ -104,6 +105,8 @@ async function handleAuthResponse(request: Request, original: Bindings): Promise
 }
 
 export async function authResponse(request: Request, original: Bindings): Promise<Response | null> {
- const response = await handleAuthResponse(request, original)
+ const native = runtimeBindings(original), session = await operatorAuth(native).getSession(request)
+ const established = session || await native.DB.prepare('SELECT 1 AS present FROM oa_operators LIMIT 1').first()
+ const response = await handleAuthResponse(request, established ? { ...native, DB: withAuditDatabase(native.DB, session?.operator.id ?? {kind:'system',id:'authentication'}) } : native)
  return response ? rejectedResponse(request, response) : null
 }
