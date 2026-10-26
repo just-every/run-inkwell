@@ -67,6 +67,7 @@ export async function embeddingAuthorityCases(){
   const current=await redeem((await issue(h.owner,{mode:'sign',token:await invitation()})).value.url)
   await h.command('envelope.void',{id:envelope,reason:'Erasure after review'})
   assert.equal((await api(current,'/meta')).status,403,'voiding refuses the next read')
+  const priorAudit=(await h.db.prepare('SELECT id,actor,action,origin,at,envelope_id,detail FROM iw_embed_audit').all()).results
   await h.post(base+'/erase',{id:envelope,confirmation:'ERASE'})
   assert.equal((await api(beforeErasure,'/api/sign/anything',{})).status,403)
   const later=(await h.send(base+'/archive',undefined,h.owner)).value,refusedRestore=await harness({now:start})
@@ -85,7 +86,9 @@ export async function embeddingAuthorityCases(){
   h.advanceTo(start+15*60_000);assert.equal((await api(expiring,'/meta')).status,403);await redeem(unredeemed,403)
   h.advanceTo(start+15*60_000+1)
   await h.post(base+'/embed-origins',{origin,enabled:true,consent:true},h.owner,403)
-  const audit=(await h.db.prepare('SELECT id,actor,action,origin,at,envelope_id,detail FROM iw_embed_audit').all()).results
+  const survivingAudit=(await h.db.prepare('SELECT id,actor,action,origin,at,envelope_id,detail FROM iw_embed_audit').all()).results
+  const audit=[...new Map([...priorAudit,...survivingAudit].map(entry=>[entry.id,entry])).values()]
+  assert.ok(audit.length>survivingAudit.length,'Erasure removes source embedding rows while the account log keeps their opaque history')
   for(const action of ['origin.changed','launch.authorized','launch.redeemed','launch.closed','authority.refused','request.refused','launch.expired']){
    const row=audit.find(row=>row.action===action);assert.ok(row,action+' is audited');assert.ok(row.actor);assert.ok(Number.isFinite(Date.parse(row.at)));assert.ok(JSON.parse(row.detail).outcome)
   }
