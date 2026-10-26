@@ -141,8 +141,8 @@ try{
   assert.equal(await frame.locator('body').evaluate(async(el,base)=>(await fetch(base+'/api/inkwell/api-keys')).status,base),403)
   assert.equal(await frame.locator('body').evaluate(async(el,base)=>(await fetch(base+'/api/inkwell/commands',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({command:'agent.issue',commandId:crypto.randomUUID(),input:{}})})).status,base),403)
   // Blocking browser cookie custody must yield an actionable native continuation.
-  await page.route('**/api/embed/**',route=>{const headers={...route.request().headers()};delete headers.cookie;return route.continue({headers})})
-  launchUrl=await launch('prepare');await page.reload();await frame.getByRole('link',{name:'Continue in Inkwell',exact:true}).waitFor();await capture(page,frame,width,'cookie-refused');await axe(page.frames().find(f=>f.url().startsWith(app.origin+'/embed/')),'Cookie refusal '+width);await page.unroute('**/api/embed/**')
+  await context.clearCookies()
+  await page.reload();await frame.getByRole('link',{name:'Continue in Inkwell',exact:true}).waitFor();await capture(page,frame,width,'cookie-refused');await axe(page.frames().find(f=>f.url().startsWith(app.origin+'/embed/')),'Cookie refusal '+width)
   const expiryUrl=await frame.locator('body').evaluate(()=>location.href),expiryId=new URL(expiryUrl).pathname.split('/').at(-1);await app.db.prepare('UPDATE iw_embed_launches SET expires_at=? WHERE session_id=?').bind(Date.now()-1,expiryId).run();const expired=await context.newPage();await expired.goto(expiryUrl);await expired.getByRole('heading',{name:'Embedded session unavailable',exact:true}).waitFor();assert.ok(await expired.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await expired.screenshot({path:join(proof,`${width}-expired.png`),fullPage:true});await axe(expired,'Embedded expiry '+width);await expired.close()
   await context.close()
  }

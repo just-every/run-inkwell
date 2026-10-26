@@ -252,6 +252,10 @@
       "sha256": "ec682fd1ed257defc42ae3d389061e40abad3072348ba98196004b8d0bde2276",
       "executable": false
     },
+    "docs/payment-at-signing.md": {
+      "sha256": "dc1546e2ad5dd27f4829b2c77b232dfe376026e90d72bc8e23dbafbfe2e77003",
+      "executable": false
+    },
     "docs/provenance.md": {
       "sha256": "13fda0f88dae79cba57fd14c2034488db0a223a08166f4cb4e5cb99e93f0df7f",
       "executable": false
@@ -4193,7 +4197,7 @@
       "executable": false
     },
     "tests/journeys/embedding.mjs": {
-      "sha256": "bbdbb631939c707d1b3e77094f53fd6ecff3a79ed132c4aa32887cb48c6c0214",
+      "sha256": "e539a2b879113f4f0fc66c31136582b44f0f82eb3494c522d358ff81e8ae7302",
       "executable": false
     },
     "tests/journeys/envelope-detail.mjs": {

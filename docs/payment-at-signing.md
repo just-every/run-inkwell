@@ -1,0 +1,11 @@
+# Payment at signing
+
+An owner or admin can add a Stripe requirement to a template's recipient role: payment, deposit, saved card or ACH mandate. The amount and currency apply to a payment or deposit. Confirm the requirement explicitly before saving. Using a template freezes its requirement and buyer account on the envelope; editing the template later does not change an agreement already prepared.
+
+Configure the installation's Worker secrets with `STRIPE_PAYMENTS_SECRET_KEY`, `STRIPE_PAYMENTS_TEST_MODE` set to `true`, and an explicit `STRIPE_PAYMENTS_BUYER_NAME` if the authenticated Stripe account has no business display name. The key must belong to the buyer's Stripe test account. Keep it in installation secrets; never put it in a template, document, archive or client application. The current collection boundary accepts test mode only.
+
+The assigned signer first verifies their invitation and accepts the electronic-record disclosure. They then see the buyer, Stripe, requirement and separate unchecked payment consent. Prepare Stripe checkout, continue on Stripe's hosted page, return to the signing tab and check the status. Checking payment never signs the agreement: the signer still reviews their fields and explicitly selects Sign document. A declined or pending result leaves the agreement waiting and the attempted signature unsaved. Saving a card or establishing a mandate authorizes no unspecified later charge.
+
+Inkwell verifies Stripe's bound intent through an authenticated server request. A browser return alone proves no outcome. Business custody retains the immutable requirement, opaque provider references, normalized result and configuration and consent audit evidence. Card and bank details go directly to Stripe. Copies keep the requirement with no successful outcome or active Checkout authority. Restore retains historical evidence; an unfinished restored requirement needs fresh signer consent and installation-local provider verification before signing. A previously confirmed historical payment is checked without starting another charge.
+
+The approved interim scope uses hosted Checkout in test mode. Payment Element, refunds and disputes handling, receipts, tax, recurring billing handoff to Nectar, and live mode remain the named CONTRACT gaps. Erasing an Inkwell agreement does not refund or erase a payment held by Stripe.
