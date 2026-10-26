@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "acf8b68e402fb4f9fba6b71949d45228b65e53c9e682d85c0683353f5f97c040",
+      "sha256": "f7d7785cc304c36aa4a9d94375640ad0d5215bfb2ce6743511a047c9511c7285",
       "executable": false
     },
     "DEMO.md": {
@@ -1293,7 +1293,7 @@
       "executable": false
     },
     "src/inkwell/filing.ts": {
-      "sha256": "94573448222d5af4994758d365b80da4b98f65fd2fbd0cc34f9fba59931ed375",
+      "sha256": "d205d919fce5db907df7c6b4f46f6c1e39854fb142f172e7ed354ff62c46435c",
       "executable": false
     },
     "src/inkwell/followup-engine.ts": {
@@ -4005,7 +4005,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "28b728621618412eb7717e1452a9195123a57c27fb20e6368925a2c917646578",
+      "sha256": "1d46ecfa841b49b934408f84e8a7a07a8c93c9368f5aa9139514810477bae9f8",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
