@@ -30,22 +30,22 @@ export async function uploadPdf(env:Env,actor:Actor,request:Request,uploadId?:st
   const input=object(await request.json()),filename=text(input.filename,'a PDF filename',240),size=Number(input.bytes)
   insist(filename.toLowerCase().endsWith('.pdf')&&!/[\x00-\x1f/\\]/.test(filename),'Choose a PDF filename.')
   insist(Number.isSafeInteger(size)&&size>0&&size<=MAX_ENVELOPE_BYTES,'A document must be nonempty and fit within the envelope’s 100 MiB limit.')
-  const uploadId=id();await atomic(env.DB,[roleGuard(actor)],[env.DB.prepare('INSERT INTO iw_pdf_uploads(id,actor,size,filename,created_at) VALUES(?,?,?,?,?)').bind(uploadId,actor.id,size,filename,now())]);return{id:uploadId,chunkBytes}
+  const uploadId=id();await atomic(env.DB,[roleGuard(actor)],[env.DB.prepare('INSERT INTO iw_pdf_uploads(id,actor,size,filename,created_at) VALUES(?,?,?,?,?)').bind(uploadId,env.embedAllocation?'embed:'+env.embedAllocation:actor.id,size,filename,now())]);return{id:uploadId,chunkBytes}
  }
  const upload=await env.DB.prepare('SELECT actor,size FROM iw_pdf_uploads WHERE id=?').bind(uploadId).first<{actor:string;size:number}>()
- insist(upload&&upload.actor===actor.id,'PDF upload not found.',404)
+ insist(upload&&upload.actor===(env.embedAllocation?'embed:'+env.embedAllocation:actor.id),'PDF upload not found.',404)
  const index=Number(part);insist(/^\d+$/.test(part??'')&&Number.isSafeInteger(index)&&index>=0&&index<Math.ceil(upload.size/chunkBytes),'Choose an upload part.')
  const bytes=await readBytes(request,chunkBytes),expected=Math.min(chunkBytes,upload.size-index*chunkBytes)
  insist(bytes.length===expected,'This upload part has the wrong byte count.')
  const old=await env.DB.prepare('SELECT data FROM iw_pdf_upload_parts WHERE upload_id=? AND part=?').bind(uploadId,index).first<{data:number[]}>()
  if(old){insist(await sha256(new Uint8Array(old.data))===await sha256(bytes),'This upload part already contains different bytes.',409);return{part:index}}
- await atomic(env.DB,[roleGuard(actor),{sql:'EXISTS(SELECT 1 FROM iw_pdf_uploads WHERE id=? AND actor=?)',values:[uploadId,actor.id]}],[env.DB.prepare('INSERT INTO iw_pdf_upload_parts(upload_id,part,data) VALUES(?,?,?)').bind(uploadId,index,bytes.buffer)])
+ await atomic(env.DB,[roleGuard(actor),{sql:'EXISTS(SELECT 1 FROM iw_pdf_uploads WHERE id=? AND actor=?)',values:[uploadId,env.embedAllocation?'embed:'+env.embedAllocation:actor.id]}],[env.DB.prepare('INSERT INTO iw_pdf_upload_parts(upload_id,part,data) VALUES(?,?,?)').bind(uploadId,index,bytes.buffer)])
  return{part:index}
 }
 export async function uploadedBytes(env:Env,actor:Actor|undefined,uploadId:unknown) {
  insist(actor,'Use a member session for staged document uploads.',403)
  const upload=await env.DB.prepare('SELECT actor,size,filename FROM iw_pdf_uploads WHERE id=?').bind(text(uploadId,'a PDF upload ID')).first<{actor:string;size:number;filename:string}>()
- insist(upload&&upload.actor===actor.id,'PDF upload not found.',404)
+ insist(upload&&upload.actor===(env.embedAllocation?'embed:'+env.embedAllocation:actor.id),'PDF upload not found.',404)
  const bytes=new Uint8Array(upload.size);let offset=0
  for(let part=0;offset<bytes.length;part++){
   const row=await env.DB.prepare('SELECT data FROM iw_pdf_upload_parts WHERE upload_id=? AND part=?').bind(uploadId,part).first<{data:number[]}>();insist(row,'The PDF upload is incomplete.',409)

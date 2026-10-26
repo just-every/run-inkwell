@@ -17,7 +17,7 @@ export function SigningPayment({ base, status, request = signingRequest, onCheck
   const requirement = status.requirement, setup = requirement.kind === 'saved_card' || requirement.kind === 'ach_mandate', complete = status.outcome === 'succeeded'
   const title = requirement.kind === 'saved_card' ? 'Save a card' : requirement.kind === 'ach_mandate' ? 'Authorize an ACH mandate' : requirement.kind === 'deposit' ? 'Pay the deposit' : 'Make the payment'
   const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: requirement.currency.toUpperCase() })
-  const amount = 'amount' in requirement ? formatter.format(requirement.amount / 10 ** formatter.resolvedOptions().maximumFractionDigits) : undefined
+  const amount = 'amount' in requirement ? formatter.format(requirement.amount / 10 ** formatter.resolvedOptions().maximumFractionDigits!) : undefined
   async function act(work: () => Promise<void>) {
     setBusy(true); setError('')
     try { await work() } catch (caught) { setError(caught instanceof Error ? caught.message : 'The payment could not be checked. Try again.') } finally { setBusy(false) }

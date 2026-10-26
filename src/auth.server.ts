@@ -14,6 +14,8 @@ import branding from './branding.json'
 const theme = { href: '/frame.css', productName: branding.name, accentColor: branding.primaryColor }
 
 export interface Bindings {
+ STRIPE_PAYMENTS_SECRET_KEY?: string
+ STRIPE_PAYMENTS_TEST_MODE?: string
  RER_OWNER_CLAIM_ISSUER?: string
  RER_OWNER_CLAIM_INSTALLATION_ID?: string
  RER_OWNER_CLAIM_PUBLIC_KEYS?: string

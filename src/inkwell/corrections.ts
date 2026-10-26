@@ -1,3 +1,4 @@
+import { samePaymentRequirement } from './payment-requirement'
 import { apiCommandActor } from './api-command'
 import { providerChoice, requireProvider } from './provider-auth'
 import { smsIdentity } from './sms'
@@ -52,6 +53,8 @@ function readRecipient(env: Env, value: unknown, place: number, previous?: Signe
   insist(code === undefined || /^\S{4,32}$/.test(code), 'Use an access code of 4–32 characters with no spaces.')
   const name = text(s.name, 'the signer name', 100), message = edit(s.message, previous?.message, 'the private message', 1000)
   insist(!previous || canonical(role) === canonical(previous.role ?? 'signer') && canonical(witnesses ?? null) === canonical(previous.witnesses ?? null), 'A sent recipient’s role and witness requirement cannot change.',409)
+  insist(!previous?.payment || (previous.name===name&&previous.email===email&&samePaymentRequirement(s.payment===undefined?previous.payment:s.payment,previous.payment)), 'A payment obligation stays with its authorized payer. Void and prepare a new envelope to replace that payer.',409)
+  insist(previous?.payment || s.payment===undefined || s.payment===null,'A sent recipient cannot acquire a new payment obligation.',409)
   const provider = providerChoice({...s,inPerson:previous?.inPerson ?? s.inPerson}, previous); requireProvider(env, provider.providerAuth)
   const mobile = smsIdentity({ ...s, inPerson: previous?.inPerson ?? s.inPerson }, previous)
   const same = previous && previous.name === name && previous.email === email && previous.phone === mobile.phone && Boolean(previous.sms) === Boolean(mobile.sms) && previous.providerAuth === provider.providerAuth
@@ -85,7 +88,7 @@ export async function correctEnvelope(env: Env, context: CommandContext, input: 
         insist(previous.removedAt ? entry.remove === true : entry.remove !== true && entry.accessCode === undefined && canonical(identity(readRecipient(env, value, i, previous).signer, i)) === canonical(identity(previous, i)), signedFixed(i), 409)
         return previous
       }
-      if (entry.remove === true) { insist(previous, 'Only a recipient already on the envelope can be removed.'); return { ...previous, removedAt: at } }
+      if (entry.remove === true) { insist(!previous?.payment,'A sent payment obligation cannot be removed. Void this envelope instead.',409); insist(previous, 'Only a recipient already on the envelope can be removed.'); return { ...previous, removedAt: at } }
       // ROUTE-005: a signing group keeps the members snapshotted when its draft was saved; it stays as it is or is removed.
       if (previous?.group) { insist(entry.group === previous.group.id && Object.keys(entry).every(k => k === 'group'), `${previous.group.name} is a signing group: keep it as it is ({"group": "${previous.group.id}"}) or remove it.`, 409); return previous }
       insist(entry.group === undefined, 'A correction cannot add a signing group. Prepare a new envelope instead.', 409)

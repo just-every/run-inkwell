@@ -44,16 +44,30 @@ export async function embeddingAuthorityCases(){
   const sent=await api(session,'/api/inkwell/commands',{command:'envelope.approve',commandId:'send',input:{id:envelope,eligible:true}});assert.equal(sent.status,200,JSON.stringify(sent.value));assert.ok(await h.mail('embed-mara@harbour.example','Please sign:'))
   console.log('Embedding authority: preparation passed')
   const archive=(await h.send(base+'/archive',undefined,h.owner)).value
-  const serialized=JSON.stringify(archive);assert.ok(!serialized.includes('iw_embed_')&&!serialized.includes(launched.url),'archives exclude active embedding custody')
+  const serialized=JSON.stringify(archive);assert.ok(!archive.ndjson.split('\n').filter(Boolean).map(line=>JSON.parse(line)).flatMap(record=>record.items??[]).some(item=>item.kind==='row'&&item.table.startsWith('iw_embed_'))&&!serialized.includes(launched.url),'archives exclude active embedding custody')
   const restored=await harness({now:start})
   try{await restored.post(base+'/archive/restore',{archive});assert.deepEqual((await restored.send(base+'/embed-origins',undefined,restored.owner)).value.origins,[]);assert.equal((await restored.send('/api/embed/'+session.id+'/meta',undefined,session.cookie)).status,403)}finally{await restored.close()}
+  const beforeErasure=await redeem((await issue(h.owner,{mode:'sign',token:new URL((await h.mail('embed-mara@harbour.example','Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)})).value.url)
+  await h.command('envelope.void',{id:envelope,reason:'Erasure after review'})
+  assert.equal((await api(beforeErasure,'/meta')).status,403,'voiding refuses the next read')
+  await h.post(base+'/erase',{id:envelope,confirmation:'ERASE'})
+  assert.equal((await api(beforeErasure,'/api/sign/anything',{})).status,403)
+  const later=(await h.send(base+'/archive',undefined,h.owner)).value,refusedRestore=await harness({now:start})
+  try{await refusedRestore.post(base+'/archive/restore',{archive,laterJournal:later},refusedRestore.owner,400)}finally{await refusedRestore.close()}
   const rows=(await h.db.prepare('SELECT detail FROM iw_embed_audit').all()).results
   assert.ok(rows.some(r=>JSON.parse(r.detail).consentVersion));assert.ok(!JSON.stringify(rows).includes(launched.url.split('/').at(-1))&&!JSON.stringify(rows).includes(session.cookie.split('=')[1]))
+  const adminActor=(await h.send(base,undefined,admin)).value.actor,revokedRole=await redeem((await issue(admin)).value.url)
+  await h.post('/auth/operator/status',{operatorId:adminActor.id,status:'inactive'})
+  await h.post('/auth/operator/status',{operatorId:adminActor.id,status:'active'})
+  assert.equal((await api(revokedRole,'/meta')).status,403,'restoring member authority does not revive embedding')
   await grant(origin,false);assert.equal((await api(session,'/meta')).status,403);await grant();assert.equal((await api(session,'/meta')).status,403,'readding an origin does not revive a session')
-  const ended=await redeem((await issue(admin)).value.url);await h.post('/auth/signout',{},admin,204);assert.equal((await api(ended,'/meta')).status,403)
+  const closingAdmin=await h.invite('closing-admin@harbour.example','admin'),ended=await redeem((await issue(closingAdmin)).value.url);await h.post('/auth/signout',{},closingAdmin,204);assert.equal((await api(ended,'/meta')).status,403)
   const expiring=await redeem((await issue()).value.url),unredeemed=(await issue()).value.url
   h.advanceTo(start+15*60_000);assert.equal((await api(expiring,'/meta')).status,403);await redeem(unredeemed,403)
+  h.advanceTo(start+15*60_000+1)
   await h.post(base+'/embed-origins',{origin,enabled:true,consent:true},h.owner,403)
   console.log('Embedded authority: canonical origins, roles, concurrent single redemption, lost response, cookie refusal, idempotent draft, explicit send, revocation, absolute expiry, audit and archive custody passed.')
  }finally{await h.close()}
 }
+
+if (process.argv[1]?.endsWith('/embedding-cases.mjs')) await embeddingAuthorityCases()

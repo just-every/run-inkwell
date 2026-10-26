@@ -1,3 +1,4 @@
+import { parsePaymentRequirement, samePaymentRequirement, type PaymentRequirement } from './payment-requirement'
 import { customEnvelopeFields, envelopeTags } from './envelope-metadata'
 import { delegatedPlaces, validateDelegationGrants, validateActionDocuments, requireDelegationAuthority } from './delegation-grants'
 import { providerChoice, requireProvider } from './provider-auth'
@@ -28,7 +29,7 @@ export type Draft = Pick<Envelope, 'tags' | 'customFields' | 'consumerDisclosure
 const optional = (value: unknown, label: string, max: number, oneLine = false) => { if (value === undefined || value === '') return undefined; const result = text(value, label, max); insist(!oneLine || !/[\r\n\t]/.test(result), `Use a single line for ${label}.`); return result }
 /** `previous` is the draft being saved again: a recipient at the same place with the same email may keep their access
  * code (`keepAccessCode`), which is bound to that place. */
-export async function readDraft(env: Env, input: Record<string, unknown>, base: string, previous?: Envelope, actor?: Actor, prepared?:{bytes:Uint8Array;documents:NonNullable<Envelope['documents']>;composition?:true}, savedMethods?: import('./model').AdoptionMethod[], savedDisclosure?: Envelope['consumerDisclosure'] | null) {
+export async function readDraft(env: Env, input: Record<string, unknown>, base: string, previous?: Envelope, actor?: Actor, prepared?:{bytes:Uint8Array;documents:NonNullable<Envelope['documents']>;composition?:true}, savedMethods?: import('./model').AdoptionMethod[], savedDisclosure?: Envelope['consumerDisclosure'] | null, savedPayments?: readonly (PaymentRequirement|undefined)[]) {
   const defaults = previous ? undefined : await envelopeDefaults(env)
   const title = text(input.title, 'a title'), filename = text(input.filename ?? (input.documents ? 'combined.pdf' : undefined), 'a filename', 240)
   insist(!/[\x00-\x1f/\\]/.test(filename) && filename.toLowerCase().endsWith('.pdf'), 'Choose a PDF filename.')
@@ -65,12 +66,16 @@ export async function readDraft(env: Env, input: Record<string, unknown>, base: 
     insist(!group || role === 'signer', 'A signing group fills a signer role.')
     insist(!inPerson || role === 'signer', 'In-person recipients sign their own signature.')
     insist(!witnesses?.linkOnly || !mailSuppressed(env), 'Link-only witnesses need mail.')
+    const inheritedPayment=previous?.signers[i]?.payment??savedPayments?.[i],payment=parsePaymentRequirement(s.payment===undefined?inheritedPayment:s.payment)
+    if(!samePaymentRequirement(payment,inheritedPayment)){insist(actor&&['owner','admin'].includes(actor.role),'Only an owner or admin can change a payment requirement.',403);insist(s.paymentConsent===true,'Explicitly authorize this payment requirement.')}
+    insist(!payment||role==='signer','Payment belongs to a signer role.')
     const provider = providerChoice({...s,inPerson}, previous?.signers[i]); requireProvider(env, provider.providerAuth)
     insist(provider.providerAuth !== 'voice' || s.phone || previous?.signers[i]?.phone, 'Enter a US phone number for voice verification.')
     const sms = smsIdentity({sms:s.sms,phone:s.phone,linkOnly:s.linkOnly,inPerson,group:s.group},previous?.signers[i])
     insist(!sms.sms || smsReady(env), 'SMS delivery is not configured. Ask the owner to configure Twilio.',503)
-    return { ...provider, ...sms, ...(unresolved ? {unresolvedIdentity:true as const} : {}), ...(s.delegates === undefined ? {} : {delegates:delegatedPlaces(s.delegates)}), ...(role !== 'signer' ? { role } : {}), ...(witnesses ? { witnesses } : {}), ...(s.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(s.includeWhen)}), ...(group ? groupPlace(group) : { name: unresolved ? '' : text(s.name, 'the signer name', 100), email }), order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
+    return { ...(payment?{payment}:{}), ...provider, ...sms, ...(unresolved ? {unresolvedIdentity:true as const} : {}), ...(s.delegates === undefined ? {} : {delegates:delegatedPlaces(s.delegates)}), ...(role !== 'signer' ? { role } : {}), ...(witnesses ? { witnesses } : {}), ...(s.includeWhen===undefined?{}:{includeWhen:normalizeRoutingRule(s.includeWhen)}), ...(group ? groupPlace(group) : { name: unresolved ? '' : text(s.name, 'the signer name', 100), email }), order: order as number, ...(inPerson ? { inPerson: true } : {}), ...(code || keep ? { accessCode: true } : {}), ...(s.linkOnly ? { linkOnly: true } : {}), ...(message ? { message } : {}) }
   })
+  if(previous?.signers.some((signer,i)=>signer.payment&&!samePaymentRequirement(signer.payment,signers[i]?.payment)))insist(actor&&['owner','admin'].includes(actor.role),'Only an owner or admin can remove a payment requirement.',403)
   validateDelegationGrants(signers);requireDelegationAuthority(signers,actor)
   const addresses = signers.filter(s=>!s.unresolvedIdentity).flatMap(s => s.group ? s.group.members.map(m => m.email) : [s.email])
   const places = signers.filter(s=>!s.unresolvedIdentity).flatMap(s => s.group ? s.group.members.map(m => m.email) : [prepared?.composition || previous?.templates ? `${s.email}:${s.order}` : s.email])

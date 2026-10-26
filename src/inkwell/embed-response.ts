@@ -3,7 +3,7 @@ import { insist, object, Refusal, secret, sha256, type Env } from './model'
 import { unseal } from './seal'
 import { atomic } from './storage'
 import { ApiRateLimit } from './api-limits'
-import { embedLaunch, embedCookie, embedGuard, embedAudit, checkEmbed } from './embedding'
+import { embedLaunch, embedCookie, embedGuard, embedAudit, checkEmbed, type Launch } from './embedding'
 import { embedLimit } from './embed-limits'
 import { embeddedDatabase } from './embed-database'
 
@@ -11,6 +11,7 @@ import { embeddedDatabase } from './embed-database'
 export async function embedResponse(request:Request,env:Env,serve:(request:Request,scope:Env)=>Promise<Response>):Promise<Response|null>{
  const url=new URL(request.url),entry=/^\/embed\/([a-f0-9]{64})$/.exec(url.pathname),api=/^\/api\/embed\/([a-f0-9]{64})(\/.*)$/.exec(url.pathname)
  if(!entry&&!api)return null
+ let auditLaunch:Launch|undefined
  const privateHeaders={'cache-control':'no-store','referrer-policy':'no-referrer','content-security-policy':"frame-ancestors 'none'"}
  try{
   let id=(entry??api)![1]
@@ -19,7 +20,7 @@ export async function embedResponse(request:Request,env:Env,serve:(request:Reque
    const existing=await env.DB.prepare('SELECT 1 FROM iw_embed_launches WHERE session_id=?').bind(id).first()
    if(!existing){
     await embedLimit(env,'redeem',await sha256(request.headers.get('cf-connecting-ip')??'unavailable'))
-    const launch=await embedLaunch(env,id)
+    const launch=await embedLaunch(env,id);auditLaunch=launch
     insist(launch.redeemed_at===null,'This launch was already used. Ask for a fresh launch.',403)
     const session=secret(),cookie=secret()
     await atomic(env.DB,[embedGuard(launch),{sql:'EXISTS(SELECT 1 FROM iw_embed_launches WHERE token_hash=? AND redeemed_at IS NULL)',values:[launch.token_hash]}],[
@@ -32,7 +33,7 @@ export async function embedResponse(request:Request,env:Env,serve:(request:Reque
    headers.set('content-security-policy',`frame-ancestors ${launch.origin}`);headers.set('referrer-policy','no-referrer');headers.set('cache-control','no-store')
    return new Response(response.body,{status:response.status,headers})
   }
-  const launch=await embedLaunch(env,id,true)
+  const launch=await embedLaunch(env,id,true);auditLaunch=launch
   await embedLimit(env,'request',id)
   insist(new URL(env.AUTH_ORIGIN).origin===url.origin,'Use the application origin.',403)
   insist(request.headers.get('sec-fetch-site')!=='cross-site','Cross-site API access is refused.',403)
@@ -87,5 +88,10 @@ export async function embedResponse(request:Request,env:Env,serve:(request:Reque
   if(launch.mode==='sign'&&out.has('set-cookie'))out.set('set-cookie',out.get('set-cookie')!.replace('Path=/api/sign/','Path=/api/embed/'+id+'/api/sign/').replace('SameSite=Strict','SameSite=None; Secure; Partitioned'))
   out.set('cache-control','no-store');out.set('referrer-policy','no-referrer')
   return new Response(response.body,{status:response.status,headers:out})
- }catch(error){return Response.json({error:error instanceof Refusal?error.message:'Embedded session could not be opened. Continue in Inkwell or ask for a fresh launch.'},{status:error instanceof Refusal?error.status:500,headers:{...privateHeaders,...(error instanceof ApiRateLimit?{'retry-after':String(error.retryAfter)}:{})}})}
+ }catch(error){
+  if(auditLaunch)await embedAudit(env,auditLaunch.actor,'request.refused',auditLaunch.origin,{purpose:auditLaunch.mode,grantVersion:auditLaunch.grant_version,launch:auditLaunch.token_hash,outcome:'refused',status:error instanceof Refusal?error.status:500},auditLaunch.envelope_id).run()
+  const status=error instanceof Refusal?error.status:500
+  if(entry)return new Response('<!doctype html><html lang="en"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app/shell.css"><title>Inkwell · Embedded session</title><body class="iw-app iw-signer"><main class="iw-main"><h1>Embedded session unavailable</h1><p>This launch expired, was already used, or its authorization ended. Ask for a fresh launch.</p><a href="/app" target="_blank" rel="noreferrer">Continue in Inkwell</a></main></body></html>',{status,headers:{...privateHeaders,'content-type':'text/html; charset=utf-8',...(error instanceof ApiRateLimit?{'retry-after':String(error.retryAfter)}:{})}})
+  return Response.json({error:error instanceof Refusal?error.message:'Embedded session could not be opened. Continue in Inkwell or ask for a fresh launch.'},{status,headers:{...privateHeaders,...(error instanceof ApiRateLimit?{'retry-after':String(error.retryAfter)}:{})}})
+ }
 }

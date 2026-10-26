@@ -1,3 +1,4 @@
+import { samePaymentRequirement } from './payment-requirement'
 import {validateDelegationGrants} from './delegation-grants'
 import { canonical, insist, type Field, type RoutingRule, type WitnessRule } from './model'
 import type { Role, Template } from './templates'
@@ -73,6 +74,8 @@ export function composition(templates: Template[], choices: CompositionChoices =
     insist(canonical(merged.includeWhen ?? null) === canonical(includeWhen ?? null), `Role ${label} at order ${original.order} has incompatible routing conditions. Change the templates before combining.`, 409)
     if (canonical(merged.witnesses ?? null) !== canonical(original.witnesses ?? null)) conflicts.push({ kind: 'witnesses', role: key, templates: [...merged.sources.map(s => s.template), ti],
       message: `${label}: witness requirements differ; the merged role retains the stricter requirements.` })
+    if (merged.payment && original.payment) insist(samePaymentRequirement(merged.payment, original.payment), `Role ${label} has conflicting payment requirements. Change the templates before combining.`, 409)
+    if (!merged.payment && original.payment) merged.payment = structuredClone(original.payment)
     merged.witnesses = combineWitnesses(merged.witnesses, original.witnesses)
     merged.accessCode = Boolean(merged.accessCode || original.accessCode)
     merged.sources.push(source)

@@ -1,4 +1,5 @@
-import { embedOrigins, changeEmbedOrigin, createEmbed } from './embedding'
+import { startSigningPayment, checkSigningPayment } from './payments'
+import { embedOrigins, changeEmbedOrigin, createEmbed, embedAudit } from './embedding'
 import { embedResponse } from './embed-response'
 import { filingView, saveFiling, retryFiling } from './filing'
 import { startProviderAuth, checkProviderAuth, providerAuthView } from './provider-auth'
@@ -99,10 +100,12 @@ async function apiClient(c: Context<ApiContext>, scope: ApiScope) {
   c.set('apiPrincipal', actor.id); return actor
 }
 api.use('/api/embed/*',async(c,next)=>{const response=await embedResponse(c.req.raw,c.env,async(request,scope)=>await api.fetch(request,scope,c.executionCtx));if(response)return response;await next()})
-api.onError((error,c)=>{if(error instanceof ApiRateLimit)c.header('Retry-After',String(error.retryAfter));return c.json({error:error instanceof Refusal?error.message:'The request could not be completed. Please try again.',...(error instanceof Refusal&&error.code?{code:error.code}:{})},(error instanceof Refusal?error.status:500) as 400)})
+api.onError(async(error,c)=>{if(c.req.path.startsWith('/api/inkwell/embed'))await embedAudit(c.env,'opaque:'+await sha256(c.req.header('cf-connecting-ip')??'unavailable'),'authority.refused','',{purpose:'authorization',outcome:'refused',status:error instanceof Refusal?error.status:500}).run();if(error instanceof ApiRateLimit)c.header('Retry-After',String(error.retryAfter));return c.json({error:error instanceof Refusal?error.message:'The request could not be completed. Please try again.',...(error instanceof Refusal&&error.code?{code:error.code}:{})},(error instanceof Refusal?error.status:500) as 400)})
 api.get('/api/inkwell/embed-origins',async c=>{await requireActor(c.req.raw,c.env,['owner','admin']);return c.json(await embedOrigins(c.env))})
 api.post('/api/inkwell/embed-origins',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await changeEmbedOrigin(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),c.req.raw,await readJson(c.req.raw,4096)))})
 api.post('/api/inkwell/embeds',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await createEmbed(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),c.req.raw,await readJson(c.req.raw,4096)))})
+api.post('/api/sign/:token/payment/start',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await startSigningPayment(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw),await readJson(c.req.raw,4096)))})
+api.post('/api/sign/:token/payment/check',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await checkSigningPayment(c.env,await signingContext(c.env,c.req.param('token'),c.req.raw)))})
 api.get('/health',c=>c.json({status:'ok',product:'Inkwell',...deploymentHealth(c.env)}))
 // MANAGE-001: the workspace is who is signed in, their agent tokens and people; envelopes are read a page or one at a time.
 api.get('/api/inkwell',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json({actor:{id:actor.id,name:actor.name,email:actor.email,role:actor.role},agents:actor.role==='owner'?await listAgents(c.env):[],people:['owner','admin'].includes(actor.role)?await listPeople(c.env):[],...(['owner','admin'].includes(actor.role)?{settings:{envelopeDefaults:await envelopeDefaults(c.env),freeForm:await freeFormPolicy(c.env),freeFormHistory:await freeFormHistory(c.env),completedCopies:await completedCopyDelivery(c.env),retention:await retentionView(c.env),healthcare:await healthcareProfile(c.env),internalApproval:await approvalView(c.env),sendPolicies:await sendPolicies(c.env),sendPolicyHistory:await sendPolicyHistory(c.env)}}:{}),...(actor.role==='viewer'?{}:{signingGroups:await listGroups(c.env)})})})
@@ -146,7 +149,7 @@ api.get('/api/inkwell/templates/:id/document',async c=>{const actor=await requir
 // DELIV-008: each member's activity feed and notification choices; every role has its own.
 api.get('/api/inkwell/notices',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json(await activityFeed(c.env,actor,new URL(c.req.url).searchParams))})
 api.get('/api/inkwell/envelope-defaults/history',async c=>{await requireActor(c.req.raw,c.env,['owner','admin']);return c.json({history:await envelopeDefaultHistory(c.env)})})
-api.get('/api/inkwell/envelope-defaults',async c=>{await requireActor(c.req.raw,c.env,['owner','admin','sender']);return c.json({defaults:await envelopeDefaults(c.env)})})
+api.get('/api/inkwell/envelope-defaults',async c=>{const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);return c.json({defaults:await envelopeDefaults(c.env),canConfigurePayments:['owner','admin'].includes(actor.role)})})
 api.get('/api/inkwell/freeform-policy',async c=>{await requireActor(c.req.raw,c.env);return c.json({policy:await freeFormPolicy(c.env)})})
 // ADMIN-004: the per-source send policies, current versions and every saved version, for owners and admins.
 api.get('/api/inkwell/send-policy-scopes',async c=>{await requireActor(c.req.raw,c.env,['owner','admin']);return c.json({scopes:await Promise.all((await sendPolicyScopes(c.env)).map(async scope=>({...scope,policies:await Promise.all(sendSources.map(source=>sendPolicy(c.env,source,encodedScope(scope))))})))})})

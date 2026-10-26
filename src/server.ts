@@ -33,19 +33,19 @@ export default withDemo({
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
     const hosted = await hostedResponse(request, runtimeBindings(env))
-    if (hosted) return hosted
+    if (hosted) return noTransform(hosted, request)
     const embedded = await embedResponse(request, runtimeBindings(env), async (req,scope) => new URL(req.url).pathname.startsWith('/api/') ? api.fetch(req, scope, execution) : noTransform(await start.fetch(req), req))
     if (embedded) return embedded
     const auth = await authResponse(request, env)
-    if (auth) return auth
+    if (auth) return noTransform(auth, request)
     // The installed variant: the Lobby at / and the public claim state it reads.
     // Local dev serves the saved origin's data at its own port (RER_DEV_ORIGIN).
     const product = await importResponse(request, runtimeBindings(env)) ?? await archiveResponse(request,env)
     if (product) return product
     const state = await setupStateResponse(request, runtimeBindings(env))
-    if (state) return state
+    if (state) return noTransform(state, request)
     const lobby = await lobbyResponse(request, runtimeBindings(env), identity)
-    if (lobby) return lobby
+    if (lobby) return noTransform(lobby, request)
     return rejectedResponse(request, await dispatch(request, () => api.fetch(request, env, execution), async () => noTransform(await start.fetch(request), request)))
     })
   },
