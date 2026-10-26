@@ -46,7 +46,7 @@ try{
   const checkout=[...provider.sessions.keys()].at(-1);assert.ok(checkout)
   provider.decline(checkout);await payment.getByRole('button',{name:'Check payment status',exact:true}).click();await payment.getByRole('status').filter({hasText:'Your signature has not been saved.'}).waitFor();await expect(signer.getByRole('button',{name:'Sign document',exact:true})).toBeDisabled();await capture(signer,width,'deposit-declined')
   provider.succeed(checkout);await payment.getByRole('button',{name:'Check payment status',exact:true}).click();await payment.getByRole('status',{name:'',exact:true}).filter({hasText:'Payment confirmed.'}).waitFor();await capture(signer,width,'deposit-confirmed')
-  await signer.getByRole('button',{name:'Sign document',exact:true}).click();await signer.getByRole('heading',{name:'Your signature has been recorded.',exact:true}).waitFor();await capture(signer,width,'signed')
+  await signer.getByRole('button',{name:'Sign document',exact:true}).click();await signer.getByRole('heading',{name:'All signatures are complete.',exact:true}).waitFor();await capture(signer,width,'signed')
   await recipient.close()
   for(const kind of ['saved_card','ach_mandate']){
    const nextEmail=`${kind}-${width}@harbour.example`,template=await app.command('template.save',{title:`Harbour ${kind} ${width}`,filename:'consulting.pdf',pdfBase64:bytes.toString('base64'),roles:[{role:'Client',payment:{kind,currency:'usd'},paymentConsent:true}],fields:[field]})
