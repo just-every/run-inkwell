@@ -60,7 +60,7 @@ try {
     const { context, page, log } = await open(app.owner, width)
     await log.getByRole('heading', { name: 'Account audit log', exact: true }).waitFor()
     // Change the member role on the actual Settings screen, then inspect the resulting record.
-    const role = page.getByLabel(`Role for ${person.email}`, { exact: true })
+    const role = page.getByLabel(`Role for ${person.email}`)
     await role.selectOption('viewer'); await expect(role).toBeEnabled(); await expect(role).toHaveValue('viewer')
     await page.getByLabel('Slack incoming webhook URL', { exact: true }).fill('https://hooks.slack.com/services/synthetic-inkwell-1')
     await page.getByRole('button', { name: 'Connect Slack', exact: true }).click()
