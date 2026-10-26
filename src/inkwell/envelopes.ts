@@ -37,8 +37,8 @@ import { memberLinkWrites } from './signing-groups'
 export interface CommandContext { actor: Actor; commandId: string; fingerprint: string; client?: Client; guards?: Guard[]; form?: { submission:import('./model').FormSubmission; origin?:import('./model').PolicySendOrigin; writes:(envelope:Envelope)=>Promise<D1PreparedStatement[]> } }
 export async function prepareEnvelope(env: Env, context: CommandContext, input: Record<string, unknown>, release=false) {
  const createdAt=now(),{draft,bytes,accessCodes,originals}=await readDraft(env,input,createdAt,undefined,context.actor)
- const envelope:Envelope={id:id(),version:1,status:'prepared',createdAt,createdBy:context.actor.id,...draft,events:[]}
- await appendEvent(envelope,'envelope.prepared',context.actor.apiKeyId?`api-key:${context.actor.apiKeyId}`:context.actor.agentId?`agent:${context.actor.agentId}`:context.actor.id,draftDetail(draft))
+ const envelope:Envelope={id:env.embedAllocation??id(),version:1,status:'prepared',createdAt,createdBy:context.actor.id,...draft,events:[]}
+ await appendEvent(envelope,'envelope.prepared',context.actor.apiKeyId?`api-key:${context.actor.apiKeyId}`:context.actor.agentId?`agent:${context.actor.agentId}`:context.actor.id,{...draftDetail(draft),...(env.embedProvenance?{embedding:env.embedProvenance}:{})})
  const writes=[...await stagedBlobWrites(env,envelope.id,'original',bytes),...await documentWrites(env,envelope.id,originals),...consumedUploadWrites(env,input),...await accessCodeWrites(env,envelope.id,accessCodes)]
  if(release)return approvePreparedEnvelope(env,context,{...input,id:envelope.id},envelope,writes)
  const result={id:envelope.id}

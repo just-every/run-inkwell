@@ -1,70 +1,91 @@
 import { operatorAuth } from '../auth.server'
-import { insist, object, Refusal, type Env } from './model'
+import { insist, object, Refusal, secret, sha256, type Env } from './model'
 import { unseal } from './seal'
-import { embedLaunch, embedCookie } from './embedding'
+import { atomic } from './storage'
+import { ApiRateLimit } from './api-limits'
+import { embedLaunch, embedCookie, embedGuard, embedAudit, checkEmbed } from './embedding'
+import { embedLimit } from './embed-limits'
+import { embeddedDatabase } from './embed-database'
 
-// A narrow adapter reuses the real recipient and member handlers. No parent command channel exists.
-export async function embedResponse(request:Request,env:Env,serve:(request:Request)=>Promise<Response>):Promise<Response|null>{
+/** A narrow adapter reuses native handlers with live embedding authority fenced around every write. */
+export async function embedResponse(request:Request,env:Env,serve:(request:Request,scope:Env)=>Promise<Response>):Promise<Response|null>{
  const url=new URL(request.url),entry=/^\/embed\/([a-f0-9]{64})$/.exec(url.pathname),api=/^\/api\/embed\/([a-f0-9]{64})(\/.*)$/.exec(url.pathname)
  if(!entry&&!api)return null
+ const privateHeaders={'cache-control':'no-store','referrer-policy':'no-referrer','content-security-policy':"frame-ancestors 'none'"}
  try{
-  const id=(entry??api)![1],launch=await embedLaunch(env,id)
+  let id=(entry??api)![1]
   if(entry){
    insist(request.method==='GET','Use GET to open an embedded session.',405)
-   const response=await serve(request),headers=new Headers(response.headers)
-   headers.set('content-security-policy',`frame-ancestors ${launch.origin}`);headers.set('referrer-policy','no-referrer');headers.set('cache-control','no-store');headers.append('set-cookie',embedCookie(env,id))
+   const existing=await env.DB.prepare('SELECT 1 FROM iw_embed_launches WHERE session_id=?').bind(id).first()
+   if(!existing){
+    await embedLimit(env,'redeem',await sha256(request.headers.get('cf-connecting-ip')??'unavailable'))
+    const launch=await embedLaunch(env,id)
+    insist(launch.redeemed_at===null,'This launch was already used. Ask for a fresh launch.',403)
+    const session=secret(),cookie=secret()
+    await atomic(env.DB,[embedGuard(launch),{sql:'EXISTS(SELECT 1 FROM iw_embed_launches WHERE token_hash=? AND redeemed_at IS NULL)',values:[launch.token_hash]}],[
+     env.DB.prepare('UPDATE iw_embed_launches SET session_id=?,session_hash=?,redeemed_at=? WHERE token_hash=?').bind(session,await sha256(cookie),Date.now(),launch.token_hash),
+     embedAudit(env,launch.actor,'launch.redeemed',launch.origin,{purpose:launch.mode,grantVersion:launch.grant_version,launch:launch.token_hash,outcome:'allowed'},launch.envelope_id)
+    ])
+    return new Response(null,{status:303,headers:{...privateHeaders,location:'/embed/'+session,'set-cookie':embedCookie(session,cookie,launch.expires_at),'content-security-policy':`frame-ancestors ${launch.origin}`}})
+   }
+   const launch=await embedLaunch(env,id,true),response=await serve(request,env),headers=new Headers(response.headers)
+   headers.set('content-security-policy',`frame-ancestors ${launch.origin}`);headers.set('referrer-policy','no-referrer');headers.set('cache-control','no-store')
    return new Response(response.body,{status:response.status,headers})
   }
+  const launch=await embedLaunch(env,id,true)
+  await embedLimit(env,'request',id)
   insist(new URL(env.AUTH_ORIGIN).origin===url.origin,'Use the application origin.',403)
   insist(request.headers.get('sec-fetch-site')!=='cross-site','Cross-site API access is refused.',403)
   if(request.method!=='GET')insist(request.headers.get('origin')===url.origin,'Use the embedded application page.',403)
-  insist((request.headers.get('cookie')??'').split(';').some(c=>c.trim()===`inkwell_embed_${id.slice(0,16)}=${id}`),'Open the embedded session first.',401)
+  const cookie=(request.headers.get('cookie')??'').split(';').map(c=>c.trim()).find(c=>c.startsWith(`inkwell_embed_${id.slice(0,16)}=`))?.split('=')[1]
+  insist(cookie&&await sha256(cookie)===launch.session_hash,'Browser cookie custody is unavailable. Continue in Inkwell or ask for a fresh launch.',401)
+  insist(!request.headers.has('authorization'),'Bearer credentials cannot use embedded sessions.',403)
   const credential=await unseal(env,'embed-launch',launch.token_hash,launch.sealed)
   insist(credential,'Embedded session cannot be opened.',403)
-  insist(!request.headers.has('authorization'),'Bearer credentials cannot use embedded sessions.',403)
+  const scope={...env,embedProvenance:{origin:launch.origin,purpose:launch.mode,grantVersion:launch.grant_version,launch:launch.token_hash},DB:embeddedDatabase(env.DB,embedGuard(launch)),...(launch.mode==='prepare'?{embedAllocation:launch.allocation}:{})}
   const headers=new Headers(request.headers);if(launch.mode==='prepare')headers.set('cookie',credential)
-  // COMPLY-002: the outer request carries only the embedded cookie. Count successful
-  // preparation access against its live native member without exposing that session.
-  const memberResponse=async(response:Response)=>{
-   if(launch.mode==='prepare'&&response.status<400){const member=await operatorAuth(env).getSession(new Request(request.url,{headers}));if(member)await env.DB.prepare(`INSERT INTO iw_member_access(operator_id,last_access_at) VALUES(?,?) ON CONFLICT(operator_id) DO UPDATE SET last_access_at=MAX(iw_member_access.last_access_at,excluded.last_access_at)`).bind(member.operator.id,new Date().toISOString()).run()}
-   return response
-  }
-  let proxyRequest=request
   const path=api![2]
-  if(path==='/close'){insist(request.method==='POST','Use POST to close a session.',405);await env.DB.batch([env.DB.prepare('DELETE FROM iw_embed_launches WHERE token_hash=?').bind(launch.token_hash),env.DB.prepare('INSERT INTO iw_embed_audit VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),launch.actor,'launch.closed',launch.origin,new Date().toISOString())]);return memberResponse(Response.json({closed:true},{headers:{'cache-control':'no-store'}}))}
-  if(path==='/meta'&&launch.mode==='prepare')insist(await operatorAuth(env).getSession(new Request(request.url,{headers})),'The authorizing member session ended.',401)
-  if(path==='/meta')return memberResponse(Response.json({mode:launch.mode,origin:launch.origin,envelopeId:launch.envelope_id,...(launch.mode==='sign'?{token:credential}:{})},{headers:{'cache-control':'no-store'}}))
-  let target:string
+  if(path==='/close'){
+   insist(request.method==='POST','Use POST to close a session.',405)
+   await atomic(env.DB,[embedGuard(launch)],[env.DB.prepare('DELETE FROM iw_embed_launches WHERE token_hash=?').bind(launch.token_hash),embedAudit(env,launch.actor,'launch.closed',launch.origin,{purpose:launch.mode,grantVersion:launch.grant_version,launch:launch.token_hash,outcome:'closed'},launch.envelope_id)])
+   return Response.json({closed:true},{headers:privateHeaders})
+  }
+  if(path==='/meta')return Response.json({mode:launch.mode,origin:launch.origin,envelopeId:launch.mode==='prepare'?launch.envelope_id:null,...(launch.mode==='sign'?{token:credential}:{})},{headers:privateHeaders})
+  let proxyRequest=request,target:string
   if(launch.mode==='sign'){
-   insist(path.startsWith('/api/sign/'+credential)&& (path==='/api/sign/'+credential||path.startsWith('/api/sign/'+credential+'/')),'This session opens only its recipient request.',403)
+   insist(path==='/api/sign/'+credential||path.startsWith('/api/sign/'+credential+'/'),'This session opens only its recipient request.',403)
    target=path
   }else{
-   const session=await operatorAuth(env).getSession(new Request(request.url,{headers}))
+   const session=await operatorAuth(scope).getSession(new Request(request.url,{headers}))
    insist(session&&['owner','admin'].includes(session.operator.role),'The authorizing member session ended.',401)
-   headers.set('cookie',credential)
-   const read=['/api/inkwell','/api/inkwell/envelope-defaults','/api/inkwell/freeform-policy','/api/inkwell/signing-groups','/api/inkwell/contacts','/api/inkwell/templates']
+   const reads=['/api/inkwell','/api/inkwell/envelope-defaults','/api/inkwell/freeform-policy','/api/inkwell/signing-groups','/api/inkwell/contacts','/api/inkwell/templates']
    const writes=['/api/inkwell/documents/fields','/api/inkwell/templates/match','/api/inkwell/documents/uploads']
    const own=launch.envelope_id&&path==='/api/inkwell/envelopes/'+launch.envelope_id
-   insist((request.method==='GET'&&(read.includes(path)||own))||(request.method==='POST'&&writes.includes(path))||path==='/api/inkwell/commands'||/^\/api\/inkwell\/documents\/uploads\/[^/]+\/parts\/\d+$/.test(path),'This embedded session permits preparation and explicit sending only.',403)
+   insist((request.method==='GET'&&(reads.includes(path)||own))||(request.method==='POST'&&writes.includes(path))||(request.method==='POST'&&path==='/api/inkwell/commands')||(request.method==='PUT'&&/^\/api\/inkwell\/documents\/uploads\/[^/]+\/parts\/\d+$/.test(path)),'This embedded session permits preparation and explicit sending only.',403)
    if(path==='/api/inkwell/commands'){
     const body=object(await request.clone().json()),input=object(body.input)
-    if(body.command==='envelope.prepare'){body.commandId='embed-'+launch.token_hash;headers.delete('content-length');proxyRequest=new Request(request,{body:JSON.stringify(body)})}
+    if(body.command==='envelope.prepare'){
+     if(launch.envelope_id)return Response.json({ok:true,result:{id:launch.envelope_id}},{headers:privateHeaders})
+     body.commandId='embed-'+launch.token_hash;headers.delete('content-length');proxyRequest=new Request(request,{body:JSON.stringify(body)})
+    }
     insist(body.command==='envelope.prepare'||(['envelope.update','envelope.approve'].includes(String(body.command))&&input.id===launch.envelope_id),'This session can change only its own prepared envelope.',403)
    }
    target=path
   }
   url.pathname=target
-  const response=await serve(new Request(url, new Request(proxyRequest,{headers}))),out=new Headers(response.headers)
-  if(launch.mode==='prepare'&&path==='/api/inkwell'&&response.ok){const body=await response.json() as {signingGroups?:unknown};return memberResponse(Response.json({signingGroups:body.signingGroups??[]},{headers:{'cache-control':'no-store'}}))}
-  if(launch.mode==='prepare'&&path==='/api/inkwell/commands'&&response.ok){
-   const result=await response.clone().json() as {result?:{id?:string}}
-   if(!launch.envelope_id&&result.result?.id)await env.DB.prepare('UPDATE iw_embed_launches SET envelope_id=? WHERE token_hash=? AND envelope_id IS NULL').bind(result.result.id,launch.token_hash).run()
+  const response=await serve(new Request(url,new Request(proxyRequest,{headers})),scope),out=new Headers(response.headers)
+  await checkEmbed(env,launch)
+  if(launch.mode==='prepare'&&response.ok){
+   if(path==='/api/inkwell')return Response.json({signingGroups:[]},{headers:privateHeaders})
+   if(path==='/api/inkwell/commands'){
+    const result=await response.clone().json() as {result?:{id?:string}}
+    if(!launch.envelope_id&&result.result?.id)await scope.DB.prepare('UPDATE iw_embed_launches SET envelope_id=? WHERE token_hash=? AND envelope_id IS NULL').bind(result.result.id,launch.token_hash).run()
+   }
+   const member=await operatorAuth(scope).getSession(new Request(request.url,{headers}))
+   if(member)await scope.DB.prepare(`INSERT INTO iw_member_access(operator_id,last_access_at) VALUES(?,?) ON CONFLICT(operator_id) DO UPDATE SET last_access_at=MAX(iw_member_access.last_access_at,excluded.last_access_at)`).bind(member.operator.id,new Date().toISOString()).run()
   }
-  if(launch.mode==='sign'){
-   const set=out.get('set-cookie')
-   if(set){out.set('set-cookie',set.replace('Path=/api/sign/','Path=/api/embed/'+id+'/api/sign/').replace('SameSite=Strict',new URL(env.AUTH_ORIGIN).protocol==='https:'?'SameSite=None; Partitioned':'SameSite=None; Secure; Partitioned'))}
-  }
-  out.set('cache-control','no-store')
-  return memberResponse(new Response(response.body,{status:response.status,headers:out}))
- }catch(error){return Response.json({error:error instanceof Refusal?error.message:'Embedded session could not be opened.'},{status:error instanceof Refusal?error.status:500,headers:{'content-security-policy':"frame-ancestors 'none'",'cache-control':'no-store'}})}
+  if(launch.mode==='sign'&&out.has('set-cookie'))out.set('set-cookie',out.get('set-cookie')!.replace('Path=/api/sign/','Path=/api/embed/'+id+'/api/sign/').replace('SameSite=Strict','SameSite=None; Secure; Partitioned'))
+  out.set('cache-control','no-store');out.set('referrer-policy','no-referrer')
+  return new Response(response.body,{status:response.status,headers:out})
+ }catch(error){return Response.json({error:error instanceof Refusal?error.message:'Embedded session could not be opened. Continue in Inkwell or ask for a fresh launch.'},{status:error instanceof Refusal?error.status:500,headers:{...privateHeaders,...(error instanceof ApiRateLimit?{'retry-after':String(error.retryAfter)}:{})}})}
 }

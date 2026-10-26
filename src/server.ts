@@ -22,7 +22,7 @@ import { scheduledPass } from './inkwell/scheduled'
 function noTransform(response: Response, request: Request): Response {
   const headers = new Headers(response.headers), policy = headers.get('cache-control')
   const path = new URL(request.url).pathname
-  if ((path === '/app' || path.startsWith('/app/') || path.startsWith('/sign/')) && !headers.has('content-security-policy')) headers.set('content-security-policy', "frame-ancestors 'self'")
+  if (!path.startsWith('/embed/') && !headers.has('content-security-policy')) headers.set('content-security-policy', "frame-ancestors 'self'")
   headers.set('cache-control', policy ? `${policy}, no-transform` : 'no-transform')
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
 }
@@ -34,7 +34,7 @@ export default withDemo({
     if (asset) return asset
     const hosted = await hostedResponse(request, runtimeBindings(env))
     if (hosted) return hosted
-    const embedded = await embedResponse(request, runtimeBindings(env), async req => new URL(req.url).pathname.startsWith('/api/') ? api.fetch(req, env, execution) : noTransform(await start.fetch(req), req))
+    const embedded = await embedResponse(request, runtimeBindings(env), async (req,scope) => new URL(req.url).pathname.startsWith('/api/') ? api.fetch(req, scope, execution) : noTransform(await start.fetch(req), req))
     if (embedded) return embedded
     const auth = await authResponse(request, env)
     if (auth) return auth

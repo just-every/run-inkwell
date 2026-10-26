@@ -35,7 +35,7 @@ export function EmbeddedApp() {
   })
   if (!launch) return <div className="iw-app iw-signer"><main className="iw-main">
     <h1>Embedded session</h1><ErrorNotice error={action.error} />
-    <p role="status">{action.error ? 'This embedded session is unavailable.' : 'Opening embedded session…'}</p>
+    <p role="status">{action.error ? 'This embedded session is unavailable. Ask for a fresh launch if it expired or was already used.' : 'Opening embedded session…'}</p>{action.error && <a href="/app" target="_blank" rel="noreferrer">Continue in Inkwell</a>}
   </main></div>
   return <div className="iw-app">
     {!closed && <div className="iw-actions" style={{ padding: 16, justifyContent: 'flex-end' }}>
