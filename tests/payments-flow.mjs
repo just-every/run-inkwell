@@ -44,6 +44,7 @@ export async function paymentFlowCases(){
   const authorized=(await read(paid.id)).events.find(event=>event.action==='signer.payment_authorized')
   assert.equal(authorized.detail.requirementVersion,frozen.version);assert.equal(authorized.detail.buyer,frozen.buyer.reference);assert.ok(authorized.detail.invitation);assert.ok(authorized.detail.consentText.includes('500.00 USD'));assert.ok(authorized.at)
   assert.equal((await h.post(paid.path+'/payment/check',{},paid.cookie)).value.outcome,'pending');await sign(paid,409)
+  const pendingSnapshot=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
   provider.decline(checkout.reference)
   assert.equal((await h.post(paid.path+'/payment/check',{},paid.cookie)).value.outcome,'failed')
   await sign(paid,409)
@@ -51,17 +52,24 @@ export async function paymentFlowCases(){
   assert.equal((await h.send('/api/inkwell/envelopes/'+paid.id+'/artifacts/signed',undefined,h.owner)).status,404)
   provider.succeed(checkout.reference)
   assert.equal((await h.post(paid.path+'/payment/check',{},paid.cookie)).value.outcome,'succeeded')
-  const unfinished=(await h.send('/api/inkwell/archive',undefined,h.owner)).value,recover=await harness({bindings:{STRIPE_PAYMENTS_SECRET_KEY:'synthetic-inkwell-1',STRIPE_PAYMENTS_TEST_MODE:'true'},networkEdge:provider.edge})
+  const unfinished=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
+  for(const snapshot of [pendingSnapshot,unfinished]){
+  const recover=await harness({bindings:{STRIPE_PAYMENTS_SECRET_KEY:'synthetic-inkwell-1',STRIPE_PAYMENTS_TEST_MODE:'true'},networkEdge:provider.edge})
   try{
-   await recover.post('/api/inkwell/archive/restore',{archive:unfinished})
+   await recover.post('/api/inkwell/archive/restore',{archive:snapshot})
    await recover.command('envelope.resend',{id:paid.id,signer:0})
    const message=await recover.mail('deposit@harbour.example','Please sign:'),token=new URL(message.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1),path='/api/sign/'+token
    await recover.post(path+'/code',{},'');const cookie=(await recover.post(path+'/verify',{code:(await recover.mail('deposit@harbour.example','verification code')).text.match(/\b\d{6}\b/)[0]},'')).cookie;await recover.agree(path,cookie)
    assert.equal((await recover.send(path,undefined,cookie)).value.payment.needsConsent,true)
+   if(snapshot===pendingSnapshot){
+    const intent=provider.sessions.get(checkout.reference).payment_intent,prior=intent.status,count=provider.sessions.size
+    intent.status='processing';await recover.post(path+'/payment/start',{consent:true,requirementVersion:frozen.version},cookie,409);assert.equal(provider.sessions.size,count,'an uncertain historical payment cannot start a second charge');intent.status=prior
+   }
    const count=provider.sessions.size,result=(await recover.post(path+'/payment/start',{consent:true,requirementVersion:frozen.version},cookie)).value
    assert.equal(result.confirmed,true);assert.equal(provider.sessions.size,count,'recovering a confirmed historical payment starts no new charge')
    await recover.post(path+'/sign',{values:{signature:'Mara Quinn'},adoption:{method:'typed',style:'serif'},consent:true,commandId:crypto.randomUUID()},cookie)
   }finally{await recover.close()}
+  }
   await sign(paid)
   const completed=await read(paid.id);assert.equal(completed.status,'completed');assert.equal(completed.signers[0].paymentReceipt.reference,checkout.reference);assert.ok(completed.signers[0].paymentReceipt.paymentIntent)
   const certificate=await h.send('/api/inkwell/envelopes/'+paid.id+'/artifacts/certificate',undefined,h.owner);assert.equal(certificate.status,200)

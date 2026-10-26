@@ -26,12 +26,12 @@ export async function startSigningPayment(env:Env,context:SigningContext,input:R
  if(!row){
   const id=secret(),after=structuredClone(context.envelope),historical=recipientOf(context).paymentReceipt
   let binding=id,recovered:PaymentReceipt|undefined
-  if(historical?.outcome==='succeeded'){
+  if(historical){
    const consent=context.envelope.events.findLast(event=>event.action==='signer.payment_authorized'&&event.detail.signer===context.recipient.signer&&event.detail.requirementVersion===authority.version)
    insist(consent&&typeof consent.detail.providerBinding==='string','The historical payment needs sender reconciliation before signing.',409)
    binding=consent.detail.providerBinding
    recovered=await checkPaymentCheckout(env,{requirement,buyerReference:authority.buyer.reference,reference:historical.reference,clientReference:binding})
-   insist(recovered.outcome==='succeeded','Stripe no longer confirms the historical payment. Contact the sender; no new charge was started.',409)
+   insist(recovered.outcome==='succeeded','Stripe has not confirmed the historical payment. Contact the sender to reconcile it; no new charge was started.',409)
   }
   await appendEvent(after,'signer.payment_authorized',`signer:${context.recipient.signer+1}`,{signer:context.recipient.signer,requirement,requirementVersion:authority.version,buyer:authority.buyer.reference,invitation:context.recipient.token_hash,obligation:id,providerBinding:binding,consentText:paymentConsentText(requirement,authority.buyer.name),consent:true,consentVersion:'stripe-hosted-2026-10-26',...context.client})
   await commitEnvelope(env,context.envelope,after,null,[env.DB.prepare('INSERT INTO iw_payments(id,envelope_id,signer,token_hash,requirement_hash,provider_binding,checkout_reference,receipt) VALUES(?,?,?,?,?,?,?,?)').bind(id,after.id,context.recipient.row,context.recipient.token_hash,hash,binding,recovered?.reference??null,recovered?JSON.stringify(recovered):null)],[liveGuard(context),sessionGuard(context)])
