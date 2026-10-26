@@ -47,7 +47,7 @@ try{
   await panel.getByRole('button',{name:'Refresh filing status',exact:true}).click()
   await expect(panel.getByText('Unconfirmed; retry verifies the existing remote file before accepting it.',{exact:true})).toHaveCount(2)
   await capture(page,panel,width,'unconfirmed')
-  await tabTo(page,panel.getByRole('button',{name:'Retry filing',exact:true}).first());await page.keyboard.press('Enter')
+  await tabTo(page,panel.getByRole('button',{name:'Retry filing',exact:true}).first(),{backwards:true});await page.keyboard.press('Enter')
   await expect(panel.getByRole('button',{name:'Retry filing',exact:true})).toHaveCount(0)
   await capture(page,panel,width,'filed')
   const files=edge.files().filter(file=>file.name.includes(prepared.id));assert.equal(files.length,4)
