@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "288e8ac49fdf69e84317838ecd4bc6f2996ce2e1085eb43a83328d3918e7f9ca",
+      "sha256": "ab614d92a0401db60e4c2a89a900edc19d40600476707bbb554105dabcc32006",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "5289b12589fa58c315450dba42436c5f29452c861ec64aa0b0c143b865ced272",
+      "sha256": "f570ab7ae99e50f56d6ee5d02a7ce071032bb308a82faeaa327ec40b96ec685f",
       "executable": false
     },
     "DEMO.md": {
@@ -229,7 +229,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "d7f0eb86f9fd08b99366f710b3e275e00543eb95ae2bd4d78f51da1fb53b4cbe",
+      "sha256": "ee2f6fca4d77892fb805167507b8318d6f9336b0214701005508f43e54304773",
       "executable": false
     },
     "docs/deploy.md": {
@@ -277,7 +277,7 @@
       "executable": false
     },
     "docs/sdk-test-mode.md": {
-      "sha256": "e7d8dfca46ed0fbaed284ed430158cd70c30d5092b33ececb565809b9f5bf0f3",
+      "sha256": "fd4e7a176572ad8dd8f1b8651561007387399d4467f2e5384c48588faf75d18e",
       "executable": false
     },
     "docs/send-an-agreement.md": {
@@ -305,15 +305,15 @@
       "executable": false
     },
     "examples/test-mode.mjs": {
-      "sha256": "a12aeaaa7134e400d9a7a995c0902b3e9f54ce692eb357dc81bc7d458853aa4a",
+      "sha256": "d6ff8a72e106f6951ed0a326d195a4d473722e45bac7f48dc636715f8ff42284",
       "executable": false
     },
     "examples/test-mode.mts": {
-      "sha256": "562dccbbf39a444e528a68c89d621553a06c477195cc8059ae3db7c490c18685",
+      "sha256": "ff8051edda207c5fcebee44c825ca57db8957a92f02c96dd0c123f6ef327f2f3",
       "executable": false
     },
     "examples/test-mode.py": {
-      "sha256": "305a7a12bdd9c222f226af774c08ecba508ac89144582b9328b9ec211d0cd390",
+      "sha256": "9e0ee3d241e0a5e9282aa8455014e7b1357e774fa1eb543b4aa86cf097a6b5c8",
       "executable": false
     },
     "HOMEPAGE-VARIANTS.md": {
@@ -4613,7 +4613,7 @@
       "executable": false
     },
     "tests/test-mode.test.mjs": {
-      "sha256": "358a6ad5e0b6caa5816a4034a545ac1017b6e3a89095e485b5a18485ea8f34b0",
+      "sha256": "28929fbb333ccb625b86b793ff53feb7443f51a1cc5731169b8bacbee25deae4",
       "executable": false
     },
     "tests/web-forms.test.mjs": {

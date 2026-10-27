@@ -2,7 +2,7 @@
 
 Generated from CONTRACT.md. Acceptance journeys remain in ACCEPTANCE.md.
 
-Inventory: 71 done, 24 partial, 22 missing; 117 total.
+Inventory: 70 done, 25 partial, 22 missing; 117 total.
 
 | Clause | Status | Evidence | Details |
 | --- | --- | --- | --- |
@@ -16,7 +16,7 @@ Inventory: 71 done, 24 partial, 22 missing; 117 total.
 | `MOVE-001` | done | `tests/api.test.mjs`, `src/inkwell/imports/index.ts`, `tests/fixtures/docuseal/archive.json` | [Contract status](../CONTRACT.md#status) |
 | `PORT-001` | done | `tests/api.test.mjs`, `src/inkwell/archive.ts` | [Contract status](../CONTRACT.md#status) |
 | `ERASE-001` | done | `tests/api.test.mjs`, `src/inkwell/archive.ts` | [Contract status](../CONTRACT.md#status) |
-| `PREP-001` | partial | `src/inkwell/pdf.ts`, `src/inkwell/blobs.ts` | [Contract status](../CONTRACT.md#status) |
+| `PREP-001` | partial | `src/inkwell/documents.ts`, `src/inkwell/pdf.ts`, `tests/supplements.test.mjs`, `tests/journeys/document-fields.mjs` | [Contract status](../CONTRACT.md#status) |
 | `PREP-002` | done | `tests/supplements.test.mjs`, `tests/journeys/supplements.mjs`, `tests/journeys/document-capacity.mjs` | [Contract status](../CONTRACT.md#status) |
 | `PREP-003` | partial | `src/inkwell/business-fields.ts`, `src/inkwell/field-rules.ts`, `src/inkwell/pdf.ts`, `src/ui/field-choices-editor.tsx`, `src/ui/signing-field-input.tsx`, `tests/prefill.test.mjs`, `tests/journeys/field-types.mjs`, `tests/journeys/template-maintenance.mjs` | [Contract status](../CONTRACT.md#status) |
 | `PREP-004` | done | `src/inkwell/field-rules.ts`, `src/inkwell/pdf.ts`, `src/inkwell/signing.ts`, `src/ui/field-rules-editor.tsx`, `src/ui/signing-field-input.tsx`, `tests/api.test.mjs`, `tests/journeys/conditional-fields.mjs` | [Contract status](../CONTRACT.md#status) |
@@ -90,7 +90,7 @@ Inventory: 71 done, 24 partial, 22 missing; 117 total.
 | `API-001` | partial | `src/inkwell/api.ts`, `src/inkwell/api-keys.ts`, `src/inkwell/api-openapi.ts`, `src/inkwell/api-limits.ts`, `src/inkwell/api-key-warnings.ts`, `migrations/core/0050_api_key_warnings.sql`, `migrations/core/0049_api_limits.sql`, `tests/journeys/api-capacity.mjs`, `migrations/core/0038_api_keys.sql`, `tests/api-keys.test.mjs`, `tests/api.test.mjs`, `docs/api.md` | [Contract status](../CONTRACT.md#status) |
 | `API-002` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `API-003` | done | `tests/journeys/embedding.mjs`, `tests/embedding-cases.mjs`, `tests/embedding-limits.mjs`, `tests/payments-flow.mjs`, `tests/compliance.test.mjs` | [Contract status](../CONTRACT.md#status) |
-| `API-004` | done | `tests/test-mode.test.mjs`, `tests/journeys/bulk.mjs` | [Contract status](../CONTRACT.md#status) |
+| `API-004` | partial | `tests/test-mode.test.mjs`, `tests/journeys/bulk.mjs` | [Contract status](../CONTRACT.md#status) |
 | `INTEG-001` | done | `tests/hubspot-envelope.test.mjs`, `tests/hubspot-sync.test.mjs`, `tests/journeys/hubspot.mjs`, `tests/hubspot-sync.test.mjs`, `tests/hubspot-envelope.test.mjs`, `tests/journeys/hubspot.mjs` | [Contract status](../CONTRACT.md#status) |
 | `INTEG-002` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `INTEG-003` | missing |  | [Contract status](../CONTRACT.md#status) |
