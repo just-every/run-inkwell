@@ -60,7 +60,19 @@ try {
 async function businessUploadJourney() {
  const context=await browser.newContext({viewport:{width:1440,height:1000}})
  await context.addCookies([ownerCookie()]);const page=await context.newPage();page.setDefaultTimeout(120_000)
- const capture=async(p,state)=>{for(const width of [1440,390]){await p.setViewportSize({width,height:width===390?844:1000});await p.screenshot({path:join(tmpdir(),`prep-001-${state}-${width}.png`),fullPage:true})}await p.setViewportSize({width:1440,height:1000})}
+ const capture=async(p,state)=>{
+  for(const width of [1440,390]){
+   await p.setViewportSize({width,height:width===390?844:1000})
+   const pdf=p.locator('.iw-pdf-page')
+   if(await pdf.count()){
+    await pdf.scrollIntoViewIfNeeded()
+    await p.waitForFunction(()=>{const canvas=document.querySelector('.iw-pdf-page canvas');return canvas&&canvas.width>1&&canvas.height>1})
+    await p.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))
+   }
+   await p.screenshot({path:join(tmpdir(),`prep-001-${state}-${width}.png`),fullPage:true})
+  }
+  await p.setViewportSize({width:1440,height:1000})
+ }
  try {
   await page.goto(`${origin}/app`);await page.getByRole('button',{name:'New envelope'}).click()
   await page.getByLabel('Envelope title').fill('Business-size agreement')
@@ -73,6 +85,7 @@ async function businessUploadJourney() {
   await page.getByRole('status').filter({hasText:'Placed 1 field'}).waitFor()
   await page.getByRole('button',{name:'Remove recipient 2',exact:true}).click()
   await page.getByLabel('Recipient 1 name').fill('Mara Quinn');await page.getByLabel('Recipient 1 email').fill('mara@business.example')
+  await page.locator('.iw-pdf-page').scrollIntoViewIfNeeded()
   await page.locator('.iw-pdf-page[data-rendered]').waitFor()
   await axe(page,'PREP-001 1440 preparation');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
   await page.getByRole('button',{name:'Remove field 1',exact:true}).focus();await page.getByRole('tooltip').waitFor()
@@ -86,6 +99,7 @@ async function businessUploadJourney() {
   try {
    await signer.goto(link);await signer.getByLabel('Verification code',{exact:true}).fill(code);await signer.getByRole('button',{name:'Verify code',exact:true}).click()
    const disclosure=signer.getByRole('checkbox',{name:/I have read the electronic record/});await disclosure.focus();await signer.keyboard.press('Space');await signer.getByRole('button',{name:'Agree and continue',exact:true}).click()
+   await signer.locator('.iw-pdf-page').scrollIntoViewIfNeeded()
    await signer.locator('.iw-pdf-page[data-rendered]').waitFor()
    const signature=signer.getByRole('textbox',{name:/Signature Page 1/});await signature.focus();await signer.keyboard.type('Mara Quinn')
    await axe(signer,'PREP-001 1440 signing');assert.ok(await signer.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await capture(signer,'sign')
