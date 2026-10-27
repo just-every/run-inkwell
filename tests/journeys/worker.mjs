@@ -28,7 +28,7 @@ export async function startInkwell() {
   try {
     await writeFile(join(persist, 'journey.env'), `AUTH_ORIGIN=${origin}\nAUTH_LOCAL=true\nOWNER_EMAIL=owner@harbour.example\nSESSION_SECRET=${randomBytes(32).toString('hex')}\nSETUP_TOKEN=${setupToken}\n`)
     const wrangler = ['node_modules/wrangler/bin/wrangler.js'], env = { ...process.env, CI: '1', WRANGLER_SEND_METRICS: 'false' }
-    execFileSync(process.execPath, [...wrangler, 'd1', 'migrations', 'apply', 'foundation', '--local', '--persist-to', persist, '--config', 'dist/server/wrangler.json'], { stdio: 'pipe', env })
+    execFileSync(process.execPath, [...wrangler, 'd1', 'migrations', 'apply', 'foundation', '--local', '--persist-to', persist, '--config', 'dist/server/wrangler.json'], { maxBuffer: 16 * 1024 * 1024, stdio: 'pipe', env })
     worker = spawn(process.execPath, [...wrangler, 'dev', '--inspector-port', '0', '--local', '--persist-to', persist, '--env-file', join(persist, 'journey.env'), '--ip', '127.0.0.1', '--config', 'dist/server/wrangler.json', '--port', String(port)], { stdio: ['ignore', 'pipe', 'pipe'], env })
     let output = ''
     worker.stdout.on('data', chunk => { output += chunk })

@@ -4453,7 +4453,7 @@
       "executable": false
     },
     "tests/journeys/worker.mjs": {
-      "sha256": "304dc900687a5ff7b837c4098c7c378398eb13be40e514870d741e85e112840a",
+      "sha256": "9a98cc9c41b43cf1a2a8fb28c2804eed74f46a0e783a8863c53929b5252ca9dd",
       "executable": false
     },
     "tests/manual-invitations.test.mjs": {
@@ -4493,7 +4493,7 @@
       "executable": false
     },
     "tests/runtime.mjs": {
-      "sha256": "dffe3196aa0835016a3341f6027361c64a69fc8987d395ebde8be5372b8605d9",
+      "sha256": "c1a5ca9e4fadc34d353926d190babf84f39b8749e4a1631301d74bd435d68afa",
       "executable": false
     },
     "tests/send-policies.test.mjs": {
