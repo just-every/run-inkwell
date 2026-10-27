@@ -1,7 +1,7 @@
 import { Refusal, insist, object, sha256 } from './model'
 import { readBytes } from './body'
 
-export const graphId = (value:unknown) => { insist(typeof value==='string' && /^[A-Za-z0-9!_-]{1,240}$/.test(value),'Provide a Microsoft resource ID.');return value }
+export const graphId = (value:unknown) => { insist(typeof value==='string' && /^[A-Za-z0-9!_+=-]{1,240}$/.test(value),'Provide a Microsoft resource ID.');return value }
 /** Fixed Graph origin, bounded responses, no credential-bearing redirects or automatic retries. */
 export async function graph(token:string|undefined,path:string,init:RequestInit={}) {
  insist(token,'Configure Microsoft Graph in this installation first.',409)
