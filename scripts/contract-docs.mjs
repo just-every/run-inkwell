@@ -4,8 +4,17 @@ import { parseContract } from '../src/base/seed-contract.mjs'
 
 const [mode, ...selected] = process.argv.slice(2)
 if (!['write','check'].includes(mode) || !selected.length) throw new Error('Choose write or check followed by the clause IDs being reconciled.')
-const source=readFileSync('CONTRACT.md','utf8'),contract=parseContract(source),lines=source.split('\n')
-let acceptance=readFileSync('ACCEPTANCE.md','utf8')
+const original=readFileSync('CONTRACT.md','utf8')
+const rows=original.split('\n').filter(line=>/^\| `[^`]+` \|/.test(line)).map(line=>line.trim().slice(1,-1).split(/(?<!\\)\|/).map(cell=>cell.trim()))
+const tally=group=>[...['done','partial','missing'].map(status=>group.filter(row=>row[3]===status).length),group.length]
+const source=original.replace(/^\| (Published|Target and push further|All) \|.*$/gm,(_,label)=>{
+ const group=label==='All'?rows:rows.filter(row=>label==='Published'?row[2]==='published':row[2]!=='published')
+ return `| ${label} | ${tally(group).join(' | ')} |`
+})
+if(mode==='write')writeFileSync('CONTRACT.md',source)
+else if(source!==original)throw new Error('Regenerate the contract summary counts.')
+const contract=parseContract(source),lines=source.split('\n')
+let acceptance=readFileSync('ACCEPTANCE.md','utf8').replace(/\d+ done, \d+ partial and \d+ missing/g,`${contract.counts.done} done, ${contract.counts.partial} partial and ${contract.counts.missing} missing`)
 for(const id of selected){
  const clause=contract.clauses.find(clause=>clause.id===id)
  if(!clause)throw new Error(`Unknown clause ${id}`)

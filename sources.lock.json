@@ -228,6 +228,10 @@
       "sha256": "3fd4aaf9baf90840abb8b42fd5e28b9ff0fd8b6d04ddac1921728e6935eeca92",
       "executable": false
     },
+    "docs/CLAIMS.md": {
+      "sha256": "5bdd51479903ee5f6f111b327185239ff5f936214e25aa4e9ae65fb6eac1f9f8",
+      "executable": false
+    },
     "docs/deploy.md": {
       "sha256": "c8ae15dc1c82f707c8f6d3e6a9ab66ecf2bb14f511e2e4777eedb87c8603c8d1",
       "executable": false
@@ -628,6 +632,10 @@
       "sha256": "3821f55e67b2f2d876847251f30382abf2f08cd0b0d00f3211b8cd030abdc670",
       "executable": false
     },
+    "migrations/core/0080_notice_reconciliation.sql": {
+      "sha256": "75689fb65744b87f60ec70376f24f031e71fc62facc1e3895fb102260de449e4",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -822,6 +830,10 @@
     },
     "scripts/build-deployment-spec.mjs": {
       "sha256": "8544841cba1c4e70bcf7ac2a2b1c9e96c641626a3159d6ad1257884190a662fd",
+      "executable": false
+    },
+    "scripts/contract-docs.mjs": {
+      "sha256": "2bf85bd8a1724fd4f5ef23a476cdbccc7765008fd814c97ac791e3763e66b3d2",
       "executable": false
     },
     "scripts/delivery/base/artifact.mjs": {
@@ -1612,8 +1624,12 @@
       "sha256": "7cd0e5ed5e096dded1e68a8d03292566f661098edf31055d23e45047fba0c263",
       "executable": false
     },
+    "src/inkwell/notice-reconciliation.ts": {
+      "sha256": "4ede1ed1c4ce25f576f729f224ef53955584e7ad2bcaa162b9b6e52fdb09a0e7",
+      "executable": false
+    },
     "src/inkwell/notices.ts": {
-      "sha256": "74e241660ff3f9a0cad28c51d755f8c0229316b15719e968b817e524656cd5a9",
+      "sha256": "a49803fd53edb927fa1a1d7cb78977ff667f4d8701a73a5b0f2e4bfb43193421",
       "executable": false
     },
     "src/inkwell/own-signing.ts": {
@@ -4269,7 +4285,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "1f8d9c0c3fc3929ec3ac3cee86769e33534f1684208b2e18e522a9239c1fd451",
+      "sha256": "afe22a5f19a8244849dd81f6be21ce7efef8c7fda844ebcc625cc91a4660b3c7",
       "executable": false
     },
     "tests/document-fields.test.mjs": {

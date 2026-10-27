@@ -1,4 +1,4 @@
-import { id, insist, now, object, type Actor, type AuditEvent, type Env, type Envelope } from './model'
+import { sha256, id, insist, now, object, type Actor, type AuditEvent, type Env, type Envelope } from './model'
 import { noticeWrite } from './mail'
 import { mailSuppressed } from './manual-invitations'
 import { seal, unseal } from './seal'
@@ -84,16 +84,16 @@ export async function noticeWrites(env: Env, before: Envelope, after: Envelope):
     const own = notice.actor === member.email.toLowerCase()
     if (email && !own && wants(member.id, notice.event, 'email')) writes.push(noticeWrite(db, after, notice.signer, member.email, notice.subject, notice.body(member.name)))
     for (const hook of hooks.filter(h => !own && h.operator_id === member.id && wants(member.id, notice.event, h.channel)))
-      writes.push(db.prepare('INSERT INTO iw_notice_posts(id,notice_id,operator_id,channel,body,connection) VALUES(?,?,?,?,?,?)').bind(id(), noticeId, member.id, hook.channel, JSON.stringify(hook.channel === 'teams' ? { text: notice.line } : { text: notice.line, username: 'Inkwell' }), hook.sealed))
+      writes.push(db.prepare('INSERT INTO iw_notice_posts(id,notice_id,operator_id,channel,body,connection) VALUES(?,?,?,?,?,?)').bind(id(), noticeId, member.id, hook.channel, JSON.stringify(hook.channel === 'teams' ? { text: notice.line } : { text: notice.line, username: 'Inkwell' }), await sha256(hook.sealed)))
   }
   return writes
 }
 
 /** A confirmed refusal can be reviewed after replacing the connection. Unknown effects never retry. */
 export async function dispatchNotices(env: Env) {
-  const posts = (await env.DB.prepare("SELECT p.id,p.operator_id,p.channel,p.body,p.connection,c.sealed FROM iw_notice_posts p LEFT JOIN iw_notice_channels c ON c.operator_id=p.operator_id AND c.channel=p.channel WHERE p.state='pending' LIMIT 50").all<{id:string;operator_id:string;channel:Hook;body:string;connection:string|null;sealed:string|null}>()).results
+  const posts = (await env.DB.prepare("SELECT p.id,p.operator_id,p.channel,p.body,p.connection,c.sealed FROM iw_notice_posts p LEFT JOIN iw_notice_channels c ON c.operator_id=p.operator_id AND c.channel=p.channel WHERE p.state='pending' AND p.attempts<3 LIMIT 50").all<{id:string;operator_id:string;channel:Hook;body:string;connection:string|null;sealed:string|null}>()).results
   for (const post of posts) {
-    if (!post.sealed || post.connection !== post.sealed) {
+    if (!post.sealed || post.connection !== await sha256(post.sealed)) {
       await env.DB.prepare("UPDATE iw_notice_posts SET state='held',repairable=1,result='Connection changed or disconnected; owner review required.' WHERE id=? AND state='pending'").bind(post.id).run()
       continue
     }

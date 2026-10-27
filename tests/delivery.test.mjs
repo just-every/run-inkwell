@@ -342,8 +342,11 @@ test('DELIV-005: the sender resends the invitation by email on the same link, th
 
 test('DELIV-008: subscribed to declines and completions in Slack, Teams, Nook and email, the sender gets each there and nothing else; after turning off completions in Teams the next completion skips only Teams; every notice is in the activity feed', async () => {
  const refusals=new Map(),edgeCalls=[]
+ let pauseHook
  const h = await harness({networkEdge:async request=>{
-  const host=new URL(request.url).hostname,mode=refusals.get(host)
+  const host=new URL(request.url).hostname
+  await pauseHook?.(host)
+  const mode=refusals.get(host)
   if(!mode)return
   edgeCalls.push({host,path:new URL(request.url).pathname})
   return new Response('synthetic-inkwell-90',{status:mode})
@@ -443,10 +446,55 @@ test('DELIV-008: subscribed to declines and completions in Slack, Teams, Nook an
   await h.scheduled('2026-10-01T13:00:00.000Z')
   assert.equal(edgeCalls.length,unknownCalls,'replacement and scheduled dispatch cannot repeat uncertain remote effects')
   assert.ok((await review()).every(j=>!j.canReplay))
+  // Replacing the connection cannot widen the existing three-attempt delivery budget.
+  const existingIds=new Set((await review()).map(job=>job.id))
+  for(const host of hosts)refusals.set(host,403)
+  await run('Exhausted connection',false)
+  for(let attempt=1;attempt<3;attempt++){
+   for(const [channel,url] of Object.entries(hooks))await settings({connect:{channel,url:url+'-renewal-'+attempt}})
+   const exhausted=(await review()).filter(job=>!existingIds.has(job.id))
+   assert.equal(exhausted.length,3)
+   for(const job of exhausted)await h.post(path,{id:job.id,proposal:job.proposal,approve:true})
+  }
+  for(const [channel,url] of Object.entries(hooks))await settings({connect:{channel,url:url+'-beyond-budget'}})
+  const exhausted=(await review()).filter(job=>!existingIds.has(job.id)),budgetCalls=edgeCalls.length
+  assert.ok(exhausted.every(job=>job.attempts===3&&!job.canReplay))
+  for(const job of exhausted)await h.post(path,{id:job.id,proposal:job.proposal,approve:true},h.owner,409)
+  await h.scheduled('2026-10-01T14:00:00.000Z')
+  assert.equal(edgeCalls.length,budgetCalls,'owner approval cannot create a fourth provider attempt')
+  // A connection change while another post is in flight fences every later queued post.
+  refusals.clear()
+  const priorJobs=new Set((await review()).map(job=>job.id)),beforeQueued=h.posts().length
+  let enter,release,pausedHost
+  const entered=new Promise(resolve=>{enter=resolve}),paused=new Promise(resolve=>{release=resolve})
+  pauseHook=async host=>{if(hosts.includes(host)){pauseHook=undefined;pausedHost=host;enter();await paused}}
+  const inFlight=run('Changed queued connection',false)
+  await entered
+  for(const [channel,url] of Object.entries(hooks))await settings({connect:{channel,url:url+'-queued-replacement'}})
+  release();await inFlight
+  await h.scheduled('2026-10-01T15:00:00.000Z')
+  const queued=(await review()).filter(job=>!priorJobs.has(job.id))
+  assert.equal(queued.length,2)
+  assert.deepEqual(queued.map(job=>job.channel).sort(),Object.keys(hooks).filter(channel=>new URL(hooks[channel]).hostname!==pausedHost).sort())
+  assert.ok(queued.every(job=>job.state==='held'&&job.attempts===0&&job.canReplay))
+  assert.equal(h.posts().length,beforeQueued+1,'changed pending connections are held without provider requests')
+  for(const job of queued)await h.post(path,{id:job.id,proposal:job.proposal,approve:true})
+  assert.equal(h.posts().length,beforeQueued+3,'only owner approval releases each changed connection once')
+  const storedChannels=(await h.db.prepare('SELECT sealed FROM iw_notice_channels').all()).results
+  const storedPosts=(await h.db.prepare('SELECT connection FROM iw_notice_posts').all()).results
+  assert.ok(storedPosts.every(post=>!storedChannels.some(channel=>channel.sealed===post.connection)),'posts retain connection fingerprints, never a second sealed capability')
+
   const receipts=JSON.stringify(await review())+JSON.stringify(h.logs())
   assert.ok(!receipts.includes('synthetic-inkwell-90'),'untrusted provider response content is never persisted or exposed')
   const archive=JSON.stringify((await h.send('/api/inkwell/archive',undefined,h.owner)).value)
   assert.ok(!archive.includes('replacement')&&!archive.includes('hooks.slack.com'),'connector capabilities and posts remain installation state')
+  const restored=await harness()
+  try{
+   await restored.post('/api/inkwell/archive/restore',{archive:JSON.parse(archive)},restored.owner)
+   assert.deepEqual((await restored.send(path,undefined,restored.owner)).value.jobs,[])
+   for(const table of ['iw_notice_posts','iw_notice_channels'])assert.equal((await restored.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first()).n,0,'restore cannot revive connector custody or replay authority')
+  }finally{await restored.close()}
+
 
  } finally { await h.close() }
 })
