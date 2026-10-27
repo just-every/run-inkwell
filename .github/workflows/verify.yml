@@ -90,7 +90,8 @@ jobs:
           package-manager-cache: false
       - run: npm install --global pnpm@10.12.4
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec rer check --profile first-party
+      - if: matrix.journey_shard == 1
+        run: pnpm exec rer check --profile first-party
       - name: Install Chromium
         run: |
           set -euo pipefail
