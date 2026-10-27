@@ -7,7 +7,7 @@ if (!['write','check'].includes(mode) || !selected.length) throw new Error('Choo
 const original=readFileSync('CONTRACT.md','utf8')
 const rows=original.split('\n').filter(line=>/^\| `[^`]+` \|/.test(line)).map(line=>line.trim().slice(1,-1).split(/(?<!\\)\|/).map(cell=>cell.trim()))
 const tally=group=>[...['done','partial','missing'].map(status=>group.filter(row=>row[3]===status).length),group.length]
-const source=original.replace(/^\| (Published|Target and push further|All) \|.*$/gm,(_,label)=>{
+const source=original.replace(/(this committed candidate has )\d+ done, \d+ partial and \d+ missing clauses/,(_,prefix)=>{const [done,partial,missing]=tally(rows);return `${prefix}${done} done, ${partial} partial and ${missing} missing clauses`}).replace(/^\| (Published|Target and push further|All) \|.*$/gm,(_,label)=>{
  const group=label==='All'?rows:rows.filter(row=>label==='Published'?row[2]==='published':row[2]!=='published')
  return `| ${label} | ${tally(group).join(' | ')} |`
 })

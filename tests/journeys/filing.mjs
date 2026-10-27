@@ -66,5 +66,36 @@ try{
   edge.moveFolder('/Reviewed completed','/Harbour Studio completed')
   await context.close()
  }
+ const legacyTemplate=await app.command('template.save',{title:'Legacy filing recovery',filename:'legacy.pdf',pdfBase64:Buffer.from(await doc.save()).toString('base64'),roles:[{role:'Client',order:1}],fields:[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.7,width:.5,height:.05}]})
+ await app.call('/api/inkwell/filing',{cookie:app.owner,body:{commandId:crypto.randomUUID(),templateId:legacyTemplate.id,provider:'dropbox',folder:'/Legacy completed',enabled:true,consent:true,expectedVersion:0}})
+ edge.failNext('dropbox','after')
+ const legacy=await app.command('template.use',{id:legacyTemplate.id,recipients:[{name:'Mara Quinn',email:'legacy@harbour.example'}]})
+ await app.command('envelope.approve',{id:legacy.id,eligible:true});const signer=await app.verify('legacy@harbour.example')
+ await app.call(signer.path+'/sign',{cookie:signer.cookie,body:{commandId:crypto.randomUUID(),values:{signature:'Mara Quinn'},consent:true,adoption:{method:'typed',style:'sans'}}})
+ await app.db.prepare("UPDATE iw_filing_rules SET folder_ref=NULL WHERE template_id=?").bind(legacyTemplate.id).run()
+ await app.db.prepare("UPDATE iw_filing_jobs SET folder_ref=NULL WHERE envelope_id=?").bind(legacy.id).run()
+ edge.moveFolder('/Legacy completed','/Legacy reviewed')
+ const legacyViews=[]
+ for(const width of [1440,390]){
+  const context=await app.browser.newContext({viewport:{width,height:width===390?844:1000}});await context.addCookies([app.ownerCookie()])
+  const page=await context.newPage();await page.goto(app.origin+'/app');await page.getByRole('button',{name:'Settings',exact:true}).click()
+  const panel=page.getByRole('region',{name:'Automatic filing',exact:true})
+  const input=panel.getByLabel('Inspect legacy Dropbox folder',{exact:true})
+  await input.fill('/Legacy reviewed');await input.scrollIntoViewIfNeeded()
+  await capture(page,panel,width,'legacy-inspection')
+  legacyViews.push({context,page,panel,width})
+ }
+ const desktop=legacyViews[0]
+ await tabTo(desktop.page,desktop.panel.getByRole('button',{name:'Inspect existing artifact',exact:true}));await desktop.page.keyboard.press('Enter')
+ await expect(desktop.panel.getByRole('button',{name:'Approve folder repair',exact:true})).toHaveCount(1)
+ for(const view of legacyViews){
+  if(view!==desktop){await view.panel.getByRole('button',{name:'Refresh filing status',exact:true}).click();await expect(view.panel.getByRole('button',{name:'Approve folder repair',exact:true})).toHaveCount(1)}
+  await capture(view.page,view.panel,view.width,'legacy-proposal')
+ }
+ const attempts=edge.attempts().length
+ await tabTo(desktop.page,desktop.panel.getByRole('button',{name:'Approve folder repair',exact:true}));await desktop.page.keyboard.press('Enter')
+ await expect(desktop.panel.getByRole('button',{name:'Approve folder repair',exact:true})).toHaveCount(0)
+ assert.equal(edge.attempts().length,attempts);assert.equal(edge.files().filter(file=>file.name.includes(legacy.id)).length,2)
+ for(const view of legacyViews){await view.panel.getByRole('button',{name:'Refresh filing status',exact:true}).click();await capture(view.page,view.panel,view.width,'legacy-reconciled');await view.context.close()}
  console.log('Automatic filing: both providers, explicit consent, visible interrupted uploads and verified retries at 1440 and 390 passed.')
 }catch(error){await screenshots(app.browser,'inkwell-filing-failure');throw error}finally{await app.close()}

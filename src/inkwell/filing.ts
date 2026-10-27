@@ -60,7 +60,7 @@ export async function dispatchFiling(env: Env, envelopeId: string, retry = false
  if (envelope.testMode || envelope.status !== 'completed' || envelope.imported) return
  const jobs = (await env.DB.prepare("SELECT * FROM iw_filing_jobs WHERE envelope_id=? AND (state='pending' OR (?=1 AND (state='uncertain' OR state='sending' AND started_at<?)))").bind(envelopeId,retry?1:0,Date.now()-120_000).all<Job>()).results
  for (const job of jobs) {
-  const allowed = await env.DB.prepare("SELECT 1 FROM iw_filing_rules WHERE provider=? AND folder=? AND enabled=1 AND (folder_ref IS ? OR folder_ref=?) AND template_id IN (SELECT json_extract(value,'$.id') FROM json_each(?))").bind(job.provider,job.folder,job.folder_ref,job.folder_ref,JSON.stringify(envelope.templates??(envelope.template?[envelope.template]:[]))).first()
+  const allowed = await env.DB.prepare("SELECT 1 FROM iw_filing_rules WHERE provider=? AND folder=? AND enabled=1 AND (folder_ref IS ? OR folder_ref=? OR (? IS NOT NULL AND folder_ref IS NULL)) AND template_id IN (SELECT json_extract(value,'$.id') FROM json_each(?))").bind(job.provider,job.folder,job.folder_ref,job.folder_ref,job.resolved_folder,JSON.stringify(envelope.templates??(envelope.template?[envelope.template]:[]))).first()
   if (!allowed) { await env.DB.prepare("UPDATE iw_filing_jobs SET state='cancelled' WHERE envelope_id=? AND provider=? AND folder=? AND kind=? AND state<>'filed'").bind(envelopeId,job.provider,job.folder,job.kind).run(); continue }
 
   const claim = id(), token = credential(env,job.provider)
@@ -79,7 +79,10 @@ export async function dispatchFiling(env: Env, envelopeId: string, retry = false
    }
    const bytes = await readBlob(env.DB,envelopeId,job.kind,job.sha256)
    const filename=`inkwell-${envelopeId}-${job.kind}.pdf`
-   const receipt = job.provider==='dropbox'&&job.resolved_folder&&job.folder_ref?await reconcileMovedDropboxArtifact(token,job.folder_ref,target,filename,bytes):await fileArtifact(job.provider,token,target,filename,bytes)
+   // An old unpinned job may already exist in a moved folder. Recovery never uploads again.
+   const legacy=job.provider==='dropbox'&&!job.folder_ref&&job.folder!==''&&job.folder!=='/'
+   const legacyFolder=legacy?await dropboxFolder(token,target):null
+   const receipt = legacyFolder?await reconcileMovedDropboxArtifact(token,legacyFolder.id,legacyFolder.path,filename,bytes):job.provider==='dropbox'&&job.resolved_folder&&job.folder_ref?await reconcileMovedDropboxArtifact(token,job.folder_ref,target,filename,bytes):await fileArtifact(job.provider,token,target,filename,bytes)
    await env.DB.prepare("UPDATE iw_filing_jobs SET state='filed',remote_id=?,filed_at=?,claim=NULL WHERE envelope_id=? AND provider=? AND folder=? AND kind=? AND claim=?").bind(receipt.id,now(),envelopeId,job.provider,job.folder,job.kind,claim).run()
   } catch {
    await env.DB.prepare("UPDATE iw_filing_jobs SET state='uncertain',claim=NULL WHERE envelope_id=? AND provider=? AND folder=? AND kind=? AND claim=?").bind(envelopeId,job.provider,job.folder,job.kind,claim).run()
@@ -89,17 +92,36 @@ export async function dispatchFiling(env: Env, envelopeId: string, retry = false
 export async function retryFiling(env: Env, actor: Actor, input: Record<string,unknown>) {
  administrator(actor)
  const envelopeId=text(input.id,'an envelope ID',100)
+ if(input.inspectLegacyFolder===true){
+  insist(actor.role==='owner','Only the owner may inspect a legacy filing repair.',403)
+  const job=await env.DB.prepare("SELECT * FROM iw_filing_jobs WHERE envelope_id=? AND provider='dropbox' AND folder=? AND kind=? AND state='uncertain' AND claim IS NULL AND folder_ref IS NULL").bind(envelopeId,text(input.folder,'the original folder',1000),text(input.kind,'an artifact kind',30)).first<Job>()
+  insist(job,'There is no unresolved legacy filing job.',409)
+  const envelope=await getEnvelope(env.DB,envelopeId)
+  const ruleGuard={sql:"EXISTS(SELECT 1 FROM iw_filing_rules WHERE provider='dropbox' AND folder=? AND folder_ref IS NULL AND enabled=1 AND template_id IN (SELECT json_extract(value,'$.id') FROM json_each(?)))",values:[job.folder,JSON.stringify(envelope.templates??(envelope.template?[envelope.template]:[]))]}
+  insist(await env.DB.prepare('SELECT 1 WHERE '+ruleGuard.sql).bind(...ruleGuard.values).first(),'The legacy filing authorization changed.',409)
+  const token=credential(env,'dropbox');insist(token,'Configure the provider credential first.',409)
+  const live=await dropboxFolder(token,text(input.replacementFolder,'the proposed Dropbox folder',1000))
+  const bytes=await readBlob(env.DB,envelopeId,job.kind,job.sha256)
+  await reconcileMovedDropboxArtifact(token,live.id,live.path,`inkwell-${envelopeId}-${job.kind}.pdf`,bytes)
+  const proposal=canonical({id:live.id,from:job.folder,to:live.path})
+  await atomic(env.DB,[roleGuard(actor,['owner']),ruleGuard,{sql:"EXISTS(SELECT 1 FROM iw_filing_jobs WHERE envelope_id=? AND provider='dropbox' AND folder=? AND kind=? AND state='uncertain' AND claim IS NULL AND folder_ref IS NULL)",values:[envelopeId,job.folder,job.kind]},{sql:'EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=?)',values:[envelopeId,envelope.version]}],[
+   env.DB.prepare("UPDATE iw_filing_jobs SET folder_repair_json=? WHERE envelope_id=? AND provider='dropbox' AND folder=? AND kind=?").bind(proposal,envelopeId,job.folder,job.kind)
+  ])
+  return {ok:true}
+ }
  if(input.approveFolderRepair===true){
   insist(actor.role==='owner','Only the owner may approve a moved filing folder.',403)
   const job=await env.DB.prepare("SELECT * FROM iw_filing_jobs WHERE envelope_id=? AND provider='dropbox' AND folder=? AND kind=? AND state='uncertain' AND claim IS NULL").bind(envelopeId,text(input.folder,'the original folder',1000),text(input.kind,'an artifact kind',30)).first<Job>()
-  insist(job?.folder_ref&&job.folder_repair_json,'There is no moved-folder proposal to approve.',409)
+  insist(job?.folder_repair_json,'There is no moved-folder proposal to approve.',409)
   insist(canonical(input.proposal)===job.folder_repair_json,'The folder proposal changed. Review it again.',409)
   const token=credential(env,'dropbox');insist(token,'Configure the provider credential first.',409)
-  const live=await dropboxFolder(token,job.folder_ref),proposal=canonical({id:live.id,from:job.resolved_folder??job.folder,to:live.path})
+  const folderRef=job.folder_ref??JSON.parse(job.folder_repair_json).id
+  const live=await dropboxFolder(token,folderRef),proposal=canonical({id:live.id,from:job.resolved_folder??job.folder,to:live.path})
   insist(proposal===job.folder_repair_json,'The provider folder moved again. Reconcile and review it again.',409)
   const envelope=await getEnvelope(env.DB,envelopeId)
-  await atomic(env.DB,[roleGuard(actor,['owner']),{sql:"EXISTS(SELECT 1 FROM iw_filing_jobs WHERE envelope_id=? AND provider='dropbox' AND folder=? AND kind=? AND state='uncertain' AND claim IS NULL AND folder_repair_json=?)",values:[envelopeId,job.folder,job.kind,proposal]},{sql:"EXISTS(SELECT 1 FROM iw_filing_rules WHERE provider='dropbox' AND folder=? AND folder_ref=? AND enabled=1 AND template_id IN (SELECT json_extract(value,'$.id') FROM json_each(?)))",values:[job.folder,job.folder_ref,JSON.stringify(envelope.templates??(envelope.template?[envelope.template]:[]))]},{sql:'EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=?)',values:[envelopeId,envelope.version]}],[
-   env.DB.prepare("UPDATE iw_filing_jobs SET resolved_folder=?,folder_repair_json=NULL WHERE envelope_id=? AND provider='dropbox' AND folder=? AND kind=?").bind(live.path,envelopeId,job.folder,job.kind),
+  if(!job.folder_ref)await reconcileMovedDropboxArtifact(token,live.id,live.path,`inkwell-${envelopeId}-${job.kind}.pdf`,await readBlob(env.DB,envelopeId,job.kind,job.sha256))
+  await atomic(env.DB,[roleGuard(actor,['owner']),{sql:"EXISTS(SELECT 1 FROM iw_filing_jobs WHERE envelope_id=? AND provider='dropbox' AND folder=? AND kind=? AND state='uncertain' AND claim IS NULL AND folder_repair_json=?)",values:[envelopeId,job.folder,job.kind,proposal]},{sql:"EXISTS(SELECT 1 FROM iw_filing_rules WHERE provider='dropbox' AND folder=? AND (folder_ref IS ? OR (? IS NOT NULL AND folder_ref IS NULL)) AND enabled=1 AND template_id IN (SELECT json_extract(value,'$.id') FROM json_each(?)))",values:[job.folder,job.folder_ref,job.resolved_folder,JSON.stringify(envelope.templates??(envelope.template?[envelope.template]:[]))]},{sql:'EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=?)',values:[envelopeId,envelope.version]}],[
+   env.DB.prepare("UPDATE iw_filing_jobs SET folder_ref=?,resolved_folder=?,folder_repair_json=NULL WHERE envelope_id=? AND provider='dropbox' AND folder=? AND kind=?").bind(live.id,live.path,envelopeId,job.folder,job.kind),
    env.DB.prepare('INSERT INTO iw_account_audit(id,at,actor_id,action,target,before_json,after_json) VALUES(?,?,?,?,?,NULL,?)').bind(id().replaceAll('-',''),now(),actor.id,'filing.folder_repair.approved',envelopeId,proposal)
   ])
  }

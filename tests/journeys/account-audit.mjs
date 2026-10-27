@@ -55,16 +55,22 @@ try {
   await app.command('envelope.approve',{id:notification.id,eligible:true})
   const recipient=await app.verify('mara-repair@harbour.example')
   await app.call(recipient.path+'/sign',{cookie:recipient.cookie,body:{commandId:crypto.randomUUID(),values:{signature:'Mara Quinn'},consent:true,adoption:{method:'typed',style:'sans'}}})
+  const notice=await app.db.prepare("SELECT * FROM iw_notice_posts WHERE state='held' LIMIT 1").first()
+  await app.db.batch(Array.from({length:102},(_,i)=>app.db.prepare("INSERT INTO iw_notice_posts(id,notice_id,operator_id,channel,body,state,result,connection) VALUES(?,?,?,?,?,'uncertain','Unconfirmed provider effect',?)").bind('synthetic-inkwell-page-'+i,notice.notice_id,notice.operator_id,notice.channel,notice.body,notice.connection)))
   const repairPages=[]
   for(const width of [1440,390]){
    const {context,page}=await open(app.owner,width)
    const panel=page.getByRole('region',{name:'Notifications',exact:true}),repairs=panel.getByLabel('Notification repairs',{exact:true})
+   await repairs.getByRole('button',{name:'Load older notification repairs',exact:true}).waitFor()
+   await tabTo(page,repairs.getByRole('button',{name:'Load older notification repairs',exact:true}));await page.keyboard.press('Enter')
    await repairs.getByText('Slack · held',{exact:true}).waitFor()
+   await repairs.getByText('Slack · held',{exact:true}).scrollIntoViewIfNeeded()
    await panel.scrollIntoViewIfNeeded();await axe(page,`Notification repair at ${width}`)
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
    await panel.screenshot({path:`${images}/${width}-notification-held.png`})
    repairPages.push({context,page,panel,repairs,width})
   }
+  await app.db.prepare("DELETE FROM iw_notice_posts WHERE id LIKE 'synthetic-inkwell-page-%'").run()
   await app.call('/api/inkwell/notices/settings',{cookie:app.owner,body:{connect:{channel:'slack',url:'https://hooks.slack.com/services/synthetic-inkwell-32'}}})
   hookStatus=200
   for(const view of repairPages){

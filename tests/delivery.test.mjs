@@ -527,7 +527,7 @@ test('DELIV-008: subscribed to declines and completions in Slack, Teams, Nook an
    assert.equal((await h.db.prepare('SELECT state FROM iw_notice_posts WHERE id=?').bind(raceJob.id).first()).state,'pending')
    releaseOld();await staleDispatch
    assert.equal((await h.db.prepare('SELECT state FROM iw_notice_posts WHERE id=?').bind(raceJob.id).first()).state,'pending','a stale snapshot cannot put an owner-approved replay back on hold')
-  }finally{releaseOld();releaseApproved();pauseHook=undefined;await staleDispatch}
+  }finally{releaseOld();releaseApproved();pauseHook=undefined;await staleDispatch;await approvedReplay}
   assert.equal((await approvedReplay).status,200)
   assert.equal((await h.db.prepare('SELECT state FROM iw_notice_posts WHERE id=?').bind(raceJob.id).first()).state,'sent','the approved replay completes once')
   const storedChannels=(await h.db.prepare('SELECT sealed FROM iw_notice_channels').all()).results
@@ -1219,6 +1219,48 @@ test('Box and Dropbox file the completed PDF and certificate exactly once despit
   assert.equal(edge.files().filter(file=>file.name.includes(moved.id)).length,4,'folder repair and concurrent replay create no duplicate artifacts')
   assert.equal(edge.attempts().length,beforeMoveRetry,'moved uncertain artifacts are reconciled entirely with reads')
   assert.equal((await h.send('/api/inkwell/audit',undefined,h.owner)).value.entries.filter(e=>e.action==='filing.folder_repair.approved'&&e.target===moved.id).length,1)
+  // Pre-upgrade jobs have no folder identity; a retry may verify but must never upload into a recreated path.
+  const legacyTemplate=await filingTemplate(h,'Legacy completed filing')
+  await saveFilingRule(h,legacyTemplate,'dropbox',{folder:'/Legacy completed'})
+  edge.failNext('dropbox','after')
+  const legacy=await finishFilingEnvelope(h,legacyTemplate,'synthetic-inkwell-legacy@example.test')
+  await h.db.prepare("UPDATE iw_filing_rules SET folder_ref=NULL WHERE template_id=?").bind(legacyTemplate).run()
+  await h.db.prepare("UPDATE iw_filing_jobs SET folder_ref=NULL WHERE envelope_id=?").bind(legacy.id).run()
+  edge.moveFolder('/Legacy completed','/Legacy reviewed')
+  const legacyJob=(await h.send('/api/inkwell/filing',undefined,h.owner)).value.jobs.find(job=>job.envelope_id===legacy.id&&job.state==='uncertain')
+  assert.ok(legacyJob)
+  const legacyAttempts=edge.attempts().length
+  await h.post('/api/inkwell/filing/retry',{id:legacy.id})
+  assert.equal(edge.attempts().length,legacyAttempts,'no duplicate upload at the old path')
+  assert.equal((await h.send('/api/inkwell/filing',undefined,h.owner)).value.jobs.find(job=>job.envelope_id===legacy.id&&job.kind===legacyJob.kind).state,'uncertain')
+  const inspect={id:legacy.id,folder:legacyJob.folder,kind:legacyJob.kind,inspectLegacyFolder:true,replacementFolder:'/Legacy reviewed'}
+  await h.post('/api/inkwell/filing/retry',inspect,admin,403)
+  const legacyFile=edge.files().find(file=>file.name===`inkwell-${legacy.id}-${legacyJob.kind}.pdf`)
+  edge.corrupt(legacyFile.id)
+  await h.post('/api/inkwell/filing/retry',inspect,h.owner,409)
+  edge.repair(legacyFile.id)
+  await h.post('/api/inkwell/filing/retry',inspect)
+  let proposed=(await h.send('/api/inkwell/filing',undefined,h.owner)).value.jobs.find(job=>job.envelope_id===legacy.id&&job.kind===legacyJob.kind)
+  const legacyApproval={id:legacy.id,folder:legacyJob.folder,kind:legacyJob.kind,approveFolderRepair:true,proposal:JSON.parse(proposed.folder_repair_json)}
+  assert.deepEqual(legacyApproval.proposal,{id:legacyApproval.proposal.id,from:'/Legacy completed',to:'/Legacy reviewed'})
+  assert.equal(proposed.folder_ref,null,'inspection grants no replay authority')
+  edge.moveFolder('/Legacy reviewed','/Legacy final')
+  await h.post('/api/inkwell/filing/retry',legacyApproval,h.owner,409)
+  await h.post('/api/inkwell/filing/retry',{...inspect,replacementFolder:'/Legacy final'})
+  proposed=(await h.send('/api/inkwell/filing',undefined,h.owner)).value.jobs.find(job=>job.envelope_id===legacy.id&&job.kind===legacyJob.kind)
+  legacyApproval.proposal=JSON.parse(proposed.folder_repair_json)
+  edge.corrupt(legacyFile.id)
+  await h.post('/api/inkwell/filing/retry',legacyApproval,h.owner,409)
+  edge.repair(legacyFile.id)
+  const legacyResults=await Promise.all([h.send('/api/inkwell/filing/retry',legacyApproval,h.owner),h.send('/api/inkwell/filing/retry',legacyApproval,h.owner)])
+  assert.deepEqual(legacyResults.map(result=>result.status).sort(),[200,409])
+  await h.post('/api/inkwell/filing/retry',{id:legacy.id})
+  proposed=(await h.send('/api/inkwell/filing',undefined,h.owner)).value.jobs.find(job=>job.envelope_id===legacy.id&&job.kind===legacyJob.kind)
+  assert.equal(proposed.state,'filed');assert.equal(proposed.remote_id,legacyFile.id);assert.equal(proposed.resolved_folder,'/Legacy final')
+  assert.equal(edge.attempts().length,legacyAttempts,'legacy inspection, approval and replay are read-only')
+  assert.equal(edge.files().filter(file=>file.name.includes(legacy.id)).length,2,'legacy recovery makes no duplicate')
+  assert.equal((await h.send('/api/inkwell/audit',undefined,h.owner)).value.entries.filter(e=>e.action==='filing.folder_repair.approved'&&e.target===legacy.id).length,1)
+
 
  }finally{await h.close()}
 })

@@ -4,7 +4,7 @@ import { ErrorNotice, useAction } from './feedback'
 
 type Provider = 'box' | 'dropbox'
 type Rule = { template_id:string; provider:Provider; folder:string; enabled:number; version:number; at:string }
-type Job = { envelope_id:string; title:string; provider:Provider; folder:string; kind:string; state:string; remote_id:string|null; filed_at:string|null; resolved_folder:string|null;folder_repair_json:string|null }
+type Job = { envelope_id:string; title:string; provider:Provider; folder:string; kind:string; state:string; remote_id:string|null; filed_at:string|null; folder_ref:string|null;resolved_folder:string|null;folder_repair_json:string|null }
 type View = { owner:boolean;providers:Record<Provider,boolean>; rules:Rule[]; jobs:Job[]; consent:string }
 const providerName = (provider:Provider) => provider === 'box' ? 'Box' : 'Dropbox'
 
@@ -34,8 +34,21 @@ export function FilingSettings({ templates }: { templates:{id:string;title:strin
   </form>}
   {saved && <p role="status">Filing rule saved.</p>}
   {view && <><h3>Saved filing rules</h3>{view.rules.length?<ul className="iw-contact-results">{view.rules.map(row=><li key={row.template_id+row.provider}><span><strong>{templates.find(t=>t.id===row.template_id)?.title??'Removed template'}</strong><small>{providerName(row.provider)} · {row.folder||'Root folder'} · {row.enabled?'Enabled':'Disabled'}</small></span></li>)}</ul>:<p>No filing rules yet.</p>}
-   <h3>Recent filing</h3>{view.jobs.length?<ul className="iw-contact-results" aria-label="Filing receipts">{view.jobs.map(job=><li key={JSON.stringify([job.envelope_id,job.provider,job.folder,job.kind])} style={{flexWrap:'wrap'}}><span style={{minWidth:0,overflowWrap:'anywhere'}}><strong>{job.title}</strong><small>{providerName(job.provider)} · {job.kind==='signed'?'Completed PDF':'Certificate'} · {job.folder||'Root folder'}</small><small>{job.state==='filed'?`Filed · ${dateTime(job.filed_at!)} · reference ${job.remote_id}`:job.state==='uncertain'?'Unconfirmed; retry verifies the existing remote file before accepting it.':job.state==='sending'?'Filing in progress. A retry becomes available if this attempt is interrupted.':job.state==='cancelled'?'Cancelled because the filing rule was disabled.':'Waiting to file'}</small>{job.folder_repair_json&&<><p>Folder moved: {JSON.parse(job.folder_repair_json).from} → {JSON.parse(job.folder_repair_json).to}. The destination identity is unchanged; owner approval is required.</p>{view.owner&&<button type="button" disabled={action.busy} onClick={()=>void action.run(async()=>{await request('/api/inkwell/filing/retry',{id:job.envelope_id,folder:job.folder,kind:job.kind,approveFolderRepair:true,proposal:JSON.parse(job.folder_repair_json!)});await load()})}>Approve folder repair</button>}</>}</span>{['uncertain','sending','pending'].includes(job.state)&&<button type="button" disabled={action.busy} onClick={()=>void action.run(async()=>{await request('/api/inkwell/filing/retry',{id:job.envelope_id});await load()})}>Retry filing</button>}</li>)}</ul>:<p>No completed envelopes have been filed yet.</p>}
+   <h3>Recent filing</h3>{view.jobs.length?<ul className="iw-contact-results" aria-label="Filing receipts">{view.jobs.map(job=><li key={JSON.stringify([job.envelope_id,job.provider,job.folder,job.kind])} style={{flexWrap:'wrap'}}><span style={{minWidth:0,overflowWrap:'anywhere'}}><strong>{job.title}</strong><small>{providerName(job.provider)} · {job.kind==='signed'?'Completed PDF':'Certificate'} · {job.folder||'Root folder'}</small><small>{job.state==='filed'?`Filed · ${dateTime(job.filed_at!)} · reference ${job.remote_id}`:job.state==='uncertain'?'Unconfirmed; retry verifies the existing remote file before accepting it.':job.state==='sending'?'Filing in progress. A retry becomes available if this attempt is interrupted.':job.state==='cancelled'?'Cancelled because the filing rule was disabled.':'Waiting to file'}</small>{job.folder_repair_json&&<><p>{job.folder_ref?'Folder moved:':'Proposed legacy destination:'} {JSON.parse(job.folder_repair_json).from} → {JSON.parse(job.folder_repair_json).to}. {job.folder_ref?'The destination identity is unchanged; owner approval is required.':'The selected folder contains the exact existing artifact. Owner approval is required; inspection grants no replay authority.'}</p>{view.owner&&<button type="button" disabled={action.busy} onClick={()=>void action.run(async()=>{await request('/api/inkwell/filing/retry',{id:job.envelope_id,folder:job.folder,kind:job.kind,approveFolderRepair:true,proposal:JSON.parse(job.folder_repair_json!)});await load()})}>Approve folder repair</button>}</>}{view.owner&&job.provider==='dropbox'&&job.state==='uncertain'&&!job.folder_ref&&!job.folder_repair_json&&<LegacyFolderRepair job={job} done={load}/>}</span>{['uncertain','sending','pending'].includes(job.state)&&<button type="button" disabled={action.busy} onClick={()=>void action.run(async()=>{await request('/api/inkwell/filing/retry',{id:job.envelope_id});await load()})}>Retry filing</button>}</li>)}</ul>:<p>No completed envelopes have been filed yet.</p>}
    <button type="button" className="iw-fit" disabled={action.busy} onClick={()=>void action.run(load)}>Refresh filing status</button>
   </>}
  </section>
+}
+
+
+function LegacyFolderRepair({job,done}:{job:Job;done:()=>Promise<void>}){
+ const [folder,setFolder]=useState(''),action=useAction()
+ return <form className="iw-stack" onSubmit={event=>{event.preventDefault();void action.run(async()=>{
+  await request('/api/inkwell/filing/retry',{id:job.envelope_id,folder:job.folder,kind:job.kind,inspectLegacyFolder:true,replacementFolder:folder});await done()
+ })}}>
+  <p>This older job has no saved folder identity. Inspection verifies an existing exact artifact and never uploads it.</p>
+  <ErrorNotice error={action.error}/>
+  <label>Inspect legacy Dropbox folder<input required value={folder} onChange={event=>setFolder(event.target.value)} placeholder="/Completed agreements"/></label>
+  <button type="submit" disabled={action.busy}>Inspect existing artifact</button>
+ </form>
 }
