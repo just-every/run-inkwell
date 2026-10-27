@@ -93,15 +93,17 @@ for(const provider of ['acrobat','dropbox'])test(`${provider}: reviewed API impo
   assert.deepEqual(repeated.counts,{agreements:0,templates:0},'erased source records never resurrect on reimport')
   assert.ok(!h.logs().join('\n').includes('synthetic-inkwell-99'))
  }finally{await h.close()}
+ if(provider==='acrobat')await accountJobProof()
 })
 
-test('acrobat: account jobs checkpoint provider reads, require full preview approval and fence paused, cancelled and expired-grant work',async()=>{
+async function accountJobProof(){
  const fake=await remoteImportFake('acrobat')
  let expire=true,limit=true
  const calls=[]
  const edge=async request=>{
   const path=new URL(request.url).pathname.replace('/api/rest/v6','');calls.push(path)
   if(path==='/agreements/second'&&expire){expire=false;return new Response(null,{status:401})}
+  if(path==='/agreements')return Response.json(new URL(request.url).searchParams.has('cursor')?{userAgreementList:[{id:'third'}],page:{}}:{userAgreementList:[{id:'first'},{id:'second'},{id:'open'}],page:{nextCursor:'next'}})
   const response=await fake.edge(request)
   if(path==='/agreements/first/combinedDocument'&&limit){limit=false;return new Response(response.body,{headers:{'x-ratelimit-remaining':'0','x-ratelimit-reset':'60'}})}
   return response
@@ -127,11 +129,22 @@ test('acrobat: account jobs checkpoint provider reads, require full preview appr
   assert.equal((await view()).state,'grant_required')
   await action({action:'resume',id},400)
   await action({action:'resume',id,credential:'synthetic-inkwell-100'})
+  await h.db.prepare("CREATE TRIGGER stop_preview BEFORE INSERT ON iw_remote_job_pages BEGIN SELECT RAISE(ABORT,'synthetic-inkwell-preview-interruption'); END").run()
+  await h.scheduled(at+60_000)
+  const interrupted=await view();assert.equal(interrupted.state,'failed');assert.equal(interrupted.pages,0);assert.deepEqual(interrupted.counts,{agreements:0,templates:0},'a failed preview checkpoint cannot advance the reviewed account')
+  await h.db.prepare('DROP TRIGGER stop_preview').run()
+  await action({action:'resume',id})
   await h.scheduled(at+60_000)
   const preview=await view()
+  assert.equal(preview.state,'previewing')
+  await h.scheduled(at+60_000)
+  Object.assign(preview,await view())
   assert.equal(preview.state,'review')
-  assert.deepEqual(preview.counts,{agreements:2,templates:1})
-  assert.deepEqual(preview.owners,{'first@example.test':{agreements:1,templates:1},'second@example.test':{agreements:1,templates:0}})
+  assert.equal(preview.pages,2)
+  const secondPage=(await h.send('/api/inkwell/remote-import/jobs?id='+id+'&page=1',undefined,h.owner)).value
+  assert.deepEqual(secondPage.preview.items.map(item=>item.title),['acrobat third agreement'])
+  assert.deepEqual(preview.counts,{agreements:3,templates:1})
+  assert.deepEqual(preview.owners,{'first@example.test':{agreements:1,templates:1},'second@example.test':{agreements:2,templates:0}})
   assert.equal(calls.filter(p=>p==='/agreements/first').length,1,'grant renewal resumes successful resource checkpoints')
   assert.equal((await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.envelopes.length,0,'complete preview remains side effect free')
   await action({action:'approve',id,fingerprint:'wrong'},409)
@@ -141,8 +154,10 @@ test('acrobat: account jobs checkpoint provider reads, require full preview appr
   assert.equal((await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.envelopes.length,1)
   await h.db.prepare('DROP TRIGGER stop_job').run()
   await action({action:'resume',id});await h.scheduled(at+60_000)
+  assert.equal((await view()).state,'applying')
+  await h.scheduled(at+60_000)
   assert.equal((await view()).state,'completed')
-  assert.equal((await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.envelopes.length,2,'restart does not duplicate the first committed record')
+  assert.equal((await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.envelopes.length,3,'restart does not duplicate the first committed record')
   assert.equal((await h.db.prepare('SELECT sealed FROM iw_remote_jobs WHERE id=?').bind(id).first()).sealed,null)
   assert.equal((await h.db.prepare('SELECT count(*) AS n FROM iw_remote_preview_parts').first()).n,0,'completion drops all staged document bytes')
   const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
@@ -151,4 +166,4 @@ test('acrobat: account jobs checkpoint provider reads, require full preview appr
   await action({action:'cancel',id:cancelled.id});const stopped=calls.length;await h.scheduled(at+60_000);assert.equal(calls.length,stopped)
   await action({action:'resume',id:cancelled.id},409)
  }finally{await h.close()}
-})
+}

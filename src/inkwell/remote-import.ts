@@ -15,10 +15,11 @@ async function mappedOwner(env:Env,email:string,fallback:string) {
  return {owner:admin,unmapped:true}
 }
 const ownerGuard=(owner:Actor):Guard=>({sql:"EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND version=? AND status='active')",values:[owner.id,owner.version]})
-export async function previewRemoteImport(env:Env,actor:Actor,input:Record<string,unknown>,options:{fetcher?:typeof fetch;previewId?:string;guards?:Guard[]}={}) {
+export async function previewRemoteImport(env:Env,actor:Actor,input:Record<string,unknown>,options:{fetcher?:typeof fetch;previewId?:string;guards?:Guard[];account?:string}={}) {
  if(options.previewId){const saved=await env.DB.prepare('SELECT data,fingerprint FROM iw_remote_previews WHERE id=? AND owner_id=?').bind(options.previewId,actor.id).first<{data:string;fingerprint:string}>();if(saved)return {...JSON.parse(saved.data).summary,previewId:options.previewId,fingerprint:saved.fingerprint}}
  const fallback=text(input.fallbackAdmin,'the fallback admin email',254).toLowerCase()
  const batch=await readRemoteBatch(input,options.fetcher),planned:Planned[]=[],unmapped=[...batch.unmapped],at=now()
+ insist(!options.account||batch.account===options.account,'The renewed grant belongs to another source account.',409)
  for(const item of batch.items) {
   const target='remote-'+await sha256(canonical([batch.provider,batch.account,item.kind,item.sourceId]))
   const seen=await env.DB.prepare('SELECT id FROM iw_remote_imports WHERE id=?').bind(target).first()

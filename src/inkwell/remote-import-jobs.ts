@@ -9,15 +9,16 @@ interface Data { provider:'acrobat';region:string;fallbackAdmin:string;account?:
 interface Job { id:string;owner_id:string;owner_version:number;version:number;state:string;phase:string;data:string;sealed:string|null;next_at:number;claim:string|null;lease_until:number }
 const terminal=['completed','cancelled','authority_lost']
 const live=['previewing','applying','rate_limited']
-const bound=(job:Job):Guard=>({sql:'EXISTS(SELECT 1 FROM iw_remote_jobs WHERE id=? AND version=? AND claim=? AND state IN (\'previewing\',\'applying\',\'rate_limited\'))',values:[job.id,job.version,job.claim]})
+const bound=(job:Job):Guard=>({sql:'EXISTS(SELECT 1 FROM iw_remote_jobs WHERE id=? AND version=? AND claim=? AND state IN (\'previewing\',\'applying\',\'rate_limited\') AND EXISTS(SELECT 1 FROM oa_operators o WHERE o.id=owner_id AND o.version=owner_version AND o.role=\'owner\' AND o.status=\'active\'))',values:[job.id,job.version,job.claim]})
 async function load(env:Env,actor:Actor,jobId:unknown) {const row=await env.DB.prepare('SELECT * FROM iw_remote_jobs WHERE id=? AND owner_id=?').bind(text(jobId,'the job ID'),actor.id).first<Job>();insist(row,'Import job not found.',404);return row}
 async function clearPrivate(env:Env,jobId:string) {
- const pages=(await env.DB.prepare('SELECT preview_id FROM iw_remote_job_pages WHERE job_id=?').bind(jobId).all<{preview_id:string}>()).results
+ const pages=(await env.DB.prepare('SELECT id AS preview_id FROM iw_remote_previews WHERE id GLOB ?').bind(jobId+'-*').all<{preview_id:string}>()).results
  for(const page of pages)await env.DB.prepare('DELETE FROM iw_remote_previews WHERE id=?').bind(page.preview_id).run()
  await env.DB.prepare('DELETE FROM iw_remote_response_parts WHERE job_id=?').bind(jobId).run()
  await env.DB.prepare('UPDATE iw_remote_jobs SET sealed=NULL WHERE id=?').bind(jobId).run()
 }
 export async function remoteJobView(env:Env,actor:Actor,jobId?:string,page=0) {
+ insist(actor.role==='owner'&&actor.sessionId&&!actor.agentId&&!actor.apiKeyId,'A signed-in owner must read import jobs.',403)
  if(!jobId){const jobs=(await env.DB.prepare('SELECT id,state FROM iw_remote_jobs WHERE owner_id=? ORDER BY rowid DESC LIMIT 20').bind(actor.id).all()).results;return {jobs}}
  insist(Number.isSafeInteger(page)&&page>=0,'Choose a valid preview page.')
  const job=await load(env,actor,jobId),data=JSON.parse(job.data) as Data
@@ -89,7 +90,7 @@ export async function processRemoteJobs(env:Env,at=Date.now()) {
    let state=job.phase,nextAt=0
    if(job.phase==='previewing') {
     const credential=await unseal(env,'remote-import',job.id,job.sealed);if(!credential)throw new Error('grant_required')
-    const preview=await previewRemoteImport(env,principal,{...data,credential},{fetcher:jobFetch(env,job,data),previewId:job.id+'-'+data.pages,guards:[bound(job)]})
+    const preview=await previewRemoteImport(env,principal,{...data,credential},{fetcher:jobFetch(env,job,data),previewId:job.id+'-'+data.pages,guards:[bound(job)],account:data.account})
     insist(!data.account||data.account===preview.account,'The renewed grant belongs to another source account.',409)
     data.account=preview.account
     data.reviewHash=await sha256(canonical([data.reviewHash??null,preview.fingerprint]))
@@ -108,10 +109,13 @@ export async function processRemoteJobs(env:Env,at=Date.now()) {
     if(state==='completed')await clearPrivate(env,job.id)
    }
   }catch(error){
+   const durable=await env.DB.prepare('SELECT data FROM iw_remote_jobs WHERE id=? AND claim=?').bind(job.id,claim).first<{data:string}>()
+   if(!durable)continue
+   const checkpoint=JSON.parse(durable.data) as Data
    const state=error instanceof ApiRateLimit?'rate_limited':String(error).includes('grant_required')?'grant_required':'failed'
-   data.message=state==='rate_limited'?'Waiting for the provider limit window.':state==='grant_required'?'Renew the source grant to continue from the durable checkpoint.':'This batch did not finish. Check the source and resume; completed records remain checkpointed.'
+   checkpoint.message=state==='rate_limited'?'Waiting for the provider limit window.':state==='grant_required'?'Renew the source grant to continue from the durable checkpoint.':'This batch did not finish. Check the source and resume; completed records remain checkpointed.'
    const next=error instanceof ApiRateLimit?at+error.retryAfter*1000:0
-   await env.DB.prepare('UPDATE iw_remote_jobs SET state=?,data=?,next_at=?,claim=NULL,lease_until=0 WHERE id=? AND claim=?').bind(state,JSON.stringify(data),next,job.id,claim).run()
+   await env.DB.prepare('UPDATE iw_remote_jobs SET state=?,data=?,next_at=?,claim=NULL,lease_until=0 WHERE id=? AND claim=?').bind(state,JSON.stringify(checkpoint),next,job.id,claim).run()
   }
  }
 }
