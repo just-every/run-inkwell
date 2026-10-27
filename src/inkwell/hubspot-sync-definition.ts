@@ -1,4 +1,4 @@
-import { canonical, insist, object, text, type Actor } from './model'
+import { canonical, insist, now, object, text, type Actor } from './model'
 import { roleGuard, type Guard } from './storage'
 import type { HubspotEnv } from './hubspot-provider'
 export const hubspotDisclosure = 'Import the selected HubSpot contacts into this account’s shared contact book. Owners, admins and senders can read these contacts. This authorization grants no envelope access, signing consent, sending authority or follow-up authority.'
@@ -50,7 +50,7 @@ export async function activeSyncAuthorization(env: HubspotEnv, authorizationId: 
   return auth
 }
 export function syncAudit(env: HubspotEnv, actor: string, action: string, auth: SyncAuthorization, outcome: string, runId: string | null = null): D1PreparedStatement[] {
-  const at = new Date().toISOString(), scope = canonical(JSON.parse(auth.definition)), details = JSON.stringify({ authorizationId: auth.id, version: auth.version, scope: JSON.parse(scope), runId, outcome })
+  const at = now(), scope = canonical(JSON.parse(auth.definition)), details = JSON.stringify({ authorizationId: auth.id, version: auth.version, scope: JSON.parse(scope), runId, outcome })
   return [env.DB.prepare('INSERT INTO iw_hubspot_sync_audit(id,actor,action,authorization_id,version,scope,run_id,outcome,at) VALUES(lower(hex(randomblob(16))),?,?,?,?,?,?,?,?)').bind(actor, action, auth.id, auth.version, scope, runId, outcome, at), env.DB.prepare('INSERT INTO iw_account_audit(id,at,actor_id,action,target,before_json,after_json) VALUES(lower(hex(randomblob(16))),?,?,?,?,NULL,?)').bind(at, actor, action, 'hubspot:' + auth.id, details)]
 }
 export const cadenceMilliseconds = (definition: SyncDefinition) => definition.cadence === 'hourly' ? 3_600_000 : definition.cadence === 'daily' ? 86_400_000 : null

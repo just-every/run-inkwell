@@ -29,6 +29,7 @@ async function finish(h,id){
 test('INTEG-001 PREP-008 AGENT-003: selected native consent, admin admission, eligible owner defaults and provenance custody grant no new access or follow-up',async()=>{
  const edge=hubspotEdge(),h=await harness({bindings,networkEdge:edge.networkEdge})
  try {
+  await h.command('account.healthcare',{enabled:true})
   const t=await template(h),admin=await h.invite('synthetic-inkwell-4@example.test','admin'),sender=await h.invite('synthetic-inkwell-5@example.test','member'),viewer=await h.invite('synthetic-inkwell-6@example.test','member')
   const senderId=(await h.send('/api/inkwell',undefined,sender)).value.actor.id
   await h.command('member.role',{operatorId:senderId,role:'sender'})
@@ -74,6 +75,8 @@ test('INTEG-001 PREP-008 AGENT-003: selected native consent, admin admission, el
   const audit=(await h.send('/api/inkwell/audit',undefined,h.owner)).value.entries.find(entry=>entry.action==='hubspot.record.authorized'&&entry.target===e.id)
   assert.deepEqual(audit.after.scope.mappings,native.detail.authorization.mappings);assert.equal(audit.after.scope.recordId,'901');assert.equal(audit.after.scope.version,1)
   assert.ok(!JSON.stringify(audit).includes('48600.00'),'operational audit retains scope without imported field values')
+  const operational = (await h.send('/api/inkwell/audit.csv',undefined,h.owner)).value + JSON.stringify(h.logs())
+  for (const value of ['48600.00','Brightwater Medical','nadia@brightwater.example','Bearer synthetic-inkwell-1']) assert.equal(operational.includes(value),false,'logs and complete audit export exclude '+value)
   const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
   assert.ok(!JSON.stringify(archive).includes('synthetic-inkwell-1'),'credentials never export')
   const restored=await harness()
@@ -121,6 +124,7 @@ test('INTEG-001 ADMIN-004 SEND-001 A1-A5 A9: integration policy defaults off, re
 test('INTEG-001 MANAGE-002: completion properties, custom metadata, one timeline event and exact executed PDF reconcile uncertain provider results and durable replay',async()=>{
  const edge=hubspotEdge(),h=await harness({bindings,networkEdge:edge.networkEdge})
  try {
+  await h.command('account.healthcare',{enabled:true})
   const t=await template(h,{customFields:[{name:'Cost center',value:'Client services',required:true}]});await policy(h,{mode:'autonomous',templates:[t]})
   await launch(h,t,{customFields:[]},h.owner,400)
   const outsider=await h.invite('synthetic-inkwell-26@example.test','member'),viewer=await h.invite('synthetic-inkwell-27@example.test','member')
@@ -161,7 +165,9 @@ test('INTEG-001 MANAGE-002: completion properties, custom metadata, one timeline
    assert.ok(edge.calls().some(call=>call.method==='GET'&&call.path==='/files/v3/files/search'))
   }
   assert.equal(edge.files().length,3);assert.equal(edge.notes().length,3);assert.equal(edge.patches().length,3)
-  assert.ok(!JSON.stringify(h.logs()).includes('synthetic-inkwell-1'),'credentials never enter operational logs')
+  const operational = JSON.stringify(h.logs()) + (await h.send('/api/inkwell/audit.csv',undefined,h.owner)).value
+  assert.match(JSON.stringify(h.logs()),/inkwell.request/,'completion privacy proof captures operational requests')
+  for(const value of ['Bearer synthetic-inkwell-1','48600.00','synthetic-inkwell-23','Client services']) assert.equal(operational.includes(value),false,'completion operational logs and complete audit exclude '+value)
  }finally{await h.close()}
 })
 

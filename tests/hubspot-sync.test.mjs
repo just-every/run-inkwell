@@ -14,7 +14,8 @@ const contacts = async (h, cookie = h.owner) => (await h.send('/api/inkwell/cont
 
 test('INTEG-001 ROUTE-008: one versioned recurring authorization spans provider pages, resumes a failed page, deduplicates repeated syncs and resolves local edits without deleting absent contacts; audit retains exact scope without values', async () => {
  let calls = 0, failure = true, changed = false, changedAgain = false
- const h = await harness({ bindings, networkEdge: async request => {
+ const clock = Date.parse('2026-10-27T12:00:00.000Z')
+ const h = await harness({ bindings, now: clock, networkEdge: async request => {
   if (new URL(request.url).hostname !== 'api.hubapi.com') return
   calls++; assert.equal(request.headers.get('authorization'), 'Bearer synthetic-inkwell-1')
   if (request.method === 'POST') { const body = await request.json(); assert.deepEqual(body.inputs, [{ id: 'synthetic-inkwell-1' }]); return Response.json({ status: 'COMPLETE', results: [record(1, { firstname: 'Provider changed again' })] }) }
@@ -24,18 +25,37 @@ test('INTEG-001 ROUTE-008: one versioned recurring authorization spans provider 
   return Response.json({ results: [record(1, changed ? { firstname: changedAgain ? 'Provider changed again' : 'Provider changed' } : {})], paging: { next: { after: 'synthetic-inkwell-2', link: 'https://untrusted.invalid/ignored' } } })
  } })
  try {
+  await h.command('account.healthcare', { enabled: true })
   const config = await h.send('/api/inkwell/hubspot/config', undefined, h.owner)
   assert.equal(config.status, 200); assert.equal(config.value.configured, true); assert.match(config.value.disclosure, /Owners, admins and senders/)
   const auth = await authorize(h, 'daily'); assert.equal(auth.version, 1); assert.equal(auth.state, 'active')
+  h.advanceTo(clock + 60_000)
   const first = await start(h, auth, 'synthetic-inkwell-run-1'); assert.equal(first.pages, 1); assert.equal(first.records, 1); assert.equal(first.applied, 1); assert.equal(first.remaining, 'more_pages')
   assert.equal((await start(h, auth, 'synthetic-inkwell-run-1')).id, first.id); assert.equal(calls, 1, 'replaying a launch does not read a page twice')
-  await h.db.prepare("UPDATE iw_hubspot_runs SET status='reading',lease='synthetic-inkwell-interrupted',lease_at=? WHERE id=?").bind(Date.now(), first.id).run()
+  await h.db.prepare("UPDATE iw_hubspot_runs SET status='reading',lease='synthetic-inkwell-interrupted',lease_at=? WHERE id=?").bind(clock + 60_000, first.id).run()
   await resume(h, first, h.owner, 409); assert.equal(calls, 1, 'a live continuation lease prevents a duplicate provider read')
-  await h.db.prepare('UPDATE iw_hubspot_runs SET lease_at=? WHERE id=?').bind(Date.now() - 61_000, first.id).run()
+  await h.db.prepare('UPDATE iw_hubspot_runs SET lease_at=? WHERE id=?').bind(clock - 61_000, first.id).run()
+  h.advanceTo(clock + 120_000)
   await resume(h, first, h.owner, 502)
   let state = await progress(h); assert.equal(state.runs[0].failures, 1); assert.equal(state.runs[0].pages, 1); assert.equal((await contacts(h)).length, 1)
+  h.advanceTo(clock + 180_000)
   const complete = await resume(h, first); assert.equal(complete.status, 'completed'); assert.equal(complete.pages, 2); assert.equal(complete.records, 2); assert.equal(complete.applied, 2)
   await resume(h, first); assert.equal(calls, 3, 'a completed continuation never reads again')
+  const history = (await h.send('/api/inkwell/audit?limit=200&target=' + encodeURIComponent('hubspot:' + auth.id), undefined, h.owner)).value.entries
+  const runAudit = history.filter(item => item.after?.runId === first.id)
+  assert.deepEqual(runAudit.map(item => [item.action, item.after.outcome, item.at]).sort(), [
+   ['hubspot.run.started', 'ready', '2026-10-27T12:01:00.000Z'],
+   ['hubspot.run.page', 'more_pages', '2026-10-27T12:01:00.000Z'],
+   ['hubspot.run.failed', 'page_failed', '2026-10-27T12:02:00.000Z'],
+   ['hubspot.run.page', 'completed', '2026-10-27T12:03:00.000Z'],
+  ].sort(), 'every run transition retains its actual time and outcome once, including failure and completion replay')
+  for (const item of runAudit) {
+   assert.equal(item.actorId, auth.authorizer); assert.equal(item.after.authorizationId, auth.id)
+   assert.equal(item.after.version, 1); assert.deepEqual(item.after.scope, { accountId: '12345', scope: { kind: 'all' }, properties: ['company', 'email', 'firstname', 'lastname', 'phone'], mappings: { name: 'full_name', email: 'email', phone: 'phone', company: 'company' }, destination: 'shared_contacts', updateBehavior: 'preserve_local_edits', cadence: 'daily' })
+  }
+  const authorized = history.filter(item => item.action === 'hubspot.authorized')
+  assert.equal(authorized.length, 1); assert.equal(authorized[0].at, '2026-10-27T12:00:00.000Z')
+  assert.equal(authorized[0].after.outcome, 'authorized')
   const sender = await h.invite('synthetic-inkwell-sender@example.test', 'member')
   const person = await h.db.prepare('SELECT id FROM oa_operators WHERE email=?').bind('synthetic-inkwell-sender@example.test').first()
   await h.command('member.role', { operatorId: person.id, role: 'sender' })
@@ -57,8 +77,11 @@ test('INTEG-001 ROUTE-008: one versioned recurring authorization spans provider 
   const audit = await h.send('/api/inkwell/audit?action=hubspot.authorized', undefined, h.owner)
   assert.equal(audit.status, 200); assert.equal(audit.value.entries.length, 2)
   const entry = audit.value.entries.find(item => item.after.version === 1); assert.equal(entry.actorId, auth.authorizer); assert.deepEqual(entry.after.scope, auth.definition); assert.equal(entry.after.authorizationId, auth.id)
-  const serialized = JSON.stringify((await h.send('/api/inkwell/audit', undefined, h.owner)).value)
+  const serialized = (await h.send('/api/inkwell/audit.csv', undefined, h.owner)).value
   for (const value of ['Provider changed', 'Local edit retained', 'Synthetic company', '+1 202 555 0100', 'synthetic-inkwell-1@example.test', 'Bearer synthetic-inkwell-1', 'untrusted-provider-body']) assert.equal(serialized.includes(value), false, 'operational audit excludes contact field values and credentials')
+  const logs = JSON.stringify(h.logs())
+  assert.match(logs, /inkwell.request/, 'privacy proof captures actual operational requests')
+  for (const value of ['Provider changed', 'Local edit retained', 'Synthetic company', '+1 202 555 0100', 'synthetic-inkwell-1@example.test', 'Bearer synthetic-inkwell-1', 'untrusted-provider-body']) assert.equal(logs.includes(value), false, 'captured operational logs exclude ' + value)
   const identities = (await h.db.prepare('SELECT record_id,email FROM iw_hubspot_sources ORDER BY record_id').all()).results
   assert.deepEqual(identities.map(item => item.record_id), ['synthetic-inkwell-1', 'synthetic-inkwell-2'])
  } finally { await h.close() }
@@ -77,7 +100,14 @@ test('INTEG-001: revocation and temporary loss of an authorizing admin permanent
  try {
   const admin = await h.invite('synthetic-inkwell-admin@example.test', 'admin'); adminId = (await h.db.prepare('SELECT id FROM oa_operators WHERE email=?').bind('synthetic-inkwell-admin@example.test').first()).id
   let auth = await authorize(h, 'once', admin), run = await start(h, auth, 'synthetic-inkwell-revocation', admin)
+  const revokeStart = Date.now()
   await operation(h, { operation: 'revoke', authorizationId: auth.id })
+  const revokeEnd = Date.now()
+  const stoppedAudit = (await h.send('/api/inkwell/audit?limit=200&action=hubspot.authorization.stopped&target=' + encodeURIComponent('hubspot:' + auth.id), undefined, h.owner)).value.entries
+  assert.equal(stoppedAudit.length, 1, 'revoking a running import has one durable stopped outcome')
+  assert.equal(stoppedAudit[0].after.outcome, 'Revoked by an owner or admin')
+  assert.equal(stoppedAudit[0].after.version, auth.version); assert.deepEqual(stoppedAudit[0].after.scope, auth.definition)
+  assert.ok(Date.parse(stoppedAudit[0].at) >= revokeStart && Date.parse(stoppedAudit[0].at) <= revokeEnd, 'stopped audit records the actual revocation time')
   await resume(h, run, h.owner, 403); assert.equal(calls, 1); assert.equal((await contacts(h)).length, 1)
   auth = await authorize(h, 'once', admin); run = await start(h, auth, 'synthetic-inkwell-narrowing', admin)
   await h.db.prepare("UPDATE oa_operators SET role='member' WHERE id=?").bind(adminId).run(); await h.db.prepare("UPDATE oa_operators SET role='admin' WHERE id=?").bind(adminId).run()
@@ -92,6 +122,11 @@ test('INTEG-001: revocation and temporary loss of an authorizing admin permanent
   let state = await progress(h); run = state.runs.find(item => item.authorizationId === auth.id); assert.equal(run.status, 'completed'); assert.equal(run.records, 1)
   await h.scheduled(Date.now()); assert.equal(calls, before + 1, 'cadence prevents an early recurring run')
   await h.scheduled(Date.now() + 3_600_001); assert.equal(calls, before + 2, 'a new due run uses standing authorization without another prompt')
+  const scheduledAudit = (await h.send('/api/inkwell/audit?limit=200&target=' + encodeURIComponent('hubspot:' + auth.id), undefined, h.owner)).value.entries.filter(entry => entry.after?.runId)
+  assert.deepEqual(scheduledAudit.map(entry => [entry.actorId, entry.action, entry.after.outcome]).sort(), [
+   ['system:hubspot', 'hubspot.run.started', 'ready'], ['system:hubspot', 'hubspot.run.page', 'completed'],
+   ['system:hubspot', 'hubspot.run.started', 'ready'], ['system:hubspot', 'hubspot.run.page', 'completed'],
+  ].sort(), 'both due standing runs record their actor and terminal outcome')
   assert.equal((await contacts(h)).length, 3); assert.equal((await h.send('/api/inkwell/hubspot/config', undefined, h.owner)).value.authorization.version, auth.version)
   selectedLarge = true; auth = await authorize(h, 'once', h.owner, { scope: { kind: 'selected', recordIds: largeIds } })
   run = await start(h, auth, 'synthetic-inkwell-selected-multipage'); assert.equal(run.records, 100); assert.equal(run.remaining, 'more_pages')

@@ -13,6 +13,7 @@ const edge=hubspotEdge(),app=await startInkwellWithMail({bindings:{HUBSPOT_ACCES
 const proof=process.env.INKWELL_HUBSPOT_PROOF_DIR??join(tmpdir(),'inkwell-hubspot')
 try{
  await mkdir(proof,{recursive:true})
+ await app.command('account.healthcare',{enabled:true})
  const pdf=await PDFDocument.create();pdf.addPage([612,792]).drawText('Brightwater Medical - Service Agreement',{x:48,y:735,size:18})
  const template=await app.command('template.save',{title:'Brightwater service agreement',filename:'brightwater-services.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),roles:[{role:'Client',order:1}],fields:[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.7,width:.5,height:.05},{id:'amount',label:'Service fee',type:'number',signer:0,page:0,x:.1,y:.3,width:.4,height:.05}]})
  for(const width of [1440,390]){
@@ -34,6 +35,10 @@ try{
   const panel=page.getByRole('region',{name:'HubSpot connector',exact:true})
   await expect(panel.getByText('Connected account 7249',{exact:true})).toBeVisible()
   await panel.getByLabel('Sync cadence').selectOption('hourly')
+  const disclosure=panel.getByText(/Owners, admins and senders can read these contacts\./)
+  if(width===1440)await expect(disclosure).toBeVisible()
+  await disclosure.scrollIntoViewIfNeeded()
+  await capture('reader-disclosure',disclosure)
   const authorization=panel.getByRole('checkbox',{name:/I authorize this account, record scope/})
   await expect(authorization).not.toBeChecked();await expect(panel.getByRole('button',{name:'Authorize contact sync',exact:true})).toBeDisabled()
   await tabTo(page,authorization);await page.keyboard.press('Space');await capture('configuration',authorization)
@@ -89,6 +94,11 @@ try{
   assert.equal(files.length,1);assert.equal(notes.length,1);assert.equal(updates.length,1)
   const artifact=await fetch(app.origin+`/api/inkwell/envelopes/${id}/artifacts/signed`,{headers:{cookie:app.owner}});assert.equal(artifact.status,200);assert.deepEqual(files[0].bytes,Buffer.from(await artifact.arrayBuffer()))
   assert.equal(edge.deals.get('901').inkwell_signed_sha256,completed.signedSha256)
+  if(width===1440){
+   const logs=JSON.stringify(app.logs()),audit=(await app.call('/api/inkwell/audit.csv',{cookie:app.owner})).value
+   assert.match(logs,/inkwell.request/,'built Worker emits operational logs')
+   for(const value of ['48600.00','Brightwater Medical','Nadia Park','nadia@brightwater.example','Ben Hart, local update','Bearer synthetic-inkwell-1'])assert.equal((logs+audit).includes(value),false,'built Worker logs and full audit exclude '+value)
+  }
   await context.close()
  }
  console.log('INTEG-001 configuration, paged sync, native locked preparation, policy send, completion, uncertain result reconciliation, replay and tooltips passed at 1440 and 390.')

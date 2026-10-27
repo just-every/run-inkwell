@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "24a8b3d86a2e4a68d9dfa114c8fb00645ab2855174a66a78c6f74100b6a61203",
+      "sha256": "e1a07dd2a5af109cadfad390808323a66504851308d6047345b1ced4fadcd120",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "fed17182c3f38a0f8137d0140a9077ecf17e6956b12a9b5070d2ede21dddab2d",
+      "sha256": "ab756948711745433efe3d4e50504e19b588112259c6d4ea436b9ca306e6a97d",
       "executable": false
     },
     "DEMO.md": {
@@ -1477,7 +1477,7 @@
       "executable": false
     },
     "src/inkwell/hubspot-sync-definition.ts": {
-      "sha256": "e0e9ab0eb85f67fbdc0704b4644ae24b2635bad827ab883e96c1874bdfd8e355",
+      "sha256": "85d9a7b1fa53093b64209e64e560fc9807c593c7dec27dadda42b1e66d10db42",
       "executable": false
     },
     "src/inkwell/hubspot-sync-page.ts": {
@@ -4033,7 +4033,7 @@
       "executable": false
     },
     "src/ui/hubspot-sync.tsx": {
-      "sha256": "4668bd348bc6f6bba58c65d86007b8daf093d0bc86de8f3f65530cb0da18894b",
+      "sha256": "567c820fed4d90a996914d607f339305352860187e0396ae4fb349b0f271face",
       "executable": false
     },
     "src/ui/hubspot-writebacks.tsx": {
@@ -4321,11 +4321,11 @@
       "executable": false
     },
     "tests/hubspot-envelope.test.mjs": {
-      "sha256": "ff188a21741077b7ceef823cb4e154176077cb8f7b5be012463588674bfeb355",
+      "sha256": "da048f71714e14b3c7e8ab06f2448c83b495019bab2beb6148b234673a975866",
       "executable": false
     },
     "tests/hubspot-sync.test.mjs": {
-      "sha256": "1bf961a3813a1d528aa805ed7a503a500b6c28a274910d31a444145a0c3c2bca",
+      "sha256": "8d81af83a75ccae38a916c72c528aade8f627a396b50a84822a4486a283aa62c",
       "executable": false
     },
     "tests/import-retention.test.mjs": {
@@ -4421,7 +4421,7 @@
       "executable": false
     },
     "tests/journeys/hubspot.mjs": {
-      "sha256": "e2d496bac2a39b423696e8dc32077e933b801c414b68c5a92125be7396f12171",
+      "sha256": "4707cb874f6e6e9affb15fe5046d9feca26b6980ca7f2ac05e4960f23618746a",
       "executable": false
     },
     "tests/journeys/import-retention.mjs": {
@@ -4437,7 +4437,7 @@
       "executable": false
     },
     "tests/journeys/mail-worker.mjs": {
-      "sha256": "4ab1b9dec2d3ed47bfac1845cf84b2b97ff96f74aaab32934417d083a72dc525",
+      "sha256": "f5a90de6ac62beb06c5bb047dee793b7a4fdd7321bb37313f362453065ad95c9",
       "executable": false
     },
     "tests/journeys/mobile-sending.mjs": {

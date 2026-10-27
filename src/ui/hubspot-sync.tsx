@@ -39,7 +39,7 @@ export function HubspotSettings({templates,onPrepared}:{templates:{id:string;tit
     <label className="iw-check"><input type="checkbox" checked={includePhone} onChange={e=>{setIncludePhone(e.target.checked);setConsent(false)}}/>Import phone</label>
     <label className="iw-check"><input type="checkbox" checked={includeCompany} onChange={e=>{setIncludeCompany(e.target.checked);setConsent(false)}}/>Import company</label>
     <label>Sync cadence<select value={cadence} onChange={e=>{setCadence(e.target.value as Definition['cadence']);setConsent(false)}}><option value="once">One complete import</option><option value="hourly">Recurring hourly</option><option value="daily">Recurring daily</option></select></label>
-    <p>{config.disclosure}</p>
+    <div role="note" aria-label="Contact visibility"><strong>Who can read imported contacts</strong><p>{config.disclosure}</p></div>
     <label className="iw-check"><input type="checkbox" required checked={consent} onChange={e=>setConsent(e.target.checked)}/>I authorize this account, record scope, fields, mappings and cadence. This does not authorize sending or follow-up.</label>
     <button className="iw-fit" disabled={action.busy||!config.configured||!consent}>Authorize contact sync</button>
    </form>
