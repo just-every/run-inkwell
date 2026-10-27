@@ -62,6 +62,16 @@ export async function remoteImportJourney() {
      assert.deepEqual(violations.map(v=>v.id),[],'import controls meet accessibility checks')
     }
    }
+   await screen.getByRole('button',{name:'Start account review',exact:true}).click()
+   await screen.getByLabel('Dropbox Sign API key',{exact:true}).fill('synthetic-inkwell-99')
+   await screen.getByRole('button',{name:'Review next account page',exact:true}).click()
+   await screen.getByRole('status').filter({hasText:'Account review: ready.'}).waitFor()
+   await screen.getByRole('checkbox',{name:'I reviewed all account counts, owners and skipped items.'}).focus();await page.keyboard.press('Space')
+   await screen.getByRole('button',{name:'Approve account import',exact:true}).focus();await page.keyboard.press('Enter')
+   await screen.getByRole('status').filter({hasText:'Account review: importing.'}).waitFor();await capture('account-importing')
+   await app.scheduled(Date.now())
+   await screen.getByRole('button',{name:'Refresh account progress',exact:true}).click()
+   await screen.getByRole('status').filter({hasText:'Account review: complete.'}).waitFor();await capture('account-complete')
    await context.close()
    if(width===1440)for(const [i,cookie] of senders.entries()) {
     const senderContext=await app.browser.newContext({viewport:{width,height:900}})
