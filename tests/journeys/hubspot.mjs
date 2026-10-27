@@ -24,7 +24,7 @@ try{
   await policy.getByRole('combobox').selectOption('autonomous')
   const all=policy.getByRole('checkbox',{name:'Use all templates',exact:true})
   if(await all.isChecked())await all.uncheck()
-  await policy.getByRole('checkbox',{name:template.title,exact:true}).check()
+  await policy.getByRole('checkbox',{name:'Brightwater service agreement',exact:true}).check()
   await policy.getByLabel('Reason (optional)',{exact:true}).fill(`Reviewed for Brightwater agreements at ${width}`)
   await capture('integration-policy',policy)
   await policy.getByRole('button',{name:'Save HubSpot integration sends policy',exact:true}).click()
