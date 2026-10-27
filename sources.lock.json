@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "0e13967078e4c4be41755f942a769a3cc9e5e87b9b5d6d0629121a974243731d",
+      "sha256": "203d84396f0acc614955dd61539c783cd7d18c3082cb0b013a012ba40c66ca87",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "1c0cd60e3a85a1f2014e682940ce88892d476f859c25dde33741d91d6e533555",
+      "sha256": "39ddf30af90c18a975c6f4524b9874e52faa3f5b3ba84ae3034240a2e43a4d57",
       "executable": false
     },
     "DEMO.md": {
@@ -1685,11 +1685,11 @@
       "executable": false
     },
     "src/inkwell/remote-import-provider.ts": {
-      "sha256": "3756893354bff260fdbd8a8523ae76fbf9dde27eb3cf6d121a1d358d7500edef",
+      "sha256": "aed70836aa586b9973943cab98ecd51c260c077ea381b38068ab97eed74c6c71",
       "executable": false
     },
     "src/inkwell/remote-import.ts": {
-      "sha256": "57cda0453d80940f0ab131808a7b312d4b40ba30711c06c006cd68acfcd48044",
+      "sha256": "21baf1b5583ac8db1470dfe453e5b84e82f68d17c32e0dbe93b6e74da06dfc7c",
       "executable": false
     },
     "src/inkwell/reports.ts": {
@@ -4265,7 +4265,7 @@
       "executable": false
     },
     "tests/fixtures/remote-import.mjs": {
-      "sha256": "6bd5a6b08e4caa688c4f8730582545d1508cbeb5d25c287efe166978ca67ac4d",
+      "sha256": "5c9dede1d7c8a462a11cd5b7afff68813d2f82aeabb8e547ba25d5638ef12ea2",
       "executable": false
     },
     "tests/fixtures/signature.jpg": {
@@ -4509,7 +4509,7 @@
       "executable": false
     },
     "tests/remote-import.test.mjs": {
-      "sha256": "3b6f4a7bded74ca0e87a8b21e3e7df82b37acda2d65b52d1b3a8921216d4f8c8",
+      "sha256": "18f06279ae29f268369b64b16344a3d2710df2d3c589bdc5f32f982118dd9516",
       "executable": false
     },
     "tests/routing.test.mjs": {
