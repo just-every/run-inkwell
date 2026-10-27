@@ -2,7 +2,7 @@
 
 Generated from CONTRACT.md. Acceptance journeys remain in ACCEPTANCE.md.
 
-Inventory: 70 done, 25 partial, 22 missing; 117 total.
+Inventory: 70 done, 26 partial, 21 missing; 117 total.
 
 | Clause | Status | Evidence | Details |
 | --- | --- | --- | --- |
@@ -95,7 +95,7 @@ Inventory: 70 done, 25 partial, 22 missing; 117 total.
 | `INTEG-002` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `INTEG-003` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `INTEG-004` | missing |  | [Contract status](../CONTRACT.md#status) |
-| `INTEG-005` | missing |  | [Contract status](../CONTRACT.md#status) |
+| `INTEG-005` | partial | `tests/delivery.test.mjs`, `tests/journeys/microsoft.mjs` | [Contract status](../CONTRACT.md#status) |
 | `INTEG-006` | done | `tests/delivery.test.mjs`, `tests/journeys/filing.mjs` | [Contract status](../CONTRACT.md#status) |
 | `INTEG-007` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `INTEG-008` | partial | `src/inkwell/envelopes.ts`, `tests/api.test.mjs` | [Contract status](../CONTRACT.md#status) |
