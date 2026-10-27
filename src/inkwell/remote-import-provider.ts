@@ -35,17 +35,23 @@ export async function readRemoteBatch(input:Record<string,unknown>) {
    const sourceId=text(entry.id,'an agreement ID'),path='/agreements/'+encode(sourceId),detail=await get(path) as any
    if(!['SIGNED','CANCELLED','EXPIRED'].includes(detail.status)){unmapped.push({sourceId,reason:'Agreement is not terminal; no invitation was sent.'});continue}
    const members=await get(path+'/members') as any,events=await get(path+'/events') as any
-   const end=(events.events??[]).filter((e:any)=>['AGREEMENT_ACTION_COMPLETED','AGREEMENT_RECALLED','AGREEMENT_REJECTED','AGREEMENT_EXPIRED'].includes(e.type)).map((e:any)=>instant(e.date)).filter(Boolean).sort().at(-1)
+   const terminalTypes=detail.status==='SIGNED'
+    ? ['ACTION_COMPLETED','ACTION_COMPLETED_HOSTED','ACTION_COMPLETED_OFFLINE','ACTION_COMPLETED_OFFLINE_HOSTED','ACTION_COMPLETED_WIDGET_VERIFIED','ACTION_COMPLETED_WIDGET_VERIFIED_API_TOKEN','ACTION_COMPLETED_WIDGET_VERIFICATION_WAIVED','SIGNED','WRITTEN_SIGNED','DIGSIGNED']
+    : detail.status==='EXPIRED' ? ['EXPIRED','EXPIRED_AUTOMATICALLY']
+    : ['RECALLED','REJECTED','RECALLED_MAX_SIGNING_KBA_ATTEMPTS','RECALLED_MAX_SIGNING_PASSWORD_ATTEMPTS','RECALLED_MAX_SIGNING_PHONE_ATTEMPTS','RECALLED_MAX_SIGNING_WHATSAPP_ATTEMPTS','RECALLED_MAX_SIGNING_EMAIL_OTP_ATTEMPTS']
+   const end=(events.events??[]).filter((e:any)=>terminalTypes.includes(e.type)).map((e:any)=>instant(e.date)).filter(Boolean).sort().at(-1)
    const signers=(members.participantSets??members.participantSetsInfo??[]).flatMap((s:any)=>(s.memberInfos??[]).map((m:any)=>({name:String(m.name??m.email),email:email(m.email)})))
    items.push({kind:'envelope',sourceId,title:text(detail.name,'an agreement name'),ownerEmail:email(detail.senderEmail),status:detail.status,terminalAt:end,signers,pdf:await get(path+'/combinedDocument',true) as string,audit:await get(path+'/auditTrail',true) as string})
   }
   for(const entry of templates.libraryDocumentList) {
    const sourceId=text(entry.id,'a library template ID'),path='/libraryDocuments/'+encode(sourceId),detail=await get(path) as any,documents=await get(path+'/documents') as any,form=await get(path+'/formFields') as any
    if(documents.documents?.length!==1){unmapped.push({sourceId,reason:'Template needs exactly one PDF; review its document mapping.'});continue}
-   const roles=(detail.participantSetsInfo??[]).map((s:any,i:number)=>({role:String(s.label??`Signer ${i+1}`),order:Number(s.order??i+1)}))
-   const fields=(form.fields??[]).map((f:any)=>{const p=f.locations?.[0];return {id:String(f.name),label:String(f.name),type:f.inputType==='SIGNATURE'?'signature':f.inputType==='TEXT_FIELD'?'text':'unsupported',signer:Number(f.recipientIndex)-1,page:Number(p?.pageNumber)-1,x:p?.left,y:p?.top,width:p?.width,height:p?.height,absolute:true,required:f.required!==false}})
-   if(!roles.length||fields.some((f:any)=>f.type==='unsupported')){unmapped.push({sourceId,reason:'Template role or field type could not be mapped; template was skipped.'});continue}
-   items.push({kind:'template',sourceId,title:text(detail.name,'a template name'),ownerEmail:email(detail.creatorEmail),status:'template',signers:[],roles,fields,pdf:await get(path+'/documents/'+encode(documents.documents[0].id),true) as string,audit:''})
+   // Library documents expose field assignees, not agreement participant sets.
+   const assignees=[...new Set<string>((form.fields??[]).map((f:any)=>f.assignee??'1'))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}))
+   const roles=assignees.map((_,i)=>({role:`Signer ${i+1}`,order:i+1}))
+   const fields=(form.fields??[]).map((f:any)=>{const p=f.locations?.[0];return {id:String(f.name),label:String(f.name),type:f.inputType==='SIGNATURE'?'signature':f.inputType==='TEXT_FIELD'?'text':'unsupported',signer:assignees.indexOf(f.assignee??'1'),page:Number(p?.pageNumber)-1,x:p?.left,y:p?.top,width:p?.width,height:p?.height,absolute:true,fromBottom:true,required:f.required!==false}})
+   if(!roles.length||assignees.some(a=>['PREFILL','NOBODY','EVERYONE'].includes(a))||fields.some((f:any)=>f.type==='unsupported')){unmapped.push({sourceId,reason:'Template role or field type could not be mapped; template was skipped.'});continue}
+   items.push({kind:'template',sourceId,title:text(detail.name,'a template name'),ownerEmail:email(detail.ownerEmail??detail.creatorEmail),status:'template',signers:[],roles,fields,pdf:await get(path+'/documents/'+encode(documents.documents[0].id),true) as string,audit:''})
   }
   return {provider,account,items,unmapped,next:{cursor:list.page?.nextCursor??null,templateCursor:templates.page?.nextCursor??null}}
  }
@@ -62,9 +68,10 @@ export async function readRemoteBatch(input:Record<string,unknown>) {
   const sourceId=text(entry.template_id,'a template ID'),detail=(await get('/template/'+encode(sourceId)) as any).template
   insist(detail,'Invalid template response.',502)
   const roles=(detail.signer_roles??[]).map((r:any,i:number)=>({role:String(r.name),order:Number(r.order??i)+1}))
-  const fields=(detail.form_fields??[]).flat().map((f:any)=>({id:String(f.api_id??f.name),label:String(f.name??f.api_id),type:f.type==='signature'?'signature':f.type==='text'?'text':'unsupported',signer:/^\d+$/.test(String(f.signer))?Number(f.signer):roles.findIndex((r:any)=>r.role===f.signer),page:Number(f.page)-1,x:f.x,y:f.y,width:f.width,height:f.height,absolute:true,required:f.required!==false}))
+  if(detail.documents?.length!==1){unmapped.push({sourceId,reason:'Template needs exactly one PDF; review its document mapping.'});continue}
+  const fields=(detail.documents[0].form_fields??[]).map((f:any)=>({id:String(f.api_id??f.name),label:String(f.name??f.api_id),type:f.type==='signature'?'signature':f.type==='text'?'text':'unsupported',signer:/^\d+$/.test(String(f.signer))?Number(f.signer)-1:roles.findIndex((r:any)=>r.role===f.signer),page:0,x:f.x,y:f.y,width:f.width,height:f.height,absolute:true,required:f.required!==false}))
   if(!roles.length||fields.some((f:any)=>f.type==='unsupported')){unmapped.push({sourceId,reason:'Template role or field type could not be mapped; template was skipped.'});continue}
-  items.push({kind:'template',sourceId,title:text(detail.title,'a template title'),ownerEmail:email(detail.creator_email_address),status:'template',signers:[],roles,fields,pdf:await get('/template/files/'+encode(sourceId)+'?file_type=pdf',true) as string,audit:''})
+  items.push({kind:'template',sourceId,title:text(detail.title,'a template title'),ownerEmail:detail.is_creator===true?email(identity.account?.email_address):'',status:'template',signers:[],roles,fields,pdf:await get('/template/files/'+encode(sourceId)+'?file_type=pdf',true) as string,audit:''})
  }
  return {provider,account,items,unmapped,next:{page:(Number(list.list_info?.num_pages??1)>page||Number(templates.list_info?.num_pages??1)>page)?page+1:null}}
 }

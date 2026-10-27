@@ -32,7 +32,9 @@ export async function previewRemoteImport(env:Env,actor:Actor,input:Record<strin
    await appendEvent(envelope,'envelope.imported',actor.id,{source:envelope.source,owner:owner.id,originalSha256:envelope.originalSha256,certificateSha256:envelope.certificateSha256},at)
    planned.push({id:target,kind:item.kind,owner,envelope,pdf:item.pdf,audit:item.audit})
   } else {
-   const fields=(item.fields??[]).map(f=>{const size=pageSizes[Number(f.page)];insist(size,'Template field names a missing page.');return {...f,x:Number(f.x)/size.width,y:Number(f.y)/size.height,width:Number(f.width)/size.width,height:Number(f.height)/size.height}})
+   // Dropbox template field responses carry no page number; multi-page placement is ambiguous.
+   if(batch.provider==='dropbox'&&pageSizes.length!==1){unmapped.push({sourceId:item.sourceId,reason:'Template page mapping is unavailable; only single-page PDFs can be mapped.'});continue}
+   const fields=(item.fields??[]).map(f=>{const size=pageSizes[Number(f.page)];insist(size,'Template field names a missing page.');return {...f,x:Number(f.x)/size.width,y:(f.fromBottom?size.height-Number(f.y)-Number(f.height):Number(f.y))/size.height,width:Number(f.width)/size.width,height:Number(f.height)/size.height}})
    const validated=validateFields(fields,item.roles!.length,pageSizes.length)
    const {definition}=await importedTemplateDefinition(env,{title:item.title,filename:'imported-template.pdf',pdfBase64:item.pdf,roles:item.roles,fields:validated,expiryDays:30},actor)
    const template:Template={...definition,id:target,createdAt:at,createdBy:owner.id,version:1,source:{provider:batch.provider,account:batch.account,id:item.sourceId,ownerEmail:item.ownerEmail,importedAt:at}}
