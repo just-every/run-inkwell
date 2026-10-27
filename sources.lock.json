@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "c242fae049ce48c604e850344baa4bd9b1246fa086a07de7b0b70c5fac4e26c3",
+      "sha256": "34486e77b33f3ff96e73e18b045721dc5747f73ce8709f1b6ba3c46eabe4150f",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "7db33cc3bccc7df20a3f068a4a72109046e01bd836592fa2859fad5f45162a14",
+      "sha256": "f64781154ff8d5e1c3afc3330b8e485208bf2fc99e94754cf7964e803a4bc1b6",
       "executable": false
     },
     "DEMO.md": {
@@ -1345,7 +1345,7 @@
       "executable": false
     },
     "src/inkwell/delivery-reconciliation.ts": {
-      "sha256": "520290a3b3effb81c8ef6deacf49da9e2408e1fc2a714034771bc93cda7b6e6c",
+      "sha256": "39819e5c720684b27fb10c41f164b534a4ac0ad747bcb654bd7178e9ad36ff57",
       "executable": false
     },
     "src/inkwell/delivery.ts": {
@@ -1429,11 +1429,11 @@
       "executable": false
     },
     "src/inkwell/filing-provider.ts": {
-      "sha256": "4c69cf255378f681060b46aed1881ac29a39edc0ae03e7f05988b4f588689cce",
+      "sha256": "05ec5eb55a1e0beb9695dfe72772c53c9e1a786cd166eb89563da7f758399a80",
       "executable": false
     },
     "src/inkwell/filing.ts": {
-      "sha256": "58d5d61dfbb884340ace32712a8504452e47c38c662c9cee272fa45dfedd0de4",
+      "sha256": "a9006ff81c8b7b631020633be0017c5cbe68b5e18b1f457f4b79f777495b9c9d",
       "executable": false
     },
     "src/inkwell/followup-engine.ts": {
@@ -1509,7 +1509,7 @@
       "executable": false
     },
     "src/inkwell/hubspot-writeback.ts": {
-      "sha256": "9e2b2ff0f26bec889295d2e167dfaa5bf88563418a012f3f71252ef5a5c30ebf",
+      "sha256": "dc5ac36eabde8d5077318eac39288e6aa9f5952566b111cc074432aa8a1d8791",
       "executable": false
     },
     "src/inkwell/identity-provider.ts": {
@@ -4269,7 +4269,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "c48dc3310c1997146dcf6b5589e6b909af486a5f830af9b39fab1d78c40bd203",
+      "sha256": "4f073e01f42a1c151369b896d65fcaf3a2950cc4b641418aa3c715419bc00cf4",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
@@ -4337,7 +4337,7 @@
       "executable": false
     },
     "tests/hubspot-envelope.test.mjs": {
-      "sha256": "4bd91214ee207035968fb01d0d9a95a9230631fb8b5dc21d2a4766b49127ceda",
+      "sha256": "f0455c9d5779d8249672b83b6e2f52a296e6b2c51bb55d0e5f5d547029064786",
       "executable": false
     },
     "tests/hubspot-sync.test.mjs": {
