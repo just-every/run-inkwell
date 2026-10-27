@@ -4385,7 +4385,7 @@
       "executable": false
     },
     "tests/journeys/document-fields.mjs": {
-      "sha256": "b0ff05959374597b256820a492eab7be635fca110ef846b3a0e33fb0b6330f88",
+      "sha256": "74c89a07db5571fed1b5c1d0f78c9fb8e72d52ac643506a8a88e0051751e6f9e",
       "executable": false
     },
     "tests/journeys/embedding.mjs": {
