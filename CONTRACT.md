@@ -459,7 +459,7 @@ How the owner-approved scope for Inkwell (16 October 2026) maps to clauses.
 
 ## Status
 
-Status inventory reconciled after replay onto current main on 27 October 2026. Resolve the full candidate SHA with `git rev-parse HEAD`.
+Judged from the code and tests at commit `15fe8eb29dda5d14124228eae1be2191eced5cea` (27 October 2026).
 
 The replay preserves main’s INTEG-001 audit, operational log privacy and visible reader assertions and adds owner-approved HubSpot completion mapping repair, explicit same-record credential renewal and public-door assertions. The final candidate adds a sanitized diagnostic for ambiguous mappings, owner-approved moved-PDF recovery with exact-byte verification and the corresponding assertions, and synchronizes this inventory. Resolve its full SHA with `git rev-parse HEAD`. AGENT-006 remains partial because folder repair for other connectors and webhook delivery reconciliation remain unimplemented. Exact-candidate tests, mutation probes, browser proof and release gates are recorded in the fleet handoff. This inventory does not claim a new independent CT judgment.
 
