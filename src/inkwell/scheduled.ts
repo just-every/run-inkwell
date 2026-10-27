@@ -1,3 +1,4 @@
+import { cleanupRemotePreviews } from './remote-import'
 import { withAuditDatabase } from './account-audit-db'
 import { dispatchPendingFiling } from './filing'
 import { purgeFormAttempts } from './web-forms'
@@ -16,6 +17,6 @@ import { applyRetention } from './retention'
 export async function scheduledPass(env: Env, at: number) {
   env = { ...env, DB: withAuditDatabase(env.DB, {kind:'system', id:'system:scheduled'}) }
   const failures: unknown[] = []
-  for (const pass of [sendScheduled, dispatchPendingFiling, purgeFormAttempts, warnApiKeys, warnExpiring, alertBounces, chaseStalled, sendReminders, dispatchNotices, applyRetention]) try { await pass(env, at) } catch (error) { failures.push(error) }
+  for (const pass of [cleanupRemotePreviews, sendScheduled, dispatchPendingFiling, purgeFormAttempts, warnApiKeys, warnExpiring, alertBounces, chaseStalled, sendReminders, dispatchNotices, applyRetention]) try { await pass(env, at) } catch (error) { failures.push(error) }
   if (failures.length) throw new AggregateError(failures, 'The scheduled pass failed.')
 }
