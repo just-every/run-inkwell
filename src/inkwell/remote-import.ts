@@ -35,7 +35,7 @@ export async function previewRemoteImport(env:Env,actor:Actor,input:Record<strin
    const fields=(item.fields??[]).map(f=>{const size=pageSizes[Number(f.page)];insist(size,'Template field names a missing page.');return {...f,x:Number(f.x)/size.width,y:Number(f.y)/size.height,width:Number(f.width)/size.width,height:Number(f.height)/size.height}})
    const validated=validateFields(fields,item.roles!.length,pageSizes.length)
    const {definition}=await importedTemplateDefinition(env,{title:item.title,filename:'imported-template.pdf',pdfBase64:item.pdf,roles:item.roles,fields:validated,expiryDays:30},actor)
-   const template:Template={...definition,id:target,createdAt:at,createdBy:owner.id,version:1}
+   const template:Template={...definition,id:target,createdAt:at,createdBy:owner.id,version:1,source:{provider:batch.provider,account:batch.account,id:item.sourceId,ownerEmail:item.ownerEmail,importedAt:at}}
    planned.push({id:target,kind:item.kind,owner,template,pdf:item.pdf,audit:''})
   }
  }
@@ -65,6 +65,7 @@ export async function applyRemoteImport(env:Env,actor:Actor,input:Record<string,
    writes.push(env.DB.prepare('INSERT INTO iw_envelopes VALUES(?,?,?)').bind(e.id,e.version,JSON.stringify(e)),...e.events.map((v,i)=>env.DB.prepare('INSERT INTO iw_events VALUES(?,?,?,?)').bind(e.id,i,v.hash,JSON.stringify(v))),...blobWrites(env.DB,e.id,'original',fromBase64(p.pdf)),...blobWrites(env.DB,e.id,'signed',fromBase64(p.pdf)),...blobWrites(env.DB,e.id,'certificate',fromBase64(p.audit)))
   } else {
    const t=p.template!,bytes=fromBase64(p.pdf)
+   t.createdAt=now();if(t.source)t.source.importedAt=t.createdAt
    writes.push(env.DB.prepare('INSERT INTO iw_templates(id,created_by,created_at,data,folder_id) VALUES(?,?,?,?,NULL)').bind(t.id,t.createdBy,t.createdAt,JSON.stringify(t)))
    for(let offset=0,part=0;offset<bytes.length;offset+=65536,part++)writes.push(env.DB.prepare('INSERT INTO iw_template_blobs VALUES(?,?,?)').bind(t.id,part,bytes.slice(offset,offset+65536).buffer))
   }

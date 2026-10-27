@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "3ba208d8a32abd3563ec6284b028446e2039fc60453ff1fee368406033c53368",
+      "sha256": "245558f0beca192ce974d0a55aa8ed96c7f2e80760525a74e4bb3e9e38cdcc4b",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "46aacd2b4b623790117864bf5e4e5bd0ed65dbe79a6fe17ee452e90a258202cf",
+      "sha256": "025c8b79dbbb965a26f4a776c15f2833b28b1d5e3281130007f3307f989a2930",
       "executable": false
     },
     "DEMO.md": {
@@ -1689,7 +1689,7 @@
       "executable": false
     },
     "src/inkwell/remote-import.ts": {
-      "sha256": "4d11f214ac33765f0900e80fe1a686779ed7596f10519d9016a20035ee2798e1",
+      "sha256": "57cda0453d80940f0ab131808a7b312d4b40ba30711c06c006cd68acfcd48044",
       "executable": false
     },
     "src/inkwell/reports.ts": {
@@ -1857,7 +1857,7 @@
       "executable": false
     },
     "src/inkwell/templates.ts": {
-      "sha256": "f6d402c0ff109a06e8ec35a4a041fc1cec24d3346a0da78f0760bdc0f42b889a",
+      "sha256": "42a5db6c87ff75a5168ecac140b1f759f3964404223a130ae25975cde7bcfc1e",
       "executable": false
     },
     "src/inkwell/test-mode.ts": {
@@ -4265,7 +4265,7 @@
       "executable": false
     },
     "tests/fixtures/remote-import.mjs": {
-      "sha256": "ba504c0f799b0fbca915c009b316d8a5db257549af1166591ffc3f5aff45a6d7",
+      "sha256": "e3febbfd7c9a3c526960e680e9baadee7f4d439c2ee87360f05d53794233d30d",
       "executable": false
     },
     "tests/fixtures/signature.jpg": {
@@ -4429,7 +4429,7 @@
       "executable": false
     },
     "tests/journeys/remote-import.mjs": {
-      "sha256": "87019e4c09495212149f5774d5b470d6b457517a9b5fcf117a86e76aa6fde270",
+      "sha256": "3ee0470fadaf406dd73fb8574c89a3d8f05c824677fbeff494dc1fdf9fd7a605",
       "executable": false
     },
     "tests/journeys/routing.mjs": {
@@ -4509,7 +4509,7 @@
       "executable": false
     },
     "tests/remote-import.test.mjs": {
-      "sha256": "77b43eff49b74e601e91a8d3dea4592d0610db6ef94824f7f23079a0cef5de4c",
+      "sha256": "21b62369ce937ecba08a304b256525855806de4664165f4632ab2d61c00a41a2",
       "executable": false
     },
     "tests/routing.test.mjs": {
