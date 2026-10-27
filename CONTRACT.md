@@ -450,7 +450,9 @@ How the owner-approved scope for Inkwell (16 October 2026) maps to clauses.
 
 ## Status
 
-Historical baseline judgment: commit `694e97ce4d690a1314434b7b1addce42b685a013` (24 October 2026). Current Status rows name subsequent clause evidence; exact candidate SHAs and release checks are recorded in their landing receipts.
+Judged from the code and tests at commit `2d4838f05ca9ee7b5a1e9fde3ee2f1744ae8fc07` (27 October 2026).
+
+The landing candidate adds only status-format metadata after this code and test pin; its exact SHA, browser proof, mutation receipts and release gates are identified by the landing receipt.
 
 SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing public-door proof on 25 October 2026.
 
