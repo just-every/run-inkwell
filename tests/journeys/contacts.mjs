@@ -4,11 +4,18 @@ import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { screenshots, startInkwell } from './worker.mjs'
+import { screenshots } from './worker.mjs'
+import { startInkwellWithMail } from './mail-worker.mjs'
+import { axe, tabTo } from './a11y.mjs'
 
-const inkwell = await startInkwell(), proof = process.env.INKWELL_CONTACT_PROOF_DIR ?? join(tmpdir(), 'inkwell-contact-proof')
+const inkwell = await startInkwellWithMail({bindings:{HUBSPOT_ACCESS_TOKEN:'synthetic-inkwell-3',HUBSPOT_ACCOUNT_ID:'7249'},networkEdge:async request=>{
+ if(new URL(request.url).hostname!=='api.hubapi.com')return
+ return Response.json({results:[{id:'42',archived:false,properties:{firstname:'Mara',lastname:'Quinn',email:'mara@crm.example',company:'Synced Harbour CRM'}}]})
+}}), proof = process.env.INKWELL_CONTACT_PROOF_DIR ?? join(tmpdir(), 'inkwell-contact-proof')
 await mkdir(proof, { recursive: true })
 try {
+  const authorization=await inkwell.call('/api/inkwell/hubspot/sync',{cookie:inkwell.owner,body:{operation:'authorize',consent:true,definition:{accountId:'7249',scope:{kind:'all'},properties:['firstname','lastname','email','phone','company'],mappings:{name:'full_name',email:'email',phone:'phone',company:'company'},destination:'shared_contacts',updateBehavior:'preserve_local_edits',cadence:'once'}}})
+  await inkwell.call('/api/inkwell/hubspot/sync',{cookie:inkwell.owner,body:{operation:'start',authorizationId:authorization.value.id,requestId:crypto.randomUUID()}})
   const companies = ['Northwind Marine', 'Bayside Freight', 'Kestrel Labs', 'Harbour Counsel']
   const csv = ['name,email,phone,company', ...Array.from({ length: 200 }, (_, i) => `Contact ${String(i).padStart(3, '0')},contact${i}@clients.example,+1 617 555 ${1000 + i},${companies[i % 4]}`)].join('\n')
   for (const [width, height] of [[1440, 900], [390, 844]]) {
@@ -20,7 +27,7 @@ try {
     await page.getByLabel('Import contacts from CSV').setInputFiles({ name: 'contacts.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
     // The second width imports the same file again: every row updates the contact with that email.
     await page.getByRole('status').filter({ hasText: width === 1440 ? 'Imported: 200 added, 0 updated.' : 'Imported: 0 added, 200 updated.' }).waitFor()
-    await page.getByText('200 contacts, showing the first 50').waitFor()
+    await page.getByText('201 contacts, showing the first 50').waitFor()
     await page.getByRole('button', { name: 'New envelope' }).click()
     // Refine a completed search: suggestions from the previous query must disappear immediately.
     await page.getByLabel('Find a contact').fill('northwind')
@@ -35,6 +42,14 @@ try {
     assert.equal(await page.getByLabel('Recipient 1 name').inputValue(), 'Contact 002')
     assert.equal(await page.getByLabel('Recipient 1 email').inputValue(), 'contact2@clients.example')
     await page.getByLabel('Recipient 1 name').scrollIntoViewIfNeeded(); await page.screenshot({ path: join(proof, `${width}-contact-picked.png`) })
+    await page.getByLabel('Find a contact').fill('Synced Harbour CRM')
+    const crmContact=page.getByRole('button',{name:'Add Mara Quinn as a recipient',exact:true})
+    await tabTo(page,crmContact);await page.keyboard.press('Enter')
+    assert.equal(await page.getByLabel('Recipient 2 name').inputValue(),'Mara Quinn')
+    assert.equal(await page.getByLabel('Recipient 2 email').inputValue(),'mara@crm.example')
+    await axe(page,`HubSpot synced contact ${width}`)
+    await page.getByLabel('Recipient 2 name').scrollIntoViewIfNeeded()
+    await page.screenshot({path:join(proof,`${width}-crm-contact-picked.png`)})
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `no sideways scroll at ${width} pixels`)
     await context.close()
   }

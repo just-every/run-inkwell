@@ -217,7 +217,7 @@
       "executable": false
     },
     "docs/api.md": {
-      "sha256": "77049f81cd0fa35100885f23a1611a4d3af279f39c16adabab0a68c467b6fb12",
+      "sha256": "e4ccd74d4dbe04c7a37145113f57d899d70d42e4715188af4efd21c10e3e8b93",
       "executable": false
     },
     "docs/backup-and-restore.md": {
@@ -4285,7 +4285,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "0ce78bf51e52d235ecdeb3f4c39b984b055b88eba857667c26080a810338a907",
+      "sha256": "8f16c492289bb017c2d84d2f677066415b4b639e46eceaef10e6b2173a4aa2cb",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
@@ -4401,7 +4401,7 @@
       "executable": false
     },
     "tests/journeys/contacts.mjs": {
-      "sha256": "e0f4ecb83cd8a82ab364c81e0fd2d3a9c9a0a3112d1644ad8cc8a2bb5c9a0b0d",
+      "sha256": "94a81b0785bcfe38a742eed72f57e93ca46a5c66583b2952d2f603d711d212cf",
       "executable": false
     },
     "tests/journeys/correct-envelope.mjs": {
