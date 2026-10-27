@@ -65,7 +65,8 @@ test('Gmail attachment proposes sender and Cc without the connected member and s
   assert.deepEqual(message.attachments,[{id:'attachment-pdf',filename:'client-agreement.pdf',bytes:edge.bytes.length}])
   assert.deepEqual(message.participants,[{name:'Mara Quinn',email:'mara@client.example'},{name:'Lee Chen',email:'lee@client.example'}])
   await h.post('/api/inkwell/google',{kind:'attachment',id:'gmail-message',attachmentId:'other'},h.owner,404)
-  const imported=await source(h,{kind:'attachment',id:'gmail-message',attachmentId:'attachment-pdf'}),quiet=h.sent()
+  const attachmentId='a'.repeat(350);edge.message.payload.parts[0].body.attachmentId=attachmentId
+  const imported=await source(h,{kind:'attachment',id:'gmail-message',attachmentId}),quiet=h.sent()
   const id=(await h.command('envelope.prepare',{title:'Gmail agreement',...imported,signers:imported.participants.map(person=>({...person,order:1})),fields:[field(),field(1)]})).result.id
   assert.equal(h.sent(),quiet,'importing and preparing never sends')
   await h.command('envelope.approve',{id,eligible:true})
@@ -105,7 +106,7 @@ test('Gmail authenticated reply intake inherits current grants, contact and iden
   const invitation=await h.mail('mara@client.example','Please sign:'),address=invitation.reply_to??invitation.headers['Reply-To']
   assert.match(address,/^reply\+[A-Za-z0-9_-]{43}@/)
   const post=async(options={},status=200)=>{const push=edge.push(h.origin,options);return h.post('/api/inkwell/google/replies',push.body,'',status,push.headers)}
-  edge.add({from:'Mara Quinn <mara@client.example>',to:address,text:'Please review clause 4.',attachments:[{name:'private-note.txt',type:'text/plain',bytes:Buffer.from('Private attachment')}]})
+  edge.add({from:'Mara Quinn <mara@client.example>',to:address,text:'Please review clause 4.',attachments:[{name:'private-note.txt',type:'text/plain',bytes:Buffer.from('Private attachment'),external:true}]})
   await h.post('/api/inkwell/google/replies',{},'',401)
   await post({tamper:true},401);await post({claims:{aud:'https://untrusted.example'}},401);await post({claims:{email:'other@service.example'}},401);await post({published:new Date(Date.now()-3600_000).toISOString()},401);await post({email:'another@harbour.example'},403)
   edge.fail();await post({},502)
