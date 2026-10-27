@@ -5,7 +5,7 @@ import { dateTime, request } from './types'
 import { ErrorNotice, useAction } from './feedback'
 
 type Notice = { id: string; envelopeId: string; event: string; at: string; title: string; recipient: string; posts: { channel: string; state: string; result: string }[] }
-type Settings = { events: string[]; channels: string[]; choices: Record<string, Record<string, boolean>>; connected: Record<string, string | null>; examples: Record<string, string> }
+type Settings = { canReconcile:boolean; events: string[]; channels: string[]; choices: Record<string, Record<string, boolean>>; connected: Record<string, string | null>; examples: Record<string, string> }
 const eventNames: Record<string, string> = { identity_locked: 'Verification locked', followup: 'Signer follow-up', viewed: 'Viewed', signed: 'Signed', declined: 'Declined', completed: 'Completed', bounced: 'Bounced', expiring: 'Expiring', retention: 'Retention', send_held: 'Sending held', usage_cap: 'SMS usage', approval: 'Internal approval' }
 const channelNames: Record<string, string> = { email: 'Email', slack: 'Slack', teams: 'Microsoft Teams', nook: 'Nook' }
 const line = (notice: Notice) => ({ identity_locked: notice.recipient, followup: notice.recipient, viewed: `${notice.recipient} viewed it`, signed: `${notice.recipient} signed`, declined: `${notice.recipient} declined`, completed: 'Everyone has signed', bounced: `The invitation to ${notice.recipient} bounced`, expiring: 'Expires soon', retention: 'Will be purged under the retention rule', approval: notice.recipient, send_held: notice.recipient, usage_cap: notice.recipient } as Record<string, string>)[notice.event] ?? notice.event
@@ -39,9 +39,26 @@ export function NoticeSettings() {
         <div className="iw-table-head iw-notice-row" role="row"><span role="columnheader">Notice</span>{settings.channels.map(channel => <span key={channel} role="columnheader">{channelNames[channel]}</span>)}</div>
         {settings.events.map(event => <div key={event} className="iw-notice-row" role="row"><span role="rowheader">{eventNames[event]}</span>{settings.channels.map(channel => <span key={channel} role="cell"><input type="checkbox" aria-label={`${eventNames[event]} by ${channelNames[channel]}`} disabled={action.busy || (channel !== 'email' && !settings.connected[channel])} checked={settings.choices[event][channel]} onChange={change => void save({ choices: { [event]: { [channel]: change.target.checked } } })} /></span>)}</div>)}
       </div>
+      {settings.canReconcile&&<NoticeRepairs/>}
       {['slack', 'teams', 'nook'].map(channel => settings.connected[channel]
         ? <div key={channel} className="iw-actions"><span>{channelNames[channel]}: connected to {settings.connected[channel]}</span><button type="button" disabled={action.busy} onClick={() => void save({ connect: { channel, url: null } })}>Disconnect {channelNames[channel]}</button></div>
         : <form key={channel} className="iw-actions" onSubmit={event => connect(event, channel)}><label>{channelNames[channel]} incoming webhook URL<input type="url" required placeholder={settings.examples[channel]} value={urls[channel] ?? ''} onChange={event => setUrls(current => ({ ...current, [channel]: event.target.value }))} /></label><button disabled={action.busy}>Connect {channelNames[channel]}</button></form>)}
     </>}
   </section>
+}
+
+
+type Repair={id:string;channel:string;state:string;result:string;attempts:number;destination:string|null;canReplay:boolean;proposal:string}
+function NoticeRepairs(){
+ const [jobs,setJobs]=useState<Repair[]>()
+ const action=useAction()
+ const load=async()=>setJobs((await request<{jobs:Repair[]}>('/api/inkwell/notices/reconciliation')).jobs)
+ useEffect(()=>{void action.run(load)},[])
+ return <div className="iw-stack" aria-label="Notification repairs"><h3>Notification repairs</h3>
+  <p>Replace an expired connection below, refresh, then approve each confirmed refusal. Unconfirmed provider effects remain unresolved to prevent duplicates.</p>
+  <ErrorNotice error={action.error}/>
+  {jobs?.map(job=><div key={job.id} className="iw-stack"><strong>{channelNames[job.channel]} · {job.state}</strong><p>{job.result}</p>{job.destination&&<p>Current destination: {job.destination}</p>}{job.canReplay&&<button className="iw-fit" disabled={action.busy} onClick={()=>void action.run(async()=>{setJobs((await request<{jobs:Repair[]}>('/api/inkwell/notices/reconciliation',{id:job.id,proposal:job.proposal,approve:true})).jobs)})}>Approve {channelNames[job.channel]} replay</button>}</div>)}
+  {jobs?.length===0&&<p>No notification repairs pending.</p>}
+  <button type="button" className="iw-fit" disabled={action.busy} onClick={()=>void action.run(load)}>Refresh notification repairs</button>
+ </div>
 }

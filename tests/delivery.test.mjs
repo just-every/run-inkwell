@@ -341,10 +341,16 @@ test('DELIV-005: the sender resends the invitation by email on the same link, th
 })
 
 test('DELIV-008: subscribed to declines and completions in Slack, Teams, Nook and email, the sender gets each there and nothing else; after turning off completions in Teams the next completion skips only Teams; every notice is in the activity feed', async () => {
- const h = await harness()
+ const refusals=new Map(),edgeCalls=[]
+ const h = await harness({networkEdge:async request=>{
+  const host=new URL(request.url).hostname,mode=refusals.get(host)
+  if(!mode)return
+  edgeCalls.push({host,path:new URL(request.url).pathname})
+  return new Response('synthetic-inkwell-90',{status:mode})
+ }})
  try {
   const settings = (body, status) => h.post('/api/inkwell/notices/settings', body, h.owner, status)
-  const hooks = { slack: 'https://hooks.slack.com/services/T0001/B0001/slack-secret', teams: 'https://harbour.webhook.office.com/webhookb2/a1/IncomingWebhook/b2/teams-secret', nook: 'https://nook.harbour.example/hooks/slack/nook-secret' }
+  const hooks = { slack: 'https://hooks.slack.com/services/synthetic-inkwell-1/synthetic-inkwell-2/synthetic-inkwell-3', teams: 'https://harbour.webhook.office.com/webhookb2/synthetic-inkwell-4/IncomingWebhook/synthetic-inkwell-5/synthetic-inkwell-6', nook: 'https://nook.harbour.example/hooks/slack/synthetic-inkwell-7' }
   await settings({ connect: { channel: 'slack', url: 'https://hooks.slack.example/services/T0001/B0001/x' } }, 400)
   await settings({ connect: { channel: 'teams', url: 'http://harbour.webhook.office.com/webhookb2/x' } }, 400)
   await settings({ connect: { channel: 'nook', url: 'https://nook.harbour.example/api/chat.postMessage' } }, 400)
@@ -372,7 +378,7 @@ test('DELIV-008: subscribed to declines and completions in Slack, Teams, Nook an
   await run('Supplier NDA', true)
   await run('Dock lease', false)
   for (const channel of ['slack', 'teams', 'nook']) assert.deepEqual(texts(channel), ['Ann Lee declined to sign Supplier NDA.', 'Everyone has signed Dock lease.'], `${channel} receives the decline and the completion, and nothing else`)
-  assert.deepEqual([...new Set(h.posts().map(p => p.path))].sort(), ['/hooks/slack/nook-secret', '/services/T0001/B0001/slack-secret', '/webhookb2/a1/IncomingWebhook/b2/teams-secret'], 'each post goes to the URL that person connected')
+  assert.deepEqual([...new Set(h.posts().map(p => p.path))].sort(), ['/hooks/slack/synthetic-inkwell-7', '/services/synthetic-inkwell-1/synthetic-inkwell-2/synthetic-inkwell-3', '/webhookb2/synthetic-inkwell-4/IncomingWebhook/synthetic-inkwell-5/synthetic-inkwell-6'], 'each post goes to the URL that person connected')
   assert.deepEqual(owner(), ['Declined: Supplier NDA', 'Completed: Dock lease'], 'email receives the decline and the completion, and nothing else')
   assert.match(h.attempted().find(m => m.subject === 'Declined: Supplier NDA').text, /Reason: Wrong entity named/)
 
@@ -388,6 +394,60 @@ test('DELIV-008: subscribed to declines and completions in Slack, Teams, Nook an
   assert.equal(feed.find(n => n.event === 'viewed').recipient, 'Ann Lee')
   const signer = await h.invite('sam@harbour.example', 'admin')
   assert.deepEqual((await h.send('/api/inkwell/notices', undefined, signer)).value.notices, [], 'another member sees none of them')
+
+  // AGENT-006: confirmed connection refusals need an owner-approved replacement; unknown effects never replay.
+  const path='/api/inkwell/notices/reconciliation'
+  const review=async()=>{const response=await h.send(path,undefined,h.owner);assert.equal(response.status,200,JSON.stringify(response.value));return response.value.jobs}
+  const hosts=['hooks.slack.com','harbour.webhook.office.com','nook.harbour.example']
+  await settings({choices:{completed:{slack:true,teams:true,nook:true}}})
+  for(const host of hosts)refusals.set(host,403)
+  await run('Connection expired',false)
+  let jobs=await review()
+  assert.deepEqual(jobs.map(j=>j.channel).sort(),['nook','slack','teams'])
+  assert.ok(jobs.every(j=>j.state==='held'&&!j.canReplay&&j.attempts===1))
+  const calls=edgeCalls.length
+  await h.scheduled('2026-10-01T12:00:00.000Z')
+  assert.equal(edgeCalls.length,calls,'a confirmed refusal never retries automatically')
+  for(const cookie of ['',signer]){
+   assert.equal((await h.send(path,undefined,cookie)).status,cookie?403:401)
+   await h.post(path,{id:jobs[0].id,proposal:jobs[0].proposal,approve:true},cookie,cookie?403:401)
+  }
+  const agent=(await h.command('agent.issue')).result.token
+  await h.post(path,{id:jobs[0].id,proposal:jobs[0].proposal,approve:true},h.owner,403,{authorization:'Bearer '+agent})
+  for(const [channel,url] of Object.entries(hooks))await settings({connect:{channel,url:url+'-replacement'}})
+  const first=(await review())[0]
+  await h.post(path,{id:first.id,proposal:first.proposal,approve:false},h.owner,400)
+  await h.post(path,{id:first.id,proposal:first.proposal,approve:true},h.owner,403,{origin:'https://elsewhere.example'})
+  await settings({connect:{channel:first.channel,url:hooks[first.channel]+'-fresh'}})
+  await h.post(path,{id:first.id,proposal:first.proposal,approve:true},h.owner,409)
+  jobs=await review();assert.ok(jobs.every(j=>j.canReplay))
+  refusals.clear()
+  const acceptedBefore=h.posts().length
+  for(const job of jobs){
+   const approval={id:job.id,proposal:job.proposal,approve:true}
+   const results=await Promise.all([h.send(path,approval,h.owner),h.send(path,approval,h.owner)])
+   assert.deepEqual(results.map(r=>r.status).sort(),[200,409],'only one concurrent approval can claim a replay')
+   await h.post(path,approval,h.owner,409)
+  }
+  assert.equal(h.posts().length,acceptedBefore+3,'each confirmed refusal produces exactly one accepted replay')
+  assert.deepEqual(await review(),[])
+  const audit=(await h.send('/api/inkwell/audit',undefined,h.owner)).value.entries.filter(e=>e.action==='notice.reconciliation.approved')
+  assert.equal(audit.length,3)
+  assert.ok(!JSON.stringify(audit).includes('replacement'),'audit has no connection capability')
+  for(const host of hosts)refusals.set(host,503)
+  await run('Unknown provider effect',false)
+  jobs=await review();assert.deepEqual(jobs.map(j=>j.state),['uncertain','uncertain','uncertain'])
+  const unknownCalls=edgeCalls.length
+  for(const [channel,url] of Object.entries(hooks))await settings({connect:{channel,url:url+'-another'}})
+  for(const job of jobs)await h.post(path,{id:job.id,proposal:job.proposal,approve:true},h.owner,409)
+  await h.scheduled('2026-10-01T13:00:00.000Z')
+  assert.equal(edgeCalls.length,unknownCalls,'replacement and scheduled dispatch cannot repeat uncertain remote effects')
+  assert.ok((await review()).every(j=>!j.canReplay))
+  const receipts=JSON.stringify(await review())+JSON.stringify(h.logs())
+  assert.ok(!receipts.includes('synthetic-inkwell-90'),'untrusted provider response content is never persisted or exposed')
+  const archive=JSON.stringify((await h.send('/api/inkwell/archive',undefined,h.owner)).value)
+  assert.ok(!archive.includes('replacement')&&!archive.includes('hooks.slack.com'),'connector capabilities and posts remain installation state')
+
  } finally { await h.close() }
 })
 

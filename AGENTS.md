@@ -142,3 +142,7 @@ their maintenance.
 
 Pinned reference: https://github.com/runeditrun/base/blob/fc0e1041efa55771142bbb57c4ab4743147e264d/TANSTACK-START-MIGRATION.md
 Native-session/runtime evidence: https://github.com/runeditrun/base/tree/fc0e1041efa55771142bbb57c4ab4743147e264d/default-seed
+
+## Lander-Regenerate
+
+For the clauses changed in a contract round, run `node scripts/contract-docs.mjs write AGENT-006` and then the same command with `check`. Pass each changed clause ID after the mode. This incrementally reconciles legacy acceptance journeys from CONTRACT.md and generates the complete claims register without replacing other clauses' recorded journeys. Regenerate the edition source lock last with `node scripts/edition-authoring/cli.mjs lock`, then run its `check`.

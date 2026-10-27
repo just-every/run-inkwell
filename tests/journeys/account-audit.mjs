@@ -7,7 +7,12 @@ import { startInkwellWithMail } from './mail-worker.mjs'
 import { screenshots } from './worker.mjs'
 import { axe, tabTo } from './a11y.mjs'
 
-const app = await startInkwellWithMail()
+let hookStatus=403,acceptedNotices=0
+const app = await startInkwellWithMail({networkEdge:async request=>{
+ if(new URL(request.url).hostname!=='hooks.slack.com')return
+ if(hookStatus===200)acceptedNotices++
+ return new Response(hookStatus===200?'ok':'synthetic-inkwell-90',{status:hookStatus})
+}})
 const images = process.env.INKWELL_AUDIT_PROOF_DIR ?? '/tmp/inkwell-account-audit'
 await mkdir(images, { recursive: true })
 const cookie = value => ({ name: value.slice(0, value.indexOf('=')), value: value.slice(value.indexOf('=') + 1), url: app.origin })
@@ -43,6 +48,40 @@ async function capture(page, log, width, state, subject = log) {
   await page.screenshot({ path: `${images}/${width}-${state}.png` })
 }
 try {
+  // AGENT-006: a real completion fails at the network edge; Settings repairs only a confirmed refusal.
+  const notificationPdf=await PDFDocument.create();notificationPdf.addPage([612,792]).drawText('Harbour notification repair')
+  await app.call('/api/inkwell/notices/settings',{cookie:app.owner,body:{connect:{channel:'slack',url:'https://hooks.slack.com/services/synthetic-inkwell-31'},choices:{completed:{slack:true}}}})
+  const notification=await app.command('envelope.prepare',{title:'Harbour connection repair',filename:'repair.pdf',pdfBase64:Buffer.from(await notificationPdf.save()).toString('base64'),signers:[{name:'Mara Quinn',email:'mara-repair@harbour.example'}],fields:[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.6,width:.4,height:.07}]})
+  await app.command('envelope.approve',{id:notification.id,eligible:true})
+  const recipient=await app.verify('mara-repair@harbour.example')
+  await app.call(recipient.path+'/sign',{cookie:recipient.cookie,body:{commandId:crypto.randomUUID(),values:{signature:'Mara Quinn'},consent:true,adoption:{method:'typed',style:'sans'}}})
+  const repairPages=[]
+  for(const width of [1440,390]){
+   const {context,page}=await open(app.owner,width)
+   const panel=page.getByRole('region',{name:'Notifications',exact:true}),repairs=panel.getByLabel('Notification repairs',{exact:true})
+   await repairs.getByText('Slack · held',{exact:true}).waitFor()
+   await panel.scrollIntoViewIfNeeded();await axe(page,`Notification repair at ${width}`)
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+   await panel.screenshot({path:`${images}/${width}-notification-held.png`})
+   repairPages.push({context,page,panel,repairs,width})
+  }
+  await app.call('/api/inkwell/notices/settings',{cookie:app.owner,body:{connect:{channel:'slack',url:'https://hooks.slack.com/services/synthetic-inkwell-32'}}})
+  hookStatus=200
+  for(const view of repairPages){
+   await view.repairs.getByRole('button',{name:'Refresh notification repairs',exact:true}).click()
+   await view.repairs.getByRole('button',{name:'Approve Slack replay',exact:true}).waitFor()
+   await view.panel.screenshot({path:`${images}/${view.width}-notification-proposal.png`})
+  }
+  const desktop=repairPages[0]
+  await tabTo(desktop.page,desktop.repairs.getByRole('button',{name:'Approve Slack replay',exact:true}));await desktop.page.keyboard.press('Enter')
+  await desktop.repairs.getByText('No notification repairs pending.',{exact:true}).waitFor()
+  assert.equal(acceptedNotices,1,'keyboard approval delivers exactly one replay')
+  for(const view of repairPages){
+   await view.repairs.getByRole('button',{name:'Refresh notification repairs',exact:true}).click()
+   await view.repairs.getByText('No notification repairs pending.',{exact:true}).waitFor()
+   await view.panel.screenshot({path:`${images}/${view.width}-notification-repaired.png`})
+   await view.context.close()
+  }
   const admin = await member('ada-admin@harbour.example', 'admin')
   const person = await member('morgan-river@harbour.example', 'member')
   const ownerId = (await app.call('/api/inkwell', { cookie: app.owner })).value.actor.id

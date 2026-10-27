@@ -74,7 +74,7 @@ export async function noticeWrites(env: Env, before: Envelope, after: Envelope):
   if (!members.length) return []
   const ids = members.map(m => m.id), marks = ids.map(() => '?').join(',')
   const prefs = (await db.prepare(`SELECT operator_id, event, channel, enabled FROM iw_notice_prefs WHERE operator_id IN (${marks})`).bind(...ids).all<{ operator_id: string; event: string; channel: string; enabled: number }>()).results
-  const hooks = (await db.prepare(`SELECT operator_id, channel FROM iw_notice_channels WHERE operator_id IN (${marks})`).bind(...ids).all<{ operator_id: string; channel: Hook }>()).results
+  const hooks = (await db.prepare(`SELECT operator_id, channel, sealed FROM iw_notice_channels WHERE operator_id IN (${marks})`).bind(...ids).all<{ operator_id: string; channel: Hook; sealed: string }>()).results
   const wants = (member: string, event: NoticeEvent, channel: Channel) => { const row = prefs.find(p => p.operator_id === member && p.event === event && p.channel === channel); return row ? row.enabled === 1 : byDefault(event, channel) }
   // With mail not set up no notice email is written (SEND-001); the feed and the channels still get it.
   const at = now(), email = !mailSuppressed(env), writes: D1PreparedStatement[] = []
@@ -84,23 +84,32 @@ export async function noticeWrites(env: Env, before: Envelope, after: Envelope):
     const own = notice.actor === member.email.toLowerCase()
     if (email && !own && wants(member.id, notice.event, 'email')) writes.push(noticeWrite(db, after, notice.signer, member.email, notice.subject, notice.body(member.name)))
     for (const hook of hooks.filter(h => !own && h.operator_id === member.id && wants(member.id, notice.event, h.channel)))
-      writes.push(db.prepare('INSERT INTO iw_notice_posts(id,notice_id,operator_id,channel,body) VALUES(?,?,?,?,?)').bind(id(), noticeId, member.id, hook.channel, JSON.stringify(hook.channel === 'teams' ? { text: notice.line } : { text: notice.line, username: 'Inkwell' })))
+      writes.push(db.prepare('INSERT INTO iw_notice_posts(id,notice_id,operator_id,channel,body,connection) VALUES(?,?,?,?,?,?)').bind(id(), noticeId, member.id, hook.channel, JSON.stringify(hook.channel === 'teams' ? { text: notice.line } : { text: notice.line, username: 'Inkwell' }), hook.sealed))
   }
   return writes
 }
 
-/** Sends the waiting Slack, Teams and Nook posts. Each is claimed before it is sent; a refused or failed post is tried
- * again on the next pass, at most three times in all, and its last answer is kept for the feed. */
+/** A confirmed refusal can be reviewed after replacing the connection. Unknown effects never retry. */
 export async function dispatchNotices(env: Env) {
-  const posts = (await env.DB.prepare("SELECT p.id, p.operator_id, p.channel, p.body, c.sealed FROM iw_notice_posts p LEFT JOIN iw_notice_channels c ON c.operator_id=p.operator_id AND c.channel=p.channel WHERE p.state='pending' AND p.attempts<3 LIMIT 50").all<{ id: string; operator_id: string; channel: Hook; body: string; sealed: string | null }>()).results
+  const posts = (await env.DB.prepare("SELECT p.id,p.operator_id,p.channel,p.body,p.connection,c.sealed FROM iw_notice_posts p LEFT JOIN iw_notice_channels c ON c.operator_id=p.operator_id AND c.channel=p.channel WHERE p.state='pending' LIMIT 50").all<{id:string;operator_id:string;channel:Hook;body:string;connection:string|null;sealed:string|null}>()).results
   for (const post of posts) {
-    const claimed = await env.DB.prepare("UPDATE iw_notice_posts SET state='sending', attempts=attempts+1 WHERE id=? AND state='pending' RETURNING attempts").bind(post.id).first<{ attempts: number }>()
-    if (!claimed) continue
-    let result: string, sent = false
-    const url = await unseal(env, purpose, bound(post.operator_id, post.channel), post.sealed)
-    if (!url) { await env.DB.prepare("UPDATE iw_notice_posts SET state='failed', result='not delivered, disconnected' WHERE id=?").bind(post.id).run(); continue }
-    try { const response = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: post.body }); sent = response.ok; result = sent ? 'delivered' : `not delivered, ${response.status}` } catch { result = 'not delivered, no answer' }
-    await env.DB.prepare('UPDATE iw_notice_posts SET state=?, result=? WHERE id=?').bind(sent ? 'sent' : claimed.attempts >= 3 ? 'failed' : 'pending', result, post.id).run()
+    if (!post.sealed || post.connection !== post.sealed) {
+      await env.DB.prepare("UPDATE iw_notice_posts SET state='held',repairable=1,result='Connection changed or disconnected; owner review required.' WHERE id=? AND state='pending'").bind(post.id).run()
+      continue
+    }
+    const claimed=await env.DB.prepare("UPDATE iw_notice_posts SET state='sending',attempts=attempts+1,repairable=0 WHERE id=? AND state='pending' AND connection=? AND EXISTS(SELECT 1 FROM iw_notice_channels WHERE operator_id=? AND channel=? AND sealed=?) RETURNING id").bind(post.id,post.connection,post.operator_id,post.channel,post.sealed).first()
+    if(!claimed)continue
+    const url=await unseal(env,purpose,bound(post.operator_id,post.channel),post.sealed)
+    let state='uncertain',result='Unconfirmed provider effect; do not replay.',repairable=0
+    if(!url){state='held';result='Connection unavailable; owner review required.';repairable=1}
+    else try {
+      const response=await fetch(url,{method:'POST',redirect:'manual',headers:{'content-type':'application/json'},body:post.body,signal:AbortSignal.timeout(15000)})
+      // Only the provider's explicit acceptance or refusal is decisive. Never persist its response body.
+      const answer=(await response.text()).trim()
+      if(response.ok&&(post.channel==='teams'?['1','ok'].includes(answer):answer==='ok')){state='sent';result='delivered'}
+      else if([401,403,404,410].includes(response.status)){state='held';repairable=1;result='Provider refused the connection; replace it and request owner review.'}
+    }catch{ /* An unanswered request may have been accepted remotely. */ }
+    await env.DB.prepare("UPDATE iw_notice_posts SET state=?,result=?,repairable=? WHERE id=? AND state='sending'").bind(state,result,repairable,post.id).run()
   }
 }
 
@@ -118,7 +127,7 @@ export async function noticeSettings(env: Env, actor: Actor) {
   const prefs = (await env.DB.prepare('SELECT event, channel, enabled FROM iw_notice_prefs WHERE operator_id=?').bind(actor.id).all<{ event: string; channel: string; enabled: number }>()).results
   const hooks = (await env.DB.prepare('SELECT channel, masked FROM iw_notice_channels WHERE operator_id=?').bind(actor.id).all<{ channel: Hook; masked: string }>()).results
   return {
-    events: noticeEvents, channels: noticeChannels,
+    canReconcile: actor.role==='owner', events: noticeEvents, channels: noticeChannels,
     choices: Object.fromEntries(noticeEvents.map(event => [event, Object.fromEntries(noticeChannels.map(channel => { const row = prefs.find(p => p.event === event && p.channel === channel); return [channel, row ? row.enabled === 1 : byDefault(event, channel)] }))])),
     connected: Object.fromEntries((Object.keys(hookRules) as Hook[]).map(hook => { const row = hooks.find(h => h.channel === hook); return [hook, row ? row.masked : null] })),
     examples: Object.fromEntries((Object.keys(hookRules) as Hook[]).map(hook => [hook, hookRules[hook].example])),

@@ -173,11 +173,11 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "34486e77b33f3ff96e73e18b045721dc5747f73ce8709f1b6ba3c46eabe4150f",
+      "sha256": "bc922ee784986f4fc8a26ad5de6823384c73aaf19aa749a66385b2be26bd6841",
       "executable": false
     },
     "AGENTS.md": {
-      "sha256": "3ec5ef9a8f481a44a409c69aee0c6da6a787d01313de6915172a75028bd4e1e7",
+      "sha256": "1cb5ba370cdf74cbea00e139993341c0bc3c1e7556d090e4b74f0869562ca788",
       "executable": false
     },
     "base-copies.json": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f64781154ff8d5e1c3afc3330b8e485208bf2fc99e94754cf7964e803a4bc1b6",
+      "sha256": "7161785cc2ac8998fc59b4dc9a6d3182218ea17cfaf3514153e34d101c319c05",
       "executable": false
     },
     "DEMO.md": {
@@ -1217,7 +1217,7 @@
       "executable": false
     },
     "src/inkwell/api.ts": {
-      "sha256": "446ee9170cd7430de7d57afabffc4b8f4f0eda3d8b56108e8b91919b6184ebbb",
+      "sha256": "4265626c69fd580bdd670d89ed65c232e050136d7fbacc7c207f2b5d0929a0fd",
       "executable": false
     },
     "src/inkwell/archive-policy.d.mts": {
@@ -1613,7 +1613,7 @@
       "executable": false
     },
     "src/inkwell/notices.ts": {
-      "sha256": "cdcf5d0c4779ce0d461a9a0a81ea3a1006348b07c15b744754b2d2e3ac6a9ccb",
+      "sha256": "74e241660ff3f9a0cad28c51d755f8c0229316b15719e968b817e524656cd5a9",
       "executable": false
     },
     "src/inkwell/own-signing.ts": {
@@ -3913,7 +3913,7 @@
       "executable": false
     },
     "src/ui/activity.tsx": {
-      "sha256": "5f8bf5e4b28205ab6cd0550c039bfa7bd2f9a39bed462da56a7d05db9ff6b2dd",
+      "sha256": "7327f86492cd1786df0fba2a17f40626c1214b4b823c2be35e61b64b74783754",
       "executable": false
     },
     "src/ui/adopt-signature.tsx": {
@@ -4269,7 +4269,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "4f073e01f42a1c151369b896d65fcaf3a2950cc4b641418aa3c715419bc00cf4",
+      "sha256": "1f8d9c0c3fc3929ec3ac3cee86769e33534f1684208b2e18e522a9239c1fd451",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
@@ -4361,7 +4361,7 @@
       "executable": false
     },
     "tests/journeys/account-audit.mjs": {
-      "sha256": "af4611ffa4b632e3c5660887826c57e7294acd6e8bd48fe75a8a15641ea5a375",
+      "sha256": "d6a7ddf2e06e0746e1b8a6599820a3ca1de063153d3aa8e0dec9eb645f5a0f92",
       "executable": false
     },
     "tests/journeys/api-capacity.mjs": {
