@@ -96,14 +96,14 @@ export async function receiveFollowupReply(env: Env, request: Request): Promise<
 }
 
 /** All connected email providers pass through the same capability, sender and atomic custody gates. */
-export async function keepFetchedReply(env:Env,message:Json,emailId:string,eventId:string,provider:'resend'|'gmail',normalize:()=>Promise<{text?:string|null;html?:string|null;attachments:{filename:string;contentType:string;content:Uint8Array}[]}>) {
+export async function keepFetchedReply(env:Env,message:Json,emailId:string,eventId:string,provider:'resend'|'gmail',normalize:(checkCurrent:()=>Promise<void>)=>Promise<{text?:string|null;html?:string|null;attachments:{filename:string;contentType:string;content:Uint8Array}[]}>) {
     insist(env.MAIL_INBOUND_DOMAIN,'Inbound replies are not configured.',503)
     const to = strings(message.to), domain = env.MAIL_INBOUND_DOMAIN.toLowerCase()
     const tokens = [...new Set(to.filter(address => mailbox(address)?.endsWith(`@${domain}`)).map(address => address.match(/reply\+([A-Za-z0-9_-]{43})@/i)?.[1]).filter((token): token is string => Boolean(token)))]
     insist(tokens.length === 1, 'This message has no unique current reply address.', 403)
     const token = tokens[0], capability = await resolveReplyCapability(env, token)
     insist(capability, 'This reply address is unknown or no longer current.', 403)
-    const normalized=await normalize()
+    const normalized=await normalize(async()=>{insist(await resolveReplyCapability(env,token),'This reply address is no longer current.',409)})
     const sourceHeaders = record(message.headers), headers = new Map(Object.entries(sourceHeaders).map(([name, value]) => [name.toLowerCase(), field(value, 64 * 1024)]))
     const from = field(message.from), normalizedFrom = mailbox(from)
     const verified = Boolean(normalizedFrom && normalizedFrom === mailbox(followupRecipient(capability.envelope,capability.signer).email) &&

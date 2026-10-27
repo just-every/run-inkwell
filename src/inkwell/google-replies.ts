@@ -46,7 +46,8 @@ async function fetchedReply(env:Env,messageId:string,eventId:string) {
  // Ignore unrelated mailbox traffic before fetching its body or attachments.
  if(!addresses.some(address=>/reply\+[A-Za-z0-9_-]{43}@/i.test(address)))return
  const source={id:messageId,from:headers.from??'',to:addresses,subject:headers.subject??'',message_id:headers['message-id']??'',headers}
- try{await keepFetchedReply(env,source,messageId,eventId,'gmail',async()=>{
+ try{await keepFetchedReply(env,source,messageId,eventId,'gmail',async checkCurrent=>{
+  await checkCurrent()
   const full=await googleJson(env,`/messages/${messageId}?format=full`,16*1024*1024)
   insist(full.id===messageId&&full.payload,'Google returned another message.',502)
   const complete:Record<string,string>={}
@@ -59,11 +60,17 @@ async function fetchedReply(env:Env,messageId:string,eventId:string) {
    if(part.filename){
     insist(attachments.length<100&&Number.isSafeInteger(part.body?.size)&&part.body.size<=40*1024*1024,'Google attachment exceeds custody limits.',413)
     let data=part.body.data
-    if(part.body.attachmentId){insist(/^[A-Za-z0-9_-]{1,2048}$/.test(part.body.attachmentId),'Invalid Google attachment identifier.',502);data=(await googleJson(env,`/messages/${messageId}/attachments/${part.body.attachmentId}`,56*1024*1024)).data}
+    if(part.body.attachmentId){insist(/^[A-Za-z0-9_-]{1,2048}$/.test(part.body.attachmentId),'Invalid Google attachment identifier.',502);await checkCurrent();data=(await googleJson(env,`/messages/${messageId}/attachments/${part.body.attachmentId}`,56*1024*1024)).data}
     insist(typeof data==='string','Google attachment is incomplete.',502)
     const content=decode(data);total+=content.byteLength;insist(content.byteLength===part.body.size&&total<=40*1024*1024,'Google attachment exceeds custody limits.',413)
     attachments.push({filename:part.filename,contentType:part.mimeType??'application/octet-stream',content})
-   } else if(part.body?.data){const value=new TextDecoder().decode(decode(part.body.data));if(part.mimeType==='text/plain')text+=value;else if(part.mimeType==='text/html')html+=value}
+   } else if(['text/plain','text/html'].includes(part.mimeType)&&part.body){
+    let data=part.body.data
+    if(part.body.attachmentId){insist(/^[A-Za-z0-9_-]{1,2048}$/.test(part.body.attachmentId),'Invalid Google body identifier.',502);await checkCurrent();data=(await googleJson(env,`/messages/${messageId}/attachments/${part.body.attachmentId}`,24*1024*1024)).data}
+    insist(typeof data==='string','Google reply body is incomplete.',502)
+    const bytes=decode(data);total+=bytes.byteLength;insist(total<=40*1024*1024&&(part.body.size===undefined||bytes.byteLength===part.body.size),'Google reply body exceeds custody limits or is incomplete.',413)
+    const value=new TextDecoder().decode(bytes);if(part.mimeType==='text/plain')text+=value;else html+=value
+   }
    insist(Array.isArray(part.parts??[])&&(part.parts??[]).length<=100,'Invalid Google message parts.',502)
    for(const child of part.parts??[])await visit(child)
   }
