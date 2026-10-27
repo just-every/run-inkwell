@@ -9,14 +9,14 @@ const base64=(bytes:Uint8Array)=>{let result='';for(let at=0;at<bytes.length;at+
 const email=(value:unknown)=>typeof value==='string'?value.trim().toLowerCase():''
 const instant=(value:unknown)=>typeof value==='number'&&value>0?new Date(value*1000).toISOString():typeof value==='string'&&Number.isFinite(Date.parse(value))?new Date(value).toISOString():undefined
 /** Only fixed provider hosts are reachable; credentials and raw errors never enter a receipt. */
-export async function readRemoteBatch(input:Record<string,unknown>) {
+export async function readRemoteBatch(input:Record<string,unknown>,fetcher:typeof fetch=fetch) {
  const provider=input.provider as Provider;insist(['acrobat','dropbox'].includes(provider),'Choose an import provider.')
  const credential=text(input.credential,'the provider credential',4096);insist(!/[\r\n]/.test(credential),'Invalid credential.')
  const region=input.region??'na1';insist(['na1','na2','na3','na4','eu1','eu2','au1','jp1','in1','sg1'].includes(String(region)),'Choose an Acrobat region.')
  const origin=provider==='acrobat'?`https://api.${region}.adobesign.com/api/rest/v6`:'https://api.hellosign.com/v3'
  const headers={authorization:provider==='acrobat'?`Bearer ${credential}`:`Basic ${btoa(credential+':')}`}
  async function get(path:string,pdf=false) {
-  const response=await fetch(origin+path,{headers,redirect:'manual',signal:AbortSignal.timeout(20000)})
+  const response=await fetcher(origin+path,{headers,redirect:'manual',signal:AbortSignal.timeout(20000)})
   if(response.status===429){const header=response.headers.get('retry-after'),seconds=Number(header);throw new ApiRateLimit(header&&Number.isFinite(seconds)&&seconds>0?Math.ceil(seconds):3600)}
   insist(response.ok,'The provider refused this batch. Check the grant and retry; no success was recorded.',502)
   const bytes=await readBytes(new Request('https://import.invalid',{method:'POST',body:response.body,duplex:'half'} as RequestInit),pdf?2*1024*1024:1024*1024)

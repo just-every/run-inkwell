@@ -1,3 +1,4 @@
+import { processRemoteJobs } from './inkwell/remote-import-jobs'
 import { embedResponse } from './inkwell/embed-response'
 import { complianceRequest } from './inkwell/compliance/requests'
 import { hostedResponse } from './inkwell/in-person'
@@ -50,5 +51,5 @@ export default withDemo({
     })
   },
   // The hourly pass: DELIV-004 expiry warnings and DELIV-003 reminders.
-  async scheduled(controller, env) { await scheduledPass(runtimeBindings(env), controller.scheduledTime) },
+  async scheduled(controller, env) { if(controller.cron==='* * * * *')await processRemoteJobs(runtimeBindings(env),controller.scheduledTime);else await scheduledPass(runtimeBindings(env), controller.scheduledTime) },
 } satisfies ExportedHandler<Bindings>, { seed: seedDemo })

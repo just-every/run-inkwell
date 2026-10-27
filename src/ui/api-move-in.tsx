@@ -1,3 +1,4 @@
+import { RemoteImportJob } from './remote-import-job'
 import { useState } from 'react'
 import { request } from './types'
 import { ErrorNotice, useAction } from './feedback'
@@ -20,5 +21,5 @@ export function ApiMoveIn() {
  {Object.values(preview.next).some(Boolean)&&<p>More source pages remain. This preview covers only the batch listed above.</p>}
  {!complete&&<><label className="iw-check"><input type="checkbox" checked={approved} onChange={e=>setApproved(e.target.checked)} />I reviewed the source owners, skipped items and batch fingerprint.</label><button className="iw-primary iw-fit" disabled={!approved||action.busy} onClick={()=>void action.run(async()=>{await request('/api/inkwell/remote-import/apply',{previewId:preview.previewId,fingerprint:preview.fingerprint});setComplete(true);setApproved(false)})}>Import reviewed batch</button></>}
  {complete&&<><p role="status">Import complete. Open Envelopes for the imported records, or Templates to prepare a new send.</p>{Object.values(preview.next).some(Boolean)&&<button className="iw-fit" onClick={()=>{setContinuation({...preview.next,continuation:true});reset()}}>Review next source page</button>}</>}</div>}
- <ErrorNotice error={action.error}/></section>
+ <RemoteImportJob connection={{provider,region,credential,fallbackAdmin}} onStarted={()=>setCredential('')}/><ErrorNotice error={action.error}/></section>
 }

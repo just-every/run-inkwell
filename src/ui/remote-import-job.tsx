@@ -1,0 +1,25 @@
+import { useEffect, useState } from 'react'
+import { request, dateTime } from './types'
+import { ErrorNotice, useAction } from './feedback'
+type Job={id:string;state:string;phase:string;pages:number;applied:number;counts:{agreements:number;templates:number};owners:Record<string,{agreements:number;templates:number}>;fingerprint?:string;message?:string;nextAt:number;estimatedFinishAt:number|null;preview?:{items:{id:string;title:string;owner:string}[];unmapped:{sourceId:string;reason:string}[]}}
+export function RemoteImportJob({connection,onStarted}:{connection:{provider:string;region:string;credential:string;fallbackAdmin:string};onStarted:()=>void}) {
+ const [jobs,setJobs]=useState<{id:string;state:string}[]>([]),[job,setJob]=useState<Job>(),[page,setPage]=useState(0),[approved,setApproved]=useState(false),[renewed,setRenewed]=useState('')
+ const action=useAction()
+ const load=async(id=job?.id,p=page)=>{const index=await request<{jobs:{id:string;state:string}[]}>('/api/inkwell/remote-import/jobs');setJobs(index.jobs);if(id)setJob(await request<Job>(`/api/inkwell/remote-import/jobs?id=${encodeURIComponent(id)}&page=${p}`))}
+ useEffect(()=>{void action.run(()=>load())},[])
+ const change=async(kind:string)=>{if(!job)return;setJob(await request<Job>('/api/inkwell/remote-import/job',{action:kind,id:job.id,fingerprint:job.fingerprint,...(renewed?{credential:renewed}:{})}));setRenewed('');setApproved(false);await load(job.id)}
+ return <div className="iw-stack"><h3>Account import jobs</h3><p>Preview the entire Acrobat account in the background, then approve its fingerprint. The source grant is sealed in this installation until completion or cancellation. Imports send no signing invitations.</p>
+ <button className="iw-fit" disabled={action.busy||connection.provider!=='acrobat'||!connection.credential||!connection.fallbackAdmin} onClick={()=>void action.run(async()=>{const result=await request<Job>('/api/inkwell/remote-import/job',{...connection,action:'start'});setJob(result);setPage(0);onStarted();await load(result.id,0)})}>Preview entire Acrobat account</button>
+ <button className="iw-fit" disabled={action.busy} onClick={()=>void action.run(()=>load())}>Refresh account jobs</button>
+ {jobs.map(item=><button key={item.id} className="iw-fit" onClick={()=>void action.run(async()=>{setPage(0);setApproved(false);await load(item.id,0)})}>Open job · {item.state} · {item.id.slice(0,8)}</button>)}
+ {job&&<div className="iw-callout iw-stack" aria-label="Account import job"><h4>Account import · {job.state}</h4><p role="status">{job.counts.agreements} agreements · {job.counts.templates} templates · {job.pages} previewed batches · {job.applied} applied batches</p>{job.message&&<p>{job.message}</p>}{job.state==='rate_limited'&&<p>Next provider attempt after {dateTime(new Date(job.nextAt).toISOString())}.</p>}{job.estimatedFinishAt&&<p>Estimated completion {dateTime(new Date(job.estimatedFinishAt).toISOString())}. Provider waits can change this estimate.</p>}
+ <ul>{Object.entries(job.owners).map(([owner,counts])=><li key={owner}>{owner}: {counts.agreements} agreements · {counts.templates} templates</li>)}</ul>
+ {!!job.pages&&<><p>Source preview page {page+1} of {job.pages}</p><div className="iw-actions"><button disabled={page===0||action.busy} onClick={()=>void action.run(async()=>{setPage(page-1);await load(job.id,page-1)})}>Previous preview page</button><button disabled={page+1>=job.pages||action.busy} onClick={()=>void action.run(async()=>{setPage(page+1);await load(job.id,page+1)})}>Next preview page</button></div><ul>{job.preview?.items.map(item=><li key={item.id}>{item.title} · Owner: {item.owner}</li>)}</ul><h4>Unmapped or skipped items</h4><ul>{job.preview?.unmapped.map((item,i)=><li key={i}>{item.sourceId}: {item.reason}</li>)}</ul></>}
+ {job.state==='review'&&<><dl className="iw-hashes"><dt>Account preview fingerprint</dt><dd>{job.fingerprint}</dd></dl><label className="iw-check"><input type="checkbox" checked={approved} onChange={e=>setApproved(e.target.checked)}/>I reviewed all source pages, owner counts and unmapped items.</label><button disabled={action.busy||!approved} onClick={()=>void action.run(()=>change('approve'))}>Approve account import</button></>}
+ {['previewing','applying','rate_limited'].includes(job.state)&&<button disabled={action.busy} onClick={()=>void action.run(()=>change('pause'))}>Pause account job</button>}
+ {job.state==='grant_required'&&<label>Renewed Acrobat access token<input type="password" autoComplete="off" value={renewed} onChange={e=>setRenewed(e.target.value)}/></label>}
+ {['paused','failed','grant_required'].includes(job.state)&&<button disabled={action.busy||job.state==='grant_required'&&!renewed} onClick={()=>void action.run(()=>change('resume'))}>Resume account job</button>}
+ {!['cancelled','completed','authority_lost'].includes(job.state)&&<button disabled={action.busy} onClick={()=>void action.run(()=>change('cancel'))}>Cancel remaining work</button>}
+ {job.state==='completed'&&<p>Account import complete. Open Envelopes or Templates to use the imported records.</p>}
+ </div>}<ErrorNotice error={action.error}/></div>
+}
