@@ -13,6 +13,17 @@ for(const provider of ['acrobat','dropbox'])test(`${provider}: reviewed API impo
   await h.post('/api/inkwell/remote-import/preview',input,'',401)
   await h.post('/api/inkwell/remote-import/preview',input,a,403)
   await h.post('/api/inkwell/remote-import/preview',input,h.owner,403,{origin:'https://foreign.example.test'})
+  await h.post('/api/inkwell/remote-import/preview',input,h.owner,403,{authorization:'Bearer synthetic-inkwell-99'})
+  fake.failOnce()
+  const limited=await h.post('/api/inkwell/remote-import/preview',input,h.owner,429)
+  assert.equal(limited.headers.get('retry-after'),'120')
+  assert.ok(!JSON.stringify(limited.value).includes('synthetic-inkwell-provider-failure'),'provider errors stay private')
+  fake.unmapped()
+  await h.post('/api/inkwell/remote-import/preview',{...input,fallbackAdmin:'first@example.test'},h.owner,400)
+  const unmapped=(await h.post('/api/inkwell/remote-import/preview',input)).value
+  assert.deepEqual(unmapped.items.filter(v=>v.kind==='envelope').map(v=>v.owner),['owner@harbour.example','owner@harbour.example'])
+  assert.deepEqual(unmapped.unmapped.filter(v=>v.reason.includes('assigned to')).map(v=>v.sourceId),['first','second'])
+  fake.mapped()
   const preview=(await h.post('/api/inkwell/remote-import/preview',input)).value
   assert.deepEqual(preview.counts,{agreements:2,templates:1})
   assert.deepEqual(preview.items.map(v=>[v.kind,v.owner]),[['envelope','first@example.test'],['envelope','second@example.test'],['template','first@example.test']])
@@ -20,9 +31,17 @@ for(const provider of ['acrobat','dropbox'])test(`${provider}: reviewed API impo
   assert.equal((await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.envelopes.length,0,'preview creates no business record')
   await h.post('/api/inkwell/remote-import/apply',{previewId:preview.previewId,fingerprint:'wrong'},h.owner,409)
   const apply={previewId:preview.previewId,fingerprint:preview.fingerprint}
-  await h.post('/api/inkwell/remote-import/apply',apply)
-  await h.post('/api/inkwell/remote-import/apply',apply)
+  await h.post('/api/inkwell/remote-import/apply',apply,a,403)
   const [known,fallback,template]=preview.items
+  await h.db.prepare(`CREATE TRIGGER interrupt_remote_import BEFORE INSERT ON iw_envelopes WHEN NEW.id='${fallback.id}' BEGIN SELECT RAISE(ABORT,'synthetic-inkwell-interruption'); END`).run()
+  await h.post('/api/inkwell/remote-import/apply',apply,h.owner,500)
+  assert.equal((await h.send(`/api/inkwell/envelopes/${known.id}`,undefined,a)).status,200,'the first record and its checkpoint survive interruption')
+  assert.equal((await h.send(`/api/inkwell/envelopes/${fallback.id}`,undefined,b)).status,404)
+  await h.db.prepare('DROP TRIGGER interrupt_remote_import').run()
+  const callsBeforeResume=fake.calls.length
+  await h.post('/api/inkwell/remote-import/apply',apply)
+  await h.post('/api/inkwell/remote-import/apply',apply)
+  assert.equal(fake.calls.length,callsBeforeResume,'resuming an approved batch never refetches a provider resource')
   assert.deepEqual((await h.send('/api/inkwell/envelopes',undefined,a)).value.envelopes.map(e=>e.id),[known.id])
   assert.deepEqual((await h.send('/api/inkwell/envelopes',undefined,b)).value.envelopes.map(e=>e.id),[fallback.id])
   assert.equal((await h.send(`/api/inkwell/envelopes/${known.id}`,undefined,b)).status,403)
