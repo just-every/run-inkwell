@@ -20,8 +20,8 @@ async function capture(page, row, width, state) {
   await page.screenshot({ path: join(proof, `${width}-${state}.png`), fullPage: false })
 }
 async function save(page, row) {
-  const answered = page.waitForResponse(response => response.url().endsWith('/api/inkwell/commands') && response.request().postDataJSON()?.command === 'account.send_policy')
   await tabTo(page, row.getByRole('button', { name: /^Save / }))
+  const answered = page.waitForResponse(response => response.url().endsWith('/api/inkwell/commands') && response.request().postDataJSON()?.command === 'account.send_policy')
   await page.keyboard.press('Enter')
   assert.ok((await answered).ok(), 'the policy save succeeds through its command door')
   await expect(row.getByRole('button', { name: /^Save / })).toBeDisabled()
@@ -114,16 +114,16 @@ try {
     const scope=(await app.call('/api/inkwell/send-policy-scopes',{cookie:app.owner,body:{kind:'group',name:`Field ${width}`,members:[principal],expectedVersion:0,commandId:crypto.randomUUID()}})).value.scope
     await page.reload();await page.getByRole('button',{name:'Settings',exact:true}).click()
     const selector=panel.getByLabel('Policy scope',{exact:true})
-    await selector.selectOption(`group:${scope.id}`)
+    await selector.focus();await selector.selectOption(`group:${scope.id}`)
     const adHoc=panel.getByRole('form',{name:'Ad hoc sends',exact:true})
-    await adHoc.getByRole('combobox').selectOption('off');await save(page,adHoc)
-    await page.reload();await page.getByRole('button',{name:'Settings',exact:true}).click();await selector.selectOption(`group:${scope.id}`)
+    await tabTo(page,adHoc.getByRole('combobox'));await adHoc.getByRole('combobox').selectOption('off');await save(page,adHoc)
+    await page.reload();await page.getByRole('button',{name:'Settings',exact:true}).click();await selector.focus();await selector.selectOption(`group:${scope.id}`)
     await expect(adHoc.getByRole('combobox')).toHaveValue('off');await capture(page,adHoc,width,'group-policy-off')
     const email=`group.${width}@clients.example`
     const envelope=(await app.command('envelope.prepare',{title:`Field group letter ${width}`,filename:'group.pdf',pdfBase64,signers:[{name:'Mara Quinn',email}],fields:[{id:'group-sign',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.3,width:.4,height:.05}]})).id
     await app.call('/api/inkwell/commands',{cookie:app.owner,body:{command:'envelope.approve',commandId:crypto.randomUUID(),input:{id:envelope,eligible:true}},status:403})
     assert.equal(app.mail(email,'Please sign:'),undefined)
-    await adHoc.getByRole('combobox').selectOption('person');await save(page,adHoc)
+    await tabTo(page,adHoc.getByRole('combobox'));await adHoc.getByRole('combobox').selectOption('person');await save(page,adHoc)
     await app.command('envelope.approve',{id:envelope,eligible:true});assert.ok(app.mail(email,'Please sign:'))
     const record=(await app.call('/api/inkwell/envelopes/'+envelope,{cookie:app.owner})).value.envelope
     assert.ok(record.events.findLast(e=>e.action==='envelope.approved').detail.sendPolicy.policies.some(p=>p.scopeId===scope.id&&p.version===2))
