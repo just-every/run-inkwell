@@ -93,6 +93,7 @@ export const envelopeSource = (envelope: Envelope): SendSource => envelope.sendO
 /** A credential's current custody and authority are checked without caches and fenced in the invitation batch. */
 async function sendCredential(env: Env, envelope: Envelope, principal: string) {
  const origin=envelope.sendOrigin
+ if(!origin&&envelope.microsoftSource)return {record:null,active:Boolean(env.MICROSOFT_GRAPH_ACCESS_TOKEN),guard:{sql:env.MICROSOFT_GRAPH_ACCESS_TOKEN?'1=1':'0=1',values:[]} as Guard}
  if(!origin)return {record:null,active:true,guard:{sql:'1=1',values:[]} as Guard}
  if(origin.credential.kind==='web_form'){const {formCredential}=await import('./web-forms');return formCredential(env,origin.credential.id,principal)}
  const row=await env.DB.prepare('SELECT id,version,member_version FROM iw_api_keys WHERE id=?').bind(origin.credential.id).first<{id:string;version:number;member_version:number}>()
