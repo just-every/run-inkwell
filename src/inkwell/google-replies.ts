@@ -53,7 +53,7 @@ async function fetchedReply(env:Env,messageId:string,eventId:string) {
    if(part.filename){
     insist(attachments.length<100&&Number.isSafeInteger(part.body?.size)&&part.body.size<=40*1024*1024,'Google attachment exceeds custody limits.',413)
     let data=part.body.data
-    if(part.body.attachmentId){insist(/^[A-Za-z0-9_-]{1,200}$/.test(part.body.attachmentId),'Invalid Google attachment identifier.',502);data=(await googleJson(env,`/messages/${messageId}/attachments/${part.body.attachmentId}`,56*1024*1024)).data}
+    if(part.body.attachmentId){insist(/^[A-Za-z0-9_-]{1,2048}$/.test(part.body.attachmentId),'Invalid Google attachment identifier.',502);data=(await googleJson(env,`/messages/${messageId}/attachments/${part.body.attachmentId}`,56*1024*1024)).data}
     insist(typeof data==='string','Google attachment is incomplete.',502)
     const content=decode(data);total+=content.byteLength;insist(content.byteLength===part.body.size&&total<=40*1024*1024,'Google attachment exceeds custody limits.',413)
     attachments.push({filename:part.filename,contentType:part.mimeType??'application/octet-stream',content})
