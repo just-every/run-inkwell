@@ -95,7 +95,14 @@ try{
   await expect(job.getByRole('button',{name:'Approve mapping repair and replay',exact:true})).toBeVisible()
 
   const repair=job.getByRole('button',{name:'Approve mapping repair and replay',exact:true})
+  edge.failNext('file','after')
   await tabTo(page,repair);await page.keyboard.press('Enter')
+  await expect(job).toContainText('Unconfirmed file result.')
+  const moved=edge.files().find(file=>file.name.startsWith(id+'-'));moved.path='/reviewed/'+moved.name
+  await job.getByRole('button',{name:'Reconcile completion',exact:true}).click()
+  const movedApproval=job.getByRole('button',{name:'Approve moved PDF and reconcile',exact:true})
+  await expect(movedApproval).toBeVisible();await capture('moved-pdf-repair',job)
+  await tabTo(page,movedApproval);await page.keyboard.press('Enter')
   await expect(job).toContainText('Timeline note attached');await expect(job).toContainText('completed')
   await capture('writeback-completed',job)
   await app.call(signer.path+'/sign',{cookie:signer.cookie,body:signed})

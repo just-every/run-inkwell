@@ -3,12 +3,12 @@ import { atomic, commandWrite, getEnvelope, previousCommand, roleGuard, type Gua
 import { readBlob } from './blobs'
 import { assertHubspotCredential, hubspotCredential, hubspotCredentialGuard, type HubspotCredential } from './hubspot-provider'
 import { hubspotNativeAdministrator } from './hubspot-envelope-authority'
-import { inspectCompletionMapping, createNote, reconcileFile, reconcileNote, reconcileProperties, uploadFile, writeProperties } from './hubspot-writeback-provider'
+import { inspectCompletionMapping, findMovedFile, createNote, reconcileFile, reconcileNote, reconcileProperties, uploadFile, writeProperties } from './hubspot-writeback-provider'
 import type { CommandContext } from './envelopes'
 
-type Link={envelope_id:string;account_id:string;record_type:string;record_id:string;credential_version:number;principal:string;member_version:number;status:string;properties_done:number;file_id:string|null;note_id:string|null;uncertain:string|null;lease:string|null;lease_at:number|null;attempts:number;error:string|null;completed_at:string|null;mapping_json:string;repair_json:string|null}
+type Link={envelope_id:string;account_id:string;record_type:string;record_id:string;credential_version:number;principal:string;member_version:number;status:string;properties_done:number;file_id:string|null;note_id:string|null;uncertain:string|null;lease:string|null;lease_at:number|null;attempts:number;error:string|null;completed_at:string|null;mapping_json:string;repair_json:string|null;file_repair_json:string|null}
 const linkOf=(env:Env,id:string)=>env.DB.prepare('SELECT * FROM iw_hubspot_envelopes WHERE envelope_id=?').bind(id).first<Link>()
-const visible=(row:Link)=>({id:row.envelope_id,recordType:row.record_type,recordId:row.record_id,status:row.status,propertiesUpdated:Boolean(row.properties_done),fileId:row.file_id,noteId:row.note_id,uncertain:row.uncertain,attempts:row.attempts,error:row.error,completedAt:row.completed_at,repair:row.repair_json?JSON.parse(row.repair_json):null})
+const visible=(row:Link)=>({id:row.envelope_id,recordType:row.record_type,recordId:row.record_id,status:row.status,propertiesUpdated:Boolean(row.properties_done),fileId:row.file_id,noteId:row.note_id,uncertain:row.uncertain,attempts:row.attempts,error:row.error,completedAt:row.completed_at,repair:row.repair_json?JSON.parse(row.repair_json):null,fileRepair:row.file_repair_json?JSON.parse(row.file_repair_json):null})
 export async function getHubspotWriteback(env:Env,actor:Actor,envelopeId:string) {
   hubspotNativeAdministrator(actor)
   const row=await linkOf(env,envelopeId);insist(row,'This envelope has no active HubSpot write-back authorization.',404)
@@ -49,6 +49,13 @@ async function deliver(env:Env,row:Link,e:Envelope) {
     if(!row.file_id){
       let file=await reconcileFile(env,credential,e)
       if(!file){
+        if(row.uncertain==='file'){
+          const moved=await findMovedFile(env,credential,e)
+          if(moved){
+            await save(env,row,credential,{file_repair_json:canonical(moved)},row.file_repair_json===canonical(moved)?[]:[env.DB.prepare('INSERT INTO iw_account_audit(id,at,actor_id,action,target,before_json,after_json) VALUES(?,?,?,?,?,NULL,?)').bind(id().replaceAll('-',''),now(),row.principal,'hubspot.file_repair.proposed',row.envelope_id,canonical(moved))])
+            insist(false,'The executed PDF moved. Owner approval is required before attaching it.',409)
+          }
+        }
         insist(row.uncertain!=='file','The executed file result is uncertain. Reconcile again after HubSpot makes it visible; no second upload was attempted.',409)
         const bytes=await readBlob(env.DB,e.id,'signed',e.signedSha256!)
         await save(env,row,credential,{uncertain:'file'});await current(env,row,credential)
@@ -96,6 +103,18 @@ export async function retryHubspotWriteback(env:Env,context:CommandContext,input
     await atomic(env.DB,[roleGuard(context.actor,['owner']),hubspotCredentialGuard(credential),{sql:"EXISTS(SELECT 1 FROM iw_hubspot_envelopes WHERE envelope_id=? AND credential_version=? AND member_version=? AND status='held' AND lease IS NULL)",values:[initial.envelope_id,initial.credential_version,initial.member_version]}],[
       env.DB.prepare('UPDATE iw_hubspot_envelopes SET credential_version=?,principal=?,member_version=? WHERE envelope_id=?').bind(credential.version,context.actor.id,context.actor.version,initial.envelope_id),
       env.DB.prepare('INSERT INTO iw_account_audit(id,at,actor_id,action,target,before_json,after_json) VALUES(?,?,?,?,?,?,?)').bind(id().replaceAll('-',''),at,context.actor.id,'hubspot.completion.reauthorized',initial.envelope_id,canonical({credentialVersion:initial.credential_version,principal:initial.principal}),canonical({credentialVersion:credential.version,principal:context.actor.id,accountId:initial.account_id,recordType:initial.record_type,recordId:initial.record_id,consent:'Renew completion transfer to this same HubSpot record; preserve uncertain effects.'}))
+    ])
+  }
+  if(input.approveFileRepair===true){
+    insist(context.actor.role==='owner','Only the owner may approve a moved executed PDF.',403)
+    insist(initial.status==='held'&&!initial.lease&&initial.uncertain==='file'&&!initial.file_id&&initial.file_repair_json,'There is no held moved-file repair to approve.',409)
+    insist(canonical(input.fileProposal)===initial.file_repair_json,'The moved-file proposal changed. Review it again.',409)
+    const credential=await hubspotCredential(env);await current(env,initial,credential)
+    const moved=await findMovedFile(env,credential,e)
+    insist(moved&&canonical(moved)===initial.file_repair_json,'The moved file changed. Reconcile and review again.',409)
+    await atomic(env.DB,[roleGuard(context.actor,['owner']),authority(initial,credential),hubspotCredentialGuard(credential),{sql:"EXISTS(SELECT 1 FROM iw_hubspot_envelopes WHERE envelope_id=? AND file_repair_json=? AND status='held' AND uncertain='file' AND file_id IS NULL AND lease IS NULL)",values:[initial.envelope_id,initial.file_repair_json]}],[
+      env.DB.prepare('UPDATE iw_hubspot_envelopes SET file_id=?,file_repair_json=NULL,uncertain=NULL WHERE envelope_id=?').bind(moved.id,initial.envelope_id),
+      env.DB.prepare('INSERT INTO iw_account_audit(id,at,actor_id,action,target,before_json,after_json) VALUES(?,?,?,?,?,NULL,?)').bind(id().replaceAll('-',''),now(),context.actor.id,'hubspot.file_repair.approved',initial.envelope_id,canonical(moved))
     ])
   }
   if(input.approveRepair===true){

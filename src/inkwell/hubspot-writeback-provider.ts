@@ -46,6 +46,17 @@ export async function reconcileFile(env:Env,c:HubspotCredential,e:Envelope):Prom
   await verifyFile(env,c,e,file.id)
   return file.id
 }
+export async function findMovedFile(env:Env,c:HubspotCredential,e:Envelope) {
+  const name=completedFilename(e),result=await hubspotRequest(env,c,`/files/v3/files/search?name=${encodeURIComponent(name)}&limit=2`)
+  insist(Array.isArray(result.results)&&!result.paging,'HubSpot moved-file reconciliation is incomplete.',502)
+  const matches=result.results.map(object).filter(file=>file.name===name&&file.path!==`/inkwell/${name}`)
+  insist(matches.length<=1,'More than one moved executed PDF matches. Resolve the provider conflict first.',409)
+  if(!matches.length)return undefined
+  const file=matches[0]
+  insist(typeof file.id==='string'&&file.access==='PRIVATE'&&typeof file.path==='string'&&file.path.startsWith('/')&&!/[\\\x00-\x1f\x7f]/.test(file.path),'HubSpot did not identify one private moved PDF.',502)
+  await verifyFile(env,c,e,file.id)
+  return {id:file.id,path:file.path,sha256:e.signedSha256!}
+}
 async function verifyFile(env:Env,c:HubspotCredential,e:Envelope,fileId:string) {
   const signed=await hubspotRequest(env,c,`/files/v3/files/${encodeURIComponent(fileId)}/signed-url`)
   insist(typeof signed.url==='string','HubSpot did not return a private file download.',502)
