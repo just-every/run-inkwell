@@ -9,14 +9,18 @@ const base64=(bytes:Uint8Array)=>{let result='';for(let at=0;at<bytes.length;at+
 const email=(value:unknown)=>typeof value==='string'?value.trim().toLowerCase():''
 const instant=(value:unknown)=>typeof value==='number'&&value>0?new Date(value*1000).toISOString():typeof value==='string'&&Number.isFinite(Date.parse(value))?new Date(value).toISOString():undefined
 /** Only fixed provider hosts are reachable; credentials and raw errors never enter a receipt. */
-export async function readRemoteBatch(input:Record<string,unknown>) {
+export interface RemoteReadControl { account?:string; before?:()=>Promise<void>; response?:(response:Response)=>Promise<void> }
+export async function readRemoteBatch(input:Record<string,unknown>,control:RemoteReadControl={}) {
  const provider=input.provider as Provider;insist(['acrobat','dropbox'].includes(provider),'Choose an import provider.')
  const credential=text(input.credential,'the provider credential',4096);insist(!/[\r\n]/.test(credential),'Invalid credential.')
  const region=input.region??'na1';insist(['na1','na2','na3','na4','eu1','eu2','au1','jp1','in1','sg1'].includes(String(region)),'Choose an Acrobat region.')
  const origin=provider==='acrobat'?`https://api.${region}.adobesign.com/api/rest/v6`:'https://api.hellosign.com/v3'
  const headers={authorization:provider==='acrobat'?`Bearer ${credential}`:`Basic ${btoa(credential+':')}`}
  async function get(path:string,pdf=false) {
+  await control.before?.()
   const response=await fetch(origin+path,{headers,redirect:'manual',signal:AbortSignal.timeout(20000)})
+  await control.response?.(response)
+  insist(![401,403].includes(response.status),'The provider grant expired or was refused. Replace it to continue the saved page.',409)
   if(response.status===429){const header=response.headers.get('retry-after'),seconds=Number(header);throw new ApiRateLimit(header&&Number.isFinite(seconds)&&seconds>0?Math.ceil(seconds):3600)}
   insist(response.ok,'The provider refused this batch. Check the grant and retry; no success was recorded.',502)
   const bytes=await readBytes(new Request('https://import.invalid',{method:'POST',body:response.body,duplex:'half'} as RequestInit),pdf?2*1024*1024:1024*1024)
@@ -27,6 +31,7 @@ export async function readRemoteBatch(input:Record<string,unknown>) {
  const page=Number(input.page??1);insist(Number.isSafeInteger(page)&&page>=1&&page<=100000,'Choose a valid source page.')
  if(provider==='acrobat') {
   const identity=await get('/users/me') as any,account=text(identity.accountId??identity.userId,'the source account ID')
+  insist(!control.account||control.account===account,'The replacement grant belongs to another source account.',409)
   const cursor=input.cursor===undefined||input.cursor===null?'':text(input.cursor,'the source cursor',1000)
   const list=input.continuation&&input.cursor===null?{userAgreementList:[],page:{}}:await get('/agreements?pageSize=20'+(cursor?'&cursor='+encode(cursor):'')) as any
   const templates=input.continuation&&input.templateCursor===null?{libraryDocumentList:[],page:{}}:await get('/libraryDocuments?pageSize=20'+(input.templateCursor?'&cursor='+encode(text(input.templateCursor,'a template cursor',1000)):'')) as any
@@ -56,6 +61,7 @@ export async function readRemoteBatch(input:Record<string,unknown>) {
   return {provider,account,items,unmapped,next:{cursor:list.page?.nextCursor??null,templateCursor:templates.page?.nextCursor??null}}
  }
  const identity=await get('/account') as any,account=text(identity.account?.account_id,'the source account ID')
+ insist(!control.account||control.account===account,'The replacement grant belongs to another source account.',409)
  const list=await get(`/signature_request/list?page=${page}&page_size=20`) as any,templates=await get(`/template/list?page=${page}&page_size=20`) as any
  insist(Array.isArray(list.signature_requests)&&list.signature_requests.length<=20&&Array.isArray(templates.templates)&&templates.templates.length<=20,'Invalid provider batch.',502)
  for(const entry of list.signature_requests) {

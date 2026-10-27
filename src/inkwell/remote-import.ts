@@ -3,7 +3,7 @@ import { atomic, roleGuard, type Guard } from './storage'
 import { blobWrites, fromBase64 } from './blobs'
 import { parsePdf, validateFields } from './pdf'
 import { importedTemplateDefinition, type Template } from './templates'
-import { readRemoteBatch } from './remote-import-provider'
+import { readRemoteBatch, type RemoteReadControl } from './remote-import-provider'
 
 interface Planned { id:string;kind:'envelope'|'template';owner:Actor;envelope?:Envelope;template?:Template;pdf:string;audit:string }
 /** Match source email exactly; the owner explicitly chooses the fallback admin required by MOVE-002. */
@@ -15,9 +15,9 @@ async function mappedOwner(env:Env,email:string,fallback:string) {
  return {owner:admin,unmapped:true}
 }
 const ownerGuard=(owner:Actor):Guard=>({sql:"EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND version=? AND status='active')",values:[owner.id,owner.version]})
-export async function previewRemoteImport(env:Env,actor:Actor,input:Record<string,unknown>) {
+export async function previewRemoteImport(env:Env,actor:Actor,input:Record<string,unknown>,control:RemoteReadControl&{guard?:Guard}={}) {
  const fallback=text(input.fallbackAdmin,'the fallback admin email',254).toLowerCase()
- const batch=await readRemoteBatch(input),planned:Planned[]=[],unmapped=[...batch.unmapped],at=now()
+ const batch=await readRemoteBatch(input,control),planned:Planned[]=[],unmapped=[...batch.unmapped],at=now()
  for(const item of batch.items) {
   const target='remote-'+await sha256(canonical([batch.provider,batch.account,item.kind,item.sourceId]))
   const seen=await env.DB.prepare('SELECT id FROM iw_remote_imports WHERE id=?').bind(target).first()
@@ -41,17 +41,19 @@ export async function previewRemoteImport(env:Env,actor:Actor,input:Record<strin
    planned.push({id:target,kind:item.kind,owner,template,pdf:item.pdf,audit:''})
   }
  }
- const summary={provider:batch.provider,counts:{agreements:planned.filter(p=>p.kind==='envelope').length,templates:planned.filter(p=>p.kind==='template').length},items:planned.map(p=>({id:p.id,title:p.envelope?.title??p.template!.title,kind:p.kind,owner:p.owner.email})),unmapped,next:batch.next}
+ const summary={provider:batch.provider,account:batch.account,counts:{agreements:planned.filter(p=>p.kind==='envelope').length,templates:planned.filter(p=>p.kind==='template').length},items:planned.map(p=>({id:p.id,title:p.envelope?.title??p.template!.title,kind:p.kind,owner:p.owner.email})),unmapped,next:batch.next}
  const fingerprint=await sha256(canonical({planned,summary})),previewId=id()
- await atomic(env.DB,[roleGuard(actor,['owner'])],[env.DB.prepare('DELETE FROM iw_remote_previews WHERE expires_at<=?').bind(Date.now()),env.DB.prepare('INSERT INTO iw_remote_previews VALUES(?,?,?,?,?)').bind(previewId,actor.id,fingerprint,JSON.stringify({summary}),Date.now()+30*60_000),...previewParts(env,previewId,JSON.stringify(planned))])
+ await atomic(env.DB,[roleGuard(actor,['owner']),...(control.guard?[control.guard]:[])],[env.DB.prepare('INSERT INTO iw_remote_previews VALUES(?,?,?,?,?)').bind(previewId,actor.id,fingerprint,JSON.stringify({summary}),Date.now()+30*60_000),...previewParts(env,previewId,JSON.stringify(planned))])
  return {...summary,previewId,fingerprint}
 }
 /** Each native record and its opaque checkpoint commit together; a lost response is safe to resume. */
-export async function applyRemoteImport(env:Env,actor:Actor,input:Record<string,unknown>) {
+export async function applyRemoteImport(env:Env,actor:Actor,input:Record<string,unknown>,guards:Guard[]=[]) {
  const previewId=text(input.previewId,'the preview ID'),fingerprint=text(input.fingerprint,'the approved fingerprint')
  const row=await env.DB.prepare('SELECT data,fingerprint,expires_at FROM iw_remote_previews WHERE id=? AND owner_id=?').bind(previewId,actor.id).first<{data:string;fingerprint:string;expires_at:number}>()
- insist(row&&row.expires_at>Date.now(),'Preview expired. Review a fresh provider batch.',409)
+ insist(row&&(row.expires_at>Date.now()||await env.DB.prepare('SELECT job_id FROM iw_remote_job_pages WHERE preview_id=?').bind(previewId).first()),'Preview expired. Review a fresh provider batch.',409)
  insist(row.fingerprint===fingerprint,'The reviewed fingerprint changed.',409)
+ const job=await env.DB.prepare('SELECT job_id FROM iw_remote_job_pages WHERE preview_id=?').bind(previewId).first()
+ insist(!job||guards.length,'Account pages require approved job authority.',409)
  const {summary,complete}=JSON.parse(row.data) as {summary:unknown;complete?:boolean}
  const parts=(await env.DB.prepare('SELECT part,data FROM iw_remote_preview_parts WHERE preview_id=? ORDER BY part').bind(previewId).all<{part:number;data:string}>()).results
  insist(parts.every((p,i)=>p.part===i),'The reviewed batch is incomplete.',409)
@@ -71,10 +73,10 @@ export async function applyRemoteImport(env:Env,actor:Actor,input:Record<string,
    writes.push(env.DB.prepare('INSERT INTO iw_templates(id,created_by,created_at,data,folder_id) VALUES(?,?,?,?,NULL)').bind(t.id,t.createdBy,t.createdAt,JSON.stringify(t)))
    for(let offset=0,part=0;offset<bytes.length;offset+=65536,part++)writes.push(env.DB.prepare('INSERT INTO iw_template_blobs VALUES(?,?,?)').bind(t.id,part,bytes.slice(offset,offset+65536).buffer))
   }
-  await atomic(env.DB,[roleGuard(actor,['owner']),ownerGuard(p.owner),{sql:'EXISTS(SELECT 1 FROM iw_remote_previews WHERE id=? AND fingerprint=? AND expires_at>?)',values:[previewId,fingerprint,Date.now()]}],writes)
+  await atomic(env.DB,[roleGuard(actor,['owner']),ownerGuard(p.owner),...guards,{sql:'EXISTS(SELECT 1 FROM iw_remote_previews WHERE id=? AND fingerprint=? AND (expires_at>? OR EXISTS(SELECT 1 FROM iw_remote_job_pages WHERE preview_id=?)))',values:[previewId,fingerprint,Date.now(),previewId]}],writes)
  }
  // Drop staged private bytes after successful materialization. A repeat of the approved batch remains idempotent.
- await atomic(env.DB,[roleGuard(actor,['owner'])],[env.DB.prepare('DELETE FROM iw_remote_preview_parts WHERE preview_id=?').bind(previewId),env.DB.prepare('UPDATE iw_remote_previews SET data=? WHERE id=?').bind(JSON.stringify({summary,complete:true}),previewId)])
+ await atomic(env.DB,[roleGuard(actor,['owner']),...guards],[env.DB.prepare('DELETE FROM iw_remote_preview_parts WHERE preview_id=?').bind(previewId),env.DB.prepare('UPDATE iw_remote_previews SET data=? WHERE id=?').bind(JSON.stringify({summary,complete:true}),previewId)])
  return {ok:true,summary}
 }
 
@@ -84,4 +86,4 @@ function previewParts(env:Env,previewId:string,data:string) {
  for(let offset=0,part=0;offset<data.length;offset+=50000,part++)parts.push(env.DB.prepare('INSERT INTO iw_remote_preview_parts VALUES(?,?,?)').bind(previewId,part,data.slice(offset,offset+50000)))
  return parts
 }
-export async function cleanupRemotePreviews(env:Env,at=Date.now()) {await env.DB.prepare('DELETE FROM iw_remote_previews WHERE expires_at<=?').bind(at).run()}
+export async function cleanupRemotePreviews(env:Env,at=Date.now()) {await env.DB.prepare('DELETE FROM iw_remote_previews WHERE expires_at<=? AND NOT EXISTS(SELECT 1 FROM iw_remote_job_pages WHERE preview_id=iw_remote_previews.id)').bind(at).run()}
