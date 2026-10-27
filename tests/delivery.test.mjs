@@ -1013,3 +1013,87 @@ test('Automatic filing requires administrative consent, stays within its templat
   assert.equal(history.length,2);assert.ok(history[0].consent&&history[0].actor&&history[0].at)
  }finally{await h.close()}
 })
+
+test('HubSpot native records merge locked fields, sync contacts and suggest an eligible owner without granting follow-up or sending',async()=>{
+ const requests=[],token='synthetic-inkwell-1'
+ const h=await harness({bindings:{HUBSPOT_ACCESS_TOKEN:token,HUBSPOT_ACCOUNT_ID:'7249'},networkEdge:async request=>{
+  const url=new URL(request.url);if(url.hostname!=='api.hubapi.com')return
+  assert.equal(request.headers.get('authorization'),'Bearer '+token);assert.equal(request.method,'GET');requests.push(url.pathname)
+  if(url.pathname==='/crm/v3/owners/7')return Response.json({id:'7',email:'admin@harbour.example',archived:false})
+  if(url.pathname==='/crm/v3/objects/contacts')return Response.json({results:[{id:'42',archived:false,properties:{firstname:'Mara',lastname:'Quinn',email:'mara@crm.example',phone:'+1 617 555 1234',company:'Harbour CRM'}}]})
+  return Response.json({id:'91',archived:false,properties:{company:'Harbour CRM',address:'42 Dock Street',amount:'750.00',hubspot_owner_id:'7'}})
+ }})
+ try {
+  await h.invite('admin@harbour.example','admin')
+  const fields=[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.6,width:.4,height:.07},...['company','address','amount'].map((id,i)=>({id,label:id,type:id==='amount'?'number':'text',signer:0,page:0,x:.1,y:.1+i*.1,width:.4,height:.05}))]
+  const templateId=(await h.command('template.save',{title:'CRM agreement',filename:'crm.pdf',pdfBase64:await pdf(),roles:[{role:'Client',order:1}],fields,customFields:[{name:'Cost center',required:true,value:'CRM-42'}]})).result.id
+  const body={commandId:crypto.randomUUID(),consent:true,recordType:'deals',recordId:'91',templateId,recipients:[{name:'Mara Quinn',email:'mara@crm.example'}],mappings:[{field:'company',object:'deals',property:'company',readOnly:false},{field:'address',object:'deals',property:'address',readOnly:false},{field:'amount',object:'deals',property:'amount',readOnly:true}]}
+  const before=h.sent(),prepared=(await h.post('/api/inkwell/hubspot/prepare',body)).value,id=prepared.id
+  assert.equal(h.sent(),before,'CRM preparation sends no invitation')
+  assert.equal((await h.post('/api/inkwell/hubspot/prepare',body)).value.id,id,'replay returns the one draft')
+  assert.deepEqual(requests,['/crm/v3/objects/deals/91','/crm/v3/owners/7'],'replay makes no provider request')
+  const detail=(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
+  assert.equal(detail.status,'prepared')
+  assert.deepEqual(detail.fields.filter(f=>f.id!=='signature').map(f=>[f.id,f.prefill.value,f.prefill.source,Boolean(f.readOnly)]),[['company','Harbour CRM','HubSpot 7249 deals 91.company',false],['address','42 Dock Street','HubSpot 7249 deals 91.address',false],['amount','750.00','HubSpot 7249 deals 91.amount',true]])
+  assert.deepEqual(detail.customFields,[{name:'Cost center',required:true,value:'CRM-42'}])
+  const admin=(await h.send('/api/inkwell',undefined,h.owner)).value.people.find(p=>p.email==='admin@harbour.example')
+  assert.equal(detail.events.find(e=>e.action==='hubspot.record_prepared').detail.escalationOwner,admin.id)
+  assert.equal((await h.send(`/api/inkwell/envelopes/${id}/followup`,undefined,h.owner)).value.defaultEscalationOwner,admin.id)
+  assert.equal((await h.send(`/api/inkwell/envelopes/${id}/followup`,undefined,h.owner)).value.grant,null)
+  await h.command('envelope.approve',{id,eligible:true})
+  const message=await h.mail('mara@crm.example','Please sign:'),path='/api/sign/'+new URL(message.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname.split('/').at(-1)
+  await h.post(path+'/code',{},'')
+  const cookie=(await h.post(path+'/verify',{code:(await h.mail('mara@crm.example','verification code')).text.match(/\b\d{6}\b/)[0]},'')).cookie
+  await h.agree(path,cookie)
+  assert.equal((await h.send(path+'/progress',{values:{amount:'1.00'}},cookie)).status,400)
+  assert.equal((await h.send(path+'/sign',{commandId:crypto.randomUUID(),consent:true,values:{signature:'Mara Quinn',amount:'1.00'}},cookie)).status,400)
+  await h.command('envelope.followup',{id,enabled:true})
+  assert.equal((await h.send(`/api/inkwell/envelopes/${id}/followup`,undefined,h.owner)).value.grant.escalationOwner,admin.id)
+  await h.post(path+'/sign',{commandId:crypto.randomUUID(),consent:true,values:{signature:'Mara Quinn'}},cookie)
+  assert.equal((await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope.status,'completed')
+  const sync={operation:'authorize',consent:true,definition:{accountId:'7249',scope:{kind:'all'},properties:['firstname','lastname','email','phone','company'],mappings:{name:'full_name',email:'email',phone:'phone',company:'company'},destination:'shared_contacts',updateBehavior:'preserve_local_edits',cadence:'once'}}
+  const authorization=(await h.post('/api/inkwell/hubspot/sync',sync)).value
+  const start={operation:'start',authorizationId:authorization.id,requestId:crypto.randomUUID()}
+  assert.equal((await h.post('/api/inkwell/hubspot/sync',start)).value.applied,1)
+  await h.post('/api/inkwell/hubspot/sync',start)
+  const book=(await h.send('/api/inkwell/contacts?q=Harbour%20CRM',undefined,h.owner)).value
+  assert.deepEqual(book.contacts,[{name:'Mara Quinn',email:'mara@crm.example',phone:'+1 617 555 1234',company:'Harbour CRM'}])
+  assert.equal(requests.filter(p=>p==='/crm/v3/objects/contacts').length,1)
+  const audit=(await h.send('/api/inkwell/audit?action=hubspot.authorized',undefined,h.owner)).value
+  assert.ok(JSON.stringify(audit).includes('hubspot.authorized'))
+  assert.ok(!JSON.stringify(audit).includes('42 Dock Street'))
+  const contactDraft=(await h.post('/api/inkwell/hubspot/prepare',{...body,commandId:crypto.randomUUID(),recordType:'contacts',mappings:body.mappings.map(m=>({...m,object:'contacts'}))})).value.id
+  assert.notEqual(contactDraft,id)
+  assert.equal((await h.send('/api/inkwell/envelopes/'+contactDraft,undefined,h.owner)).value.envelope.fields.find(f=>f.id==='amount').prefill.source,'HubSpot 7249 contacts 91.amount')
+
+  const archive=JSON.stringify((await h.send('/api/inkwell/archive',undefined,h.owner)).value)
+  assert.ok(!archive.includes(token));assert.ok(!JSON.parse((await h.send('/api/inkwell/archive',undefined,h.owner)).value.ndjson.split('\n')[0]).tables.some(t=>t.name.startsWith('iw_hubspot_')));assert.ok(!JSON.stringify(h.logs()).includes('42 Dock Street'))
+ }finally{await h.close()}
+})
+
+test('HubSpot refuses unauthorized, unconsented, cross-origin and malformed imports without partial contact writes',async()=>{
+ let calls=0,invalid=false
+ const h=await harness({bindings:{HUBSPOT_ACCESS_TOKEN:'synthetic-inkwell-2',HUBSPOT_ACCOUNT_ID:'7249'},networkEdge:async request=>{
+  if(new URL(request.url).hostname!=='api.hubapi.com')return
+  calls++
+  return invalid?Response.json({results:[{id:'1',archived:false,properties:{firstname:'Good',lastname:'Person',email:'good@crm.example'}},{id:'2',archived:false,properties:{firstname:'Invalid',email:'bad'}}]}):new Response('private-provider-response',{status:503})
+ }})
+ try {
+  const viewer=await h.invite('viewer@harbour.example','member'),agent=(await h.command('agent.issue')).result.token
+  const sync={operation:'authorize',consent:true,definition:{accountId:'7249',scope:{kind:'all'},properties:['firstname','lastname','email','phone','company'],mappings:{name:'full_name',email:'email',phone:'phone',company:'company'},destination:'shared_contacts',updateBehavior:'preserve_local_edits',cadence:'once'}}
+  assert.equal((await h.send('/api/inkwell/hubspot/sync',sync)).status,401)
+  assert.equal((await h.send('/api/inkwell/hubspot/sync',sync,viewer)).status,403)
+  assert.equal((await h.send('/api/inkwell/hubspot/sync',sync,h.owner,{authorization:'Bearer '+agent})).status,403)
+  assert.equal((await h.send('/api/inkwell/hubspot/sync',sync,h.owner,{origin:'https://other.example'})).status,403)
+  assert.equal((await h.send('/api/inkwell/hubspot/sync',{...sync,consent:false},h.owner)).status,400)
+  assert.equal((await h.send('/api/inkwell/hubspot/sync',{...sync,definition:{...sync.definition,scope:{kind:'selected',recordIds:['https://other.example']}}},h.owner)).status,400)
+  assert.equal(calls,0)
+  const auth=(await h.post('/api/inkwell/hubspot/sync',sync)).value
+  const run={operation:'start',authorizationId:auth.id,requestId:crypto.randomUUID()}
+  const failed=await h.send('/api/inkwell/hubspot/sync',run,h.owner);assert.equal(failed.status,502);assert.ok(!JSON.stringify(failed.value).includes('private-provider-response'))
+  invalid=true
+  const progress=(await h.send('/api/inkwell/hubspot/progress',undefined,h.owner)).value
+  assert.equal((await h.send('/api/inkwell/hubspot/sync',{operation:'continue',runId:progress.runs[0].id},h.owner)).status,502)
+  assert.deepEqual((await h.send('/api/inkwell/contacts?q=Good',undefined,h.owner)).value.contacts,[])
+ }finally{await h.close()}
+})
