@@ -167,7 +167,7 @@ test('INTEG-001 MANAGE-002: completion properties, custom metadata, one timeline
   await finish(h,drift.id)
   let held=(await h.send(path,undefined,h.owner)).value
   assert.equal(held.status,'held');assert.equal(held.propertiesUpdated,false)
-  assert.deepEqual(held.repair.changes,[{from:'inkwell_status',to:'inkwell_agreement_status',label:'Inkwell status'}])
+  assert.deepEqual(held.repair?.changes,[{from:'inkwell_status',to:'inkwell_agreement_status',label:'Inkwell status'}])
   assert.equal(edge.patches().length,3,'detecting drift performs no write')
   assert.equal((await writeback(h,drift.id)).status,'held','retry without approval does not apply a proposed mapping')
   const admin=await h.invite('synthetic-inkwell-40@example.test','admin'),proposal=held.repair
@@ -181,7 +181,7 @@ test('INTEG-001 MANAGE-002: completion properties, custom metadata, one timeline
   edge.renameProperty('inkwell_agreement_status','inkwell_final_status')
   await h.post(path,approve,h.owner,409)
   held=await writeback(h,drift.id)
-  assert.deepEqual(held.repair.changes,[{from:'inkwell_status',to:'inkwell_final_status',label:'Inkwell status'}])
+  assert.deepEqual(held.repair?.changes,[{from:'inkwell_status',to:'inkwell_final_status',label:'Inkwell status'}])
   // A lost upload receipt survives the mapping approval and cannot trigger a second upload.
   edge.failNext('file','after')
   const approved={commandId:crypto.randomUUID(),approveRepair:true,proposal:held.repair}
@@ -205,6 +205,7 @@ test('INTEG-001 MANAGE-002: completion properties, custom metadata, one timeline
   const calls=edge.calls().length;await writeback(h,drift.id);assert.equal(edge.calls().length,calls)
   const audit=(await h.send('/api/inkwell/audit',undefined,h.owner)).value.entries.filter(entry=>entry.target===drift.id)
   assert.equal(audit.filter(entry=>entry.action==='hubspot.mapping.approved').length,1)
+  assert.equal(audit.filter(entry=>entry.action==='hubspot.writeback.completed').length,1,'completed replay does not duplicate its audit receipt')
   assert.ok(audit.some(entry=>entry.action==='hubspot.mapping.proposed'))
   assert.equal(audit.find(entry=>entry.action==='hubspot.mapping.approved').after.inkwell_status,'inkwell_final_status')
   assert.ok(!JSON.stringify(audit).includes('48600.00'))
@@ -224,6 +225,24 @@ test('INTEG-001 MANAGE-002: completion properties, custom metadata, one timeline
   edge.intercept(undefined)
   await h.post(`/api/inkwell/hubspot/envelopes/${ambiguous.id}/writeback`,{commandId:crypto.randomUUID(),approveRepair:true,proposal:pending.repair},h.owner,403)
   assert.equal(edge.patches().filter(p=>p.properties.inkwell_envelope_id===ambiguous.id).length,0,'retired credential authority cannot replay a repair')
+  const retiredPath=`/api/inkwell/hubspot/envelopes/${ambiguous.id}/writeback`
+  assert.equal((await h.send(retiredPath,undefined,h.owner)).value.authorizationRequired,true)
+  await h.post(retiredPath,{renewAuthorization:true,consent:false},h.owner,403)
+  await h.post(retiredPath,{renewAuthorization:true,consent:true},admin,403)
+  await h.post(retiredPath,{renewAuthorization:true,consent:true},outsider,403)
+  await h.post(retiredPath,{renewAuthorization:true,consent:true},h.owner,403,{authorization:'Bearer '+token})
+  const renewed=(await h.post(retiredPath,{commandId:crypto.randomUUID(),renewAuthorization:true,consent:true})).value
+  assert.equal(renewed.status,'held','credential renewal never implicitly approves a mapping repair')
+  assert.equal((await h.send(retiredPath,undefined,h.owner)).value.authorizationRequired,false)
+  assert.equal(edge.patches().filter(p=>p.properties.inkwell_envelope_id===ambiguous.id).length,0)
+  const final=(await h.post(retiredPath,{commandId:crypto.randomUUID(),approveRepair:true,proposal:renewed.repair})).value
+  assert.equal(final.status,'completed')
+  assert.equal(edge.patches().filter(p=>p.properties.inkwell_envelope_id===ambiguous.id).length,1)
+  assert.equal(edge.files().filter(f=>f.name.startsWith(ambiguous.id+'-')).length,1)
+  assert.equal(edge.notes().filter(n=>n.properties.hs_note_body.includes(ambiguous.id)).length,1)
+  const renewalAudit=(await h.send('/api/inkwell/audit',undefined,h.owner)).value.entries.filter(entry=>entry.target===ambiguous.id&&entry.action==='hubspot.completion.reauthorized')
+  assert.equal(renewalAudit.length,1);assert.equal(renewalAudit[0].after.recordId,'901')
+
 
   assert.ok(!JSON.stringify(h.logs()).includes('synthetic-inkwell-1'),'credentials never enter operational logs')
  }finally{await h.close()}

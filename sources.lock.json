@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "2e34c3e9cbff261e3887b7e3de7bbc92201ae47d70c7c36abed2e1cd88b9145d",
+      "sha256": "94a0758ff03ea2fdca2fc5e2b6069fe7893126d8b452a9eba497fbe0ad9a297e",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "98c6270f7730e8628ef3d1d96f03922d181a8c34ffbdd90988da36cbb7bec67a",
+      "sha256": "f4c04c0c1deccb8fa78f66e6675d48cffaf1e253f004236eb97d372405a7654d",
       "executable": false
     },
     "DEMO.md": {
@@ -1497,7 +1497,7 @@
       "executable": false
     },
     "src/inkwell/hubspot-writeback.ts": {
-      "sha256": "dfcca8336c745ad9895d8284ad937f02465edc076bc27e19ead716a5286dd86b",
+      "sha256": "033016b9c52377cdbf78220a0904eb45cf245a32705ef7f0d306b0f0be21fe3d",
       "executable": false
     },
     "src/inkwell/identity-provider.ts": {
@@ -4041,7 +4041,7 @@
       "executable": false
     },
     "src/ui/hubspot-writebacks.tsx": {
-      "sha256": "51e892a9d36b30618fe121003476c831fd62ff3232ec8c6b8e2d9f3b16487a6d",
+      "sha256": "e5fa2dcba116103bc86cc50b9251faed9c474f50cac44683116ca633dd609e72",
       "executable": false
     },
     "src/ui/icons.tsx": {
@@ -4325,7 +4325,7 @@
       "executable": false
     },
     "tests/hubspot-envelope.test.mjs": {
-      "sha256": "ffeed53bf5934b4f4f16afc869d63b845d535e1f6ebab8991a6bd444dc9a18d2",
+      "sha256": "2d65bb9a2b1be76bbd4e7c18d085f39f7c7491d16f35aaf94ef6138d65ef4a43",
       "executable": false
     },
     "tests/hubspot-sync.test.mjs": {
@@ -4425,7 +4425,7 @@
       "executable": false
     },
     "tests/journeys/hubspot.mjs": {
-      "sha256": "0f3ec27190a391e4ef4355e14cdae14dfc3f2560a2c474f2f4aef9783e3740ef",
+      "sha256": "cd5fa2f7ed0864030f5cb5240e16e1c6aecdb8d37c5447d9adf3f4ddc31fde3f",
       "executable": false
     },
     "tests/journeys/import-retention.mjs": {

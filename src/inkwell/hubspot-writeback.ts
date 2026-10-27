@@ -11,7 +11,10 @@ const linkOf=(env:Env,id:string)=>env.DB.prepare('SELECT * FROM iw_hubspot_envel
 const visible=(row:Link)=>({id:row.envelope_id,recordType:row.record_type,recordId:row.record_id,status:row.status,propertiesUpdated:Boolean(row.properties_done),fileId:row.file_id,noteId:row.note_id,uncertain:row.uncertain,attempts:row.attempts,error:row.error,completedAt:row.completed_at,repair:row.repair_json?JSON.parse(row.repair_json):null})
 export async function getHubspotWriteback(env:Env,actor:Actor,envelopeId:string) {
   hubspotNativeAdministrator(actor)
-  const row=await linkOf(env,envelopeId);insist(row,'This envelope has no active HubSpot write-back authorization.',404);return visible(row)
+  const row=await linkOf(env,envelopeId);insist(row,'This envelope has no active HubSpot write-back authorization.',404)
+  let authorizationRequired=true
+  try{const c=await hubspotCredential(env),guard=authority(row,c);authorizationRequired=!await env.DB.prepare(`SELECT 1 WHERE ${guard.sql}`).bind(...guard.values).first()}catch{/* Configuration remains outside business records. */}
+  return {...visible(row),authorizationRequired}
 }
 const authority=(row:Link,c:HubspotCredential):Guard=>({sql:`EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND version=? AND status='active' AND role IN ('owner','admin')) AND ?=? AND ?=?`,values:[row.principal,row.member_version,c.accountId,row.account_id,c.version,row.credential_version]})
 const leaseGuard=(row:Link):Guard=>({sql:'EXISTS(SELECT 1 FROM iw_hubspot_envelopes WHERE envelope_id=? AND lease=?)',values:[row.envelope_id,row.lease]})
@@ -83,6 +86,18 @@ export async function retryHubspotWriteback(env:Env,context:CommandContext,input
   const e=await getEnvelope(env.DB,input.id);insist(e.status==='completed'&&e.signedSha256,'Complete the envelope before writing back.',409)
   // Check the native caller's live role before claiming; provider authority is independently checked in deliver.
   await atomic(env.DB,[roleGuard(context.actor,['owner','admin'])],[])
+  if(input.renewAuthorization===true){
+    insist(context.actor.role==='owner'&&input.consent===true,'Only the owner may explicitly renew this completion authorization.',403)
+    insist(input.approveRepair!==true,'Review mapping approval separately after renewing authority.',409)
+    insist(initial.status==='held'&&!initial.lease,'Only a held completion can be reauthorized.',409)
+    const credential=await hubspotCredential(env)
+    insist(credential.accountId===initial.account_id,'The configured HubSpot account changed. This completion cannot be transferred.',409)
+    const at=now()
+    await atomic(env.DB,[roleGuard(context.actor,['owner']),hubspotCredentialGuard(credential),{sql:"EXISTS(SELECT 1 FROM iw_hubspot_envelopes WHERE envelope_id=? AND credential_version=? AND member_version=? AND status='held' AND lease IS NULL)",values:[initial.envelope_id,initial.credential_version,initial.member_version]}],[
+      env.DB.prepare('UPDATE iw_hubspot_envelopes SET credential_version=?,principal=?,member_version=? WHERE envelope_id=?').bind(credential.version,context.actor.id,context.actor.version,initial.envelope_id),
+      env.DB.prepare('INSERT INTO iw_account_audit(id,at,actor_id,action,target,before_json,after_json) VALUES(?,?,?,?,?,?,?)').bind(id().replaceAll('-',''),at,context.actor.id,'hubspot.completion.reauthorized',initial.envelope_id,canonical({credentialVersion:initial.credential_version,principal:initial.principal}),canonical({credentialVersion:credential.version,principal:context.actor.id,accountId:initial.account_id,recordType:initial.record_type,recordId:initial.record_id,consent:'Renew completion transfer to this same HubSpot record; preserve uncertain effects.'}))
+    ])
+  }
   if(input.approveRepair===true){
     insist(context.actor.role==='owner','Only the owner may approve a CRM mapping repair.',403)
     insist(initial.status==='held'&&!initial.lease&&initial.repair_json,'There is no held mapping repair to approve.',409)
