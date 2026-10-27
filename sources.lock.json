@@ -4017,7 +4017,7 @@
       "executable": false
     },
     "src/ui/hubspot-sync.tsx": {
-      "sha256": "a6279f0281f2605fe38ff92382fed66afbb8977db0c1ef9a571be46c6d822999",
+      "sha256": "4668bd348bc6f6bba58c65d86007b8daf093d0bc86de8f3f65530cb0da18894b",
       "executable": false
     },
     "src/ui/hubspot-writebacks.tsx": {
@@ -4401,7 +4401,7 @@
       "executable": false
     },
     "tests/journeys/hubspot.mjs": {
-      "sha256": "dd3be6e4272dc6042f5052d0227153a95491580317cca11b42b6f5bbb220a156",
+      "sha256": "e2d496bac2a39b423696e8dc32077e933b801c414b68c5a92125be7396f12171",
       "executable": false
     },
     "tests/journeys/import-retention.mjs": {
