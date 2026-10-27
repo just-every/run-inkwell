@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "cf678bc55dcd7e0578588e9413fa78953e9f72a5c9ddf259a197c5eff9ccef95",
+      "sha256": "601ffebd70b50da36b5b1ca4a16e9c4c4893d22bf28d9d9866796508af3b947c",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "68aeda785421a8768dc16cf96cb59f3b31ca4a0d06df1e36281174fa421b747a",
+      "sha256": "a34a56afffd4b14c0969248988837d299c6b0d62a5084a02c6757f8e42acff3c",
       "executable": false
     },
     "DEMO.md": {
@@ -273,7 +273,7 @@
       "executable": false
     },
     "docs/sdk-test-mode.md": {
-      "sha256": "e7d8dfca46ed0fbaed284ed430158cd70c30d5092b33ececb565809b9f5bf0f3",
+      "sha256": "fd4e7a176572ad8dd8f1b8651561007387399d4467f2e5384c48588faf75d18e",
       "executable": false
     },
     "docs/send-an-agreement.md": {
@@ -301,15 +301,15 @@
       "executable": false
     },
     "examples/test-mode.mjs": {
-      "sha256": "a12aeaaa7134e400d9a7a995c0902b3e9f54ce692eb357dc81bc7d458853aa4a",
+      "sha256": "d6ff8a72e106f6951ed0a326d195a4d473722e45bac7f48dc636715f8ff42284",
       "executable": false
     },
     "examples/test-mode.mts": {
-      "sha256": "562dccbbf39a444e528a68c89d621553a06c477195cc8059ae3db7c490c18685",
+      "sha256": "ff8051edda207c5fcebee44c825ca57db8957a92f02c96dd0c123f6ef327f2f3",
       "executable": false
     },
     "examples/test-mode.py": {
-      "sha256": "305a7a12bdd9c222f226af774c08ecba508ac89144582b9328b9ec211d0cd390",
+      "sha256": "9e0ee3d241e0a5e9282aa8455014e7b1357e774fa1eb543b4aa86cf097a6b5c8",
       "executable": false
     },
     "HOMEPAGE-VARIANTS.md": {
@@ -4577,7 +4577,7 @@
       "executable": false
     },
     "tests/test-mode.test.mjs": {
-      "sha256": "358a6ad5e0b6caa5816a4034a545ac1017b6e3a89095e485b5a18485ea8f34b0",
+      "sha256": "28929fbb333ccb625b86b793ff53feb7443f51a1cc5731169b8bacbee25deae4",
       "executable": false
     },
     "tests/web-forms.test.mjs": {
