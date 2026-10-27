@@ -168,6 +168,71 @@ test('INTEG-001 MANAGE-002: completion properties, custom metadata, one timeline
   const operational = JSON.stringify(h.logs()) + (await h.send('/api/inkwell/audit.csv',undefined,h.owner)).value
   assert.match(JSON.stringify(h.logs()),/inkwell.request/,'completion privacy proof captures operational requests')
   for(const value of ['Bearer synthetic-inkwell-1','48600.00','synthetic-inkwell-23','Client services']) assert.equal(operational.includes(value),false,'completion operational logs and complete audit exclude '+value)
+  // AGENT-006: schema drift is a held completion, never implicit permission to change a destination.
+  edge.renameProperty('inkwell_status','inkwell_agreement_status')
+  const drift=await launch(h,t,{send:true}),path=`/api/inkwell/hubspot/envelopes/${drift.id}/writeback`
+  await finish(h,drift.id)
+  let held=(await h.send(path,undefined,h.owner)).value
+  assert.equal(held.status,'held');assert.equal(held.propertiesUpdated,false)
+  assert.deepEqual(held.repair.changes,[{from:'inkwell_status',to:'inkwell_agreement_status',label:'Inkwell status'}])
+  assert.equal(edge.patches().length,3,'detecting drift performs no write')
+  assert.equal((await writeback(h,drift.id)).status,'held','retry without approval does not apply a proposed mapping')
+  const admin=await h.invite('synthetic-inkwell-40@example.test','admin'),proposal=held.repair
+  const approve={commandId:crypto.randomUUID(),approveRepair:true,proposal}
+  await h.post(path,approve,admin,403)
+  for(const [cookie,status] of [['',401],[outsider,403],[viewer,403]])await h.post(path,approve,cookie,status)
+  const token=(await h.command('agent.issue')).result.token
+  await h.post(path,approve,h.owner,403,{authorization:'Bearer '+token})
+  await h.post(path,approve,h.owner,403,{origin:'https://elsewhere.example'})
+  await h.post(path,{...approve,proposal:{}},h.owner,409)
+  edge.renameProperty('inkwell_agreement_status','inkwell_final_status')
+  await h.post(path,approve,h.owner,409)
+  held=await writeback(h,drift.id)
+  assert.deepEqual(held.repair.changes,[{from:'inkwell_status',to:'inkwell_final_status',label:'Inkwell status'}])
+  // A lost upload receipt survives the mapping approval and cannot trigger a second upload.
+  edge.failNext('file','after')
+  const approved={commandId:crypto.randomUUID(),approveRepair:true,proposal:held.repair}
+  held=(await h.post(path,approved)).value
+  assert.equal(held.status,'held');assert.equal(held.uncertain,'file');assert.equal(held.repair,null)
+  assert.deepEqual((await h.post(path,approved)).value,held,'command replay retains the original result without repeating effects')
+  const fileCount=edge.files().length,uploadCount=edge.calls().filter(call=>call.method==='POST'&&call.path==='/files/v3/files').length
+  edge.intercept(request=>new URL(request.url).pathname==='/files/v3/files/search'?Response.json({results:[]}):undefined)
+  assert.equal((await writeback(h,drift.id)).status,'held','unconfirmed remote effects remain unresolved')
+  assert.equal(edge.files().length,fileCount,'an invisible uncertain file is never uploaded twice')
+  assert.equal(edge.calls().filter(call=>call.method==='POST'&&call.path==='/files/v3/files').length,uploadCount,'uncertainty forbids a second upload attempt')
+  edge.intercept(undefined)
+  const repaired=await Promise.all([writeback(h,drift.id),writeback(h,drift.id)])
+  assert.ok(repaired.some(result=>result.status==='completed'))
+  assert.equal((await h.send(path,undefined,h.owner)).value.status,'completed')
+  const record=edge.deals.get('901')
+  assert.equal(record.inkwell_final_status,'completed');assert.equal(record.inkwell_envelope_id,drift.id)
+  assert.equal(edge.patches().filter(p=>p.properties.inkwell_envelope_id===drift.id).length,1)
+  assert.equal(edge.files().filter(f=>f.name.startsWith(drift.id+'-')).length,1)
+  assert.equal(edge.notes().filter(n=>n.properties.hs_note_body.includes(drift.id)).length,1)
+  const calls=edge.calls().length;await writeback(h,drift.id);assert.equal(edge.calls().length,calls)
+  const audit=(await h.send('/api/inkwell/audit',undefined,h.owner)).value.entries.filter(entry=>entry.target===drift.id)
+  assert.equal(audit.filter(entry=>entry.action==='hubspot.mapping.approved').length,1)
+  assert.ok(audit.some(entry=>entry.action==='hubspot.mapping.proposed'))
+  assert.equal(audit.find(entry=>entry.action==='hubspot.mapping.approved').after.inkwell_status,'inkwell_final_status')
+  assert.ok(!JSON.stringify(audit).includes('48600.00'))
+  const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
+  assert.ok(!JSON.stringify(archive).includes('inkwell_final_status'),'repair authority is installation state')
+  // Ambiguous replacement metadata must hold with no guessed proposal or provider mutation.
+  edge.renameProperty('inkwell_final_status','inkwell_renamed_status')
+  edge.properties.set('inkwell_ambiguous_status',{...edge.properties.get('inkwell_renamed_status'),name:'inkwell_ambiguous_status'})
+  const ambiguous=await launch(h,t,{send:true});await finish(h,ambiguous.id)
+  const unresolved=(await h.send(`/api/inkwell/hubspot/envelopes/${ambiguous.id}/writeback`,undefined,h.owner)).value
+  assert.equal(unresolved.status,'held');assert.equal(unresolved.repair,null)
+  assert.equal(edge.patches().filter(p=>p.properties.inkwell_envelope_id===ambiguous.id).length,0)
+  edge.properties.delete('inkwell_ambiguous_status')
+  const pending=await writeback(h,ambiguous.id);assert.equal(pending.repair.changes[0].to,'inkwell_renamed_status')
+  edge.intercept(request=>new URL(request.url).pathname.startsWith('/crm/v3/properties/')?Response.json({}, {status:401}):undefined)
+  await h.post(`/api/inkwell/hubspot/envelopes/${ambiguous.id}/writeback`,{commandId:crypto.randomUUID(),approveRepair:true,proposal:pending.repair},h.owner,502)
+  edge.intercept(undefined)
+  await h.post(`/api/inkwell/hubspot/envelopes/${ambiguous.id}/writeback`,{commandId:crypto.randomUUID(),approveRepair:true,proposal:pending.repair},h.owner,403)
+  assert.equal(edge.patches().filter(p=>p.properties.inkwell_envelope_id===ambiguous.id).length,0,'retired credential authority cannot replay a repair')
+
+  assert.ok(!JSON.stringify(h.logs()).includes('synthetic-inkwell-1'),'credentials never enter operational logs')
  }finally{await h.close()}
 })
 

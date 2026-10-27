@@ -7,6 +7,9 @@ export function hubspotEdge() {
  ])
  const deals=new Map([['901',{dealname:'Brightwater service agreement',amount:'48600.00',company:'Brightwater Medical',address:'48 River Street',hubspot_owner_id:'777'}]])
  const owners=new Map([['777',{id:'777',email:'owner@harbour.example',firstName:'Harbour',lastName:'Owner',archived:false}]])
+ const labels=['status','envelope_id','completed_at','signed_sha256','key_fields','custom_fields']
+ const names=['Inkwell status','Inkwell envelope ID','Inkwell completed at','Inkwell signed SHA-256','Inkwell key fields','Inkwell custom fields']
+ const properties=new Map(labels.map((key,i)=>['inkwell_'+key,{name:'inkwell_'+key,label:names[i],type:'string',archived:false,modificationMetadata:{readOnlyValue:false}}]))
  const files=[],notes=[],calls=[],patches=[];let failure,interceptor
  const response=(value,status=200)=>Response.json(value,{status})
  function fail(stage,when){if(failure?.stage===stage&&failure.when===when){failure=undefined;return response({message:'synthetic provider interruption'},502)}}
@@ -16,6 +19,7 @@ export function hubspotEdge() {
   calls.push({method:request.method,path:url.pathname,query:url.search})
   const overridden=await interceptor?.(request);if(overridden)return overridden
   const path=url.pathname,method=request.method
+  if(method==='GET'&&/^\/crm\/v3\/properties\/(deals|contacts)$/.test(path))return response({results:[...properties.values()]})
   if(method==='GET'&&path==='/crm/v3/objects/contacts'){
    const ids=[...contacts.keys()],start=url.searchParams.get('after'),index=start?ids.indexOf(start):0
    assert.ok(index>=0,'provider cursor identifies a record')
@@ -28,7 +32,7 @@ export function hubspotEdge() {
    if(method==='GET')return response({id:record[2],properties:{...data}})
    if(method==='PATCH'){
     const before=fail('properties','before');if(before)return before
-    const body=await request.json();Object.assign(data,body.properties);patches.push({type:record[1],id:record[2],properties:structuredClone(body.properties)})
+    const body=await request.json();if(Object.keys(body.properties).some(key=>!properties.has(key)))return response({message:'unknown property'},400);Object.assign(data,body.properties);patches.push({type:record[1],id:record[2],properties:structuredClone(body.properties)})
     return fail('properties','after')??response({id:record[2],properties:{...data}})
    }
   }
@@ -57,5 +61,5 @@ export function hubspotEdge() {
   }
   throw new Error('Unexpected HubSpot fake request '+method+' '+path)
  }
- return {networkEdge,contacts,deals,owners,files:()=>[...files],notes:()=>[...notes],patches:()=>[...patches],calls:()=>[...calls],failNext:(stage,when='after')=>{failure={stage,when}},intercept:handler=>{interceptor=handler}}
+ return {networkEdge,contacts,deals,owners,properties,renameProperty:(from,to)=>{const property=properties.get(from);assert.ok(property);properties.delete(from);properties.set(to,{...property,name:to});for(const record of [...deals.values(),...contacts.values()])if(from in record){record[to]=record[from];delete record[from]}},files:()=>[...files],notes:()=>[...notes],patches:()=>[...patches],calls:()=>[...calls],failNext:(stage,when='after')=>{failure={stage,when}},intercept:handler=>{interceptor=handler}}
 }
