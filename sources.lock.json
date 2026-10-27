@@ -616,6 +616,10 @@
       "sha256": "d75cd255fa974ed4a211b39764d7e2c0379b8de09d5fd07d718c6409fd799fa3",
       "executable": false
     },
+    "migrations/core/0077_hubspot_mapping_repair.sql": {
+      "sha256": "541a25996c8bc61871de75a14002b31312f24399e187124e3a13a4b06d7d0d72",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -1489,11 +1493,11 @@
       "executable": false
     },
     "src/inkwell/hubspot-writeback-provider.ts": {
-      "sha256": "47d45e2843d9d9c9301ac9574a20de62188f8359222536f887fc04bf9b6b1f49",
+      "sha256": "6a245ad64047064c772123815958e0b20735d6a89f97418e55a7932866807aeb",
       "executable": false
     },
     "src/inkwell/hubspot-writeback.ts": {
-      "sha256": "401ae535eb8277208663fd5e05fb1d76d37bfdc7b57a2ce05073bda8a8995bb1",
+      "sha256": "dfcca8336c745ad9895d8284ad937f02465edc076bc27e19ead716a5286dd86b",
       "executable": false
     },
     "src/inkwell/identity-provider.ts": {
@@ -4037,7 +4041,7 @@
       "executable": false
     },
     "src/ui/hubspot-writebacks.tsx": {
-      "sha256": "eca1a1c1232c5d2bd5423832b5bc7fe9ef2bd32f294e702c8a2752bddd443ad2",
+      "sha256": "51e892a9d36b30618fe121003476c831fd62ff3232ec8c6b8e2d9f3b16487a6d",
       "executable": false
     },
     "src/ui/icons.tsx": {
@@ -4317,11 +4321,11 @@
       "executable": false
     },
     "tests/hubspot-edge.mjs": {
-      "sha256": "f0e8d13988c9ff0f6137315ec466197585a0f2b5d9453da423601a0ec0acbbdb",
+      "sha256": "5a0ff747bd9ee7885f72a0d26408c4d9ce6cef3651900be66ee7ac04fddd61d3",
       "executable": false
     },
     "tests/hubspot-envelope.test.mjs": {
-      "sha256": "ff188a21741077b7ceef823cb4e154176077cb8f7b5be012463588674bfeb355",
+      "sha256": "ffeed53bf5934b4f4f16afc869d63b845d535e1f6ebab8991a6bd444dc9a18d2",
       "executable": false
     },
     "tests/hubspot-sync.test.mjs": {
@@ -4421,7 +4425,7 @@
       "executable": false
     },
     "tests/journeys/hubspot.mjs": {
-      "sha256": "e2d496bac2a39b423696e8dc32077e933b801c414b68c5a92125be7396f12171",
+      "sha256": "0f3ec27190a391e4ef4355e14cdae14dfc3f2560a2c474f2f4aef9783e3740ef",
       "executable": false
     },
     "tests/journeys/import-retention.mjs": {

@@ -75,13 +75,15 @@ try{
   assert.ok(envelope.events.some(e=>e.action==='hubspot.record_prepared'&&e.detail.followupGranted===false&&e.detail.noAccessGranted===true))
   const detail=page.getByRole('region',{name:envelope.title,exact:true});await expect(detail).toBeVisible()
   const close=detail.getByRole('button',{name:'Close',exact:true});await close.focus();await expect(page.getByRole('tooltip')).toBeVisible();await capture('draft-tooltip',close);await page.keyboard.press('Tab');await close.hover();await expect(page.getByRole('tooltip')).toBeVisible()
-  edge.failNext('note','after')
+  edge.renameProperty(width===1440?'inkwell_status':'inkwell_status_desktop',width===1440?'inkwell_status_desktop':'inkwell_status_phone')
   const signer=await app.verify(email),signed={commandId:crypto.randomUUID(),values:{signature:'Nadia Park'},consent:true,adoption:{method:'typed',style:'sans'}}
   await app.call(signer.path+'/sign',{cookie:signer.cookie,body:signed})
   assert.equal((await app.call('/api/inkwell/envelopes/'+id,{cookie:app.owner})).value.envelope.status,'completed')
   await settings();const completion=page.getByRole('region',{name:'HubSpot completion progress',exact:true}),job=completion.getByRole('listitem').filter({hasText:envelope.title}).first()
-  await expect(job).toContainText('Unconfirmed note result.');await capture('writeback-held',job)
-  await job.getByRole('button',{name:'Reconcile completion',exact:true}).click();await expect(job).toContainText('Timeline note attached');await expect(job).toContainText('completed')
+  await expect(job).toContainText('Proposed CRM mapping repair. Owner approval is required.');await capture('mapping-repair',job)
+  const repair=job.getByRole('button',{name:'Approve mapping repair and replay',exact:true})
+  await tabTo(page,repair);await page.keyboard.press('Enter')
+  await expect(job).toContainText('Timeline note attached');await expect(job).toContainText('completed')
   await capture('writeback-completed',job)
   await app.call(signer.path+'/sign',{cookie:signer.cookie,body:signed})
   const completed=(await app.call('/api/inkwell/envelopes/'+id,{cookie:app.owner})).value.envelope
