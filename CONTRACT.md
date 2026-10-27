@@ -459,9 +459,9 @@ How the owner-approved scope for Inkwell (16 October 2026) maps to clauses.
 
 ## Status
 
-Judged from the code and tests at commit `08bafa5cbf4163a9757917ae96c0d67e5341083d` (27 October 2026).
+Judged from the code and tests at commit `6040f354181463c3bc27f681341443b76a0a4339` (27 October 2026).
 
-That source and test revision includes the separately landed agent workflows from main, direct refusal assertions for unauthorized completion-progress reads and retries, and the explicit CRM follow-up grant assertion. The final candidate changes only this synchronized provenance and its generated source lock; its production code, migrations and tests are byte-identical to that pin. The fleet handoff records the exact candidate SHA, public-door tests, mutation probes, browser proof and verification runs. Counts describe this committed candidate; resolve its full SHA with `git rev-parse HEAD`. This inventory does not claim a new independent CT judgment.
+That source and test revision includes the separately landed agent workflows from main, direct refusal assertions for unauthorized completion-progress reads and retries, the explicit CRM follow-up grant assertion and the bounded keyboard-navigation helper. The final candidate changes only this synchronized provenance and its generated source lock; its production code, migrations and tests are byte-identical to that pin. The fleet handoff records the exact candidate SHA, public-door tests, mutation probes, browser proof and verification runs. Counts describe this committed candidate; resolve its full SHA with `git rev-parse HEAD`. This inventory does not claim a new independent CT judgment.
 
 SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing public-door proof on 25 October 2026.
 
