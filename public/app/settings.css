@@ -24,7 +24,7 @@
   .iw-token-row { grid-template-columns: minmax(0, 1fr) auto; padding: 12px; }
   .iw-token-row > button { grid-column: 1 / -1; justify-self: start; }
   .iw-import-job { padding: 14px; }
-  .iw-import-job code { font-size: 11px; overflow-wrap: anywhere; }
+  .iw-import-job code { font-size: 13px; overflow-wrap: anywhere; }
   .iw-file { flex-wrap: wrap; padding: 8px 10px 8px 14px; }
   .iw-app .iw-file input[type=file] { flex-basis: 100%; min-width: 0; text-align: left; }
 }

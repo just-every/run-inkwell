@@ -58,7 +58,7 @@ export async function consumeMicrosoft(env:Env,actor:Actor,value:unknown){
  administrator(actor);const uploadId=text(value,'a Microsoft upload ID'),row=await env.DB.prepare('SELECT data FROM iw_microsoft_uploads WHERE upload_id=?').bind(uploadId).first<{data:string}>();insist(row,'Load the Microsoft source again.',409)
  const data=JSON.parse(row.data) as {source:{kind:string;id:string;sha256:string};template?:{id:string;title:string;version?:number};approvalRule?:import('./model').ApprovalRule},upload=await uploadedBytes(env,actor,uploadId)
  insist(await sha256(upload.bytes)===data.source.sha256,'The Microsoft PDF fingerprint changed.',409)
- return{...data,filename:upload.filename,pdfBase64:encode(upload.bytes)}
+ return{...data,bytes:upload.bytes,filename:upload.filename,pdfBase64:encode(upload.bytes)}
 }
 
 /** Explicit native intake fetches provider facts; it never accepts a client-supplied body or sends a reply. */
@@ -81,7 +81,7 @@ export async function microsoftReply(env:Env,actor:Actor,input:Record<string,unk
   const attachments=await graphJson(env.MICROSOFT_GRAPH_ACCESS_TOKEN,`/me/messages/${encodeURIComponent(messageId)}/attachments`)
   insist(!attachments['@odata.nextLink'],'Microsoft reply attachment custody is incomplete.',409)
   let total=0
-  reply.attachments=await Promise.all(list(attachments.value).map(async value=>{const a=object(value);insist(a['@odata.type']==='#microsoft.graph.fileAttachment'&&typeof a.contentBytes==='string','Microsoft returned an unsupported reply attachment.',502);const bytes=Uint8Array.from(atob(a.contentBytes),c=>c.charCodeAt(0));total+=bytes.length;insist(total<=25*1024*1024,'Microsoft reply attachments exceed the custody limit.',413);return{name:scrub(text(a.name,'an attachment name',240)),type:text(a.contentType,'an attachment type',240),size:bytes.length,sha256:await sha256(bytes),status:'not kept by Inkwell' as const}}))
+  reply.attachments=await Promise.all(list(attachments.value).map(async value=>{const a=object(value);insist(a['@odata.type']==='#microsoft.graph.fileAttachment'&&typeof a.contentBytes==='string','Microsoft returned an unsupported reply attachment.',502);const bytes=Uint8Array.from(atob(a.contentBytes),c=>c.charCodeAt(0));total+=bytes.length;insist(total<=25*1024*1024,'Microsoft reply attachments exceed the custody limit.',413);return{name:scrub(text(a.name,'an attachment name',240)),type:scrub(text(a.contentType,'an attachment type',240)),size:bytes.length,sha256:await sha256(bytes),status:'not kept by Inkwell' as const}}))
  }
  await storeReply(env,capability.envelope,capability.signer,reply,eventId)
  return{ok:true}

@@ -1031,9 +1031,21 @@ test('Microsoft 365: OneDrive and SharePoint sources bind their PDF, enforce opt
   await h.post('/api/inkwell/filing',{commandId:crypto.randomUUID(),templateId:template,provider:'sharepoint',folder:'share-drive:completed',enabled:true,consent:true,expectedVersion:0})
   const loaded=(await h.post('/api/inkwell/microsoft/source',{...payload,templateId:template})).value
   const id=(await h.command('envelope.prepare',{title:'OneDrive agreement',filename:loaded.filename,microsoftUploadId:loaded.uploadId,signers:[{name:'Mara Quinn',email:'mara@clients.example'}],fields:loaded.fields})).result.id
+  await h.command('envelope.update',{id,title:'Edited OneDrive agreement',filename:loaded.filename,pdfBase64:loaded.pdfBase64,signers:[{name:'Mara Quinn',email:'mara@clients.example'}],fields:loaded.fields})
+  assert.deepEqual((await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope.microsoftSource,{kind:'onedrive',id:'document',sha256:hash},'editing retains Microsoft provenance')
   await h.command('envelope.approve',{id,eligible:true},h.owner,403)
   assert.equal(await h.mail('mara@clients.example','Please sign:'),undefined,'off policy sends no invitation')
+  const staged=(await h.post('/api/inkwell/microsoft/source',{...payload,templateId:template})).value
+  const stagedId=(await h.command('envelope.prepare',{title:'Staged Microsoft source',documents:[{uploadId:staged.uploadId}],signers:[{name:'Mara Quinn',email:'staged@clients.example'}],fields:staged.fields})).result.id
+  const stagedRecord=(await h.send('/api/inkwell/envelopes/'+stagedId,undefined,h.owner)).value.envelope
+  assert.deepEqual(stagedRecord.microsoftSource,{kind:'onedrive',id:'document',sha256:hash},'staged uploads retain Microsoft provenance')
+  assert.equal(stagedRecord.template.id,template,'staged uploads retain the selected template')
+  assert.equal(stagedRecord.approvalRule.email,'microsoft.approver@harbour.example','staged uploads retain template approval')
+  await h.command('envelope.approve',{id:stagedId,eligible:true},h.owner,403)
+  const mixed=(await h.post('/api/inkwell/microsoft/source',payload)).value
+  await h.command('envelope.prepare',{title:'Mixed Microsoft source',documents:[{uploadId:mixed.uploadId},{pdfBase64:source.pdfBase64,filename:source.filename}],signers:[{name:'Mara Quinn',email:'mixed@clients.example'}],fields:source.fields},h.owner,400)
   await h.command('account.send_policy',{source:'microsoft',mode:'person',expectedVersion:0})
+  const stagedWaiting=await h.command('envelope.approve',{id:stagedId,eligible:true});assert.equal(stagedWaiting.result.waitingForApproval.length,1);assert.equal(await h.mail('staged@clients.example','Please sign:'),undefined)
   const waiting=await h.command('envelope.approve',{id,eligible:true});assert.ok(waiting.result.waitingForApproval.length,'the selected template approval remains required');assert.equal(await h.mail('mara@clients.example','Please sign:'),undefined)
   await h.command('envelope.internal_decide',{id,decision:'approve'},h.owner,403)
   await h.command('envelope.internal_decide',{id,decision:'approve'},approver)
@@ -1066,11 +1078,15 @@ test('Microsoft 365: Outlook proposes exact attachment participants, sends, self
  const {microsoftEdge}=await import('./microsoft-edge.mjs'),edge=await microsoftEdge(),h=await harness({bindings:{MICROSOFT_GRAPH_ACCESS_TOKEN:'synthetic-inkwell-1'},networkEdge:edge.networkEdge})
  try{
   await h.command('account.send_policy',{source:'microsoft',mode:'person',expectedVersion:0})
+  const large=Buffer.concat([Buffer.from(edge.outlook),Buffer.alloc(2_099_103-edge.outlook.length,32)])
+  edge.attachments.set('outlook-padded=',[{'@odata.type':'#microsoft.graph.fileAttachment',id:'large-pdf',name:'outlook-agreement.pdf',contentType:'application/pdf',contentBytes:large.toString('base64'),isInline:false}])
   edge.messages.set('outlook-padded=',{...edge.messages.get('outlook-send'),id:'outlook-padded='})
   const proposal=(await h.post('/api/inkwell/microsoft/source',{kind:'outlook',messageId:'outlook-padded='})).value
-  assert.deepEqual(proposal.participants,[{name:'Mara Quinn',email:'mara@clients.example'},{name:'Alex Morgan',email:'alex@clients.example'}]);assert.equal(proposal.filename,'outlook-agreement.pdf');assert.deepEqual(Buffer.from(proposal.pdfBase64,'base64'),Buffer.from(edge.outlook));assert.equal(proposal.fields.length,2)
+  assert.deepEqual(proposal.participants,[{name:'Mara Quinn',email:'mara@clients.example'},{name:'Alex Morgan',email:'alex@clients.example'}]);assert.equal(proposal.filename,'outlook-agreement.pdf');assert.deepEqual(Buffer.from(proposal.pdfBase64,'base64'),large);assert.equal(proposal.fields.length,2)
   await h.command('envelope.prepare',{title:'Altered Outlook request',filename:proposal.filename,microsoftUploadId:proposal.uploadId,pdfBase64:Buffer.from(edge.original).toString('base64'),signers:proposal.participants,fields:proposal.fields},h.owner,409)
   const id=(await h.command('envelope.prepare',{title:'Outlook request',filename:proposal.filename,microsoftUploadId:proposal.uploadId,signers:proposal.participants,fields:proposal.fields})).result.id
+  assert.equal((await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope.originalSha256,proposal.sha256,'large Microsoft source binds the exact original bytes')
+  assert.deepEqual(Buffer.from((await h.send('/api/inkwell/envelopes/'+id+'/artifacts/original',undefined,h.owner)).bytes),large)
   await h.command('envelope.approve',{id,eligible:true});assert.ok(await h.mail('mara@clients.example','Please sign:'))
   const self=(await h.post('/api/inkwell/microsoft/source',{kind:'outlook',messageId:'outlook-self',self:true})).value
   assert.deepEqual(self.participants,[{name:'Harbour Owner',email:'owner@harbour.example'}]);const before=h.sent()
@@ -1098,6 +1114,9 @@ test('Microsoft 365: authenticated fresh Outlook replies inherit grants, replay 
   const invitation=await h.mail('mara@clients.example','Please sign:'),replyAddress=invitation.reply_to??invitation.headers?.['Reply-To'];assert.match(replyAddress,/^reply\+[A-Za-z0-9_-]{43}@/)
   const privateText='Clause four needs legal review. synthetic-inkwell-9'
   const message={id:'reply-one',from:edge.person('Mara Quinn','mara@clients.example'),toRecipients:[edge.person('Inkwell',replyAddress)],subject:'Re: agreement',body:{contentType:'text',content:privateText},receivedDateTime:new Date(clock).toISOString(),internetMessageId:'synthetic-inkwell-8',internetMessageHeaders:[{name:'Authentication-Results',value:'dkim=pass'}],hasAttachments:false}
+  message.hasAttachments=true
+  const capability=replyAddress.match(/reply\+([^@]+)/)[1]
+  edge.attachments.set(message.id,[{'@odata.type':'#microsoft.graph.fileAttachment',name:'evidence-'+capability+'.txt',contentType:'text/plain; reference='+capability,contentBytes:Buffer.from('Synthetic reply attachment').toString('base64')}])
   edge.messages.set(message.id,message)
   assert.equal((await h.send('/api/inkwell/microsoft/replies',{messageId:message.id})).status,401)
   const viewer=await h.invite('outlook-reader@harbour.example','member');await h.post('/api/inkwell/microsoft/replies',{messageId:message.id},viewer,403)
@@ -1106,6 +1125,8 @@ test('Microsoft 365: authenticated fresh Outlook replies inherit grants, replay 
   await h.post('/api/inkwell/microsoft/replies',{messageId:message.id});await h.post('/api/inkwell/microsoft/replies',{messageId:message.id},h.owner,409)
   const view=async cookie=>(await h.send(`/api/inkwell/envelopes/${id}/followup`,undefined,cookie??h.owner)).value
   let state=await view();assert.equal(state.replies.length,1);assert.equal(state.replies[0].text,privateText);assert.equal(state.replies[0].verified,true);assert.equal(state.states[0].paused,true)
+  assert.equal(state.replies[0].attachments.length,1);assert.ok(!JSON.stringify(state.replies[0].attachments).includes(capability),'reply attachment metadata excludes the active capability')
+  assert.equal(state.replies[0].attachments[0].type,'text/plain; reference=[capability omitted]')
   assert.equal((await view(viewer)).replies,undefined,'a viewer receives no reply text')
   await h.command('envelope.followup_resume',{id,signer:0});assert.equal((await view()).states[0].paused,false)
   edge.messages.set('spoofed-reply',{...message,id:'spoofed-reply',from:edge.person('Other sender','other@clients.example')});await h.post('/api/inkwell/microsoft/replies',{messageId:'spoofed-reply'})

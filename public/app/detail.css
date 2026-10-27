@@ -55,7 +55,7 @@
 .iw-app .iw-manual-invitation p { color: #24334e; overflow-wrap: anywhere; }
 .iw-invitation-link { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; min-width: 0; }
 .iw-invitation-link > span { overflow-wrap: anywhere; }
-.iw-invitation-link > a { flex: 1 1 200px; min-width: 0; color: var(--blue-ink); font: 12.5px/1.45 var(--rer-font-mono); overflow-wrap: anywhere; }
+.iw-invitation-link > a { flex: 1 1 200px; min-width: 0; color: var(--blue-ink); font: 13px/1.45 var(--rer-font-mono); overflow-wrap: anywhere; }
 .iw-app .iw-invitation-link > button, .iw-app .iw-manual-invitation > button { flex: 0 0 auto; min-height: 34px; padding: 6px 14px; font-size: 13px; }
 
 .iw-artifacts { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -66,7 +66,7 @@
 .iw-app .iw-integrity > h3 { margin: 0; }
 .iw-hashes { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; margin: 0; font-size: 13px; }
 .iw-hashes dt { color: var(--soft); }
-.iw-hashes dd { margin: 0; font: 12.5px/1.6 var(--rer-font-mono); overflow-wrap: anywhere; }
+.iw-hashes dd { margin: 0; font: 13px/1.6 var(--rer-font-mono); overflow-wrap: anywhere; }
 .iw-hashes > div { display: contents; }
 .iw-app .iw-integrity > button { min-height: 36px; font-size: 13px; }
 .iw-result { display: flex; align-items: flex-start; gap: 12px; }
@@ -85,8 +85,8 @@
 .iw-audit::before { content: ""; position: absolute; top: 8px; bottom: 8px; left: 5px; border-left: 1px dotted var(--app-grad-b); }
 .iw-audit li { position: relative; display: grid; gap: 1px; }
 .iw-audit li::before { content: ""; position: absolute; top: 6px; left: -23px; width: 9px; height: 9px; border-radius: 50%; background: var(--app-gradient); }
-.iw-audit strong { font: 500 12.5px/1.5 var(--rer-font-mono); overflow-wrap: anywhere; }
-.iw-audit time, .iw-audit span, .iw-audit p { color: var(--soft); font-size: 12.5px; overflow-wrap: anywhere; }
+.iw-audit strong { font: 500 13px/1.5 var(--rer-font-mono); overflow-wrap: anywhere; }
+.iw-audit time, .iw-audit span, .iw-audit p { color: var(--soft); font-size: 13px; overflow-wrap: anywhere; }
 .iw-quiet { margin-top: 14px; }
 .iw-app .iw-quiet > button { min-height: 34px; padding: 6px 16px; color: var(--body); font-size: 13px; }
 .iw-quiet > form { margin-top: 12px; }

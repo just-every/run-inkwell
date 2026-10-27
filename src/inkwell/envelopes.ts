@@ -36,12 +36,23 @@ import { sealLink } from './links'
 import { memberLinkWrites } from './signing-groups'
 export interface CommandContext { preparedWrites?: (envelope:Envelope)=>Promise<D1PreparedStatement[]>; actor: Actor; commandId: string; fingerprint: string; client?: Client; guards?: Guard[]; hubspot?: { origin?: import('./model').PolicySendOrigin; prepare:(envelope:Envelope)=>Promise<void>; writes:(envelope:Envelope)=>Promise<D1PreparedStatement[]> }; bulk?: {id:string;name:string;row:number;approvedAt:string;writes:(e:Envelope)=>D1PreparedStatement[]}; form?: { submission:import('./model').FormSubmission; origin?:import('./model').PolicySendOrigin; writes:(envelope:Envelope)=>Promise<D1PreparedStatement[]> } }
 export async function prepareEnvelope(env: Env, context: CommandContext, input: Record<string, unknown>, release=false) {
- const microsoft = input.microsoftUploadId ? await (await import('./microsoft')).consumeMicrosoft(env,context.actor,input.microsoftUploadId) : undefined
- if(microsoft){insist(input.documents===undefined,'Keep the Microsoft source fixed; start another draft to combine documents.');insist(input.pdfBase64===undefined||input.pdfBase64===microsoft.pdfBase64,'The displayed PDF differs from the Microsoft source.',409);input={...input,pdfBase64:microsoft.pdfBase64,filename:microsoft.filename}}
- const createdAt=now(),{draft,bytes,accessCodes,originals}=await readDraft(env,input,createdAt,undefined,context.actor)
+ // A Microsoft upload keeps its source authority through either preparation door.
+ let microsoftUploadId=input.microsoftUploadId
+ for(const value of Array.isArray(input.documents)?input.documents:[]){
+  if(typeof value?.uploadId!=='string')continue
+  if(await env.DB.prepare('SELECT 1 FROM iw_microsoft_uploads WHERE upload_id=?').bind(value.uploadId).first()){
+   insist(input.documents instanceof Array&&input.documents.length===1&&!microsoftUploadId,'Keep the Microsoft source fixed; start another draft to combine documents.')
+   insist(value.mode===undefined||value.mode==='sign','Microsoft source preparation requires a signing document.')
+   insist(value.visibleTo===undefined,'Prepare document audiences separately from Microsoft source intake.')
+   microsoftUploadId=value.uploadId
+  }
+ }
+ const microsoft = microsoftUploadId ? await (await import('./microsoft')).consumeMicrosoft(env,context.actor,microsoftUploadId) : undefined
+ if(microsoft){insist(input.documents===undefined||Array.isArray(input.documents)&&input.documents.length===1&&input.documents[0]?.uploadId===microsoftUploadId,'Keep the Microsoft source fixed; start another draft to combine documents.');insist(input.pdfBase64===undefined||input.pdfBase64===microsoft.pdfBase64,'The displayed PDF differs from the Microsoft source.',409);input={...input,documents:undefined,pdfBase64:undefined,filename:microsoft.filename}}
+ const createdAt=now(),{draft,bytes,accessCodes,originals}=await readDraft(env,input,createdAt,undefined,context.actor,undefined,undefined,undefined,undefined,microsoft?.bytes)
  const envelope:Envelope={...(context.actor.testMode?{testMode:true as const}:{}),id:env.embedAllocation??id(),version:1,status:'prepared',createdAt,createdBy:context.actor.id,...draft,...(microsoft?{microsoftSource:microsoft.source,...(microsoft.template?{template:microsoft.template,...(microsoft.approvalRule?{approvalRule:microsoft.approvalRule}:{})}:{})}:{}),events:[]}
  await appendEvent(envelope,'envelope.prepared',context.actor.apiKeyId?`api-key:${context.actor.apiKeyId}`:context.actor.agentId?`agent:${context.actor.agentId}`:context.actor.id,{...draftDetail(draft),...(microsoft?{microsoftSource:microsoft.source,...(microsoft.template?{template:microsoft.template,approvalRule:microsoft.approvalRule??null}:{})}:{}),...(context.actor.testMode?{testMode:true}:{}),...(env.embedProvenance?{embedding:env.embedProvenance}:{})})
- const writes=[...(microsoft?[env.DB.prepare('DELETE FROM iw_pdf_uploads WHERE id=?').bind(input.microsoftUploadId)]:[]),...await stagedBlobWrites(env,envelope.id,'original',bytes),...await documentWrites(env,envelope.id,originals),...consumedUploadWrites(env,input),...await accessCodeWrites(env,envelope.id,accessCodes),...await context.preparedWrites?.(envelope)??[]]
+ const writes=[...(microsoft?[env.DB.prepare('DELETE FROM iw_pdf_upload_parts WHERE upload_id=?').bind(microsoftUploadId),env.DB.prepare('DELETE FROM iw_pdf_uploads WHERE id=?').bind(microsoftUploadId),env.DB.prepare('DELETE FROM iw_microsoft_uploads WHERE upload_id=?').bind(microsoftUploadId)]:[]),...await stagedBlobWrites(env,envelope.id,'original',bytes),...await documentWrites(env,envelope.id,originals),...consumedUploadWrites(env,input),...await accessCodeWrites(env,envelope.id,accessCodes),...await context.preparedWrites?.(envelope)??[]]
  if(release)return approvePreparedEnvelope(env,context,{...input,id:envelope.id},envelope,writes)
  const result={id:envelope.id}
  await insertEnvelope(env.DB,envelope,context.actor,[...writes,commandWrite(env.DB,apiCommandActor(context.actor),context.commandId,context.fingerprint,result)],context.guards??[])

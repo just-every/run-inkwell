@@ -61,6 +61,7 @@ body:has(.iw-app) { margin: 0; padding: 0; background: var(--paper); }
 
 /* Fields: thin, quiet hairlines; focus draws the blue ring. */
 .iw-app label { display: grid; gap: 6px; min-width: 0; color: var(--ink); font-size: 14px; font-weight: 600; }
+.iw-app small { font-size: 13px; }
 .iw-app label small { color: var(--soft); font-weight: 400; }
 .iw-app input:not([type=checkbox]):not([type=radio]), .iw-app select, .iw-app textarea {
   display: block;
@@ -140,8 +141,8 @@ body:has(.iw-app) { margin: 0; padding: 0; background: var(--paper); }
 /* Notices. */
 .iw-error { padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--red) 30%, transparent); border-radius: var(--app-radius-field); background: var(--rose-tint); color: var(--red-ink) !important; overflow-wrap: anywhere; }
 .iw-muted { color: var(--soft); font-size: 14px; }
-.iw-mono { font: 12px/1.5 var(--rer-font-mono); overflow-wrap: anywhere; }
-.iw-json { max-height: 400px; margin: 0; padding: 14px; overflow: auto; border: 1px solid var(--line); border-radius: var(--app-radius-field); background: var(--app-wash); font: 12px/1.5 var(--rer-font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.iw-mono { font: 13px/1.5 var(--rer-font-mono); overflow-wrap: anywhere; }
+.iw-json { max-height: 400px; margin: 0; padding: 14px; overflow: auto; border: 1px solid var(--line); border-radius: var(--app-radius-field); background: var(--app-wash); font: 13px/1.5 var(--rer-font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 .iw-stack { display: flex; flex-direction: column; gap: 16px; }
 .iw-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
 .iw-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
