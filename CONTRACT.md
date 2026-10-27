@@ -452,7 +452,7 @@ How the owner-approved scope for Inkwell (16 October 2026) maps to clauses.
 
 Judged from the code and tests at commit `95cc5ffb0434553b297954f7bcd215a8ef15f2b3` (27 October 2026).
 
-The landing candidate adds only status-format metadata after this code and test pin; its exact SHA, browser proof, mutation receipts and release gates are identified by the landing receipt.
+The Google implementation and its acceptance assertions are byte-identical to this pin. The landing receipt identifies the exact candidate, browser and mutation proof, release gates and verification-harness repairs.
 
 SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing public-door proof on 25 October 2026.
 
