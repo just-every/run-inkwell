@@ -45,6 +45,44 @@ test('DELIV-001: through the Resend fake, a sent invitation moves to delivered a
   assert.equal((await post(resend('email.bounced', sent.id, 'someone@else.example', Date.now()))).status, 403, 'an event naming another recipient is refused')
   assert.equal((await invitation(h, id)).status, 'delivered', 'refused events change nothing')
 
+  // AGENT-006: an owner reviews projection drift against authenticated receipts before repair.
+  const reconcilePath=`/api/inkwell/envelopes/${id}/delivery-reconciliation`
+  const review=async()=>{const r=await h.send(reconcilePath,undefined,h.owner);assert.equal(r.status,200,JSON.stringify(r.value));return r.value}
+  assert.deepEqual((await review()).changes,[])
+  await h.db.prepare("UPDATE rer_mail_event_states SET status='accepted',terminal=0 WHERE provider_message_id=?").bind(sent.id).run()
+  const proposal=await review()
+  assert.deepEqual(proposal.changes,[{messageId:message.id,provider:'resend',before:'accepted',after:'delivered'}])
+  assert.equal(proposal.verifiedReceipts,1);assert.equal(proposal.unresolvedMessages,0)
+  assert.equal((await h.db.prepare('SELECT status FROM rer_mail_event_states WHERE provider_message_id=?').bind(sent.id).first()).status,'accepted','inspection has no repair side effect')
+  const admin=await h.invite('synthetic-inkwell-51@example.test','admin'),viewer=await h.invite('synthetic-inkwell-52@example.test','member')
+  const approval={commandId:crypto.randomUUID(),approve:true,proposal:proposal.proposal}
+  for(const [cookie,status] of [['',401],[admin,403],[viewer,403]]){
+   assert.equal((await h.send(reconcilePath,undefined,cookie)).status,status)
+   await h.post(reconcilePath,approval,cookie,status)
+  }
+  const token=(await h.command('agent.issue')).result.token
+  await h.post(reconcilePath,approval,h.owner,403,{authorization:'Bearer '+token})
+  await h.post(reconcilePath,approval,h.owner,403,{origin:'https://elsewhere.example'})
+  await h.post(reconcilePath,{...approval,approve:false},h.owner,400)
+  await h.post(reconcilePath,{...approval,proposal:'synthetic-inkwell-53'},h.owner,409)
+  const sentBeforeRepair=h.sent(),receiptBefore=(await h.db.prepare('SELECT COUNT(*) AS n FROM rer_mail_event_receipts').first()).n
+  const repaired=(await h.post(reconcilePath,approval)).value
+  assert.equal(repaired.repaired,1);assert.equal((await invitation(h,id)).status,'delivered')
+  assert.deepEqual((await h.post(reconcilePath,approval)).value,repaired,'approval replay has the original result')
+  assert.deepEqual((await review()).changes,[])
+  assert.equal(h.sent(),sentBeforeRepair,'repair sends no mail')
+  assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM rer_mail_event_receipts').first()).n,receiptBefore,'repair duplicates no authenticated receipt')
+  assert.equal((await h.send('/api/inkwell/audit',undefined,h.owner)).value.entries.filter(e=>e.action==='delivery.reconciliation.approved'&&e.target===id).length,1)
+  // A missing projection also recovers; a later verified event makes an earlier proposal stale.
+  await h.db.prepare('DELETE FROM rer_mail_event_states WHERE provider_message_id=?').bind(sent.id).run()
+  const missing=await review();assert.equal(missing.changes[0].before,null)
+  assert.equal((await post(resend('email.delivery_delayed',sent.id,email,Date.now()-45_000))).status,200)
+  await h.post(reconcilePath,{commandId:crypto.randomUUID(),approve:true,proposal:missing.proposal},h.owner,409)
+  const fresh=await review();assert.equal(fresh.changes[0].after,'delivered','a later nonterminal event cannot outrank delivery')
+  const parallel=await Promise.all([h.send(reconcilePath,{commandId:crypto.randomUUID(),approve:true,proposal:fresh.proposal},h.owner),h.send(reconcilePath,{commandId:crypto.randomUUID(),approve:true,proposal:fresh.proposal},h.owner)])
+  assert.deepEqual(parallel.map(r=>r.status).sort(),[200,409],'only one concurrent approval writes')
+  assert.equal((await invitation(h,id)).status,'delivered')
+
   const openedAt = Date.now() - 30_000
   assert.equal((await post(resend('email.opened', sent.id, email, openedAt))).status, 200)
   message = await invitation(h, id)
@@ -63,6 +101,8 @@ test('DELIV-001: through the Resend fake, a sent invitation moves to delivered a
   const toOther = h.attempted().filter(m => m.to.includes(other))
   assert.deepEqual(toOther.map(m => m.subject.startsWith('Please sign:') ? 'invitation' : 'code'), ['invitation', 'code'], 'the uncertain invitation went to the provider exactly once')
   assert.equal((await invitation(h, uncertainId)).status, 'uncertain')
+  const unresolved=(await h.send(`/api/inkwell/envelopes/${uncertainId}/delivery-reconciliation`,undefined,h.owner)).value
+  assert.equal(unresolved.unresolvedMessages,2);assert.deepEqual(unresolved.changes,[],'uncertain sends and missing receipts never become delivery proof')
   assert.equal((await messages(h, uncertainId)).find(m => m.kind === 'code').status, 'sent')
  } finally { await h.close() }
 })
@@ -80,6 +120,13 @@ test('DELIV-001: SendGrid events find their message by the signed delivery id; a
   assert.equal(r.status, 200, JSON.stringify(r.value)); assert.equal(r.value.stored, 2)
   const message = await invitation(h, id)
   assert.equal(message.status, 'delivered'); assert.equal(message.deliveredAt, new Date(at * 1000).toISOString())
+  const repairPath=`/api/inkwell/envelopes/${id}/delivery-reconciliation`
+  await h.db.prepare('DELETE FROM rer_mail_event_states WHERE provider=?').bind('sendgrid').run()
+  const repair=(await h.send(repairPath,undefined,h.owner)).value
+  assert.deepEqual(repair.changes,[{messageId:message.id,provider:'sendgrid',before:null,after:'delivered'}])
+  assert.equal((await h.post(repairPath,{commandId:crypto.randomUUID(),approve:true,proposal:repair.proposal})).value.repaired,1)
+  assert.equal((await invitation(h,id)).status,'delivered')
+
  } finally { await h.close() }
 })
 
@@ -980,6 +1027,37 @@ test('Box and Dropbox file the completed PDF and certificate exactly once despit
   const attempts=edge.attempts().length
   await h.scheduled(Date.now());assert.equal(edge.attempts().length,attempts,'filed jobs are never uploaded again')
   assert.ok(!(JSON.stringify(h.logs())+JSON.stringify(view)).includes(JSON.stringify('synthetic-inkwell-1')),'provider credentials never enter views or logs')
+  // AGENT-006: a moved Dropbox folder is resolved only by its pinned identity.
+  edge.failNext('dropbox','after')
+  const moved=await finishFilingEnvelope(h,templateId,'synthetic-inkwell-61@example.test')
+  edge.moveFolder('/Harbour completed','/Reviewed completed')
+  const beforeMoveRetry=edge.attempts().length
+  await h.post('/api/inkwell/filing/retry',{id:moved.id})
+  view=(await h.send('/api/inkwell/filing',undefined,h.owner)).value
+  let held=view.jobs.find(job=>job.envelope_id===moved.id&&job.provider==='dropbox'&&job.state==='uncertain')
+  assert.ok(held.folder_repair_json,'the moved folder has an explicit proposal')
+  assert.deepEqual(JSON.parse(held.folder_repair_json),{id:held.folder_ref,from:'/Harbour completed',to:'/Reviewed completed'})
+  assert.equal(edge.attempts().length,beforeMoveRetry,'detecting a move performs no upload')
+  const approve={id:moved.id,folder:held.folder,kind:held.kind,approveFolderRepair:true,proposal:JSON.parse(held.folder_repair_json)}
+  const admin=await h.invite('synthetic-inkwell-62@example.test','admin')
+  await h.post('/api/inkwell/filing/retry',approve,admin,403)
+  await h.post('/api/inkwell/filing/retry',{...approve,proposal:{}},h.owner,409)
+  edge.moveFolder('/Reviewed completed','/Reviewed again')
+  await h.post('/api/inkwell/filing/retry',approve,h.owner,409)
+  await h.post('/api/inkwell/filing/retry',{id:moved.id})
+  held=(await h.send('/api/inkwell/filing',undefined,h.owner)).value.jobs.find(job=>job.envelope_id===moved.id&&job.folder_repair_json)
+  const movedFile=edge.files().find(f=>f.provider==='dropbox'&&f.name===`inkwell-${moved.id}-${held.kind}.pdf`)
+  edge.corrupt(movedFile.id)
+  const fresh={...approve,proposal:JSON.parse(held.folder_repair_json)}
+  await h.post('/api/inkwell/filing/retry',fresh)
+  assert.equal((await h.send('/api/inkwell/filing',undefined,h.owner)).value.jobs.find(job=>job.envelope_id===moved.id&&job.kind===held.kind&&job.provider==='dropbox').state,'uncertain','different remote bytes remain unresolved after folder approval')
+  edge.repair(movedFile.id)
+  await Promise.all([h.post('/api/inkwell/filing/retry',{id:moved.id}),h.post('/api/inkwell/filing/retry',{id:moved.id})])
+  view=(await h.send('/api/inkwell/filing',undefined,h.owner)).value
+  assert.ok(view.jobs.filter(job=>job.envelope_id===moved.id).every(job=>job.state==='filed'))
+  assert.equal(edge.files().filter(file=>file.name.includes(moved.id)).length,4,'folder repair and concurrent replay create no duplicate artifacts')
+  assert.equal((await h.send('/api/inkwell/audit',undefined,h.owner)).value.entries.filter(e=>e.action==='filing.folder_repair.approved'&&e.target===moved.id).length,1)
+
  }finally{await h.close()}
 })
 

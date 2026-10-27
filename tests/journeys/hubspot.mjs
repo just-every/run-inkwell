@@ -111,6 +111,21 @@ try{
   assert.equal(files.length,1);assert.equal(notes.length,1);assert.equal(updates.length,1)
   const artifact=await fetch(app.origin+`/api/inkwell/envelopes/${id}/artifacts/signed`,{headers:{cookie:app.owner}});assert.equal(artifact.status,200);assert.deepEqual(files[0].bytes,Buffer.from(await artifact.arrayBuffer()))
   assert.equal(edge.deals.get('901').inkwell_signed_sha256,completed.signedSha256)
+  const invitation=app.mail(email,'Please sign:')
+  await app.deliver(invitation,'email.delivered',Date.now()-60_000)
+  await app.db.prepare("UPDATE rer_mail_event_states SET status='accepted',terminal=0 WHERE provider_message_id=?").bind(invitation.id).run()
+  await job.getByText('Delivery reconciliation',{exact:true}).click()
+  await tabTo(page,job.getByRole('button',{name:'Check delivery records',exact:true}));await page.keyboard.press('Enter')
+  if(width===1440)await expect(job).toContainText('resend: accepted → delivered')
+  await capture('delivery-repair-proposed',job)
+  await tabTo(page,job.getByRole('button',{name:'Approve delivery repair',exact:true}));await page.keyboard.press('Enter')
+  await expect(job).toContainText('Delivery repair recorded.')
+  await capture('delivery-repair-completed',job)
+  if(width===1440){
+   const state=await app.db.prepare('SELECT status FROM rer_mail_event_states WHERE provider_message_id=?').bind(invitation.id).first()
+   assert.equal(state.status,'delivered')
+   assert.equal(app.sent().filter(message=>message.id===invitation.id).length,1)
+  }
   if(width===1440){
    const logs=JSON.stringify(app.logs()),audit=(await app.call('/api/inkwell/audit.csv',{cookie:app.owner})).value
    assert.match(logs,/inkwell.request/,'built Worker emits operational logs')

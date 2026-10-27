@@ -47,7 +47,11 @@ try{
   await panel.getByRole('button',{name:'Refresh filing status',exact:true}).click()
   await expect(panel.getByText('Unconfirmed; retry verifies the existing remote file before accepting it.',{exact:true})).toHaveCount(2)
   await capture(page,panel,width,'unconfirmed')
+  edge.moveFolder('/Harbour Studio completed','/Reviewed completed')
   await tabTo(page,panel.getByRole('button',{name:'Retry filing',exact:true}).first(),{backwards:true});await page.keyboard.press('Enter')
+  await expect(panel.getByText(/Folder moved:/)).toHaveCount(1)
+  await capture(page,panel,width,'folder-repair-proposed')
+  await tabTo(page,panel.getByRole('button',{name:'Approve folder repair',exact:true}));await page.keyboard.press('Enter')
   await expect(panel.getByRole('button',{name:'Retry filing',exact:true})).toHaveCount(0)
   await capture(page,panel,width,'filed')
   const files=edge.files().filter(file=>file.name.includes(prepared.id));assert.equal(files.length,4)
@@ -59,6 +63,7 @@ try{
    const view=(await app.call('/api/inkwell/filing',{cookie:app.owner})).value,rule=view.rules.find(rule=>rule.provider===provider)
    await app.call('/api/inkwell/filing',{cookie:app.owner,body:{commandId:crypto.randomUUID(),templateId:template.id,provider,folder:rule.folder,enabled:false,expectedVersion:rule.version}})
   }
+  edge.moveFolder('/Reviewed completed','/Harbour Studio completed')
   await context.close()
  }
  console.log('Automatic filing: both providers, explicit consent, visible interrupted uploads and verified retries at 1440 and 390 passed.')

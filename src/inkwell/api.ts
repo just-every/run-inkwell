@@ -1,3 +1,4 @@
+import { deliveryReconciliation, repairDeliveryRecords } from './delivery-reconciliation'
 import { prepareHubspotEnvelope } from './hubspot-envelope'
 import { getHubspotWriteback, retryHubspotWriteback } from './hubspot-writeback'
 import { hubspotSyncConfig, hubspotSyncProgress, hubspotSyncOperation } from './hubspot-sync'
@@ -137,6 +138,12 @@ api.post('/api/inkwell/hubspot/prepare',async c=>{
  if(input.send===true){await dispatchMail(c.env,(result as {id:string}).id);await dispatchSms(c.env,(result as {id:string}).id)}
  return c.json(result)
 })
+api.get('/api/inkwell/envelopes/:id/delivery-reconciliation',async c=>c.json(await deliveryReconciliation(c.env,await requireActor(c.req.raw,c.env,['owner']),c.req.param('id'))))
+api.post('/api/inkwell/envelopes/:id/delivery-reconciliation',async c=>{
+ sameOrigin(c.req.raw,c.env)
+ const actor=await requireActor(c.req.raw,c.env,['owner']),input:Record<string,unknown>={...object(await readJson(c.req.raw,4096)),id:c.req.param('id')},commandId=text(input.commandId,'a command ID',100),fingerprint=await sha256(canonical(input))
+ return c.json(await repairDeliveryRecords(c.env,{actor,commandId,fingerprint,client:clientEvidence(c.req.raw)},input))
+})
 api.get('/api/inkwell/hubspot/envelopes/:id/writeback',async c=>c.json(await getHubspotWriteback(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),c.req.param('id'))))
 api.post('/api/inkwell/hubspot/envelopes/:id/writeback',async c=>{
  sameOrigin(c.req.raw,c.env)
@@ -146,7 +153,7 @@ api.post('/api/inkwell/hubspot/envelopes/:id/writeback',async c=>{
 api.get('/api/inkwell/hubspot/writebacks',async c=>{
  const actor=await requireActor(c.req.raw,c.env,['owner','admin'])
  const rows=(await c.env.DB.prepare("SELECT h.envelope_id AS id,json_extract(e.data,'$.title') AS title FROM iw_hubspot_envelopes h JOIN iw_envelopes e ON e.id=h.envelope_id ORDER BY h.authorized_at DESC LIMIT 50").all<{id:string;title:string}>()).results
- return c.json({jobs:await Promise.all(rows.map(async row=>({...await getHubspotWriteback(c.env,actor,row.id),title:row.title})))})
+ return c.json({owner:actor.role==='owner',jobs:await Promise.all(rows.map(async row=>({...await getHubspotWriteback(c.env,actor,row.id),title:row.title})))})
 })
 api.get('/api/inkwell/hubspot/config',async c=>c.json(await hubspotSyncConfig(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))
 api.get('/api/inkwell/hubspot/progress',async c=>c.json(await hubspotSyncProgress(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))

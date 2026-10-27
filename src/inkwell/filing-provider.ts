@@ -110,3 +110,12 @@ export async function fileArtifact(provider: FilingProvider, token: string, fold
     throw failed()
   }
 }
+
+/** Resolve only the folder already authorized; never search outside its stable identity. */
+export async function dropboxFolder(token:string,path:string):Promise<{id:string;path:string}> {
+  const result=await request('https://api.dropboxapi.com/2/files/get_metadata',token,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path,include_deleted:false})})
+  const folder=result.data,location=folder.path_display
+  if(result.status!==200||folder['.tag']!=='folder'||typeof folder.id!=='string'||!/^id:[A-Za-z0-9_-]+$/.test(folder.id)||typeof location!=='string'||!location.startsWith('/')||/[\\\x00-\x1f\x7f]/.test(location)||location.slice(1).split('/').some(p=>!p||p==='.'||p==='..'))throw failed()
+  if(path.startsWith('id:')&&folder.id!==path)throw conflict()
+  return {id:folder.id,path:location}
+}

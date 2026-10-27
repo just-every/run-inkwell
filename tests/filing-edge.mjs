@@ -9,7 +9,7 @@ function contentHash(bytes) {
 }
 /** Official provider request and response shapes, faked only at the network boundary. */
 export function filingEdge() {
- const files=new Map(),attempts=[],failures=new Map(),corrupted=new Set()
+ const folders=new Map(),files=new Map(),attempts=[],failures=new Map(),corrupted=new Set()
  const metadata=file=>file.provider==='box'?{type:'file',id:file.id,name:file.name,size:file.bytes.length,sha1:corrupted.has(file.id)?'0'.repeat(40):digest('sha1',file.bytes),parent:{type:'folder',id:file.folder}}:{'.tag':'file',id:file.id,name:file.name,path_lower:(file.folder+'/'+file.name).toLowerCase(),size:file.bytes.length,content_hash:corrupted.has(file.id)?'0'.repeat(64):contentHash(file.bytes)}
  const networkEdge=async request=>{
   const url=new URL(request.url),provider=url.hostname.endsWith('.box.com')?'box':url.hostname.endsWith('.dropboxapi.com')?'dropbox':undefined
@@ -19,7 +19,10 @@ export function filingEdge() {
    assert.equal(request.method,'GET');const file=[...files.values()].find(file=>file.id===url.pathname.split('/').at(-1));assert.ok(file);return Response.json(metadata(file))
   }
   if(url.hostname==='api.dropboxapi.com'){
-   assert.equal(url.pathname,'/2/files/get_metadata');const {path}=await request.json(),file=[...files.values()].find(file=>file.provider==='dropbox'&&(file.folder+'/'+file.name).toLowerCase()===path.toLowerCase());assert.ok(file);return Response.json(metadata(file))
+   assert.equal(url.pathname,'/2/files/get_metadata');const {path}=await request.json();let folder=[...folders.values()].find(f=>f.id===path||f.path.toLowerCase()===path.toLowerCase())
+   if(!folder&&!path.startsWith('id:')&&!path.endsWith('.pdf')){folder={id:'id:synthetic-inkwell-folder-'+folders.size,path};folders.set(folder.id,folder)}
+   if(folder)return Response.json({'.tag':'folder',id:folder.id,path_display:folder.path,path_lower:folder.path.toLowerCase()})
+   const file=[...files.values()].find(file=>file.provider==='dropbox'&&(file.folder+'/'+file.name).toLowerCase()===path.toLowerCase());assert.ok(file);return Response.json(metadata(file))
   }
   assert.equal(request.method,'POST')
   let folder,name,bytes
@@ -39,5 +42,5 @@ export function filingEdge() {
   if(failure==='after')return Response.json({error:'synthetic response lost'},{status:503})
   return provider==='box'?Response.json({total_count:1,entries:[metadata(file)]},{status:201}):Response.json(metadata(file))
  }
- return {networkEdge,files:()=>[...files.values()],attempts:()=>[...attempts],failNext:(provider,when)=>failures.set(provider,when),corrupt:id=>corrupted.add(id),repair:id=>corrupted.delete(id)}
+ return {networkEdge,moveFolder:(from,to)=>{const folder=[...folders.values()].find(f=>f.path.toLowerCase()===from.toLowerCase());assert.ok(folder);folder.path=to;for(const [key,file] of [...files.entries()])if(file.provider==='dropbox'&&file.folder.toLowerCase()===from.toLowerCase()){files.delete(key);file.folder=to;files.set(JSON.stringify([file.provider,to,file.name]),file)}},files:()=>[...files.values()],attempts:()=>[...attempts],failNext:(provider,when)=>failures.set(provider,when),corrupt:id=>corrupted.add(id),repair:id=>corrupted.delete(id)}
 }
