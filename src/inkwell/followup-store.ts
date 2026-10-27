@@ -1,3 +1,4 @@
+import { hubspotEscalationOwner } from './hubspot-envelope-authority'
 import { smsReady } from './sms'
 import { followupRecipient, followupRecipients, currentFollowupRecipients, followupPlace } from './followup-recipients'
 import { active, appendEvent, currentSigners, id, identityEvents, insist, now, secret, sha256, text, type Actor, type Envelope, type Env } from './model'
@@ -37,7 +38,7 @@ export async function setFollowup(env:Env,c:CommandContext,input:Record<string,u
   await appendEvent(after,'followup.revoked',c.actor.id,{version:old.version})
  }else{
   insist(input.enabled===true,'Explicitly enable follow-up.');active(before)
-  const maxContacts=input.maxContacts??3,days=input.days??[1,2,3,4,5],startHour=input.startHour??9,endHour=input.endHour??17,escalationOwner=typeof input.escalationOwner==='string'?input.escalationOwner:before.createdBy
+  const maxContacts=input.maxContacts??3,days=input.days??[1,2,3,4,5],startHour=input.startHour??9,endHour=input.endHour??17,escalationOwner=typeof input.escalationOwner==='string'?input.escalationOwner:(await hubspotEscalationOwner(env,before)??before.createdBy)
   insist(Number.isInteger(maxContacts)&&Number(maxContacts)>=1&&Number(maxContacts)<=10,'Choose 1–10 contacts per recipient.')
   insist(Array.isArray(days)&&days.length>0&&days.length<=5&&days.every(d=>Number.isInteger(d)&&d>=1&&d<=5)&&new Set(days).size===days.length,'Choose allowed business days.')
   insist(Number.isInteger(startHour)&&Number.isInteger(endHour)&&Number(startHour)>=0&&Number(endHour)<=24&&Number(startHour)<Number(endHour),'Choose whole allowed hours between 0 and 24.')
@@ -72,7 +73,7 @@ export async function followupView(env:Env,actor:Actor,e:Envelope) {
  const {contactsSinceGrant}=await import('./followup-engine')
  const states=await Promise.all(followupRecipients(e).map(async p=>({...await followupState(env,e,p.row),...(g?{contacts:contactsSinceGrant(e,g,p.row).length}:{}),recipientName:p.name})))
  const replies=canRead?(await env.DB.prepare('SELECT signer,data FROM iw_followup_replies WHERE envelope_id=? ORDER BY rowid').bind(e.id).all<{signer:number;data:string}>()).results.map(r=>{const p:FollowupReply=JSON.parse(r.data);return{id:p.id,signer:r.signer,from:p.headers.from,subject:p.headers.subject,text:p.body,at:p.receivedAt,verified:p.verified,tooLarge:p.bodyStatus!=='kept',attachments:p.attachments}}):undefined
- return {grant:g,states:canRead?states:states.map(({signer,cause,paused,waitUntil,contacts,recipientName})=>({signer,cause,paused,waitUntil,contacts,recipientName})),replies,people:access==='edit'?await listPeople(env):[],defaultEscalationOwner:e.createdBy,readiness:{sms:smsReady(env),inbound:Boolean(env.MAIL_INBOUND_DOMAIN&&env.MAIL_INBOUND_SECRET&&env.MAIL_INBOUND_API_KEY)}}
+ return {grant:g,states:canRead?states:states.map(({signer,cause,paused,waitUntil,contacts,recipientName})=>({signer,cause,paused,waitUntil,contacts,recipientName})),replies,people:access==='edit'?await listPeople(env):[],defaultEscalationOwner:await hubspotEscalationOwner(env,e)??e.createdBy,readiness:{sms:smsReady(env),inbound:Boolean(env.MAIL_INBOUND_DOMAIN&&env.MAIL_INBOUND_SECRET&&env.MAIL_INBOUND_API_KEY)}}
 }
 export async function replyTo(env:Env,e:Envelope,i:number) {
  const g=await followupGrant(env,e.id);if(!g||g.state!=='active'||!env.MAIL_INBOUND_DOMAIN||!await liveGrant(env,e,g))return undefined

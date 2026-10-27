@@ -8,17 +8,17 @@ import type { CommandContext } from './envelopes'
  * approval), for which templates, whether an internal approval (ROUTE-004) comes first and whether the send may be
  * deferred (PREP-009). Group/profile send policies narrow the account now; ADMIN-002/008 carry broader capabilities. Each
  * source that adds a door (BULK-001, FORM-001, API-001, the integrations) reads its policy here before it ships. */
-export const sendSources = ['ad_hoc', 'template', 'bulk', 'web_form', 'api'] as const
+export const sendSources = ['ad_hoc', 'template', 'bulk', 'web_form', 'api', 'integration'] as const
 export type SendSource = typeof sendSources[number]
 export type SendMode = 'off' | 'person' | 'autonomous'
 export interface SendPolicy { scope: 'account' | 'group' | 'profile'; scopeId?: string; source: SendSource; mode: SendMode; templates: string[] | null; requireInternalApproval: boolean; deferredRelease: boolean; version: number; actor: string | null; at: string | null; reason: string | null }
 export interface SendPolicyVersion extends SendPolicy { before: Pick<SendPolicy, 'mode' | 'templates' | 'requireInternalApproval' | 'deferredRelease' | 'version'> }
 /** What an envelope records about the policy that allowed it: the source, who the send is for, and each contributing policy version. */
-export interface SendPolicyRecord { source: SendSource; mode: SendMode; principal: string; credential: { kind: 'api_key' | 'web_form'; id: string; version: number; memberVersion: number } | null; policies: { scope: 'account' | 'group' | 'profile'; scopeId?: string; version: number }[]; templates: string[] | null; requireInternalApproval: boolean; deferredRelease: boolean; fingerprint: string }
+export interface SendPolicyRecord { source: SendSource; mode: SendMode; principal: string; credential: { kind: 'api_key' | 'web_form' | 'hubspot'; id: string; version: number; memberVersion: number } | null; policies: { scope: 'account' | 'group' | 'profile'; scopeId?: string; version: number }[]; templates: string[] | null; requireInternalApproval: boolean; deferredRelease: boolean; fingerprint: string }
 export interface SendDecision { allowed: boolean; code?: string; reason?: string; requiresApproval: boolean; record: SendPolicyRecord; fence: Guard; versionFence: Guard }
-export const sourceLabel: Record<SendSource, string> = { ad_hoc: 'ad hoc', template: 'template', bulk: 'bulk', web_form: 'web form', api: 'API' }
+export const sourceLabel: Record<SendSource, string> = { ad_hoc: 'ad hoc', template: 'template', bulk: 'bulk', web_form: 'web form', api: 'API', integration: 'HubSpot integration' }
 /** Opt-in defaults: the person-based sources start with the person's confirmation, every other source starts off. */
-const defaultMode: Record<SendSource, SendMode> = { ad_hoc: 'person', template: 'person', bulk: 'person', web_form: 'off', api: 'off' }
+const defaultMode: Record<SendSource, SendMode> = { ad_hoc: 'person', template: 'person', bulk: 'person', web_form: 'off', api: 'off', integration: 'off' }
 const freshSeconds = 15 * 60
 
 interface Row { scope: string; source: SendSource; version: number; mode: SendMode; templates: string | null; require_internal_approval: number; deferred_release: number; actor: string; at: string; reason: string | null; before_value?: string }
@@ -94,6 +94,7 @@ export const envelopeSource = (envelope: Envelope): SendSource => envelope.sendO
 async function sendCredential(env: Env, envelope: Envelope, principal: string) {
  const origin=envelope.sendOrigin
  if(!origin)return {record:null,active:true,guard:{sql:'1=1',values:[]} as Guard}
+ if(origin.credential.kind==='hubspot'){const {hubspotSendCredential}=await import('./hubspot-envelope-authority');return hubspotSendCredential(env,origin.credential.id,principal)}
  if(origin.credential.kind==='web_form'){const {formCredential}=await import('./web-forms');return formCredential(env,origin.credential.id,principal)}
  const row=await env.DB.prepare('SELECT id,version,member_version FROM iw_api_keys WHERE id=?').bind(origin.credential.id).first<{id:string;version:number;member_version:number}>()
  const guard:Guard={sql:`EXISTS(SELECT 1 FROM iw_api_keys k JOIN oa_operators o ON o.id=k.member_id AND o.version=k.member_version WHERE k.id=? AND k.version=? AND k.member_id=? AND o.status='active' AND k.revoked_at IS NULL AND k.suspended_at IS NULL AND k.expires_at>max(?,strftime('%Y-%m-%dT%H:%M:%fZ','now')) AND CASE WHEN o.role='member' THEN ${memberRoleSql('o.id')} ELSE o.role END=k.member_role AND k.member_role IN ('owner','admin','sender') AND EXISTS(SELECT 1 FROM json_each(k.scopes) WHERE value='envelopes:send')) AND ?=?`,values:[origin.credential.id,row?.version??-1,principal,now(),origin.principal,principal]}
@@ -111,7 +112,7 @@ export async function evaluateSendPolicy(env: Env, envelope: Envelope, principal
   else if (options.deferred && !policy.deferredRelease) [code, reason] = ['send_policy_deferred', `The effective send policy for ${label} sends does not allow scheduling.`]
   else if (options.stage === 'release' && policy.requireInternalApproval && !options.approved) [code, reason] = ['send_policy_approval', `The effective send policy for ${label} sends now requires an internal approval first.`]
   if (!credential.active) [code,reason]=['send_credential','The sending credential is no longer active or its bound member no longer has sending authority. A current editor must confirm again.']
-  else if(envelope.sendOrigin && policy.mode === 'person') [code,reason]=['send_policy_person','The effective API policy requires a person to confirm each send. Prepare a draft for an editor instead.']
+  else if(envelope.sendOrigin && policy.mode === 'person') [code,reason]=['send_policy_person','The effective source policy requires a person to confirm each send. Prepare a draft for an editor instead.']
   const effective = { source, mode: policy.mode, principal, credential: credential.record, policies: policies.map(p=>({...scopeParts(p.scope==='account'?'account':`${p.scope}:${p.scopeId}`),version:p.version})), templates: policy.templates, requireInternalApproval: policy.requireInternalApproval, deferredRelease: policy.deferredRelease }
   const record: SendPolicyRecord = { ...effective, fingerprint: await sha256(canonical(effective)) }
   const guards = [credential.guard,memberships.fence,...policies.map(p=>versionGuard(source,p.version,p.scope==='account'?'account':`${p.scope}:${p.scopeId}`))]
