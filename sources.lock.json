@@ -269,7 +269,7 @@
       "executable": false
     },
     "docs/sdk-test-mode.md": {
-      "sha256": "3836b69207bf67e11f9ed3146c41715309766a97ec4cafbf5a7f75b046a50f3c",
+      "sha256": "e7d8dfca46ed0fbaed284ed430158cd70c30d5092b33ececb565809b9f5bf0f3",
       "executable": false
     },
     "docs/send-an-agreement.md": {
@@ -1177,7 +1177,7 @@
       "executable": false
     },
     "src/inkwell/api-limits.ts": {
-      "sha256": "ccfc52bc1449681ce5ea09ba4f48a7aeacc3c1545e02e2418eb86b9e2b5e896f",
+      "sha256": "5230abc82f18612af3b39912eb415af275883fd6efb6d12be0e95921136fe37d",
       "executable": false
     },
     "src/inkwell/api-openapi.ts": {
@@ -4489,7 +4489,7 @@
       "executable": false
     },
     "tests/test-mode.test.mjs": {
-      "sha256": "e6b2321c86a2676cbbed15b1868694a0e22125e678e8911d83fe489608d3e85f",
+      "sha256": "ba91da12508c4269ae98438db426fd1671f129d584eecf2960db2a1d8e4daa2c",
       "executable": false
     },
     "tests/web-forms.test.mjs": {

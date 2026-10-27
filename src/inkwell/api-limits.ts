@@ -15,10 +15,16 @@ export async function admitApiRequest(env: Env, keyId: string) {
 }
 /** Admission for actual invitation release, in the same transaction as its mail and envelope record. */
 export async function policySendQuota(env: Env, envelope: Envelope) {
- if(envelope.testMode)return {guards:[] as Guard[],writes:[] as D1PreparedStatement[]}
  const origin=envelope.sendOrigin??(envelope.formSubmission?{source:'web_form',credential:{id:envelope.formSubmission.id}}:undefined)
  if(!origin)return {guards:[] as Guard[],writes:[] as D1PreparedStatement[]}
  const at=Date.now(),key=origin.credential.id
+ if(envelope.testMode){
+  if(origin.source!=='api')return {guards:[] as Guard[],writes:[] as D1PreparedStatement[]}
+  const rateKey=`test-send:${key}`
+  const rate=await env.DB.prepare('SELECT COUNT(*) AS n,MIN(at) AS first FROM iw_api_request_events WHERE key_id=? AND at>?').bind(rateKey,at-minute).first<{n:number;first:number}>()
+  if(rate!.n>=60)throw new ApiRateLimit(retry(rate!.first,minute,at))
+  return {guards:[{sql:'(SELECT COUNT(*) FROM iw_api_request_events WHERE key_id=? AND at>?)<60',values:[rateKey,at-minute]}],writes:[env.DB.prepare('INSERT INTO iw_api_request_events(id,key_id,at) VALUES(?,?,?)').bind(id(),rateKey,at)]}
+ }
  const account=await env.DB.prepare('SELECT COUNT(*) AS n,MIN(at) AS first FROM iw_policy_send_usage WHERE at>?').bind(at-hour).first<{n:number;first:number}>()
  const credential=await env.DB.prepare('SELECT COUNT(*) AS n,MIN(at) AS first FROM iw_policy_send_usage WHERE credential_id=? AND at>?').bind(key,at-minute).first<{n:number;first:number}>()
  if(account!.n>=3000)throw new ApiRateLimit(retry(account!.first,hour,at))
