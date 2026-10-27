@@ -1,6 +1,7 @@
 import { Refusal } from './model'
 
-export type FilingProvider = 'box' | 'dropbox'
+import { fileSharePoint } from './microsoft-graph'
+export type FilingProvider = 'box' | 'dropbox' | 'sharepoint'
 type Json = Record<string, unknown>
 const failed = () => new Refusal('The filing provider could not verify the artifact. Retry manually.', 502, 'filing_provider_failed')
 const conflict = () => new Refusal('The filing destination contains a different artifact.', 409, 'filing_conflict')
@@ -95,6 +96,7 @@ async function dropbox(token: string, folder: string, name: string, bytes: Uint8
 /** The caller supplies the same destination and deterministic filename on every manual retry. */
 export async function fileArtifact(provider: FilingProvider, token: string, folder: string, name: string, bytes: Uint8Array): Promise<{ id: string }> {
   try {
+    if (provider === 'sharepoint') return await fileSharePoint(token, folder, name, bytes)
     if (!['box', 'dropbox'].includes(provider) || typeof token !== 'string' || !token || /[\x00-\x20\x7f]/.test(token) ||
         typeof name !== 'string' || !name || name.length > 255 || name.trim() !== name || ['.', '..'].includes(name) || /[\\/\x00-\x1f\x7f]/.test(name) ||
         typeof folder !== 'string' || !(bytes instanceof Uint8Array)) throw new Refusal('The filing destination is invalid.')
