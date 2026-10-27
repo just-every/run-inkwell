@@ -21,12 +21,12 @@
 
 .iw-pdf-viewer { display: flex; flex-direction: column; gap: 16px; width: 100%; min-width: 0; max-width: 900px; margin: 0 auto; padding: 16px 20px 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--app-wash); }
 .iw-page-wrap { min-width: 0; }
-.iw-caption { margin: 0 0 6px !important; color: var(--soft) !important; font-size: 12px; }
+.iw-caption { margin: 0 0 6px !important; color: var(--soft) !important; font-size: 13px; }
 .iw-pdf-page { position: relative; width: 100%; overflow: hidden; background: #fff; box-shadow: 0 1px 3px rgb(16 24 40 / 14%); }
 .iw-pdf-page canvas { display: block; width: 100%; height: 100%; }
 .iw-placeable { cursor: crosshair; }
 /* Every recipient's field: a blue outline on a white ground; the recipient number tells them apart. */
-.iw-field { position: absolute; display: flex; align-items: center; padding: 2px 6px; overflow: hidden; border: 1.5px solid var(--app-grad-b); border-radius: 4px; background: rgb(255 255 255 / 90%); color: var(--blue-ink); font-size: clamp(11px, 1vw, 13px); font-weight: 600; line-height: 1.1; pointer-events: none; }
+.iw-field { position: absolute; display: flex; align-items: center; padding: 2px 6px; overflow: hidden; border: 1.5px solid var(--app-grad-b); border-radius: 4px; background: rgb(255 255 255 / 90%); color: var(--blue-ink); font-size: 13px; font-weight: 600; line-height: 1.1; pointer-events: none; }
 
 .iw-submit { gap: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
 .iw-submit p { padding-left: 20px; border-left: 1px solid var(--line); }
@@ -93,7 +93,7 @@
 .iw-adopt { padding-top: 16px; border-top: 1px solid var(--line); }
 .iw-adopt-methods { display: flex; flex-wrap: wrap; gap: 4px 18px; }
 .iw-adopt-styles { display: grid; gap: 8px; }
-.iw-adopt-styles small { display: block; color: var(--soft); font-size: 12px; }
+.iw-adopt-styles small { display: block; color: var(--soft); font-size: 13px; }
 .iw-mark-preview { font-size: 20px; line-height: 1.2; color: var(--ink); overflow-wrap: anywhere; }
 .iw-mark-sans { font-family: Helvetica, Arial, sans-serif; font-style: italic; }
 .iw-mark-serif { font-family: 'Times New Roman', Times, serif; font-style: italic; }
@@ -134,7 +134,7 @@
 .iw-app .iw-thumb:hover { background: #fff; border-color: var(--app-field-hover); }
 .iw-thumb canvas { display: block; width: 100%; height: 100%; }
 .iw-thumb-field { position: absolute; border: 1px solid var(--iw-who); background: color-mix(in srgb, var(--iw-who) 25%, transparent); pointer-events: none; }
-.iw-thumb-number { position: absolute; right: 3px; bottom: 2px; padding: 0 4px; border-radius: 3px; background: rgb(255 255 255 / 85%); color: #1f2937; font-size: 11px; }
+.iw-thumb-number { position: absolute; right: 3px; bottom: 2px; padding: 0 4px; border-radius: 3px; background: rgb(255 255 255 / 85%); color: #1f2937; font-size: 13px; }
 @media (max-width: 760px) {
   .iw-app .iw-thumb { width: 56px; }
   .iw-drag-chip { width: 84px; padding: 8px; font-size: 13px; }
