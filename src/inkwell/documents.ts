@@ -6,7 +6,9 @@ import { blobFingerprint, fromBase64, readBlob } from './blobs'
 import { parsePdf, validatePdfText } from './pdf'
 import { atomic, roleGuard } from './storage'
 import { readBytes } from './body'
+export const MAX_DOCUMENT_BYTES=25_000_000
 export const MAX_ENVELOPE_BYTES=100*1024*1024
+function documentSize(size:number) { insist(Number.isSafeInteger(size)&&size>0&&size<=MAX_DOCUMENT_BYTES,'A document must be nonempty and no larger than 25 MB.') }
 export type EnvelopeDocument={filename:string;sha256:string;bytes:number;pageStart:number;pages:number;mode:'sign'|'optional'|'view';visibleTo?:import('./document-visibility').DocumentAudience;signedSha256?:string}
 export const documentKind=(index:number,signed=false)=>`${signed?'executed':'document'}-${index}`
 const chunkBytes=64*1024
@@ -30,11 +32,12 @@ export async function uploadPdf(env:Env,actor:Actor,request:Request,uploadId?:st
  if(!uploadId) {
   const input=object(await request.json()),filename=text(input.filename,'a PDF filename',240),size=Number(input.bytes)
   insist(filename.toLowerCase().endsWith('.pdf')&&!/[\x00-\x1f/\\]/.test(filename),'Choose a PDF filename.')
-  insist(Number.isSafeInteger(size)&&size>0&&size<=MAX_ENVELOPE_BYTES,'A document must be nonempty and fit within the envelope’s 100 MiB limit.')
+  documentSize(size)
   const uploadId=id();await atomic(env.DB,[roleGuard(actor)],[env.DB.prepare('INSERT INTO iw_pdf_uploads(id,actor,size,filename,created_at) VALUES(?,?,?,?,?)').bind(uploadId,env.embedAllocation?'embed:'+env.embedAllocation:actor.id,size,filename,now())]);return{id:uploadId,chunkBytes}
  }
  const upload=await env.DB.prepare('SELECT actor,size FROM iw_pdf_uploads WHERE id=?').bind(uploadId).first<{actor:string;size:number}>()
  insist(upload&&upload.actor===(env.embedAllocation?'embed:'+env.embedAllocation:actor.id),'PDF upload not found.',404)
+ documentSize(upload.size)
  const index=Number(part);insist(/^\d+$/.test(part??'')&&Number.isSafeInteger(index)&&index>=0&&index<Math.ceil(upload.size/chunkBytes),'Choose an upload part.')
  const bytes=await readBytes(request,chunkBytes),expected=Math.min(chunkBytes,upload.size-index*chunkBytes)
  insist(bytes.length===expected,'This upload part has the wrong byte count.')
@@ -47,6 +50,7 @@ export async function uploadedBytes(env:Env,actor:Actor|undefined,uploadId:unkno
  insist(actor,'Use a member session for staged document uploads.',403)
  const upload=await env.DB.prepare('SELECT actor,size,filename FROM iw_pdf_uploads WHERE id=?').bind(text(uploadId,'a PDF upload ID')).first<{actor:string;size:number;filename:string}>()
  insist(upload&&upload.actor===(env.embedAllocation?'embed:'+env.embedAllocation:actor.id),'PDF upload not found.',404)
+ documentSize(upload.size)
  const bytes=new Uint8Array(upload.size);let offset=0
  for(let part=0;offset<bytes.length;part++){
   const row=await env.DB.prepare('SELECT data FROM iw_pdf_upload_parts WHERE upload_id=? AND part=?').bind(uploadId,part).first<{data:number[]}>();insist(row,'The PDF upload is incomplete.',409)
@@ -70,6 +74,7 @@ export async function readDocuments(env:Env,input:Record<string,unknown>,actor?:
   else {bytes=fromBase64(d.pdfBase64);filename=text(d.filename,'a PDF filename',240)}
   insist(filename.toLowerCase().endsWith('.pdf')&&!/[\x00-\x1f/\\]/.test(filename),'Choose a PDF filename.')
   if(actor?.testMode)bytes=await watermark(bytes)
+  documentSize(bytes.length)
   total+=bytes.length;insist(total<=MAX_ENVELOPE_BYTES,'The documents exceed the envelope’s 100 MiB total limit.')
   await validatePdfText([filename])
   const {document,pageSizes}=await parsePdf(bytes),pageStart=combined.getPageCount()

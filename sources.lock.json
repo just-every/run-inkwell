@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f6cee9216c6d15a51afe2765c19690bdbacf00e80a4e183f38e534b38bcc8dfa",
+      "sha256": "1f5b757e312150c3b8a4719873c6a2acd91472751c555bcfbba27b76d9f888fc",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "55d2673fa13aff0f8b4d070f776ebaf3688d51a1b03e182bae423bd6ca061bcf",
+      "sha256": "c6efc9c1fdd98191bbeddb6530b241a61cc6e2b8ad2d9c15ed4fa6179d8d382a",
       "executable": false
     },
     "DEMO.md": {
@@ -1357,7 +1357,7 @@
       "executable": false
     },
     "src/inkwell/documents.ts": {
-      "sha256": "548291d021aef4297adcf3c1eb7ee2efe8dcf2ee85e7eb2453fa0f24c02986e2",
+      "sha256": "f1f8ce56b0acf556183dc89706f219b776e512cc2619e177c577737489aa31be",
       "executable": false
     },
     "src/inkwell/drafts.ts": {
@@ -1653,7 +1653,7 @@
       "executable": false
     },
     "src/inkwell/pdf.ts": {
-      "sha256": "84c3787e1713418f87ac089dbb95ddbe1e8010117913c94f6f94ca63a3890903",
+      "sha256": "6e6aa0181610135c90b49c2846ee64ff2a4416d1c12a68978bb36720d5c4acbd",
       "executable": false
     },
     "src/inkwell/phone-provider.ts": {
@@ -4065,7 +4065,7 @@
       "executable": false
     },
     "src/ui/ordered-documents.tsx": {
-      "sha256": "ac18082832d8bd51eec70ea21f7e27ef445657ad117ace0e2de49fbb121b254e",
+      "sha256": "cb9c44c1a24e6781d5155e5eb94fa2c5e77dff83ef52d04640c36cc6908823b8",
       "executable": false
     },
     "src/ui/page-thumbnails.tsx": {
@@ -4093,7 +4093,7 @@
       "executable": false
     },
     "src/ui/prepare-envelope.tsx": {
-      "sha256": "cadb1309a39cefe0d33ac676476e84fa70e36c762dcadf396de38bcba4afa00d",
+      "sha256": "033fe883b648e13d6366f4918e3809d386182569dbf64598605f029864bd7c79",
       "executable": false
     },
     "src/ui/provider-authentication.tsx": {
@@ -4272,6 +4272,10 @@
       "sha256": "ce54c0f8b273886ce0e53344b65cf4fd98bfa6d49cceb956bed3e042c7e6fd21",
       "executable": false
     },
+    "tests/fixtures/business-pdf.mjs": {
+      "sha256": "6d86bc413bbac38425511b75548527b9207ae2dc9c1cb25ad5ed6a1ce41cdf4e",
+      "executable": false
+    },
     "tests/fixtures/docuseal/archive.json": {
       "sha256": "f66e2fe0799aebd4f4e2892be51d457ed86139a18435496e4554604aa8530fb5",
       "executable": false
@@ -4381,7 +4385,7 @@
       "executable": false
     },
     "tests/journeys/document-fields.mjs": {
-      "sha256": "b55c6a611e389cae975f41e866c607eba188f7ab4729fb5d21e952db7a4472da",
+      "sha256": "b0ff05959374597b256820a492eab7be635fca110ef846b3a0e33fb0b6330f88",
       "executable": false
     },
     "tests/journeys/embedding.mjs": {
@@ -4569,7 +4573,7 @@
       "executable": false
     },
     "tests/supplements.test.mjs": {
-      "sha256": "dc81bfc62b15441904d4d4c0bc26e809a29a36dbef47dddaca63864f1dbdc25c",
+      "sha256": "6d755adbf69cfba5f2a11ac08abd4d4f421f71881904597ac32958fcb5ebc6e2",
       "executable": false
     },
     "tests/template-maintenance.test.mjs": {
