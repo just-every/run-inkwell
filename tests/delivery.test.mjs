@@ -1042,7 +1042,7 @@ test('Box and Dropbox file the completed PDF and certificate exactly once despit
   assert.equal(legacySaved.jobs.find(job=>job.envelope_id===legacy.id&&job.kind===legacyJob.kind&&job.provider==='dropbox').state,'uncertain','saving the rule preserves outstanding uncertainty')
   await h.post('/api/inkwell/filing/retry',{id:legacy.id})
   const legacyAfter=(await h.send('/api/inkwell/filing',undefined,h.owner)).value
-  assert.ok(legacyAfter.jobs.filter(job=>job.envelope_id===legacy.id).every(job=>job.state==='filed'),'legacy work remains recoverable after a rule save')
+  assert.deepEqual(legacyAfter.jobs.filter(job=>job.envelope_id===legacy.id).map(job=>[job.provider,job.kind,job.state]).sort(),[['box','certificate','filed'],['box','signed','filed'],['dropbox','certificate','filed'],['dropbox','signed','filed']],'legacy work remains recoverable after a rule save')
   assert.equal(edge.files().filter(file=>file.name.includes(legacy.id)).length,4,'legacy recovery creates no duplicate artifacts')
   assert.equal(legacyAfter.jobs.find(job=>job.envelope_id===legacy.id&&job.kind===legacyJob.kind&&job.provider==='dropbox').folder_ref,null,'saving a rule does not invent historical folder authority')
   // AGENT-006: a moved Dropbox folder is resolved only by its pinned identity.

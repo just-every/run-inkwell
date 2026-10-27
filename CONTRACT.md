@@ -459,9 +459,9 @@ How the owner-approved scope for Inkwell (16 October 2026) maps to clauses.
 
 ## Status
 
-Status inventory reconciled on 27 October 2026. Resolve the exact candidate with `git rev-parse HEAD`.
+Judged from the code and tests at commit `d4d53f33b3ebd2ee838c30fac8146bffc9aaf510` (27 October 2026).
 
-AGENT-006 remains partial. This candidate continues owner-reviewed CRM mapping, moved-file, pinned-folder and verified webhook projection repairs and corrects normal HubSpot file metadata and legacy Dropbox rule re-saving. Exact-candidate local tests and browser proof are recorded in the fleet handoff; release gates remain the guarded lander's responsibility. This inventory does not claim a new independent CT judgment.
+AGENT-006 remains partial. This candidate continues owner-reviewed CRM mapping, moved-file, pinned-folder and verified webhook projection repairs and corrects normal HubSpot file metadata and legacy Dropbox rule re-saving. Production code, migrations and browser journeys are byte-identical to the judged source revision; the final candidate strengthens the legacy recovery assertion to require the exact four filed artifacts. Exact-candidate local tests and browser proof are recorded in the fleet handoff; release gates remain the guarded lander's responsibility. This inventory does not claim a new independent CT judgment.
 
 SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing public-door proof on 25 October 2026.
 
