@@ -94,3 +94,45 @@ for(const provider of ['acrobat','dropbox'])test(`${provider}: reviewed API impo
   assert.ok(!h.logs().join('\n').includes('synthetic-inkwell-99'))
  }finally{await h.close()}
 })
+
+test('Dropbox account jobs resume the reviewed source, enforce controls and apply only approved checkpoints',async()=>{
+ const fake=await remoteImportFake('dropbox');fake.paginate()
+ const h=await harness({networkEdge:fake.edge,now:at})
+ try {
+  const sender=await h.invite('first@example.test','member'),route='/api/inkwell/remote-import/jobs/'
+  const call=async(action,input={},status=200,cookie=h.owner)=>(await h.post(route+action,input,cookie,status)).value
+  await call('start',{provider:'dropbox',fallbackAdmin:'owner@harbour.example'},403,sender)
+  const j=await call('start',{provider:'dropbox',fallbackAdmin:'owner@harbour.example'}),input={jobId:j.id,credential:'synthetic-inkwell-99'}
+  let result=await call('review',input)
+  assert.equal(result.state,'reviewing');assert.deepEqual([result.pages,result.agreements,result.templates],[1,2,1])
+  assert.deepEqual(result.senders,{'first@example.test':{agreements:1,templates:1},'owner@harbour.example':{agreements:1,templates:0}})
+  assert.equal((await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.envelopes.length,0)
+  const page=await h.db.prepare('SELECT p.id,p.fingerprint FROM iw_remote_previews p JOIN iw_remote_job_pages b ON b.preview_id=p.id WHERE b.job_id=?').bind(j.id).first()
+  await h.post('/api/inkwell/remote-import/apply',{previewId:page.id,fingerprint:page.fingerprint},h.owner,409)
+  await call('approve',{jobId:j.id,approved:true,fingerprint:'wrong'},409)
+  await call('pause',input);const calls=fake.calls.length
+  await call('review',input,409);await h.scheduled(at);assert.equal(fake.calls.length,calls)
+  await call('resume',input);fake.expireOnce();await call('review',input,409)
+  result=await call('status',input);assert.equal(result.pages,1);assert.match(result.reason,/grant expired/)
+  h.advanceTo(at+16*60_000);fake.otherAccount(true);await call('review',input,409)
+  assert.equal((await call('status',input)).pages,1)
+  fake.otherAccount(false);h.advanceTo(at+32*60_000);fake.exhaustOnce((at+92*60_000)/1000);await call('review',input,429)
+  const throttledCalls=fake.calls.length;await call('review',input,429);assert.equal(fake.calls.length,throttledCalls)
+  h.advanceTo(at+94*60_000);result=await call('review',input)
+  assert.equal(result.state,'ready');assert.deepEqual([result.pages,result.agreements,result.templates],[2,3,1]);assert.equal(result.items.length,4)
+  await call('approve',{jobId:j.id,fingerprint:result.fingerprint,approved:true})
+  await call('pause',input);await h.scheduled(at);assert.equal((await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.envelopes.length,0)
+  await call('resume',input);await h.scheduled(at)
+  assert.equal((await call('status',input)).applied,1)
+  await h.scheduled(at);result=await call('status',input)
+  assert.equal(result.state,'complete');assert.equal(result.applied,2)
+  await h.scheduled(at);assert.equal((await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.envelopes.length,3)
+  const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
+  assert.ok(!archive.ndjson.includes(j.id));assert.ok(!archive.ndjson.includes('synthetic-inkwell-99'))
+  const cancel=await call('start',{provider:'dropbox',fallbackAdmin:'owner@harbour.example'})
+  await call('review',{...input,jobId:cancel.id});await call('cancel',{jobId:cancel.id})
+  assert.equal((await call('status',{jobId:cancel.id})).state,'cancelled')
+  assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM iw_remote_job_pages WHERE job_id=?').bind(cancel.id).first()).n,0)
+  await call('resume',{jobId:cancel.id},409);await call('status',input,403,sender)
+ }finally{await h.close()}
+})

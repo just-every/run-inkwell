@@ -1,3 +1,4 @@
+import { advanceRemoteImports } from './remote-import-jobs'
 import { cleanupRemotePreviews } from './remote-import'
 import { runHubspotSyncSchedule } from './hubspot-sync'
 import { dispatchHubspotWritebacks } from './hubspot-writeback'
@@ -19,6 +20,6 @@ import { applyRetention } from './retention'
 export async function scheduledPass(env: Env, at: number) {
   env = { ...env, DB: withAuditDatabase(env.DB, {kind:'system', id:'system:scheduled'}) }
   const failures: unknown[] = []
-  for (const pass of [cleanupRemotePreviews, runHubspotSyncSchedule, dispatchHubspotWritebacks, sendScheduled, dispatchPendingFiling, purgeFormAttempts, warnApiKeys, warnExpiring, alertBounces, chaseStalled, sendReminders, dispatchNotices, applyRetention]) try { await pass(env, at) } catch (error) { failures.push(error) }
+  for (const pass of [advanceRemoteImports, cleanupRemotePreviews, runHubspotSyncSchedule, dispatchHubspotWritebacks, sendScheduled, dispatchPendingFiling, purgeFormAttempts, warnApiKeys, warnExpiring, alertBounces, chaseStalled, sendReminders, dispatchNotices, applyRetention]) try { await pass(env, at) } catch (error) { failures.push(error) }
   if (failures.length) throw new AggregateError(failures, 'The scheduled pass failed.')
 }

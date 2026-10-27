@@ -28,6 +28,22 @@ export async function remoteImportJourney() {
    await screen.waitFor()
 
    const capture=async name=>{if(width===1440)assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no sideways scroll');await page.screenshot({path:`${images}/${width}-${name}.png`,fullPage:true})}
+   await screen.getByRole('combobox',{name:/Signing provider/}).selectOption('dropbox')
+   await screen.getByLabel('Fallback administrator email',{exact:true}).fill('owner@harbour.example')
+   await screen.getByRole('button',{name:'Start account review',exact:true}).click()
+   await screen.getByRole('status').filter({hasText:'Account review: reviewing.'}).waitFor()
+   await capture('account-reviewing')
+   await screen.getByLabel('Dropbox Sign API key',{exact:true}).fill('synthetic-inkwell-99')
+   await screen.getByRole('button',{name:'Review next account page',exact:true}).click()
+   await screen.getByRole('status').filter({hasText:'Account review: ready.'}).waitFor()
+   if(width===1440){assert.match(await screen.getByRole('status').innerText(),/1 pages reviewed.*2 agreements.*1 templates/);assert.equal(await screen.getByRole('button',{name:'Approve account import',exact:true}).isDisabled(),true)}
+   await capture('account-ready')
+   await screen.getByRole('button',{name:'Pause account job',exact:true}).focus();await page.keyboard.press('Enter')
+   await screen.getByRole('status').filter({hasText:'Account review: paused.'}).waitFor();await capture('account-paused')
+   await screen.getByRole('button',{name:'Resume account job',exact:true}).click()
+   await screen.getByRole('status').filter({hasText:'Account review: ready.'}).waitFor()
+   await screen.getByRole('button',{name:'Cancel account job',exact:true}).click()
+   await screen.getByRole('status').filter({hasText:'Account review: cancelled.'}).waitFor();await capture('account-cancelled')
    for(const provider of ['acrobat','dropbox']) {
     await screen.getByRole('combobox',{name:/Signing provider/}).selectOption(provider)
     await screen.getByLabel(provider==='acrobat'?'Acrobat access token':'Dropbox Sign API key',{exact:true}).fill('synthetic-inkwell-99')
@@ -39,7 +55,7 @@ export async function remoteImportJourney() {
     await screen.getByRole('checkbox',{name:'I reviewed the source owners, skipped items and batch fingerprint.'}).focus()
     await page.keyboard.press('Space')
     await screen.getByRole('button',{name:'Import reviewed batch',exact:true}).focus();await page.keyboard.press('Enter')
-    await screen.getByRole('status').waitFor();await capture(provider+'-complete')
+    await screen.getByRole('status').filter({hasText:'Import complete.'}).waitFor();await capture(provider+'-complete')
     if(width===1440){
      const axe=await readFile('node_modules/axe-core/axe.min.js','utf8');await page.addScriptTag({content:axe})
      const violations=await page.evaluate(async()=> (await window.axe.run(document.querySelector('[aria-label="API move-in"]'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}})).violations)

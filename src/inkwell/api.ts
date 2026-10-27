@@ -1,6 +1,7 @@
 import { prepareHubspotEnvelope } from './hubspot-envelope'
 import { getHubspotWriteback, retryHubspotWriteback } from './hubspot-writeback'
 import { hubspotSyncConfig, hubspotSyncProgress, hubspotSyncOperation } from './hubspot-sync'
+import { remoteImportJob } from './remote-import-jobs'
 import { configureInbound, informationView, requestInformation, returnInbound, informationArtifact } from './agent-workflows'
 import { previewRemoteImport, applyRemoteImport } from './remote-import'
 import { matchedRoutes } from 'hono/route'
@@ -203,6 +204,7 @@ api.get('/api/inkwell/notices/settings',async c=>{const actor=await requireActor
 api.post('/api/inkwell/notices/settings',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env);return c.json({ok:true,result:await saveNoticeSettings(c.env,actor,await readJson(c.req.raw,8192))})})
 // ROUTE-008: the shared contact book and the member's recent recipients, for owners, admins and senders.
 const contactRoles=['owner','admin','sender'] as const
+api.post('/api/inkwell/remote-import/jobs/:action',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner']),input=await readJson(c.req.raw,12000);return c.json(await remoteImportJob(c.env,actor,c.req.param('action'),input))})
 api.post('/api/inkwell/remote-import/:action',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner']),input=await readJson(c.req.raw,12000),action=c.req.param('action');insist(['preview','apply'].includes(action),'Import route not found.',404);return c.json(action==='preview'?await previewRemoteImport(c.env,actor,input):await applyRemoteImport(c.env,actor,input))})
 api.get('/api/inkwell/contacts',async c=>{const actor=await requireActor(c.req.raw,c.env,contactRoles);return c.json({...await searchContacts(c.env,new URL(c.req.url).searchParams),recent:await recentRecipients(c.env,actor)})})
 api.post('/api/inkwell/contacts',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,contactRoles);return c.json({ok:true,result:await saveContact(c.env,actor,await readJson(c.req.raw,8192))})})
