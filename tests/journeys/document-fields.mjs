@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import { PDFDocument, StandardFonts } from 'pdf-lib'
 import { screenshots, startInkwell } from './worker.mjs'
 import { axe } from './a11y.mjs'
+import { businessPdf, encryptedPdf } from '../fixtures/business-pdf.mjs'
 
 const { origin, ownerCookie, browser, close } = await startInkwell()
 const pdf = await PDFDocument.create(), font = await pdf.embedFont(StandardFonts.Helvetica), sheet = pdf.addPage([612, 792])
@@ -19,6 +20,7 @@ const pdfBuffer = Buffer.from(await pdf.save())
 const near = (a, b, label) => assert.ok(Math.abs(a - b) < .01, `${label}: ${a} vs ${b}`)
 
 try {
+  await businessUploadJourney()
   let minor = 0
   for (const [width, height] of [[1440, 900], [390, 844]]) {
     const label = `${width}px`, title = `Tagged NDA ${width}`
@@ -52,4 +54,45 @@ try {
   throw error
 } finally {
   await close()
+}
+
+// PREP-001: assert the business-size flow once; resize the same screens for release proof.
+async function businessUploadJourney() {
+ const context=await browser.newContext({viewport:{width:1440,height:1000}})
+ await context.addCookies([ownerCookie()]);const page=await context.newPage();page.setDefaultTimeout(120_000)
+ const capture=async(p,state)=>{for(const width of [1440,390]){await p.setViewportSize({width,height:width===390?844:1000});await p.screenshot({path:join(tmpdir(),`prep-001-${state}-${width}.png`),fullPage:true})}await p.setViewportSize({width:1440,height:1000})}
+ try {
+  await page.goto(`${origin}/app`);await page.getByRole('button',{name:'New envelope'}).click()
+  await page.getByLabel('Envelope title').fill('Business-size agreement')
+  await page.getByLabel('Fixed PDF document').setInputFiles({name:'encrypted.pdf',mimeType:'application/pdf',buffer:Buffer.from(await encryptedPdf())})
+  await page.getByRole('alert').filter({hasText:'Encrypted PDFs cannot be signed'}).waitFor();await capture(page,'encrypted')
+  await page.getByLabel('Fixed PDF document').setInputFiles({name:'oversized.pdf',mimeType:'application/pdf',buffer:Buffer.alloc(30_000_000)})
+  await page.getByRole('alert').filter({hasText:'25 MB'}).waitFor();await capture(page,'refused')
+  const bytes=Buffer.from(await businessPdf())
+  await page.getByLabel('Fixed PDF document').setInputFiles({name:'business.pdf',mimeType:'application/pdf',buffer:bytes})
+  await page.getByRole('status').filter({hasText:'Placed 1 field'}).waitFor()
+  await page.getByRole('button',{name:'Remove recipient 2',exact:true}).click()
+  await page.getByLabel('Recipient 1 name').fill('Mara Quinn');await page.getByLabel('Recipient 1 email').fill('mara@business.example')
+  await page.locator('.iw-pdf-page[data-rendered]').waitFor()
+  await axe(page,'PREP-001 1440 preparation');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))
+  await page.getByRole('button',{name:'Remove field 1',exact:true}).focus();await page.getByRole('tooltip').waitFor()
+  await capture(page,'prepare')
+  await page.getByRole('button',{name:'Save prepared envelope',exact:true}).click()
+  const eligible=page.getByRole('checkbox',{name:/I reviewed this envelope/});await eligible.waitFor();await eligible.focus();await page.keyboard.press('Space')
+  await page.getByRole('button',{name:'Approve and invite first recipient',exact:true}).click()
+  const invitation=page.locator('.iw-manual-invitation');await invitation.getByRole('link').waitFor()
+  const link=await invitation.getByRole('link').getAttribute('href'),code=await invitation.locator('strong').innerText()
+  const signerContext=await browser.newContext({viewport:{width:1440,height:1000}}),signer=await signerContext.newPage();signer.setDefaultTimeout(120_000)
+  try {
+   await signer.goto(link);await signer.getByLabel('Verification code',{exact:true}).fill(code);await signer.getByRole('button',{name:'Verify code',exact:true}).click()
+   const disclosure=signer.getByRole('checkbox',{name:/I have read the electronic record/});await disclosure.focus();await signer.keyboard.press('Space');await signer.getByRole('button',{name:'Agree and continue',exact:true}).click()
+   await signer.locator('.iw-pdf-page[data-rendered]').waitFor()
+   const signature=signer.getByRole('textbox',{name:/Signature Page 1/});await signature.focus();await signer.keyboard.type('Mara Quinn')
+   await axe(signer,'PREP-001 1440 signing');assert.ok(await signer.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await capture(signer,'sign')
+   const consent=signer.getByRole('checkbox',{name:/I have reviewed this document and consent/});await consent.focus();await signer.keyboard.press('Space')
+   await signer.getByRole('button',{name:'Sign document',exact:true}).click();await signer.getByRole('heading',{name:'All signatures are complete.',exact:true}).waitFor()
+   await capture(signer,'complete')
+  } finally {await signerContext.close()}
+  console.log('PREP-001: real 20 MB PDF uploads, previews and signs; 30 MB refusal; 1440 assertions and 1440 plus 390 screen proof')
+ } finally {await context.close()}
 }
