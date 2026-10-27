@@ -40,6 +40,7 @@ async function create(env:Bindings,actor:Actor,input:Record<string,unknown>){
   env.DB.prepare(`CREATE TABLE ${quote(tables.threads)} AS SELECT t.* FROM iw_comment_threads t JOIN ${quote(tables.envelopes)} e ON e.id=t.envelope_id`),
   env.DB.prepare(`CREATE INDEX ${quote(tables.threads+'_index')} ON ${quote(tables.threads)}(envelope_id,id)`),
   ...[['replies','iw_followup_replies'],['questions','iw_agent_requests'],['inbound','iw_agent_inbound'],['attachments','iw_agent_attachments']].map(([key,source])=>env.DB.prepare(`CREATE TABLE ${quote(tables[key as keyof typeof tables])} AS SELECT r.* FROM ${source} r JOIN ${quote(tables.envelopes)} e ON e.id=r.envelope_id`)),
+  env.DB.prepare(`CREATE INDEX ${quote(tables.replies+'_index')} ON ${quote(tables.replies)}(envelope_id,id)`),
   env.DB.prepare(`CREATE TABLE ${quote(tables.imports)} AS SELECT * FROM iw_imported_archives WHERE ${importWhere}`).bind(...importParams),
   env.DB.prepare(`INSERT INTO iw_exit_members SELECT ?,id FROM ${quote(tables.envelopes)}`).bind(job),env.DB.prepare(`INSERT INTO iw_exit_members SELECT ?,'import:'||id FROM ${quote(tables.imports)}`).bind(job),
  ])
@@ -52,9 +53,10 @@ async function* entries(env:Bindings,job:Job):AsyncGenerator<Entry>{
  for await(const row of rows(env.DB,tables.envelopes)){
   const e:Envelope=JSON.parse(row.data),metadata={record:e.id,title:e.title,status:e.status},prefix=`envelopes/${e.id}`
   const threads=(await env.DB.prepare(`SELECT data FROM ${quote(tables.threads)} WHERE envelope_id=? ORDER BY id`).bind(e.id).all<{data:string}>()).results.map(r=>JSON.parse(r.data))
+  const replies=(await env.DB.prepare(`SELECT signer,data FROM ${quote(tables.replies)} WHERE envelope_id=? ORDER BY id`).bind(e.id).all<{signer:number;data:string}>()).results.map(r=>({signer:r.signer,...JSON.parse(r.data)}))
   yield memoryEntry(`${prefix}/audit.json`,encode(JSON.stringify({format:'inkwell-audit/1',envelope:e})),metadata)
   const business=async(table:string)=>(await env.DB.prepare(`SELECT data FROM ${quote(table)} WHERE envelope_id=? ORDER BY rowid`).bind(e.id).all<{data:string}>()).results.map(r=>JSON.parse(r.data))
-  yield memoryEntry(`${prefix}/custody.json`,encode(JSON.stringify({format:'inkwell-record-custody/1',envelope:e,threads,replies:await business(tables.replies),informationRequests:await business(tables.questions),inbound:await business(tables.inbound),sourceAttachments:await business(tables.attachments)})),metadata)
+  yield memoryEntry(`${prefix}/custody.json`,encode(JSON.stringify({format:'inkwell-record-custody/1',envelope:e,threads,replies,informationRequests:await business(tables.questions),inbound:await business(tables.inbound),sourceAttachments:await business(tables.attachments)})),metadata)
   const privateAttachments=await business(tables.attachments) as {id:string;sha256:string}[]
   const artifacts=(await env.DB.prepare(`SELECT kind,SUM(length(data)) AS bytes,COUNT(*) AS parts FROM ${quote(tables.blobs)} WHERE envelope_id=? GROUP BY kind ORDER BY kind`).bind(e.id).all<{kind:string;bytes:number;parts:number}>()).results
   for(const a of artifacts){const hash=a.kind.startsWith('agent-')?privateAttachments.find(p=>'agent-'+p.id===a.kind)?.sha256:expected(e,a.kind);if(!hash||a.kind.startsWith('mark-')||a.kind.startsWith('initials-'))continue;const pdf=!a.kind.startsWith('mark-')&&!a.kind.startsWith('initials-')&&(!a.kind.startsWith('paper-')||e.signers[Number(a.kind.slice(6))]?.paper?.mediaType==='application/pdf')
