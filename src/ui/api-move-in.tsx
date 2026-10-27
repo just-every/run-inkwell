@@ -7,7 +7,7 @@ export function ApiMoveIn() {
  const [continuation,setContinuation]=useState<Record<string,unknown>>({})
  const action=useAction()
  const reset=()=>{setPreview(undefined);setApproved(false);setComplete(false)}
- return <section className="iw-stack" aria-label="API move-in"><h3>Move in from a signing provider</h3><p>Review a batch of up to 20 agreements and 20 templates. Source owners match active members by email. Unmatched owners use the administrator you name. Importing sends no signing invitations.</p>
+ return <section className="iw-stack" aria-label="API move-in"><h2>Move in from a signing provider</h2><p>Review a batch of up to 20 agreements and 20 templates. Source owners match active members by email. Unmatched owners use the administrator you name. Importing sends no signing invitations.</p>
  <label>Signing provider<select value={provider} disabled={action.busy} onChange={e=>{setProvider(e.target.value);setCredential('');setContinuation({});reset()}}><option value="acrobat">Adobe Acrobat Sign</option><option value="dropbox">Dropbox Sign</option></select></label>
  {provider==='acrobat'&&<label>Acrobat API region<select value={region} onChange={e=>{setRegion(e.target.value);setContinuation({});reset()}}>{['na1','na2','na3','na4','eu1','eu2','au1','jp1','in1','sg1'].map(v=><option key={v}>{v}</option>)}</select></label>}
  <label>{provider==='acrobat'?'Acrobat access token':'Dropbox Sign API key'}<input type="password" autoComplete="off" value={credential} onChange={e=>{setCredential(e.target.value);reset()}} /></label>
