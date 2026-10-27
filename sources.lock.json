@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "0c64c3a6d5adf3f2001afa919bfb2f706bdcea64cc0580ba1a45281caa1ec90c",
+      "sha256": "88c54e976f057622d8b3f95b46d2f026144be87e95cad036a235f1d4ff618994",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "d40f7234739e03f45d0f394be4813ee54046a9d09e209355f0c75e76344f942d",
+      "sha256": "761e16b1e43d981c65cc6a6ef9db168ec293367922acb5f34535a583b353d397",
       "executable": false
     },
     "DEMO.md": {
@@ -229,7 +229,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "d7f0eb86f9fd08b99366f710b3e275e00543eb95ae2bd4d78f51da1fb53b4cbe",
+      "sha256": "adb17d16c14c0bf47fae75004b1ccbb65ba3443bb38e8c35784e3c4685a14115",
       "executable": false
     },
     "docs/deploy.md": {
@@ -1633,7 +1633,7 @@
       "executable": false
     },
     "src/inkwell/microsoft.ts": {
-      "sha256": "df51419ee7db9b7a2a9d29f1816c249916d764b4da03b3301c87062b756fdffc",
+      "sha256": "c690aeeb3eb3f895bbf50b6b519761439fcdf605f262d1f7995edf9488241a2a",
       "executable": false
     },
     "src/inkwell/model.ts": {

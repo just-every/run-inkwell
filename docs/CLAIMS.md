@@ -2,7 +2,7 @@
 
 Generated from CONTRACT.md. Acceptance journeys remain in ACCEPTANCE.md.
 
-Inventory: 71 done, 24 partial, 22 missing; 117 total.
+Inventory: 71 done, 25 partial, 21 missing; 117 total.
 
 | Clause | Status | Evidence | Details |
 | --- | --- | --- | --- |
@@ -16,7 +16,7 @@ Inventory: 71 done, 24 partial, 22 missing; 117 total.
 | `MOVE-001` | done | `tests/api.test.mjs`, `src/inkwell/imports/index.ts`, `tests/fixtures/docuseal/archive.json` | [Contract status](../CONTRACT.md#status) |
 | `PORT-001` | done | `tests/api.test.mjs`, `src/inkwell/archive.ts` | [Contract status](../CONTRACT.md#status) |
 | `ERASE-001` | done | `tests/api.test.mjs`, `src/inkwell/archive.ts` | [Contract status](../CONTRACT.md#status) |
-| `PREP-001` | partial | `src/inkwell/pdf.ts`, `src/inkwell/blobs.ts` | [Contract status](../CONTRACT.md#status) |
+| `PREP-001` | partial | `src/inkwell/documents.ts`, `src/inkwell/pdf.ts`, `tests/supplements.test.mjs`, `tests/journeys/document-fields.mjs` | [Contract status](../CONTRACT.md#status) |
 | `PREP-002` | done | `tests/supplements.test.mjs`, `tests/journeys/supplements.mjs`, `tests/journeys/document-capacity.mjs` | [Contract status](../CONTRACT.md#status) |
 | `PREP-003` | partial | `src/inkwell/business-fields.ts`, `src/inkwell/field-rules.ts`, `src/inkwell/pdf.ts`, `src/ui/field-choices-editor.tsx`, `src/ui/signing-field-input.tsx`, `tests/prefill.test.mjs`, `tests/journeys/field-types.mjs`, `tests/journeys/template-maintenance.mjs` | [Contract status](../CONTRACT.md#status) |
 | `PREP-004` | done | `src/inkwell/field-rules.ts`, `src/inkwell/pdf.ts`, `src/inkwell/signing.ts`, `src/ui/field-rules-editor.tsx`, `src/ui/signing-field-input.tsx`, `tests/api.test.mjs`, `tests/journeys/conditional-fields.mjs` | [Contract status](../CONTRACT.md#status) |
@@ -95,7 +95,7 @@ Inventory: 71 done, 24 partial, 22 missing; 117 total.
 | `INTEG-002` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `INTEG-003` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `INTEG-004` | missing |  | [Contract status](../CONTRACT.md#status) |
-| `INTEG-005` | missing |  | [Contract status](../CONTRACT.md#status) |
+| `INTEG-005` | partial | `tests/delivery.test.mjs`, `tests/journeys/microsoft.mjs` | [Contract status](../CONTRACT.md#status) |
 | `INTEG-006` | done | `tests/delivery.test.mjs`, `tests/journeys/filing.mjs` | [Contract status](../CONTRACT.md#status) |
 | `INTEG-007` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `INTEG-008` | partial | `src/inkwell/envelopes.ts`, `tests/api.test.mjs` | [Contract status](../CONTRACT.md#status) |
