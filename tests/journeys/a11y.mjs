@@ -13,13 +13,14 @@ export async function axe(page, label) {
   assert.deepEqual(serious.map(v => `${v.id}: ${v.nodes.map(n => n.target.join(' ')).join(', ')}`), [], `${label}: no serious or critical WCAG violation`)
   return violations.length
 }
-/** Press Tab (or Shift+Tab with `backwards`) until `target` has focus (at most 80 presses), checking that each control
- * reached shows its focus. */
+/** Press Tab (or Shift+Tab with `backwards`) until `target` has focus within 30 seconds, checking that every
+ * visited control shows its focus, including settings pages with many controls. */
 export async function tabTo(page, target, { backwards = false } = {}) {
   await target.waitFor({ state: 'visible' })
   // Async loads can show a control before it enters the keyboard tab order.
   await expect(target).toBeEnabled()
-  for (let presses = 0; presses < 80; presses++) {
+  const deadline = performance.now() + 30_000
+  while (performance.now() < deadline) {
     await page.keyboard.press(backwards ? 'Shift+Tab' : 'Tab')
     // Focus styles fade in (a 0.15 s transition): read them at their end state. A date field's own calendar button is
     // the one control whose focus ring the browser draws inside the field (its host then does not match :focus).

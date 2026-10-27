@@ -4337,7 +4337,7 @@
       "executable": false
     },
     "tests/journeys/a11y.mjs": {
-      "sha256": "7c3d657118ee74d6380f685bb2b92e2901e433a83ecc0e8be21d3e1c08c661fd",
+      "sha256": "62c8a5f9575f897c751cbe5f0d9a04fe489407852065567b118991d7cf90f158",
       "executable": false
     },
     "tests/journeys/accessible-signing.mjs": {
