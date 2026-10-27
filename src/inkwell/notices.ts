@@ -63,6 +63,7 @@ function approvalNotice(env: Env, envelope: Envelope, event: AuditEvent): Notice
 
 /** The writes that record and send the notices for the events `after` adds to `before`, in the same batch as the change. */
 export async function noticeWrites(env: Env, before: Envelope, after: Envelope): Promise<D1PreparedStatement[]> {
+  if(after.testMode)return []
   // The recipient who acted: the event's own, or for a completion the last to sign in this change. A member is never
   // emailed or posted about their own action (ROUTE-009: signing your own document sends nothing); the feed still has it.
   let last: number | undefined

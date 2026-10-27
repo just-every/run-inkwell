@@ -46,7 +46,7 @@ test('API-001: fresh owners/admins mint bound expiring keys once; secrets never 
     await mint(h, (await actor(h, viewer)).id, ['envelopes:read'], {}, admin, 403)
     for (const expiresInDays of [0, 731, 1.5]) await mint(h, owner.id, ['envelopes:read'], { expiresInDays }, admin, 400)
     await mint(h, owner.id, ['webhooks:manage'], {}, admin, 400)
-    await mint(h, owner.id, ['envelopes:read'], { mode: 'test' }, admin, 409)
+    await mint(h, owner.id, ['envelopes:read'], { mode: 'unknown' }, admin, 400)
     await h.post('/api/inkwell/api-keys', { ...body, commandId: crypto.randomUUID() }, h.owner, 403, { origin: 'https://elsewhere.example' })
     const agent = (await h.command('agent.issue')).result
     for (const token of [agent.token, issued.token]) {

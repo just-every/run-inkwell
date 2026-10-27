@@ -21,3 +21,6 @@ research/
 # Disposable delivery output
 rer-package/
 delivery-artifact/
+
+__pycache__/
+*.pyc

@@ -1,3 +1,4 @@
+import {watermark} from './test-mode'
 import { readDocumentAudience } from './document-visibility'
 import { PDFDocument } from 'pdf-lib'
 import { active, canonical, id, insist, now, object, sha256, text, type Actor, type Envelope, type Env, type Field } from './model'
@@ -68,6 +69,7 @@ export async function readDocuments(env:Env,input:Record<string,unknown>,actor?:
   else if(d.uploadId!==undefined){const uploaded=await uploadedBytes(env,actor,d.uploadId);bytes=uploaded.bytes;filename=uploaded.filename}
   else {bytes=fromBase64(d.pdfBase64);filename=text(d.filename,'a PDF filename',240)}
   insist(filename.toLowerCase().endsWith('.pdf')&&!/[\x00-\x1f/\\]/.test(filename),'Choose a PDF filename.')
+  if(actor?.testMode)bytes=await watermark(bytes)
   total+=bytes.length;insist(total<=MAX_ENVELOPE_BYTES,'The documents exceed the envelope’s 100 MiB total limit.')
   await validatePdfText([filename])
   const {document,pageSizes}=await parsePdf(bytes),pageStart=combined.getPageCount()

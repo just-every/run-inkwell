@@ -1,3 +1,4 @@
+import {watermark} from './test-mode'
 import { configurePayment } from './payment-authority'
 import { parsePaymentRequirement, samePaymentRequirement, type PaymentRequirement } from './payment-requirement'
 import { customEnvelopeFields, envelopeTags } from './envelope-metadata'
@@ -31,11 +32,12 @@ const optional = (value: unknown, label: string, max: number, oneLine = false) =
 /** `previous` is the draft being saved again: a recipient at the same place with the same email may keep their access
  * code (`keepAccessCode`), which is bound to that place. */
 export async function readDraft(env: Env, input: Record<string, unknown>, base: string, previous?: Envelope, actor?: Actor, prepared?:{bytes:Uint8Array;documents:NonNullable<Envelope['documents']>;composition?:true}, savedMethods?: import('./model').AdoptionMethod[], savedDisclosure?: Envelope['consumerDisclosure'] | null, savedPayments?: readonly Pick<Signer,'payment'|'paymentAuthority'>[]) {
+  if((actor?.testMode||previous?.testMode)&&!input.documents&&!prepared){input={...input,pdfBase64:btoa(Array.from(await watermark(fromBase64(input.pdfBase64)),b=>String.fromCharCode(b)).join(''))}}
   const defaults = previous ? undefined : await envelopeDefaults(env)
   const title = text(input.title, 'a title'), filename = text(input.filename ?? (input.documents ? 'combined.pdf' : undefined), 'a filename', 240)
   insist(!/[\x00-\x1f/\\]/.test(filename) && filename.toLowerCase().endsWith('.pdf'), 'Choose a PDF filename.')
   insist(!/[\r\n\t]/.test(title), 'Use a single line for the envelope title.')
-  const multiple = prepared?{...await parsePdf(prepared.bytes,2000),bytes:prepared.bytes,documents:structuredClone(prepared.documents),originals:undefined}:await readDocuments(env,input,actor,previous), bytes = multiple?.bytes ?? fromBase64(input.pdfBase64), { document, pageSizes } = multiple ?? await parsePdf(bytes)
+  const multiple = prepared?{...await parsePdf(prepared.bytes,2000),bytes:prepared.bytes,documents:structuredClone(prepared.documents),originals:undefined}:await readDocuments(env,input,previous?.testMode&&actor?{...actor,testMode:true}:actor,previous), bytes = multiple?.bytes ?? fromBase64(input.pdfBase64), { document, pageSizes } = multiple ?? await parsePdf(bytes)
   insist(Array.isArray(input.signers) && input.signers.length >= 1 && input.signers.length <= 100, 'Add 1–100 ordered recipients.')
   const accessCodes: (string | 'keep' | undefined)[] = []
   const groups = await Promise.all(input.signers.map(value => object(value).group === undefined ? undefined : snapshotGroup(env, object(value).group)))

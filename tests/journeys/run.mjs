@@ -12,6 +12,7 @@ const groups = [[
  "tests/journeys/payments.mjs"
 ], [
  "tests/journeys/contacts.mjs",
+ "tests/journeys/bulk.mjs",
  "tests/journeys/templates.mjs",
  "tests/journeys/import-retention.mjs",
  "tests/journeys/internal-approval.mjs",

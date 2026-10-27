@@ -37,7 +37,7 @@ export async function envelopeReport(env: Env, actor: Actor, params: URLSearchPa
   const facts = `SELECT json_extract(e.data,'$.template.id') AS templateId, json_extract(e.data,'$.template.title') AS templateTitle, json_extract(e.data,'$.createdBy') AS sender, ${at('envelope.approved')} AS sent, ${at('envelope.completed')} AS completed,
     (SELECT MIN(json_extract(s.value,'$.declinedAt')) FROM json_each(e.data,'$.signers') s) AS declined,
     CASE WHEN json_extract(e.data,'$.status') IN ('awaiting_signature','expired') AND json_extract(e.data,'$.expiresAt')<=?3 THEN json_extract(e.data,'$.expiresAt') END AS expired
-    FROM iw_envelopes e WHERE json_extract(e.data,'$.imported') IS NULL${actor.role === 'sender' ? ' AND json_extract(e.data,\'$.createdBy\')=?4' : ''}`
+    FROM iw_envelopes e WHERE json_extract(e.data,'$.testMode') IS NULL AND json_extract(e.data,'$.imported') IS NULL${actor.role === 'sender' ? ' AND json_extract(e.data,\'$.createdBy\')=?4' : ''}`
   const rows = (await env.DB.prepare(`SELECT f.*, o.display_name AS name, o.email FROM (${facts}) f LEFT JOIN oa_operators o ON o.id=f.sender WHERE f.sent IS NOT NULL AND ((f.sent>=?1 AND f.sent<?2) OR (f.completed>=?1 AND f.completed<?2) OR (f.declined>=?1 AND f.declined<?2) OR (f.expired>=?1 AND f.expired<?2)) ORDER BY f.sent DESC, f.templateTitle`)
     .bind(from, to, new Date().toISOString(), ...(actor.role === 'sender' ? [actor.id] : [])).all<Row>()).results
   const groups = new Map<string, Row[]>()

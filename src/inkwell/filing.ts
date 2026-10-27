@@ -40,6 +40,7 @@ export async function saveFiling(env: Env, context: CommandContext, input: Recor
 }
 /** Completion and durable per-artifact jobs commit together. Restored records never create jobs. */
 export async function filingWrites(env: Env, envelope: Envelope) {
+ if(envelope.testMode)return []
  const templates = envelope.templates ?? (envelope.template ? [envelope.template] : [])
  const writes: D1PreparedStatement[] = [], destinations = new Set<string>()
  for (const template of templates) {
@@ -55,7 +56,7 @@ export async function filingWrites(env: Env, envelope: Envelope) {
 /** A failed attempt remains visible. Only an explicit retry reclaims uncertain work. */
 export async function dispatchFiling(env: Env, envelopeId: string, retry = false) {
  const envelope = await getEnvelope(env.DB,envelopeId)
- if (envelope.status !== 'completed' || envelope.imported) return
+ if (envelope.testMode || envelope.status !== 'completed' || envelope.imported) return
  const jobs = (await env.DB.prepare("SELECT * FROM iw_filing_jobs WHERE envelope_id=? AND (state='pending' OR (?=1 AND (state='uncertain' OR state='sending' AND started_at<?)))").bind(envelopeId,retry?1:0,Date.now()-120_000).all<Job>()).results
  for (const job of jobs) {
   const allowed = await env.DB.prepare("SELECT 1 FROM iw_filing_rules WHERE provider=? AND folder=? AND enabled=1 AND template_id IN (SELECT json_extract(value,'$.id') FROM json_each(?))").bind(job.provider,job.folder,JSON.stringify(envelope.templates??(envelope.template?[envelope.template]:[]))).first()

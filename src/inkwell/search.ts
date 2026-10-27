@@ -38,6 +38,7 @@ export async function searchEnvelopes(env: Env, actor: Actor, params: URLSearchP
   if(field){where.push(`EXISTS(SELECT 1 FROM json_each(e.data,'$.customFields') c WHERE lower(json_extract(c.value,'$.name'))=?${values.length+1}${value!==null?` AND lower(json_extract(c.value,'$.value'))=?${values.length+2}`:''})`);values.push(field.toLowerCase());if(value!==null)values.push(value.toLowerCase())}
   if(tag){where.push(`EXISTS(SELECT 1 FROM json_each(e.data,'$.tags') t WHERE lower(t.value)=?${values.length+1})`);values.push(tag.toLowerCase())}
   if(q){where[0]=where[0].slice(0,-1)+` OR EXISTS(SELECT 1 FROM json_each(e.data,'$.customFields') c WHERE lower(json_extract(c.value,'$.value')) LIKE ?4 ESCAPE '\\') OR EXISTS(SELECT 1 FROM json_each(e.data,'$.tags') t WHERE lower(t.value) LIKE ?4 ESCAPE '\\'))`}
+  if(actor.apiKeyId)where.push(actor.testMode?"json_extract(e.data,'$.testMode')=1":"json_extract(e.data,'$.testMode') IS NULL")
   if (preparedBy) where.push(byAgent)
   // TMPL-001: envelopes sent from one template, by the template ID the envelope records.
   if (template) { where.push(`(json_extract(e.data,'$.template.id')=?${values.length + 1} OR EXISTS(SELECT 1 FROM json_each(e.data,'$.templates') t WHERE json_extract(t.value,'$.id')=?${values.length + 1}))`); values.push(template) }

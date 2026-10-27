@@ -30,7 +30,7 @@ export async function startInkwellWithMail({ inbound = false, sms = false, smsPr
     await mf.ready
     const db = await mf.getD1Database('DB')
     for (const file of (await readdir('migrations/core')).filter(f => f.endsWith('.sql')).sort()) await db.batch(unstable_splitSqlQuery(await readFile('migrations/core/' + file, 'utf8')).map(sql => db.prepare(sql)))
-    browser = await chromium.launch({ headless: true, ...(pdfPrint ? { channel: 'chromium' } : {}), args: ['--use-mock-keychain', '--password-store=basic'] })
+    browser = await chromium.launch({ headless: true, executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH, ...(pdfPrint ? { channel: 'chromium' } : {}), args: [...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?['--no-sandbox']:[]),'--use-mock-keychain', '--password-store=basic'] })
     const call = async (path, { body, cookie = '', headers = {}, status = 200 } = {}) => {
       const response = await fetch(origin + path, { method: body === undefined ? 'GET' : 'POST', redirect: 'manual', headers: { origin, cookie, 'content-type': 'application/json', ...headers }, ...(body === undefined ? {} : { body: typeof body === 'string' ? body : JSON.stringify(body) }) })
       const text = await response.text(); let value; try { value = JSON.parse(text) } catch { value = text }

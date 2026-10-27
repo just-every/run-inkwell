@@ -1,6 +1,8 @@
 import { matchedRoutes } from 'hono/route'
 import { withAuditDatabase } from './account-audit-db'
 import { listAccountAudit, auditCsv } from './account-audit'
+import {apiMode} from './test-mode'
+import { bulkIndex,previewBulk,bulkView,approveBulk,processBulk,saveBulkList } from './bulk'
 import { paymentSessionState } from './payment-state'
 import { startSigningPayment, checkSigningPayment } from './payments'
 import { embedOrigins, changeEmbedOrigin, createEmbed, embedAudit } from './embedding'
@@ -245,6 +247,11 @@ api.get('/api/forms/:id/qr.svg',async c=>formQr(c.env,c.req.param('id')))
 api.get('/api/forms/:id',async c=>{insist(!c.req.header('authorization'),'Credentials cannot use public web-form admission.',403);return c.json(await publicForm(c.env,c.req.param('id')))})
 for(const step of ['code','verify'] as const)api.post(`/api/forms/:id/${step}`,async c=>{sameOrigin(c.req.raw,c.env);insist(!c.req.header('authorization'),'Credentials cannot use public web-form admission.',403);return c.json(await (step==='code'?requestFormCode:verifyFormEmail)(c.env,c.req.raw,c.req.param('id'),await readJson(c.req.raw,4096)))})
 api.post('/api/forms/:id/submit',async c=>{sameOrigin(c.req.raw,c.env);const {result,cookie}=await submitForm(c.env,c.req.raw,c.req.param('id'),await readJson(c.req.raw,4096));if(cookie)c.header('set-cookie',cookie);return c.json({result})})
+// Bulk is a native member door; credentials cannot borrow a browser session.
+api.get('/api/inkwell/bulk',async c=>c.json(await bulkIndex(c.env,await requireActor(c.req.raw,c.env,['owner','admin','sender']))))
+api.post('/api/inkwell/bulk',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']),q=new URL(c.req.url).searchParams;return c.json(await previewBulk(c.env,actor,text(q.get('templateId'),'a template'),text(q.get('name'),'a batch name',100),c.req.raw,q.get('listId')??undefined))})
+api.get('/api/inkwell/bulk/:id',async c=>c.json(await bulkView(c.env,await requireActor(c.req.raw,c.env,['owner','admin','sender']),c.req.param('id'))))
+for(const step of ['approve','process','save-list'] as const)api.post(`/api/inkwell/bulk/:id/${step}`,async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']),body=await readJson(c.req.raw,4096),key=c.req.param('id');return c.json(await(step==='approve'?approveBulk(c.env,actor,key,body.eligible):step==='process'?processBulk(c.env,actor,key):saveBulkList(c.env,actor,key,body.name)))})
 api.get('/api/v1/openapi.json', c => c.json(apiOpenApi))
 // API-001: key management is a member-session door; bearer credentials never borrow a browser session.
 async function keyManager(request: Request, env: Bindings) {
@@ -264,6 +271,8 @@ for (const action of ['rotate', 'scopes', 'revoke'] as const) api.post(`/api/ink
   const actor = await keyManager(c.req.raw, c.env), body = await readJson(c.req.raw, 8192)
   return c.json(await changeApiKey(c.env, await apiKeyContext(c.req.raw, actor, body), action, { ...body, id: c.req.param('id') }))
 })
+api.use('/api/v1/envelopes/:id/*',async(c,next)=>{apiMode(await authenticateApiKey(c.req.raw,c.env),await getEnvelope(c.env.DB,c.req.param('id')));await next()})
+api.use('/api/v1/envelopes/:id',async(c,next)=>{apiMode(await authenticateApiKey(c.req.raw,c.env),await getEnvelope(c.env.DB,c.req.param('id')));await next()})
 // Public API credentials use only Authorization: Bearer, with no cookie fallback or ambient browser authority.
 api.get('/api/v1/envelopes', async c => c.json(await searchEnvelopes(c.env, await apiClient(c, 'envelopes:read'), new URL(c.req.url).searchParams)))
 api.get('/api/v1/envelopes/:id', async c => {

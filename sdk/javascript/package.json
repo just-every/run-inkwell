@@ -1,0 +1,8 @@
+{
+  "name": "inkwell-sdk",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": { ".": { "types": "./index.d.mts", "import": "./index.mjs" } },
+  "files": ["index.mjs", "index.d.mts"],
+  "license": "MIT"
+}

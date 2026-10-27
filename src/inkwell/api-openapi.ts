@@ -4,7 +4,7 @@ export const apiOpenApi = {
   "info": {
     "title": "Inkwell envelope API",
     "version": "0.1.0",
-    "description": "Scoped live keys support draft preparation, autonomous policy-authorized creation/sending, reads, artifacts, corrections, invitation resends and voiding. API-001 remains partial: OAuth/PKCE, test mode, webhook management and account audit integration remain unshipped."
+    "description": "Scoped live and test keys support draft preparation, autonomous policy-authorized creation and sending, reads, artifacts, corrections, invitation resends and voiding. API-001 remains partial: OAuth with PKCE, webhook management and account audit integration remain unshipped."
   },
   "servers": [
     {

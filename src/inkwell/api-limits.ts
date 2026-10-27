@@ -15,6 +15,7 @@ export async function admitApiRequest(env: Env, keyId: string) {
 }
 /** Admission for actual invitation release, in the same transaction as its mail and envelope record. */
 export async function policySendQuota(env: Env, envelope: Envelope) {
+ if(envelope.testMode)return {guards:[] as Guard[],writes:[] as D1PreparedStatement[]}
  const origin=envelope.sendOrigin??(envelope.formSubmission?{source:'web_form',credential:{id:envelope.formSubmission.id}}:undefined)
  if(!origin)return {guards:[] as Guard[],writes:[] as D1PreparedStatement[]}
  const at=Date.now(),key=origin.credential.id

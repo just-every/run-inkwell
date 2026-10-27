@@ -86,7 +86,7 @@ export async function setSendPolicy(env: Env, context: CommandContext, input: Re
   return result
 }
 
-export const envelopeSource = (envelope: Envelope): SendSource => envelope.sendOrigin?.source ?? (envelope.template ? 'template' : 'ad_hoc')
+export const envelopeSource = (envelope: Envelope): SendSource => envelope.sendOrigin?.source ?? (envelope.bulkBatch?'bulk':undefined) ?? (envelope.template ? 'template' : 'ad_hoc')
 /** Whether `envelope` may be released now by its source's current policy, with the record it keeps and the fence that
  * keeps that verdict true in the release's own batch. `stage: 'release'` also requires an internal approval the policy
  * demands to have been given (`approved`); at the request stage it only reports that one is needed. */

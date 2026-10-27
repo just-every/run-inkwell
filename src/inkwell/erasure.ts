@@ -10,6 +10,7 @@ export async function erasureWrites(db: D1Database, service: Portability, envelo
  const deleted = ['iw_payments','iw_embed_launches','iw_embed_audit','iw_filing_jobs','iw_provider_auth','iw_sms','iw_part11_security_alerts','iw_part11_challenges','iw_comment_threads','iw_followup_grants','iw_followup_states','iw_followup_replies','iw_followup_capabilities','iw_blobs','iw_events','iw_signers','iw_mail','iw_access_codes','iw_copy_links','iw_shares'].map(table => db.prepare(`DELETE FROM ${table} WHERE envelope_id=?`).bind(envelopeId))
  return [
   ...await invalidateExitStatements(db,envelopeId),
+  db.prepare("UPDATE iw_bulk_batches SET rows_json=json_set(rows_json,'$['||(SELECT row_number FROM iw_bulk_rows WHERE batch_id=iw_bulk_batches.id AND envelope_id=?)||']',json('{}')),validation_json=json_set(validation_json,'$['||(SELECT row_number FROM iw_bulk_rows WHERE batch_id=iw_bulk_batches.id AND envelope_id=?)||']','This row was erased.'),state='held' WHERE id IN (SELECT batch_id FROM iw_bulk_rows WHERE envelope_id=?)").bind(envelopeId,envelopeId,envelopeId),
   db.prepare("DELETE FROM iw_embed_audit WHERE json_extract(detail,'$.allocation')=?").bind(envelopeId),
   ...archiveMailErasure([`envelope:${envelopeId}`]).map(s=>db.prepare(s.sql).bind(...s.params??[])),
   ...await service.redactionStatements(), ...await service.erasureStatements('iw_envelopes',{id:envelopeId}), ...await service.invalidateTransfersStatements(),

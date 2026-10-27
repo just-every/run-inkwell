@@ -73,7 +73,8 @@ async function providerResult(response: Response): Promise<{ sid: string; status
 /** One durable claim, one network attempt. A crash in sending stays claimed; an uncertain response never retries.
  * Fixed Twilio Messages API: https://www.twilio.com/docs/messaging/api/message-resource . */
 export async function dispatchSms(env: Env, envelopeId?: string): Promise<void> {
-  const jobs = (await env.DB.prepare(`SELECT id FROM iw_sms WHERE state='pending' ${envelopeId ? 'AND envelope_id=?' : ''} ORDER BY created_at LIMIT 100`)
+  await env.DB.prepare("UPDATE iw_sms SET state='cancelled',body='' WHERE state='pending' AND EXISTS(SELECT 1 FROM iw_envelopes e WHERE e.id=iw_sms.envelope_id AND json_extract(e.data,'$.testMode')=1)").run()
+  const jobs = (await env.DB.prepare(`SELECT id FROM iw_sms WHERE state='pending' AND NOT EXISTS(SELECT 1 FROM iw_envelopes e WHERE e.id=iw_sms.envelope_id AND json_extract(e.data,'$.testMode')=1) ${envelopeId ? 'AND envelope_id=?' : ''} ORDER BY created_at LIMIT 100`)
     .bind(...(envelopeId ? [envelopeId] : [])).all<{ id: string }>()).results
   if (!jobs.length) return
   insist(smsReady(env), 'SMS delivery is not configured. Ask the owner to configure Twilio.', 503)

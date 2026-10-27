@@ -1,3 +1,4 @@
+import {watermark} from './test-mode'
 import { configurePayment } from './payment-authority'
 import { providerChoice, requireProvider } from './provider-auth'
 import { parsePaymentRequirement, samePaymentRequirement, type PaymentRequirement } from './payment-requirement'
@@ -164,6 +165,7 @@ export async function updateTemplate(env: Env, context: CommandContext, input: R
  * fields, and its subject, message, reminders, expiry length and options. Roles keep the names of the template the
  * envelope came from; other recipients become Signer 1, Signer 2 and so on. */
 export async function templateFromEnvelope(env: Env, context: CommandContext, input: Record<string, unknown>) {
+  const candidate=await getEnvelope(env.DB,text(input.id,'an envelope ID'));insist(!candidate.testMode,'Test-mode records cannot become production templates.',409)
   const envelope: Envelope = await getEnvelope(env.DB, text(input.id, 'an envelope ID'))
   await insistAccess(env, context.actor, envelope, 'view')
   insist(!envelope.imported, 'Only a native envelope can be saved as a template.', 409)
@@ -186,9 +188,14 @@ const base64 = (bytes: Uint8Array) => { let binary = ''; for (let i = 0; i < byt
 
 /** `template.use`: one person per role, in the template's order; everything else comes from the template. The envelope is
  * a draft validated by the same rules as one prepared by hand, and records the template it came from. */
-export async function useTemplate(env: Env, context: CommandContext, input: Record<string, unknown>, release=false) {
+export async function useTemplate(env: Env, context: CommandContext, input: Record<string, unknown>, release=false, preview=false) {
   const { template } = await loadTemplate(env, context.actor, text(input.id, 'a template ID'), 'use')
-  const [bytes, artifacts] = await Promise.all([templateBytes(env, template), supplementsFromTemplate(env, template)])
+  let [bytes, artifacts] = await Promise.all([templateBytes(env, template), supplementsFromTemplate(env, template)])
+  let testDocuments:Uint8Array[]|undefined,preparedDocuments=template.documents
+  if(context.actor.testMode){
+    if(template.documents){bytes=await watermark(bytes);testDocuments=await Promise.all(template.documents.map(async(_,i)=>watermark(await templateOriginal(env,template,i))));preparedDocuments=await Promise.all(template.documents.map(async(d,i)=>({...d,sha256:await sha256(testDocuments![i]),bytes:testDocuments![i].length})))}
+    artifacts=await Promise.all(artifacts.map(async a=>{const bytes=await watermark(a.bytes);return {...a,bytes,supplement:{...a.supplement,sha256:await sha256(bytes),bytes:bytes.length}}}))
+  }
   insist(Array.isArray(input.recipients) && input.recipients.length === template.roles.length, `Name one person for each of the template’s ${template.roles.length} roles.`)
   const signers = template.roles.map((role, i) => {
     const person = object((input.recipients as unknown[])[i]), code = person.accessCode === undefined || person.accessCode === '' ? undefined : person.accessCode
@@ -199,15 +206,17 @@ export async function useTemplate(env: Env, context: CommandContext, input: Reco
   })
   const createdAt = now()
   for(const [i] of (template.documents??[]).entries())await verifyTemplateDocument(env,template,i)
-  const { draft, accessCodes } = await readDraft(env, { tags:template.tags,customFields:customEnvelopeFields(input.customFields,template.customFields),title: template.title, filename: template.filename, pdfBase64: base64(bytes), signers, fields: applyPrefillPayload(template.fields, input.prefill), expiresAt: new Date(Date.parse(createdAt) + template.expiryDays * day).toISOString(), reminders: template.reminders ?? null, ...(template.allowPaper ? { allowPaperSigning: true } : {}), allowReassignment: Boolean(template.allowReassign), ...(template.subject ? { subject: template.subject } : {}), ...(template.message ? { message: template.message } : {}) }, createdAt,undefined,context.actor,template.documents?{bytes,documents:template.documents}:undefined, template.adoptionMethods ?? ['typed','drawn','uploaded'], template.consumerDisclosure ?? null, template.roles.map(role => ({payment:role.payment,paymentAuthority:role.paymentAuthority})))
+  const { draft, accessCodes, bytes:preparedBytes } = await readDraft(env, { tags:template.tags,customFields:customEnvelopeFields(input.customFields,template.customFields),title: template.title, filename: template.filename, pdfBase64: base64(bytes), signers, fields: applyPrefillPayload(template.fields, input.prefill), expiresAt: new Date(Date.parse(createdAt) + template.expiryDays * day).toISOString(), reminders: template.reminders ?? null, ...(template.allowPaper ? { allowPaperSigning: true } : {}), allowReassignment: Boolean(template.allowReassign), ...(template.subject ? { subject: template.subject } : {}), ...(template.message ? { message: template.message } : {}) }, createdAt,undefined,context.actor,preparedDocuments?{bytes,documents:preparedDocuments}:undefined, template.adoptionMethods ?? ['typed','drawn','uploaded'], template.consumerDisclosure ?? null, template.roles.map(role => ({payment:role.payment,paymentAuthority:role.paymentAuthority})))
+  if(preview)return {id:"preview",template:template.id}
   const from = { id: template.id, title: template.title, version: versionOf(template) }
-  const envelope = { id: id(), version: 1, status: 'prepared' as const, createdAt, createdBy: context.actor.id, ...draft, ...(template.part11?{part11:structuredClone(template.part11)}:{}), ...(artifacts.length ? { supplements: artifacts.map(a => a.supplement) } : {}), template: from, ...(template.approval ? { approvalRule: template.approval } : {}), events: [] }
+  const envelope:Envelope = { ...(context.actor.testMode?{testMode:true as const}:{}),id: id(), version: 1, status: 'prepared' as const, createdAt, createdBy: context.actor.id, ...draft, ...(template.part11?{part11:structuredClone(template.part11)}:{}), ...(artifacts.length ? { supplements: artifacts.map(a => a.supplement) } : {}), template: from, ...(template.approval ? { approvalRule: template.approval } : {}), events: [] }
+  if(context.bulk){const {writes,...bulkBatch}=context.bulk;Object.assign(envelope,{bulkBatch})}
   if(context.form){Object.assign(envelope,{formSubmission:context.form.submission,...(context.form.origin?{sendOrigin:context.form.origin}:{sendHold:{at:createdAt}})})}
-  await appendEvent(envelope, 'envelope.prepared', apiCommandActor(context.actor), { ...draftDetail(draft), ...(context.form?{formSubmission:context.form.submission,sendOrigin:context.form.origin??null}:{}), ...(envelope.part11?{part11:envelope.part11}:{}), ...(envelope.supplements ? { supplements: envelope.supplements } : {}), template: { ...from, roles: template.roles.map(r => r.role) } })
+  await appendEvent(envelope, 'envelope.prepared', apiCommandActor(context.actor), { ...draftDetail(draft), ...(context.actor.testMode?{testMode:true}:{}),...(context.bulk?{bulkBatch:envelope.bulkBatch}:{}), ...(context.form?{formSubmission:context.form.submission,sendOrigin:context.form.origin??null}:{}), ...(envelope.part11?{part11:envelope.part11}:{}), ...(envelope.supplements ? { supplements: envelope.supplements } : {}), template: { ...from, roles: template.roles.map(r => r.role) } })
   const result = { id: envelope.id, template: template.id }
   const visible=visibleSql(context.actor),repeated=visible.sql.match(/\?1/g)?.length??0
   const guards:Guard[]=[{sql:`EXISTS(SELECT 1 FROM iw_templates t WHERE t.id=? AND t.data=? AND ${visible.sql.replaceAll('?1','?')})`,values:[template.id,JSON.stringify(template),...(repeated?Array.from({length:repeated},()=>context.actor.id):visible.values)]}]
-  const writes=[...(context.form?await context.form.writes(envelope):[]),...await stagedBlobWrites(env,envelope.id,'original',bytes),...(template.documents??[]).map((_,i)=>env.DB.prepare('INSERT INTO iw_blobs(envelope_id,kind,part,data) SELECT ?,?,part,data FROM iw_template_document_blobs WHERE template_id=? AND document=?').bind(envelope.id,`document-${i}`,template.id,i)),...artifacts.flatMap(a=>blobWrites(env.DB,envelope.id,`supplement-${a.supplement.id}`,a.bytes)),...await accessCodeWrites(env,envelope.id,accessCodes)]
+  const writes=[...(context.bulk?context.bulk.writes(envelope):[]),...(context.form?await context.form.writes(envelope):[]),...await stagedBlobWrites(env,envelope.id,'original',preparedBytes),...(testDocuments?(await Promise.all(testDocuments.map((b,i)=>stagedBlobWrites(env,envelope.id,`document-${i}`,b)))).flat():(template.documents??[]).map((_,i)=>env.DB.prepare('INSERT INTO iw_blobs(envelope_id,kind,part,data) SELECT ?,?,part,data FROM iw_template_document_blobs WHERE template_id=? AND document=?').bind(envelope.id,`document-${i}`,template.id,i))),...artifacts.flatMap(a=>blobWrites(env.DB,envelope.id,`supplement-${a.supplement.id}`,a.bytes)),...await accessCodeWrites(env,envelope.id,accessCodes)]
   if(release)return approvePreparedEnvelope(env,{...context,guards:[...(context.guards??[]),...guards]},{...input,id:envelope.id},envelope,writes)
   await insertEnvelope(env.DB,envelope,context.actor,[...writes,commandWrite(env.DB,apiCommandActor(context.actor),context.commandId,context.fingerprint,result)],[...(context.guards??[]),...guards])
   await readBlob(env.DB, envelope.id, 'original', envelope.originalSha256)

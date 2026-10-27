@@ -1,3 +1,4 @@
+import {watermark} from './test-mode'
 import { appendEvent, active, id, insist, now, sha256, text, type Envelope, type Env, type Supplement } from './model'
 import { blobWrites, download, fromBase64, readBlob } from './blobs'
 import { parsePdf, validatePdfText } from './pdf'
@@ -14,7 +15,7 @@ export async function addSupplement(env: Env, context: CommandContext, input: Re
   const label = text(input.label, 'a supplemental document label', 100), filename = text(input.filename, 'a PDF filename', 240)
   insist(!/[\r\n\t]/.test(label) && !/[\x00-\x1f/\\]/.test(filename) && filename.toLowerCase().endsWith('.pdf'), 'Use a single-line label and a PDF filename.')
   insist(input.requirement === 'view' || input.requirement === 'acknowledge', 'Choose view or acknowledge for the supplemental document.')
-  const bytes = fromBase64(input.pdfBase64), { pageSizes } = await parsePdf(bytes)
+  const bytes = before.testMode?await watermark(fromBase64(input.pdfBase64)):fromBase64(input.pdfBase64), { pageSizes } = await parsePdf(bytes)
   await validatePdfText([label, filename])
   const supplement: Supplement = { id: id(), label, filename, sha256: await sha256(bytes), bytes: bytes.length, pages: pageSizes.length, requirement: input.requirement }
   const after = structuredClone(before); after.supplements = [...after.supplements ?? [], supplement]

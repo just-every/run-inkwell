@@ -4,7 +4,7 @@ import { atomic, commandWrite, memberRoleSql, previousCommand, roleGuard, type G
 import type { CommandContext } from './envelopes'
 
 /** API-001 scope-review-65: preparation agents, API keys and OAuth grants are separate credentials.
- * Live keys cover read, artifact, template, prepare, send and manage doors. OAuth and test mode remain unshipped. */
+ * Live keys cover read, artifact, template, prepare, send and manage doors. OAuth remains unshipped. */
 export const apiScopes = ['envelopes:read', 'artifacts:read', 'templates:read', 'envelopes:prepare', 'envelopes:send', 'envelopes:manage'] as const
 export type ApiScope = typeof apiScopes[number]
 const day = 86_400_000
@@ -15,7 +15,7 @@ interface KeyRow {
 }
 const columns = 'id,name,member_id,member_version,member_role,prefix,last_four,scopes,created_at,created_by,expires_at,revoked_at,suspended_at,rotated_to,version'
 const metadata = (r: KeyRow) => ({ id: r.id, name: r.name, memberId: r.member_id, memberVersion: r.member_version,
-  memberRole: r.member_role, prefix: r.prefix, lastFour: r.last_four, scopes: JSON.parse(r.scopes) as ApiScope[],
+  mode:r.prefix.startsWith('iwk_test_')?'test':'live', memberRole: r.member_role, prefix: r.prefix, lastFour: r.last_four, scopes: JSON.parse(r.scopes) as ApiScope[],
   createdAt: r.created_at, createdBy: r.created_by, expiresAt: r.expires_at, revokedAt: r.revoked_at,
   suspendedAt: r.suspended_at, rotatedTo: r.rotated_to, version: r.version })
 const effectiveRole = `CASE WHEN o.role='member' THEN ${memberRoleSql('o.id')} ELSE o.role END`
@@ -42,8 +42,8 @@ async function getKey(env: Env, keyId: string) {
 }
 const live = (r: KeyRow) => !r.revoked_at && !r.suspended_at && r.expires_at > now()
 const unchangedKey = (r: KeyRow): Guard => ({ sql: "EXISTS(SELECT 1 FROM iw_api_keys WHERE id=? AND version=? AND revoked_at IS NULL AND suspended_at IS NULL AND expires_at>max(?,strftime('%Y-%m-%dT%H:%M:%fZ','now')))", values: [r.id, r.version, now()] })
-async function newKey(env: Env, actor: Actor, member: { id: string; version: number; role: Role }, name: string, scopes: ApiScope[], expiresAt: string) {
-  const keyId = id(), prefix = `iwk_live_${keyId}_`, token = prefix + secret()
+async function newKey(env: Env, actor: Actor, member: { id: string; version: number; role: Role }, name: string, scopes: ApiScope[], expiresAt: string, mode: 'live' | 'test' = 'live') {
+  const keyId = id(), prefix = `iwk_${mode}_${keyId}_`, token = prefix + secret()
   const row: KeyRow = { id: keyId, name, member_id: member.id, member_version: member.version, member_role: member.role,
     prefix, last_four: token.slice(-4), scopes: JSON.stringify(scopes), created_at: now(), created_by: actor.id,
     expires_at: expiresAt, revoked_at: null, suspended_at: null, rotated_to: null, version: 1 }
@@ -66,14 +66,14 @@ export async function changeApiKey(env: Env, context: CommandContext, action: 'm
   if (previous) return previous
   const guards = [roleGuard(actor, ['owner', 'admin','sender']), ...permission,...fresh]
   if (action === 'mint') {
-    insist(input.mode === undefined || input.mode === 'live', 'Test-mode keys arrive with API-004; mint a live key.', 409)
+    insist(input.mode === undefined || input.mode === 'live' || input.mode === 'test', 'Choose live or test mode.')
     const memberId = text(input.memberId, 'an active member ID', 100), name = text(input.name, 'a key name', 100)
     insist(actor.role!=='sender'||memberId===actor.id,'A sender can mint API keys bound only to themselves.',403)
     const member = await env.DB.prepare(`SELECT o.id,o.version,${effectiveRole} AS role FROM oa_operators o WHERE o.id=? AND o.status='active'`).bind(memberId).first<{ id: string; version: number; role: Role }>()
     insist(member && ['owner', 'admin', 'sender'].includes(member.role), 'Bind the key to an active owner, admin or sender.', 403)
     const days = input.expiresInDays ?? 365
     insist(Number.isInteger(days) && (days as number) >= 1 && (days as number) <= 730, 'Expire a key in 1–730 whole days (365 by default).')
-    const created = await newKey(env, actor, member, name, scopesOf(input.scopes), new Date(Date.now() + (days as number) * day).toISOString())
+    const created = await newKey(env, actor, member, name, scopesOf(input.scopes), new Date(Date.now() + (days as number) * day).toISOString(), input.mode==='test'?'test':'live')
     const result = { key: metadata(created.row), tokenShown: true }
     await atomic(env.DB, [...guards, memberGuard(member)], [created.write, commandWrite(env.DB, actor.id, context.commandId, context.fingerprint, result)])
     return { ...result, token: created.token }
@@ -99,7 +99,7 @@ export async function changeApiKey(env: Env, context: CommandContext, action: 'm
   const days = input.overlapDays ?? 7
   insist(Number.isInteger(days) && (days as number) >= 0 && (days as number) <= 7, 'Allow 0–7 whole days of overlap (7 by default).')
   // Rotation preserves the binding, scopes and final expiry; it cannot extend the original grant.
-  const created = await newKey(env, actor, member, row.name, JSON.parse(row.scopes), row.expires_at)
+  const created = await newKey(env, actor, member, row.name, JSON.parse(row.scopes), row.expires_at, row.prefix.startsWith('iwk_test_')?'test':'live')
   const retiresAt = new Date(Math.min(Date.parse(row.expires_at), Date.now() + (days as number) * day)).toISOString()
   const rotated = { key: metadata(created.row), predecessor: row.id, retiresAt, tokenShown: true }
   await atomic(env.DB, guards, [created.write, env.DB.prepare('UPDATE iw_api_keys SET expires_at=?,rotated_to=?,version=version+1 WHERE id=?').bind(retiresAt, created.row.id, row.id), commandWrite(env.DB, actor.id, context.commandId, context.fingerprint, rotated)])
@@ -109,8 +109,8 @@ export async function changeApiKey(env: Env, context: CommandContext, action: 'm
 export async function authenticateApiKey(request: Request, env: Env, scope?: ApiScope): Promise<Actor> {
   const header = request.headers.get('authorization') ?? ''
   insist(!/^Bearer [a-f0-9]{64}$/.test(header), 'Preparation tokens cannot use API-key routes.', 403)
-  const match = /^Bearer (iwk_live_[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}_[a-f0-9]{64})$/.exec(header)
-  insist(match, 'Provide a live API key in the Bearer header.', 401)
+  const match = /^Bearer (iwk_(?:live|test)_[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}_[a-f0-9]{64})$/.exec(header)
+  insist(match, 'Provide an API key in the Bearer header.', 401)
   const row = await env.DB.prepare(`SELECT k.id AS key_id,k.scopes,o.id,o.display_name,o.email,o.version,${effectiveRole} AS role
     FROM iw_api_keys k JOIN oa_operators o ON o.id=k.member_id AND o.version=k.member_version
     WHERE k.token_hash=? AND k.revoked_at IS NULL AND k.suspended_at IS NULL AND k.expires_at>max(?,strftime('%Y-%m-%dT%H:%M:%fZ','now'))
@@ -118,7 +118,7 @@ export async function authenticateApiKey(request: Request, env: Env, scope?: Api
     .bind(await sha256(match[1]), now()).first<{ key_id: string; scopes: string; id: string; display_name: string; email: string; version: number; role: Role }>()
   insist(row, 'This API key is invalid, expired, revoked or suspended.', 401)
   insist(scope === undefined || JSON.parse(row.scopes).includes(scope), `This API key needs the ${scope} scope.`, 403)
-  return { id: row.id, name: row.display_name, email: row.email, role: row.role, version: row.version, apiKeyId: row.key_id, apiKeyScope: scope }
+  return { id: row.id, name: row.display_name, email: row.email, role: row.role, version: row.version, apiKeyId: row.key_id, apiKeyScope: scope, ...(match[1].startsWith('iwk_test_')?{testMode:true}:{}) }
 }
 export { apiCommandActor } from './api-command'
 export async function apiKeyContext(request: Request, actor: Actor, body: Record<string, unknown>): Promise<CommandContext> {
