@@ -119,3 +119,15 @@ export async function dropboxFolder(token:string,path:string):Promise<{id:string
   if(path.startsWith('id:')&&folder.id!==path)throw conflict()
   return {id:folder.id,path:location}
 }
+
+/** A moved uncertain artifact is confirmed by reads only; absence never causes another upload. */
+export async function reconcileMovedDropboxArtifact(token:string,folderId:string,folder:string,name:string,bytes:Uint8Array):Promise<{id:string}> {
+  const before=await dropboxFolder(token,folderId)
+  if(before.path.toLowerCase()!==folder.toLowerCase())throw conflict()
+  const path=`${folder}/${name}`,result=await request('https://api.dropboxapi.com/2/files/get_metadata',token,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path,include_deleted:false})})
+  if(result.status!==200)throw failed()
+  const receipt=verifyDropbox(result.data,path,name,bytes.length,await dropboxHash(bytes),true)
+  const after=await dropboxFolder(token,folderId)
+  if(after.path.toLowerCase()!==folder.toLowerCase())throw conflict()
+  return receipt
+}

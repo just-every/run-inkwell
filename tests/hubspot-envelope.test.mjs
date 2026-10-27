@@ -249,6 +249,8 @@ test('INTEG-001 MANAGE-002: completion properties, custom metadata, one timeline
   await h.post(retiredPath,{renewAuthorization:true,consent:true},admin,403)
   await h.post(retiredPath,{renewAuthorization:true,consent:true},outsider,403)
   await h.post(retiredPath,{renewAuthorization:true,consent:true},h.owner,403,{authorization:'Bearer '+token})
+  await h.post(retiredPath,{renewAuthorization:true,consent:true,approveFileRepair:true},h.owner,409)
+  assert.equal((await h.send(retiredPath,undefined,h.owner)).value.authorizationRequired,true,'a combined repair cannot partially renew authority')
   const renewed=(await h.post(retiredPath,{commandId:crypto.randomUUID(),renewAuthorization:true,consent:true})).value
   assert.equal(renewed.status,'held','credential renewal never implicitly approves a mapping repair')
   assert.equal((await h.send(retiredPath,undefined,h.owner)).value.authorizationRequired,false)

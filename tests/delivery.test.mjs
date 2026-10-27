@@ -103,6 +103,9 @@ test('DELIV-001: through the Resend fake, a sent invitation moves to delivered a
   assert.equal((await invitation(h, uncertainId)).status, 'uncertain')
   const unresolved=(await h.send(`/api/inkwell/envelopes/${uncertainId}/delivery-reconciliation`,undefined,h.owner)).value
   assert.equal(unresolved.unresolvedMessages,2);assert.deepEqual(unresolved.changes,[],'uncertain sends and missing receipts never become delivery proof')
+  const codeMessage=h.attempted().find(m=>m.to.includes(other)&&m.subject.startsWith('Your Inkwell verification code'))
+  await h.db.prepare("INSERT INTO rer_mail_event_states(provider,tenant_id,event_namespace,provider_message_id,recipient,status,occurred_at,event_id,terminal) VALUES('resend','inkwell','resend-webhook',?,?,'delivered',?,'synthetic-inkwell-54',1)").bind(codeMessage.id,other,Date.now()).run()
+  assert.equal((await h.send(`/api/inkwell/envelopes/${uncertainId}/delivery-reconciliation`,undefined,h.owner)).status,409,'unsupported delivery states remain unresolved rather than being blessed or removed')
   assert.equal((await messages(h, uncertainId)).find(m => m.kind === 'code').status, 'sent')
  } finally { await h.close() }
 })
@@ -1056,6 +1059,7 @@ test('Box and Dropbox file the completed PDF and certificate exactly once despit
   view=(await h.send('/api/inkwell/filing',undefined,h.owner)).value
   assert.ok(view.jobs.filter(job=>job.envelope_id===moved.id).every(job=>job.state==='filed'))
   assert.equal(edge.files().filter(file=>file.name.includes(moved.id)).length,4,'folder repair and concurrent replay create no duplicate artifacts')
+  assert.equal(edge.attempts().length,beforeMoveRetry,'moved uncertain artifacts are reconciled entirely with reads')
   assert.equal((await h.send('/api/inkwell/audit',undefined,h.owner)).value.entries.filter(e=>e.action==='filing.folder_repair.approved'&&e.target===moved.id).length,1)
 
  }finally{await h.close()}

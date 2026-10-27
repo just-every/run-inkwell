@@ -2,7 +2,7 @@ import { appendEvent, canonical, insist, now, text, id, type Env, type Envelope,
 import { atomic, commandWrite, roleGuard, getEnvelope } from './storage'
 import { loadTemplate } from './templates'
 import { readBlob } from './blobs'
-import { dropboxFolder, fileArtifact, type FilingProvider } from './filing-provider'
+import { dropboxFolder, fileArtifact, reconcileMovedDropboxArtifact, type FilingProvider } from './filing-provider'
 import type { CommandContext } from './envelopes'
 
 export const filingConsent = 'I authorize automatic transfer of completed PDFs and certificates from this template to the selected provider folder.'
@@ -78,7 +78,8 @@ export async function dispatchFiling(env: Env, envelopeId: string, retry = false
     }
    }
    const bytes = await readBlob(env.DB,envelopeId,job.kind,job.sha256)
-   const receipt = await fileArtifact(job.provider,token,target,`inkwell-${envelopeId}-${job.kind}.pdf`,bytes)
+   const filename=`inkwell-${envelopeId}-${job.kind}.pdf`
+   const receipt = job.provider==='dropbox'&&job.resolved_folder&&job.folder_ref?await reconcileMovedDropboxArtifact(token,job.folder_ref,target,filename,bytes):await fileArtifact(job.provider,token,target,filename,bytes)
    await env.DB.prepare("UPDATE iw_filing_jobs SET state='filed',remote_id=?,filed_at=?,claim=NULL WHERE envelope_id=? AND provider=? AND folder=? AND kind=? AND claim=?").bind(receipt.id,now(),envelopeId,job.provider,job.folder,job.kind,claim).run()
   } catch {
    await env.DB.prepare("UPDATE iw_filing_jobs SET state='uncertain',claim=NULL WHERE envelope_id=? AND provider=? AND folder=? AND kind=? AND claim=?").bind(envelopeId,job.provider,job.folder,job.kind,claim).run()

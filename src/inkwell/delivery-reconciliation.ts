@@ -33,6 +33,7 @@ async function inspect(env:Env,envelopeId:string){
    if(!prior||candidate.terminal>prior.terminal||candidate.terminal===prior.terminal&&(candidate.occurred_at>prior.occurred_at))expected.set(identity,candidate)
   }
  }
+ insist(states.every(state=>expected.has(key(state))),'Delivery state has no matching verified outcome. Leave it unresolved until provider evidence is confirmed.',409)
  const repairs=[...expected.values()].filter(wanted=>{const current=states.find(s=>key(s)===key(wanted));return !current||canonical(current)!==canonical(wanted)})
  const changes=repairs.map(wanted=>({messageId:mail.find(m=>m.provider===wanted.provider&&m.recipient.toLowerCase()===wanted.recipient.toLowerCase()&&(m.provider_message_id===wanted.provider_message_id||receipts.some(r=>{const e=JSON.parse(r.event_json) as DeliveryEvent;return e.providerMessageId===wanted.provider_message_id&&e.deliveryId===m.id})))!.id,provider:wanted.provider,before:states.find(s=>key(s)===key(wanted))?.status??null,after:wanted.status}))
  const guards:Guard[]=[{sql:'EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=?)',values:[envelopeId,envelope.version]},...[mailSql,receiptSql,stateSql].map((sql,index)=>({sql:`(${sql.replace(' AS snapshot','')})=?`,values:[envelopeId,snapshots[index]]}))]

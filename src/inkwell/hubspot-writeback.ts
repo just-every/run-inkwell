@@ -88,6 +88,7 @@ async function claim(env:Env,envelopeId:string) {
 export async function retryHubspotWriteback(env:Env,context:CommandContext,input:Record<string,unknown>) {
   hubspotNativeAdministrator(context.actor)
   insist(typeof input.id==='string','Choose an envelope.')
+  insist(['renewAuthorization','approveFileRepair','approveRepair'].filter(key=>input[key]===true).length<=1,'Review each connector repair separately.',409)
   const previous=await previousCommand(env.DB,context.actor.id,context.commandId,context.fingerprint);if(previous)return previous
   const initial=await linkOf(env,input.id);insist(initial,'This envelope has no active HubSpot write-back authorization.',404)
   const e=await getEnvelope(env.DB,input.id);insist(e.status==='completed'&&e.signedSha256,'Complete the envelope before writing back.',409)
