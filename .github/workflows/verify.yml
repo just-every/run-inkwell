@@ -91,17 +91,15 @@ jobs:
       - run: npm install --global pnpm@10.12.4
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec rer check --profile first-party
-      - name: Use the Ubuntu archive for browser dependencies
+      - name: Install Chromium
         run: |
-          sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources /etc/apt/apt-mirrors.txt
-          # Browser libraries come from Ubuntu; a 403 from the unrelated Microsoft feed must not block apt update.
-          sudo python3 - <<'PYTHON'
-          from pathlib import Path
-          for source in Path('/etc/apt/sources.list.d').iterdir():
-              if source.suffix in ('.list', '.sources') and 'packages.microsoft.com' in source.read_text():
-                  source.unlink()
-          PYTHON
-      - run: pnpm exec playwright install --with-deps chromium
+          set -euo pipefail
+          pnpm exec playwright install chromium
+          # Hosted ubuntu-24.04 already carries Chromium's libraries. Use apt only when a real launch fails.
+          node scripts/ci/chromium-probe.mjs || {
+            timeout 420 pnpm exec playwright install-deps chromium
+            node scripts/ci/chromium-probe.mjs
+          }
       - run: pnpm run verify
 
   verify:
