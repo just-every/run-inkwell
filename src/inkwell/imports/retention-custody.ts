@@ -1,3 +1,4 @@
+import { archiveBuckets } from '../object-artifacts'
 import { createPortability } from '@runeditrun/rer/modules/portability'
 import policy from '../archive-policy.mjs'
 import type { Env } from '../model'
@@ -17,7 +18,7 @@ export async function archiveErasureCheckpoint(env: Env, record: string): Promis
   return proxy
  }
  const db = {prepare:(sql:string)=>wrap(env.DB.prepare(sql),sql),batch:env.DB.batch.bind(env.DB),exec:env.DB.exec.bind(env.DB),dump:env.DB.dump.bind(env.DB)} as D1Database
- const service = await createPortability({db,policy})
+ const service = await createPortability({db,buckets:archiveBuckets(env),policy})
  const writes = [...await service.redactionStatements(),...await service.erasureStatements('iw_imported_archives',{id:record}),...await service.invalidateTransfersStatements()]
  return writes.map(statement => {const sql=(statement as unknown as Record<symbol,D1Sql>)[statementSql];if(!sql)throw new Error('Portability returned an unrecorded statement.');return sql})
 }

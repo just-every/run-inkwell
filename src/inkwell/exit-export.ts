@@ -1,3 +1,4 @@
+import { cleanupSupersededObjects } from './object-artifacts'
 import { createHash } from 'node:crypto'
 import { Buffer } from 'node:buffer'
 import { operatorAuth, type Bindings } from '../auth.server'
@@ -9,7 +10,7 @@ type Job={id:string;actor:string;state:string;created_at:string;owner_scope:numb
 type Entry={name:string;size:number;sha256:string;record:string;title:string;status:string;open:(offset:number,length:number)=>AsyncGenerator<Uint8Array>}
 const encode=(s:string)=>new TextEncoder().encode(s)
 const sum=(parts:Uint8Array[])=>parts.reduce((n,p)=>n+p.length,0)
-const names=(job:string)=>{insist(/^[a-f0-9-]{36}$/.test(job),'Export job not found.',404);const prefix='iw_exit_'+job.replaceAll('-','');return{envelopes:prefix+'_e',blobs:prefix+'_b',threads:prefix+'_t',imports:prefix+'_i'}}
+const names=(job:string)=>{insist(/^[a-f0-9-]{36}$/.test(job),'Export job not found.',404);const prefix='iw_exit_'+job.replaceAll('-','');return{envelopes:prefix+'_e',blobs:prefix+'_b',threads:prefix+'_t',imports:prefix+'_i',objects:prefix+'_o'}}
 const quote=(value:string)=>'"'+value+'"'
 export async function exportActor(request:Request,env:Bindings):Promise<Actor>{
  insist(!request.headers.has('authorization'),'Use a member session for document exports.',403)
@@ -36,6 +37,7 @@ async function create(env:Bindings,actor:Actor,input:Record<string,unknown>){
   env.DB.prepare('INSERT INTO iw_exit_exports(id,actor,state,created_at,owner_scope) VALUES(?,?,?,?,?)').bind(job,actor.id,'ready',now(),actor.role==='owner'?1:0),
   env.DB.prepare(`CREATE TABLE ${quote(tables.envelopes)} AS SELECT * FROM iw_envelopes WHERE ${where}`).bind(...params),
   env.DB.prepare(`CREATE TABLE ${quote(tables.blobs)} AS SELECT b.* FROM iw_blobs b JOIN ${quote(tables.envelopes)} e ON e.id=b.envelope_id`),
+  env.DB.prepare(`CREATE TABLE ${quote(tables.objects)} AS SELECT o.* FROM iw_object_artifacts o JOIN ${quote(tables.envelopes)} e ON e.id=o.owner_id WHERE o.owner_type='envelope'`),
   env.DB.prepare(`CREATE INDEX ${quote(tables.blobs+'_index')} ON ${quote(tables.blobs)}(envelope_id,kind,part)`),
   env.DB.prepare(`CREATE TABLE ${quote(tables.threads)} AS SELECT t.* FROM iw_comment_threads t JOIN ${quote(tables.envelopes)} e ON e.id=t.envelope_id`),
   env.DB.prepare(`CREATE INDEX ${quote(tables.threads+'_index')} ON ${quote(tables.threads)}(envelope_id,id)`),
@@ -54,8 +56,10 @@ async function* entries(env:Bindings,job:Job):AsyncGenerator<Entry>{
   yield memoryEntry(`${prefix}/audit.json`,encode(JSON.stringify({format:'inkwell-audit/1',envelope:e})),metadata)
   yield memoryEntry(`${prefix}/custody.json`,encode(JSON.stringify({format:'inkwell-record-custody/1',envelope:e,threads})),metadata)
   const artifacts=(await env.DB.prepare(`SELECT kind,SUM(length(data)) AS bytes,COUNT(*) AS parts FROM ${quote(tables.blobs)} WHERE envelope_id=? GROUP BY kind ORDER BY kind`).bind(e.id).all<{kind:string;bytes:number;parts:number}>()).results
-  for(const a of artifacts){const hash=expected(e,a.kind);if(!hash||a.kind.startsWith('mark-')||a.kind.startsWith('initials-'))continue;const pdf=!a.kind.startsWith('mark-')&&!a.kind.startsWith('initials-')&&(!a.kind.startsWith('paper-')||e.signers[Number(a.kind.slice(6))]?.paper?.mediaType==='application/pdf')
+  const objects=(await env.DB.prepare(`SELECT kind,bytes,object_key FROM ${quote(tables.objects)} WHERE owner_id=?`).bind(e.id).all<{kind:string;bytes:number;object_key:string}>()).results
+  for(const a of [...artifacts.filter(a=>!objects.some(o=>o.kind===a.kind)),...objects]){const hash=expected(e,a.kind);if(!hash||a.kind.startsWith('mark-')||a.kind.startsWith('initials-'))continue;const pdf=!a.kind.startsWith('mark-')&&!a.kind.startsWith('initials-')&&(!a.kind.startsWith('paper-')||e.signers[Number(a.kind.slice(6))]?.paper?.mediaType==='application/pdf')
    yield{name:`${prefix}/${a.kind}.${pdf?'pdf':'bin'}`,size:a.bytes,sha256:hash,...metadata,async*open(offset,length){
+    if('object_key' in a){const object=await env.ARTIFACTS.get(a.object_key,{range:{offset,length}});insist(object,'Export object is unavailable.',410);const reader=object.body.getReader(),digest=offset===0&&length===a.bytes?createHash('sha256'):undefined;try{for(;;){const next=await reader.read();if(next.done)break;digest?.update(next.value);yield next.value}}finally{await reader.cancel();reader.releaseLock()}if(digest)insist(digest.digest('hex')===hash,'An exported object failed its fingerprint check.',503);return}
     let part=Math.floor(offset/65536),position=part*65536,remaining=length;const digest=offset===0&&length===a.bytes?createHash('sha256'):undefined
     while(remaining>0){const chunks=(await env.DB.prepare(`SELECT part,data FROM ${quote(tables.blobs)} WHERE envelope_id=? AND kind=? AND part>=? ORDER BY part LIMIT 32`).bind(e.id,a.kind,part).all<{part:number;data:number[]}>()).results;insist(chunks.length,'Export snapshot is no longer available.',410)
      for(const chunk of chunks){insist(chunk.part===part++,'Export artifact is incomplete.',503);const bytes=new Uint8Array(chunk.data),skip=Math.max(0,offset-position),value=bytes.subarray(skip,Math.min(bytes.length,skip+remaining));position+=bytes.length;remaining-=value.length;digest?.update(value);if(value.length)yield value;if(!remaining)break;}}
@@ -102,7 +106,7 @@ export async function exitExportResponse(request:Request,env:Bindings):Promise<R
   if(!route.length&&request.method==='POST'){const input=JSON.parse(new TextDecoder().decode(await readBytes(request,1024*1024)));return Response.json(await create(env,actor,input))}
   insist(route.length>=1&&route.length<=2,'Export route not found.',404)
   const job=await env.DB.prepare('SELECT * FROM iw_exit_exports WHERE id=? AND actor=?').bind(route[0],actor.id).first<Job>();insist(job,'Export job not found.',404);insist(!job.owner_scope||actor.role==='owner','This export includes owner-only imported custody.',403)
-  if(route[1]==='discard'&&request.method==='POST'){await atomic(env.DB,[roleGuard(actor,['owner','admin'])],discardExitStatements(env.DB,job.id));return Response.json({ok:true})}
+  if(route[1]==='discard'&&request.method==='POST'){await atomic(env.DB,[roleGuard(actor,['owner','admin'])],discardExitStatements(env.DB,job.id));await cleanupSupersededObjects(env);return Response.json({ok:true})}
   insist(job.state==='ready','This export was discarded or invalidated by erasure.',410)
   if(route.length===1&&request.method==='GET'){const count=await env.DB.prepare('SELECT COUNT(*) AS n FROM iw_exit_members WHERE job=?').bind(job.id).first<{n:number}>();return Response.json({id:job.id,state:job.state,records:count!.n})}
   if(route[1]==='download'&&request.method==='GET')return download(env,job,request)

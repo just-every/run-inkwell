@@ -1,3 +1,4 @@
+import { archiveBuckets, ownerObjectKeys, removeUnreferencedObjects } from './object-artifacts'
 import { createPortability } from '@runeditrun/rer/modules/portability'
 import policy from './archive-policy.mjs'
 import { appendEvent, id, insist, now, text, type Env, type Envelope } from './model'
@@ -117,7 +118,7 @@ export async function applyRetention(env: Env, at: number) {
 }
 
 async function warn(env: Env, before: Envelope, rule: EnvelopeRetention, end: { ended: string; at: string; basis?: string }, due: string, at: number) {
-  const years = rule.years
+  const years = rule.years,objectKeys=await ownerObjectKeys(env,'envelope',before.id)
   const warnedAt = new Date(at).toISOString(), purgeAt = new Date(Math.max(Date.parse(due), at + retentionWarningDays * day)).toISOString()
   const admins = (await env.DB.prepare("SELECT id, email, display_name AS name FROM oa_operators WHERE status='active' AND role IN ('owner','admin') ORDER BY created_at, id").all<{ id: string; email: string; name: string }>()).results
   const after = structuredClone(before), emailSent = !mailSuppressed(env)
@@ -132,11 +133,12 @@ async function warn(env: Env, before: Envelope, rule: EnvelopeRetention, end: { 
 }
 
 async function purge(env: Env, before: Envelope, rule: EnvelopeRetention, end: { ended: string; at: string }, warnedAt: string, at: number) {
-  const years = rule.years
-  const service = await createPortability({ db: env.DB, policy })
+  const years = rule.years,objectKeys=await ownerObjectKeys(env,'envelope',before.id)
+  const service = await createPortability({buckets:archiveBuckets(env), db: env.DB, policy })
   await atomic(env.DB, [rule.guard, { sql: "EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=? AND json_extract(data,'$.legalHold') IS NULL)", values: [before.id, before.version] }], [
-    ...await erasureWrites(env.DB, service, before.id),
+    ...await erasureWrites(env.DB, service, before.id,objectKeys),
     env.DB.prepare('INSERT INTO iw_retention_purges(envelope_id,ended,years,ended_at,warned_at,purged_at) VALUES(?,?,?,?,?,?)').bind(before.id, end.ended, years, end.at, warnedAt, new Date(at).toISOString())])
+  await removeUnreferencedObjects(env,objectKeys)
 }
 
 function retentionAuthority(rule:{years:number;updatedAt:string;updatedBy:string}) { return {sql:"EXISTS(SELECT 1 FROM iw_settings WHERE key='retention_years' AND value=? AND updated_at=? AND updated_by=?)",values:[String(rule.years),rule.updatedAt,rule.updatedBy]} }

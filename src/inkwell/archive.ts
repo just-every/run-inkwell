@@ -1,3 +1,4 @@
+import { archiveBuckets, ownerObjectKeys, removeUnreferencedObjects } from './object-artifacts'
 import { exitExportResponse } from './exit-export'
 import { archiveTransfers } from './archive-transfers'
 import { createPortability, readArchive, PortabilityError, type Manifest, type Part, type Closing } from '@runeditrun/rer/modules/portability'
@@ -42,7 +43,7 @@ async function restore(env: Bindings, actor: Actor, input: Record<string, unknow
  // Validate the complete checksum-bound stream before creating any import job.
  const all = await records(input.archive), manifest = all[0] as Manifest, closing = all.at(-1) as Closing
  const later = input.laterJournal ? (await records(input.laterJournal))[0] as Manifest : undefined
- const service = await createPortability({ db: guardedDatabase(env.DB,actor), policy })
+ const service = await createPortability({buckets:archiveBuckets(env), db: guardedDatabase(env.DB,actor), policy })
  let job: string | undefined, complete = false
  try {
   job = await service.imports.create(manifest, actor.id)
@@ -61,8 +62,10 @@ async function erase(env: Bindings, actor: Actor, input: Record<string, unknown>
  insist(before.status !== 'awaiting_signature', 'Void an active envelope before erasing it.', 409)
  // RECORD-005: a legal hold stops erasure until an owner or admin lifts it.
  insist(!before.legalHold, `This envelope is on legal hold (${before.legalHold?.reason}). Lift the hold before erasing it.`, 409)
- const service = await createPortability({ db: guardedDatabase(env.DB,actor), policy })
- await atomic(env.DB,[roleGuard(actor,['owner']),{sql:"EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=? AND json_extract(data,'$.legalHold') IS NULL)",values:[before.id,before.version]}],await erasureWrites(env.DB,service,before.id))
+ const service = await createPortability({buckets:archiveBuckets(env), db: guardedDatabase(env.DB,actor), policy })
+ const objectKeys=await ownerObjectKeys(env,'envelope',before.id)
+ await atomic(env.DB,[roleGuard(actor,['owner']),{sql:"EXISTS(SELECT 1 FROM iw_envelopes WHERE id=? AND version=? AND json_extract(data,'$.legalHold') IS NULL)",values:[before.id,before.version]}],await erasureWrites(env.DB,service,before.id,objectKeys))
+ await removeUnreferencedObjects(env,objectKeys)
  return json({ ok: true })
 }
 export async function archiveResponse(request: Request, original: Bindings): Promise<Response | null> {
@@ -74,7 +77,7 @@ export async function archiveResponse(request: Request, original: Bindings): Pro
   const actor = await owner(request,env)
   if(path.startsWith('/api/inkwell/archive/transfers/'))return await archiveTransfers(request,env,actor,guardedDatabase(env.DB,actor))??json({error:'Archive route not found.'},404)
   if (path === '/api/inkwell/archive' && request.method === 'GET') {
-   const service = await createPortability({db:guardedDatabase(env.DB,actor),policy}), job = await service.exports.create(actor.id)
+   const service = await createPortability({buckets:archiveBuckets(env),db:guardedDatabase(env.DB,actor),policy}), job = await service.exports.create(actor.id)
    try {
     while ((await service.exports.advance(job,{maxParts:16})).phase === 'building') {}
     const ndjson = await new Response(await service.exports.download(job)).text()

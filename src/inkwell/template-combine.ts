@@ -95,6 +95,6 @@ export async function combineTemplates(env: Env, context: CommandContext, input:
     ...await documentWrites(env, envelope.id, multiple.originals), ...artifacts.flatMap(a => blobWrites(env.DB, envelope.id, `supplement-${a.supplement.id}`, a.bytes)),
     ...await accessCodeWrites(env, envelope.id, accessCodes), ...consumedUploadWrites(env, { documents: uploads }),
     commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)], sources.map(source => sourceGuard(context.actor, source)))
-  await readBlob(env.DB, envelope.id, 'original', envelope.originalSha256)
+  await readBlob(env, envelope.id, 'original', envelope.originalSha256)
   return result
 }
