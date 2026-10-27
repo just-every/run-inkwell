@@ -461,7 +461,9 @@ How the owner-approved scope for Inkwell (16 October 2026) maps to clauses.
 
 Judged from the code and tests at commit `f5dab1a4491a157fdf3370f0b5d53b18af9dfd66` (27 October 2026).
 
-That source and test revision proves owner-reviewed CRM mapping, moved-file, pinned-folder, legacy-folder, verified webhook projection and notification-connection repairs through network-edge fakes. The final publication candidate changes only contract status, generated claims and the source lock after that source revision; production code, migrations and tests are byte-identical. Legacy Dropbox inspection and replay verify existing artifact bytes without uploading, including when the old path is recreated. Unknown or missing remote effects stay unresolved. No live-provider operation is claimed. Exact-candidate tests, mutation probes, browser proof and guarded release gates are recorded in the fleet handoff.
+That source and test revision proves owner-reviewed CRM mapping, moved-file, pinned-folder, legacy-folder, verified webhook projection and notification-connection repairs through network-edge fakes. Legacy Dropbox inspection and replay verify existing artifact bytes without uploading, including when the old path is recreated. Unknown or missing remote effects stay unresolved. No live-provider operation is claimed. Exact-candidate tests, mutation probes, browser proof and guarded release gates are recorded in the fleet handoff.
+
+The opening SHA is the historical main baseline, not a judgment of this candidate. Current Status rows and the inventory footer describe the candidate tree, including complete SDK result assertions and execution of the compiled TypeScript example. Exact candidate execution and release identifiers belong to the fleet handoff; no new independent CT judgment is claimed.
 
 SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing public-door proof on 25 October 2026.
 
