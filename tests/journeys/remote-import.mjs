@@ -40,6 +40,10 @@ export async function remoteImportJourney() {
    await capture('account-ready')
    await screen.getByRole('button',{name:'Pause account job',exact:true}).focus();await page.keyboard.press('Enter')
    await screen.getByRole('status').filter({hasText:'Account review: paused.'}).waitFor();await capture('account-paused')
+   await page.reload();await page.getByRole('button',{name:'Move in',exact:true}).click()
+   await screen.getByRole('button',{name:/Open saved review/}).click()
+   await screen.getByRole('status').filter({hasText:'Account review: paused.'}).waitFor()
+   if(width===1440){assert.equal(await screen.getByRole('combobox',{name:/Signing provider/}).inputValue(),'dropbox');assert.equal(await screen.getByLabel('Dropbox Sign API key',{exact:true}).inputValue(),'')}
    await screen.getByRole('button',{name:'Resume account job',exact:true}).click()
    await screen.getByRole('status').filter({hasText:'Account review: ready.'}).waitFor()
    await screen.getByRole('button',{name:'Cancel account job',exact:true}).click()
