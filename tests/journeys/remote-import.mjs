@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import { mkdir, readFile } from 'node:fs/promises'
 import { startInkwellWithMail } from './mail-worker.mjs'
@@ -24,9 +25,11 @@ export async function remoteImportJourney() {
    await context.addCookies([app.ownerCookie()]);const page=await context.newPage()
    await page.goto(app.origin+'/app');await page.getByRole('button',{name:'Move in',exact:true}).click()
    const screen=page.getByRole('region',{name:'API move-in'})
+   await screen.waitFor()
+
    const capture=async name=>{if(width===1440)assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no sideways scroll');await page.screenshot({path:`${images}/${width}-${name}.png`,fullPage:true})}
    for(const provider of ['acrobat','dropbox']) {
-    await screen.getByLabel('Signing provider',{exact:true}).selectOption(provider)
+    await screen.getByRole('combobox',{name:/Signing provider/}).selectOption(provider)
     await screen.getByLabel(provider==='acrobat'?'Acrobat access token':'Dropbox Sign API key',{exact:true}).fill('synthetic-inkwell-99')
     await screen.getByLabel('Fallback administrator email',{exact:true}).fill('owner@harbour.example')
     await screen.getByRole('button',{name:'Preview provider import',exact:true}).click()
@@ -48,11 +51,13 @@ export async function remoteImportJourney() {
     const senderContext=await app.browser.newContext({viewport:{width,height:900}})
     await senderContext.addCookies([{name:cookie.split('=')[0],value:cookie.slice(cookie.indexOf('=')+1),url:app.origin}])
     const senderPage=await senderContext.newPage();await senderPage.goto(app.origin+'/app')
-    await senderPage.getByRole('button',{name:`acrobat ${i===0?'first':'second'} agreement`,exact:true}).waitFor()
-    assert.equal(await senderPage.getByRole('button',{name:`acrobat ${i===0?'second':'first'} agreement`,exact:true}).count(),0,'other sender records stay private in the UI')
+    await senderPage.getByText(`acrobat ${i===0?'first':'second'} agreement`,{exact:true}).waitFor()
+    assert.equal(await senderPage.getByText(`acrobat ${i===0?'second':'first'} agreement`,{exact:true}).count(),0,'other sender records stay private in the UI')
     await senderContext.close()
    }
   }finally{await app.close()}
  }
  console.log('Remote import screens passed: provider preview, keyboard approval, sender privacy, accessibility; proof at 1440 and 390')
 }
+
+if(process.argv[1]===fileURLToPath(import.meta.url))await remoteImportJourney()
