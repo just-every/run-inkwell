@@ -153,6 +153,13 @@ test('Dropbox account jobs resume the reviewed source, enforce controls and appl
   assert.ok(!archive.ndjson.includes(j.id));assert.ok(!archive.ndjson.includes('synthetic-inkwell-99'))
   fake.otherAccount(true)
   const cancel=await call('start',{provider:'dropbox',fallbackAdmin:'owner@harbour.example'})
+  await h.db.prepare(`CREATE TRIGGER pause_during_review AFTER INSERT ON iw_remote_previews BEGIN UPDATE iw_remote_jobs SET version=version+1,data=json_set(data,'$.version',version+1,'$.state','paused','$.resume','reviewing') WHERE id='${cancel.id}'; END`).run()
+  await call('review',{...input,jobId:cancel.id},409)
+  const paused=await call('status',{jobId:cancel.id})
+  assert.equal(paused.state,'paused','a checkpoint conflict must never overwrite a concurrent owner pause')
+  assert.equal(paused.pages,0,'an uncommitted account page must not advance the cursor')
+  await h.db.prepare('DROP TRIGGER pause_during_review').run()
+  await call('resume',{jobId:cancel.id});h.advanceTo(at+110*60_000)
   const staged=await call('review',{...input,jobId:cancel.id})
   assert.equal(staged.agreements,2)
   const activeArchive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value

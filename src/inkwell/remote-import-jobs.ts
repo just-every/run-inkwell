@@ -12,10 +12,12 @@ async function load(env:Env,actor:Actor,jobId:unknown) {
  insist(row,'Import job not found.',404);return JSON.parse(row.data) as Job
 }
 async function save(env:Env,actor:Actor,j:Job,writes:D1PreparedStatement[]=[]) {
- const previous=j.version;j.version++
- await atomic(env.DB,[roleGuard(actor,['owner']),{sql:'EXISTS(SELECT 1 FROM iw_remote_jobs WHERE id=? AND version=?)',values:[j.id,previous]}],[...writes,env.DB.prepare('UPDATE iw_remote_jobs SET version=?,data=? WHERE id=?').bind(j.version,JSON.stringify(j),j.id)])
+ const previous=j.version,next=previous+1
+ await atomic(env.DB,[roleGuard(actor,['owner']),{sql:'EXISTS(SELECT 1 FROM iw_remote_jobs WHERE id=? AND version=?)',values:[j.id,previous]}],[...writes,env.DB.prepare('UPDATE iw_remote_jobs SET version=?,data=? WHERE id=?').bind(next,JSON.stringify({...j,version:next}),j.id)])
+ j.version=next
 }
-async function view(env:Env,j:Job) {
+async function view(env:Env,j:Job,details=true) {
+ if(!details)return {...j,items:[],unmapped:[],estimatedFinishAt:null}
  const pages=(await env.DB.prepare('SELECT p.data FROM iw_remote_job_pages b JOIN iw_remote_previews p ON p.id=b.preview_id WHERE b.job_id=? ORDER BY b.page').bind(j.id).all<{data:string}>()).results.map(p=>JSON.parse(p.data).summary)
  return {...j,items:pages.flatMap(p=>p.items),unmapped:pages.flatMap(p=>p.unmapped),estimatedFinishAt:j.state==='importing'?new Date(Math.max(Date.now(),j.nextAt)+(j.pages-j.applied)*3600_000).toISOString():null}
 }
@@ -55,7 +57,7 @@ export async function remoteImportJob(env:Env,actor:Actor,action:string,input:Re
    j.next={...preview.next,continuation:true};j.nextAt=0;delete j.reason
    if(!Object.values(preview.next).some(Boolean)){j.state='ready';j.fingerprint=await sha256(canonical({account:j.account,pages:j.pages,senders:j.senders,agreements:j.agreements,templates:j.templates,fingerprints:[...(await env.DB.prepare('SELECT p.fingerprint FROM iw_remote_job_pages b JOIN iw_remote_previews p ON p.id=b.preview_id WHERE b.job_id=? ORDER BY b.page').bind(j.id).all<{fingerprint:string}>()).results.map(p=>p.fingerprint),preview.fingerprint]}))}
    await save(env,actor,j,[env.DB.prepare('INSERT INTO iw_remote_job_pages VALUES(?,?,?)').bind(j.id,j.pages,preview.previewId)])
-   return view(env,j)
+   return view(env,j,j.state==='ready')
   }catch(error){
    // The cursor is unchanged. A replacement grant must identify the same source account.
    const current=await load(env,actor,j.id)
@@ -67,7 +69,7 @@ export async function remoteImportJob(env:Env,actor:Actor,action:string,input:Re
   insist(j.state==='ready'&&input.fingerprint===j.fingerprint&&input.approved===true,'Review the entire account and confirm its fingerprint first.',409)
   j.state='importing';await save(env,actor,j);return view(env,j)
  }
- if(action==='advance'){await advanceRemoteJob(env,actor,j);return view(env,await load(env,actor,j.id))}
+ if(action==='advance'){await advanceRemoteJob(env,actor,j);return view(env,await load(env,actor,j.id),false)}
  throw new Refusal('Import route not found.',404)
 }
 async function advanceRemoteJob(env:Env,actor:Actor,j:Job) {
