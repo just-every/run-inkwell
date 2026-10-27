@@ -1044,6 +1044,7 @@ test('Microsoft 365: OneDrive and SharePoint sources bind their PDF, enforce opt
   await h.command('envelope.approve',{id:stagedId,eligible:true},h.owner,403)
   const mixed=(await h.post('/api/inkwell/microsoft/source',payload)).value
   await h.command('envelope.prepare',{title:'Mixed Microsoft source',documents:[{uploadId:mixed.uploadId},{pdfBase64:source.pdfBase64,filename:source.filename}],signers:[{name:'Mara Quinn',email:'mixed@clients.example'}],fields:source.fields},h.owner,400)
+  await h.command('envelope.update',{id,title:'Injected source',filename:mixed.filename,documents:[{uploadId:mixed.uploadId}],signers:[{name:'Mara Quinn',email:'mara@clients.example'}],fields:mixed.fields},h.owner,409)
   await h.command('account.send_policy',{source:'microsoft',mode:'person',expectedVersion:0})
   const stagedWaiting=await h.command('envelope.approve',{id:stagedId,eligible:true});assert.equal(stagedWaiting.result.waitingForApproval.length,1);assert.equal(await h.mail('staged@clients.example','Please sign:'),undefined)
   const waiting=await h.command('envelope.approve',{id,eligible:true});assert.ok(waiting.result.waitingForApproval.length,'the selected template approval remains required');assert.equal(await h.mail('mara@clients.example','Please sign:'),undefined)
@@ -1062,6 +1063,11 @@ test('Microsoft 365: OneDrive and SharePoint sources bind their PDF, enforce opt
   stored.bytes=rightBytes;await h.post('/api/inkwell/filing/retry',{id})
   const view=(await h.send('/api/inkwell/filing',undefined,h.owner)).value
   assert.deepEqual(view.jobs.map(j=>[j.kind,j.state]).sort(),[['certificate','filed'],['signed','filed']])
+  const copy=(await h.command('envelope.copy',{id})).result.id
+  const copied=(await h.send('/api/inkwell/envelopes/'+copy,undefined,h.owner)).value.envelope
+  assert.deepEqual(copied.microsoftSource,envelope.microsoftSource,'copies retain Microsoft source authority')
+  assert.equal(copied.template.id,template,'copies retain their filing template')
+  assert.deepEqual(copied.approvalRule,envelope.approvalRule,'copies retain template approval')
   for(const kind of ['signed','certificate'])assert.deepEqual(Buffer.from(edge.files.get(`inkwell-${id}-${kind}.pdf`).bytes),Buffer.from((await h.send(`/api/inkwell/envelopes/${id}/artifacts/${kind}`,undefined,h.owner)).bytes))
   await h.post('/api/inkwell/filing/retry',{id});assert.equal(edge.files.size,2)
   const sharepoint=(await h.post('/api/inkwell/microsoft/source',{...payload,kind:'sharepoint'})).value;assert.equal(sharepoint.sha256,hash)

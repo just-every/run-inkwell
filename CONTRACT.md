@@ -327,7 +327,7 @@ Inkwell is one product. Where the market sells a neighboring product separately,
 
   **Implemented Microsoft boundary.** The native Microsoft source door reads OneDrive and SharePoint PDFs, converts Word sources through Graph, and obtains Outlook attachment bytes and the sender, To and Cc participants from Graph. Outlook and Word host harnesses supply the open resource context. Preparation consumes an actor-bound staged source, refuses altered displayed bytes and records the converted PDF fingerprint. A selected filing template must contain that exact PDF. The Microsoft source policy starts off, and every send retains native human eligibility confirmation, current policy versions, internal approval and deferred-release fences. SharePoint filing uses the existing explicitly consented per-template queue, deterministic filenames and remote byte verification; uncertain or conflicting copies stay visible until a manual retry. Filing rules and credentials remain installation state; restoring business records starts no external transfer. Remote copies remain outside local erasure.
 
-  **Regression evidence.** The existing delivery tests additionally prove source retention after draft edits, source-bound staged upload preparation with template approval and policy-off refusal, mixed-source refusal, exact-byte preparation above the legacy inline limit, and capability-free reply attachment metadata.
+  **Regression evidence.** The existing delivery tests additionally prove source retention after draft edits and copies, source-bound staged upload preparation with template approval and policy-off refusal, mixed-source refusal, exact-byte preparation above the legacy inline limit, and capability-free reply attachment metadata.
 
   **Conservative default adopted pending CT approval.** Only a signed-in owner or admin may read the installation's connected Microsoft drive or mailbox. Source loading and reply intake require explicit native actions; no automatic mailbox subscription or outbound reply is enabled. Recipient self-signing remains the member's own native session. Explicit Outlook reply intake fetches Graph facts, requires a fresh current reply capability and authorized reply reader, refuses replays, and uses AGENT-003's existing grant, contact, pause, visibility, no-text audit, archive and erasure rules. This default does not widen reply readers. Signed Microsoft subscription notification intake and installed Office registration remain unproved. INTEG-005 stays partial until CT approves the connection-authority default and the remaining gaps are proved.
 
@@ -461,8 +461,8 @@ SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing pu
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 10 | 0 | 0 | 10 |
-| Target and push further | 59 | 22 | 26 | 107 |
-| All | 69 | 22 | 26 | 117 |
+| Target and push further | 59 | 23 | 25 | 107 |
+| All | 69 | 23 | 25 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
