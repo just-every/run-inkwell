@@ -446,7 +446,9 @@ How the owner-approved scope for Inkwell (16 October 2026) maps to clauses.
 
 ## Status
 
-Historical independent judgment: commit `694e97ce4d690a1314434b7b1addce42b685a013` (24 October 2026). This is not a judgment of the current candidate.
+Judged from the code and tests at commit `248a70b00e01a99a193434302402e8c96449a74c` (27 October 2026).
+
+The opening SHA is the historical main baseline, not a judgment of this candidate. Current Status rows and the inventory footer describe the candidate tree. Exact candidate execution and release identifiers belong to the fleet handoff; no new independent CT judgment is claimed.
 
 SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing public-door proof on 25 October 2026.
 
