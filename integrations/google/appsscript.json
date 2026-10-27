@@ -1,0 +1,18 @@
+{
+  "timeZone": "Etc/UTC",
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/gmail.addons.execute",
+    "https://www.googleapis.com/auth/gmail.addons.current.message.readonly"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Inkwell",
+      "logoUrl": "https://raw.githubusercontent.com/just-every/run-inkwell/main/public/brand/icon-192.png",
+      "layoutProperties": {"primaryColor": "#047857"}
+    },
+    "gmail": {
+      "contextualTriggers": [{"unconditional": {}, "onTriggerFunction": "onGmailMessage"}]
+    }
+  }
+}

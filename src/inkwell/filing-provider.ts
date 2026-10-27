@@ -1,6 +1,6 @@
 import { Refusal } from './model'
 
-export type FilingProvider = 'box' | 'dropbox'
+export type FilingProvider = 'box' | 'dropbox' | 'google'
 type Json = Record<string, unknown>
 const failed = () => new Refusal('The filing provider could not verify the artifact. Retry manually.', 502, 'filing_provider_failed')
 const conflict = () => new Refusal('The filing destination contains a different artifact.', 409, 'filing_conflict')

@@ -50,6 +50,11 @@ export interface Bindings {
  MAIL_API_KEY?: string
  HUBSPOT_ACCESS_TOKEN?: string
  HUBSPOT_ACCOUNT_ID?: string
+ GOOGLE_PUBSUB_EMAIL?: string
+ GOOGLE_PUBSUB_SUBSCRIPTION?: string
+ GOOGLE_MAILBOX?: string
+ GOOGLE_HISTORY_START?: string
+ GOOGLE_ACCESS_TOKEN?: string
  BOX_ACCESS_TOKEN?: string
  DROPBOX_ACCESS_TOKEN?: string
  TWILIO_ACCOUNT_SID?: string
