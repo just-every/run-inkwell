@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { request, dateTime } from './types'
 import { ErrorNotice, useAction } from './feedback'
 
-type Provider = 'box' | 'dropbox'
+type Provider = 'box' | 'dropbox' | 'sharepoint'
 type Rule = { template_id:string; provider:Provider; folder:string; enabled:number; version:number; at:string }
 type Job = { envelope_id:string; title:string; provider:Provider; folder:string; kind:string; state:string; remote_id:string|null; filed_at:string|null }
 type View = { providers:Record<Provider,boolean>; rules:Rule[]; jobs:Job[]; consent:string }
-const providerName = (provider:Provider) => provider === 'box' ? 'Box' : 'Dropbox'
+const providerName = (provider:Provider) => provider === 'sharepoint' ? 'SharePoint' : provider === 'box' ? 'Box' : 'Dropbox'
 
 export function FilingSettings({ templates }: { templates:{id:string;title:string}[] }) {
  const [view,setView] = useState<View>(), [templateId,setTemplateId] = useState(''), [provider,setProvider] = useState<Provider>('box')
@@ -25,9 +25,9 @@ export function FilingSettings({ templates }: { templates:{id:string;title:strin
    await load();setSaved(true)
   })}}>
    <label>Filing template<select aria-label="Filing template" required value={templateId} onChange={event=>{setTemplateId(event.target.value);setSaved(false)}}><option value="">Choose a template</option>{templates.map(template=><option key={template.id} value={template.id}>{template.title}</option>)}</select></label>
-   <label>Filing provider<select aria-label="Filing provider" value={provider} onChange={event=>{setProvider(event.target.value as Provider);setSaved(false)}}><option value="box">Box</option><option value="dropbox">Dropbox</option></select></label>
+   <label>Filing provider<select aria-label="Filing provider" value={provider} onChange={event=>{setProvider(event.target.value as Provider);setSaved(false)}}><option value="box">Box</option><option value="dropbox">Dropbox</option><option value="sharepoint">SharePoint</option></select></label>
    <p role="status">{providerName(provider)} credential {view.providers[provider]?'configured':'not configured; ask your installation administrator to connect this provider'}.</p>
-   <label>{provider==='box'?'Box folder ID':'Dropbox folder path'}<input required={provider==='box'} value={folder} onChange={event=>setFolder(event.target.value)} maxLength={1000} placeholder={provider==='box'?'123456789':'/Completed agreements'}/></label>
+   <label>{provider==='sharepoint'?'SharePoint drive and folder IDs':provider==='box'?'Box folder ID':'Dropbox folder path'}<input required={provider==='box'} value={folder} onChange={event=>setFolder(event.target.value)} maxLength={1000} placeholder={provider==='box'?'123456789':'/Completed agreements'}/></label>
    <label className="iw-check"><input type="checkbox" checked={enabled} onChange={event=>{setEnabled(event.target.checked);setConsent(false)}}/>Enable automatic filing for this template and provider</label>
    {enabled && <label className="iw-check"><input type="checkbox" required checked={consent} onChange={event=>setConsent(event.target.checked)}/>{view.consent}</label>}
    <button className="iw-fit" type="submit" disabled={action.busy || !templateId || enabled && (!consent || !view.providers[provider])}>Save filing rule</button>

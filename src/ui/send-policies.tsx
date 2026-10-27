@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { command, request, dateTime, type SendPolicy, type SendPolicyVersion } from './types'
 import { ErrorNotice, useAction } from './feedback'
 
-const names: Record<SendPolicy['source'], string> = { ad_hoc: 'Ad hoc sends', template: 'Template sends', bulk: 'Bulk sends', web_form: 'Web form sends', api: 'API sends' }
+const names: Record<SendPolicy['source'], string> = { ad_hoc: 'Ad hoc sends', template: 'Template sends', bulk: 'Bulk sends', web_form: 'Web form sends', api: 'API sends', microsoft: 'Microsoft 365 sends' }
 type TemplateChoice = { id: string; title: string }
 
 const modes: Record<SendPolicy['mode'], string> = { off: 'Off', person: 'A person confirms each send', autonomous: 'Sends with no per-envelope approval' }
