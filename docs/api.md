@@ -195,3 +195,39 @@ Origin changes, launch authorization and closure have local audit records.
 `ADMIN-005` retains the obligation to include these in the unified account log.
 The public-door journey is `tests/journeys/embedding.mjs`, named “Embedded signing
 and sending”, with independent allowed and refused host pages at 1440 and 390.
+
+## HubSpot preparation and contact import
+
+The native member-session HubSpot connector requires an owner or admin, the
+application origin and explicit authorization. Installation credentials
+`HUBSPOT_ACCESS_TOKEN` and `HUBSPOT_ACCOUNT_ID` are private Worker bindings;
+requests and archives never carry them. Network-edge fakes establish acceptance,
+while live provider provisioning and interoperability remain separate.
+
+POST `/api/inkwell/hubspot/prepare` with `commandId`, `consent: true`,
+`recordType` (`deals` or `contacts`), `recordId`, `templateId`, and `mappings`.
+Each mapping names a template `field`, CRM `object`, internal `property` and
+optional `readOnly` boolean. Deal preparation may select a `contactId` for
+contact mappings. Ordinary template `recipients` and `customFields` are
+supported. Values come from server-side CRM reads with recorded sources and
+signer locks. Repeating a command returns the same envelope without another read.
+
+Preparation alone sends no invitation, grants no new envelope access and grants
+no follow-up authority. An eligible CRM owner may default escalation; a human
+must separately authorize the envelope's follow-up grant. Requested integration
+sending (`send: true`) additionally obeys the integration source policy and live
+release checks. Completion write-back exposes status, key fields, custom
+metadata, one timeline event and the exact executed PDF; inspect or retry it at
+`/api/inkwell/hubspot/envelopes/:id/writeback`.
+
+Contact sync uses `/api/inkwell/hubspot/sync` operations: `authorize` records
+explicit consent and a versioned `definition` naming account, scope, properties,
+mappings, shared-contact destination, update behavior and cadence. `start`
+takes `authorizationId` and an idempotent `requestId`; `continue` takes `runId`.
+One defined authorization spans bounded pages. Current authority is rechecked
+for every page; revocation or lost authority permanently retires authorization.
+Progress, failures and local-edit conflicts are visible through
+`/api/inkwell/hubspot/progress`. Imported contacts appear in native search and
+recipient autocomplete. Provider identity prevents duplicates; local edits are
+preserved for explicit conflict resolution. Audit records retain scope and
+version without imported field values. The built HubSpot settings expose configuration, authorization and progress.
