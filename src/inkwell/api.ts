@@ -5,6 +5,8 @@ import { getHubspotWriteback, retryHubspotWriteback } from './hubspot-writeback'
 import { hubspotSyncConfig, hubspotSyncProgress, hubspotSyncOperation } from './hubspot-sync'
 import { configureInbound, informationView, requestInformation, returnInbound, informationArtifact } from './agent-workflows'
 import { microsoftSource, microsoftReply } from './microsoft'
+import { receiveGoogleReplies } from './google-replies'
+import { googleDrive, googleMessage, googleAttachment } from './google'
 import { matchedRoutes } from 'hono/route'
 import { withAuditDatabase } from './account-audit-db'
 import { listAccountAudit, auditCsv } from './account-audit'
@@ -162,6 +164,16 @@ api.get('/api/inkwell/hubspot/progress',async c=>c.json(await hubspotSyncProgres
 api.post('/api/inkwell/hubspot/sync',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await hubspotSyncOperation(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),await readJson(c.req.raw,1200000)))})
 api.post('/api/inkwell/microsoft/source',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await microsoftSource(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),await readJson(c.req.raw,8192)))})
 api.post('/api/inkwell/microsoft/replies',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await microsoftReply(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),await readJson(c.req.raw,4096)))})
+api.post('/api/inkwell/google/replies',async c=>await receiveGoogleReplies(c.env,c.req.raw))
+// Google import uses the native administrator session; it never sends or changes a message.
+api.post('/api/inkwell/google',async c=>{
+ sameOrigin(c.req.raw,c.env)
+ const actor=await requireActor(c.req.raw,c.env,['owner','admin']),body=await readJson(c.req.raw,4096)
+ if(body.kind==='drive')return c.json(await googleDrive(c.env,body.id))
+ if(body.kind==='message')return c.json(await googleMessage(c.env,body.id,actor.email))
+ insist(body.kind==='attachment','Choose a Google source.')
+ return c.json(await googleAttachment(c.env,body.id,body.attachmentId,actor.email))
+})
 api.get('/api/inkwell/filing',async c=>c.json(await filingView(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))
 api.post('/api/inkwell/filing',async c=>{
  sameOrigin(c.req.raw,c.env)

@@ -1,7 +1,7 @@
 import { Refusal } from './model'
 
 import { fileSharePoint } from './microsoft-graph'
-export type FilingProvider = 'box' | 'dropbox' | 'sharepoint'
+export type FilingProvider = 'box' | 'dropbox' | 'sharepoint' | 'google'
 type Json = Record<string, unknown>
 const failed = () => new Refusal('The filing provider could not verify the artifact. Retry manually.', 502, 'filing_provider_failed')
 const conflict = () => new Refusal('The filing destination contains a different artifact.', 409, 'filing_conflict')
