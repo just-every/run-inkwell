@@ -21,7 +21,7 @@ export async function readRemoteBatch(input:Record<string,unknown>,control:Remot
   const response=await fetch(origin+path,{headers,redirect:'manual',signal:AbortSignal.timeout(20000)})
   await control.response?.(response)
   insist(![401,403].includes(response.status),'The provider grant expired or was refused. Replace it to continue the saved page.',409)
-  if(response.status===429){const header=response.headers.get('retry-after'),seconds=Number(header);throw new ApiRateLimit(header&&Number.isFinite(seconds)&&seconds>0?Math.ceil(seconds):3600)}
+  if(response.status===429){const header=response.headers.get('retry-after'),seconds=Number(header),date=Date.parse(header??'');throw new ApiRateLimit(header&&Number.isFinite(seconds)&&seconds>0?Math.ceil(seconds):Number.isFinite(date)&&date>Date.now()?Math.ceil((date-Date.now())/1000):3600)}
   insist(response.ok,'The provider refused this batch. Check the grant and retry; no success was recorded.',502)
   const bytes=await readBytes(new Request('https://import.invalid',{method:'POST',body:response.body,duplex:'half'} as RequestInit),pdf?2*1024*1024:1024*1024)
   if(pdf)return base64(bytes)

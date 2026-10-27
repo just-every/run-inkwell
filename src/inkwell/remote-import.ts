@@ -1,3 +1,4 @@
+import { remoteReadControl } from './remote-import-rate'
 import { appendEvent, canonical, id, insist, now, sha256, text, type Actor, type Envelope, type Env } from './model'
 import { atomic, roleGuard, type Guard } from './storage'
 import { blobWrites, fromBase64 } from './blobs'
@@ -17,7 +18,7 @@ async function mappedOwner(env:Env,email:string,fallback:string) {
 const ownerGuard=(owner:Actor):Guard=>({sql:"EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND version=? AND status='active')",values:[owner.id,owner.version]})
 export async function previewRemoteImport(env:Env,actor:Actor,input:Record<string,unknown>,control:RemoteReadControl&{guard?:Guard}={}) {
  const fallback=text(input.fallbackAdmin,'the fallback admin email',254).toLowerCase()
- const batch=await readRemoteBatch(input,control),planned:Planned[]=[],unmapped=[...batch.unmapped],at=now()
+ const batch=await readRemoteBatch(input,remoteReadControl(env,String(input.provider),control)),planned:Planned[]=[],unmapped=[...batch.unmapped],at=now()
  for(const item of batch.items) {
   const target='remote-'+await sha256(canonical([batch.provider,batch.account,item.kind,item.sourceId]))
   const seen=await env.DB.prepare('SELECT id FROM iw_remote_imports WHERE id=?').bind(target).first()

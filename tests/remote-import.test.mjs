@@ -4,7 +4,7 @@ import { harness } from './harness.mjs'
 import { remoteImportFake } from './fixtures/remote-import.mjs'
 const day=86400000,at=Date.parse('2026-06-01T00:00:00.000Z')
 for(const provider of ['acrobat','dropbox'])test(`${provider}: reviewed API imports preserve sender custody, usable templates and retention through erasure and restore`,async()=>{
- const fake=await remoteImportFake(provider),h=await harness({networkEdge:fake.edge,now:at})
+ const fake=await remoteImportFake(provider),h=await harness({networkEdge:fake.edge,now:at-120_000})
  try {
   const first=await h.invite('first@example.test','member'),second=await h.invite('second@example.test','member')
   for(const cookie of [first,second]){const actor=(await h.send('/api/inkwell',undefined,cookie)).value.actor;await h.command('member.role',{operatorId:actor.id,role:'sender'})}
@@ -17,6 +17,10 @@ for(const provider of ['acrobat','dropbox'])test(`${provider}: reviewed API impo
   fake.failOnce()
   const limited=await h.post('/api/inkwell/remote-import/preview',input,h.owner,429)
   assert.equal(limited.headers.get('retry-after'),'120')
+  const refusedCalls=fake.calls.length
+  await h.post('/api/inkwell/remote-import/preview',input,h.owner,429)
+  assert.equal(fake.calls.length,refusedCalls,'the provider reset also blocks a fresh preview')
+  h.advanceTo(at)
   assert.ok(!JSON.stringify(limited.value).includes('synthetic-inkwell-provider-failure'),'provider errors stay private')
   fake.unmapped()
   await h.post('/api/inkwell/remote-import/preview',{...input,fallbackAdmin:'first@example.test'},h.owner,400)
@@ -117,7 +121,7 @@ test('Dropbox account jobs resume the reviewed source, enforce controls and appl
   h.advanceTo(at+16*60_000);fake.otherAccount(true);await call('review',input,409)
   assert.equal((await call('status',input)).pages,1)
   fake.otherAccount(false);h.advanceTo(at+32*60_000);fake.exhaustOnce((at+92*60_000)/1000);await call('review',input,429)
-  const throttledCalls=fake.calls.length;await call('review',input,429);assert.equal(fake.calls.length,throttledCalls)
+  const throttledCalls=fake.calls.length;await call('review',input,429);await h.post('/api/inkwell/remote-import/preview',{provider:'dropbox',credential:input.credential,fallbackAdmin:'owner@harbour.example'},h.owner,429);assert.equal(fake.calls.length,throttledCalls)
   h.advanceTo(at+94*60_000);result=await call('review',input)
   assert.equal(result.state,'ready');assert.deepEqual([result.pages,result.agreements,result.templates],[2,3,1]);assert.equal(result.items.length,4)
   await call('approve',{jobId:j.id,fingerprint:result.fingerprint,approved:true})

@@ -45,13 +45,7 @@ export async function remoteImportJob(env:Env,actor:Actor,action:string,input:Re
   // Claim before outbound work, so racing requests cannot poll the same page.
   j.nextAt=Date.now()+15*60_000;await save(env,actor,j)
   try {
-   const preview=await previewRemoteImport(env,actor,{provider:j.provider,region:j.region,fallbackAdmin:j.fallbackAdmin,credential:input.credential,...j.next},{account:j.account,guard:guard(j),before:async()=>{const rate=await env.DB.prepare('SELECT until_at FROM iw_remote_limits WHERE provider=?').bind(j.provider).first<{until_at:number}>();if(rate&&rate.until_at>Date.now())throw new ApiRateLimit(Math.ceil((rate.until_at-Date.now())/1000))},response:async response=>{
-    const remaining=response.headers.get('x-ratelimit-remaining'),reset=response.headers.get('x-ratelimit-reset'),retry=response.headers.get('retry-after')
-    let until=0
-    if(remaining!==null&&Number(remaining)<=0){const seconds=Number(reset);until=Number.isFinite(seconds)&&seconds*1000>Date.now()?seconds*1000:Date.now()+3600_000}
-    if(response.status===429){const seconds=Number(retry),date=Date.parse(retry??'');until=Math.max(until,Date.now()+(Number.isFinite(seconds)&&seconds>0?seconds*1000:3600_000),Number.isFinite(date)?date:0)}
-    if(until)await env.DB.prepare('INSERT INTO iw_remote_limits VALUES(?,?) ON CONFLICT(provider) DO UPDATE SET until_at=max(until_at,excluded.until_at)').bind(j.provider,until).run()
-   }})
+   const preview=await previewRemoteImport(env,actor,{provider:j.provider,region:j.region,fallbackAdmin:j.fallbackAdmin,credential:input.credential,...j.next},{account:j.account,guard:guard(j)})
    j.account=preview.account;j.pages++;j.agreements+=preview.counts.agreements;j.templates+=preview.counts.templates
    for(const item of preview.items){const sender=j.senders[item.owner]??={agreements:0,templates:0};sender[item.kind==='envelope'?'agreements':'templates']++}
    j.next={...preview.next,continuation:true};j.nextAt=0;delete j.reason
