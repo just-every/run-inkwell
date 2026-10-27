@@ -450,7 +450,7 @@ How the owner-approved scope for Inkwell (16 October 2026) maps to clauses.
 
 ## Status
 
-Judged from the code and tests at commit `2d4838f05ca9ee7b5a1e9fde3ee2f1744ae8fc07` (27 October 2026).
+Judged from the code and tests at commit `95cc5ffb0434553b297954f7bcd215a8ef15f2b3` (27 October 2026).
 
 The landing candidate adds only status-format metadata after this code and test pin; its exact SHA, browser proof, mutation receipts and release gates are identified by the landing receipt.
 
