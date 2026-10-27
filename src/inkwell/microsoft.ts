@@ -46,17 +46,17 @@ export async function microsoftSource(env:Env,actor:Actor,input:Record<string,un
  const {documentFields}=await import('./document-fields'),fields=await documentFields(document,pageSizes,[])
  const self=input.self===true
  if(self)participants=[{name:actor.name,email:actor.email}]
- let template: {id:string;title:string;version?:number}|undefined
- if(input.templateId){const loaded=(await loadTemplate(env,actor,text(input.templateId,'a filing template'),'use')).template;insist(loaded.originalSha256===hash,'The filing template must use this exact PDF.',409);template={id:loaded.id,title:loaded.title,version:loaded.version??1}}
+ let template: {id:string;title:string;version?:number}|undefined,approvalRule:import('./model').ApprovalRule|undefined
+ if(input.templateId){const loaded=(await loadTemplate(env,actor,text(input.templateId,'a filing template'),'use')).template;insist(loaded.originalSha256===hash,'The filing template must use this exact PDF.',409);template={id:loaded.id,title:loaded.title,version:loaded.version??1};approvalRule=loaded.approval}
  const upload=await uploadPdf(env,actor,new Request(env.AUTH_ORIGIN,{method:'POST',body:JSON.stringify({filename,bytes:bytes.length})}))
  for(let offset=0,part=0;offset<bytes.length;offset+=upload.chunkBytes!,part++)await uploadPdf(env,actor,new Request(env.AUTH_ORIGIN,{method:'PUT',body:bytes.slice(offset,offset+upload.chunkBytes!).buffer}),upload.id,String(part))
  const source={kind,id:resource,sha256:hash}
- await atomic(env.DB,[roleGuard(actor,['owner','admin'])],[env.DB.prepare('INSERT INTO iw_microsoft_uploads VALUES(?,?)').bind(upload.id,JSON.stringify({source,template}))])
+ await atomic(env.DB,[roleGuard(actor,['owner','admin'])],[env.DB.prepare('INSERT INTO iw_microsoft_uploads VALUES(?,?)').bind(upload.id,JSON.stringify({source,template,approvalRule}))])
  return{uploadId:upload.id,filename,pdfBase64:encode(bytes),sha256:hash,participants,fields:self?fields.filter(f=>f.signer===0):fields}
 }
 export async function consumeMicrosoft(env:Env,actor:Actor,value:unknown){
  administrator(actor);const uploadId=text(value,'a Microsoft upload ID'),row=await env.DB.prepare('SELECT data FROM iw_microsoft_uploads WHERE upload_id=?').bind(uploadId).first<{data:string}>();insist(row,'Load the Microsoft source again.',409)
- const data=JSON.parse(row.data) as {source:{kind:string;id:string;sha256:string};template?:{id:string;title:string;version?:number}},upload=await uploadedBytes(env,actor,uploadId)
+ const data=JSON.parse(row.data) as {source:{kind:string;id:string;sha256:string};template?:{id:string;title:string;version?:number};approvalRule?:import('./model').ApprovalRule},upload=await uploadedBytes(env,actor,uploadId)
  insist(await sha256(upload.bytes)===data.source.sha256,'The Microsoft PDF fingerprint changed.',409)
  return{...data,filename:upload.filename,pdfBase64:encode(upload.bytes)}
 }
