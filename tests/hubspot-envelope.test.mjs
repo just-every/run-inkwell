@@ -58,6 +58,12 @@ test('INTEG-001 PREP-008 AGENT-003: selected native consent, admin admission, el
   assert.equal(contactEnvelope.fields.find(f=>f.id==='company').prefill.source,'HubSpot 7249 contacts 101.company')
   assert.equal(contactEnvelope.fields.find(f=>f.id==='company').prefill.value,'Brightwater Medical')
   assert.equal((await h.send(`/api/inkwell/envelopes/${contactEnvelope.id}/followup`,undefined,h.owner)).value.grant,null)
+  await h.command('envelope.followup',{id:contactEnvelope.id,enabled:true},admin)
+  const explicitGrant=(await h.send(`/api/inkwell/envelopes/${contactEnvelope.id}/followup`,undefined,h.owner)).value.grant
+  assert.equal(explicitGrant.state,'active');assert.equal(explicitGrant.escalationOwner,owner)
+  assert.equal(explicitGrant.memberId,(await h.send('/api/inkwell',undefined,admin)).value.actor.id)
+  assert.equal((await h.send(`/api/inkwell/envelopes/${e.id}/followup`,undefined,h.owner)).value.grant,null,'the explicit grant belongs only to the chosen contact envelope')
+  await h.command('envelope.followup',{id:contactEnvelope.id,enabled:false},admin)
   assert.equal((await h.send('/api/inkwell/envelopes/'+e.id,undefined,sender)).status,403)
   edge.owners.set('777',{id:'777',email:'synthetic-inkwell-5@example.test',archived:false})
   const ineligible=await launch(h,t),other=await read(h,ineligible.id)

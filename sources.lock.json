@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "cd52e698a96e9591483c3ddc3b0128f8e34a168d2ef002860534568a842d51c7",
+      "sha256": "bec9bafeae396369307e10fc7eed0f587f974c6dc9c574577ce41e42b3c3812c",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "0956cd885e496ea8c77b4b6218f7b18dd99eaa5b3b84644f7d2422544d441fdc",
+      "sha256": "d7b19f933dfd6bf2d4deba94f9a8ed4d9a806336be143d85ab0bb99d31728274",
       "executable": false
     },
     "DEMO.md": {
@@ -4321,7 +4321,7 @@
       "executable": false
     },
     "tests/hubspot-envelope.test.mjs": {
-      "sha256": "d19568c71450733e15f8d9352dc92960002b4a1b55be0d55ab641579f39478c6",
+      "sha256": "ff188a21741077b7ceef823cb4e154176077cb8f7b5be012463588674bfeb355",
       "executable": false
     },
     "tests/hubspot-sync.test.mjs": {
@@ -4361,7 +4361,7 @@
       "executable": false
     },
     "tests/journeys/bulk.mjs": {
-      "sha256": "6d55ac2ba1515c355626da7cd27ac49c0197c816911449d576adb042c8916071",
+      "sha256": "3fd4f1a4d3e5e1aae5c9854fefc71e48361bcc686e0b498c2df3e56bca2709e5",
       "executable": false
     },
     "tests/journeys/conditional-fields.mjs": {
