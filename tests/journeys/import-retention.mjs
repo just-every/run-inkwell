@@ -1,3 +1,4 @@
+import { remoteImportJourney } from './remote-import.mjs'
 // RECORD-005: use the import, legal-hold, retention-warning and permanent-erasure screens at desktop and phone widths.
 import assert from 'node:assert/strict'
 import { mkdir, readFile } from 'node:fs/promises'
@@ -63,3 +64,5 @@ try {
  }
  console.log('RECORD-005 passed at 1440 and 390: import, hold/lift history, scheduled retention warning, Activity opens Move in, explicit erase and empty library')
 } catch(error) { await screenshots(app.browser, 'record-005-failure'); throw error } finally { await app.close() }
+
+await remoteImportJourney()

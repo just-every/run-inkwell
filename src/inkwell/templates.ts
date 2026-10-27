@@ -223,3 +223,6 @@ export async function useTemplate(env: Env, context: CommandContext, input: Reco
   await readBlob(env.DB, envelope.id, 'original', envelope.originalSha256)
   return result
 }
+
+/** Validate provider-mapped roles and fields with the native template rules before custody. */
+export const importedTemplateDefinition = readTemplate
