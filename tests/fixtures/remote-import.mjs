@@ -1,0 +1,31 @@
+import { readFile } from 'node:fs/promises'
+export async function remoteImportFake(provider) {
+ const archive=JSON.parse(await readFile('tests/fixtures/docuseal/archive.json','utf8')),pdf=Buffer.from(archive.files[0].base64,'base64'),calls=[]
+ let fail=false,unknown=false
+ const owners=['first@example.test','second@example.test']
+ const edge=async request=>{
+  const url=new URL(request.url),adobe=provider==='acrobat'
+  if(url.hostname!==(adobe?'api.na1.adobesign.com':'api.hellosign.com'))return
+  calls.push(url.pathname+url.search)
+  if(fail){fail=false;return new Response('synthetic-inkwell-provider-failure',{status:429})}
+  const path=url.pathname.replace(adobe?'/api/rest/v6':'/v3',''),json=value=>Response.json(value)
+  if(path==='/users/me')return json({accountId:'synthetic-inkwell-1'})
+  if(path==='/account')return json({account:{account_id:'synthetic-inkwell-1'}})
+  if(path==='/agreements')return json({userAgreementList:[{id:'first'},{id:'second'},{id:'open'}],page:{}})
+  if(path==='/libraryDocuments')return json({libraryDocumentList:[{id:'template'}],page:{}})
+  if(path==='/signature_request/list')return json({signature_requests:[{signature_request_id:'first'},{signature_request_id:'second'},{signature_request_id:'open'}],list_info:{num_pages:1}})
+  if(path==='/template/list')return json({templates:[{template_id:'template'}],list_info:{num_pages:1}})
+  const resource=path.split('/')[2],index=resource==='first'?0:1,owner=unknown?'unmapped@example.test':owners[index]
+  if(adobe&&/^\/agreements\/[^/]+$/.test(path))return json({id:resource,name:`${provider} ${resource} agreement`,senderEmail:owner,status:resource==='open'?'OUT_FOR_SIGNATURE':'SIGNED'})
+  if(path.endsWith('/members'))return json({participantSets:[{memberInfos:[{name:'Client signer',email:'client@example.test'}]}]})
+  if(path.endsWith('/events'))return json({events:resource==='first'?[{type:'AGREEMENT_ACTION_COMPLETED',date:'2026-01-01T00:00:00.000Z'}]:[]})
+  if(adobe&&path==='/libraryDocuments/template')return json({name:`${provider} service template`,creatorEmail:owners[0],participantSetsInfo:[{label:'Client',order:1}]})
+  if(path.endsWith('/documents'))return json({documents:[{id:'pdf'}]})
+  if(path.endsWith('/formFields'))return json({fields:[{name:'signature',inputType:'SIGNATURE',recipientIndex:1,required:true,locations:[{pageNumber:1,left:60,top:80,width:160,height:40}]}]})
+  if(!adobe&&/^\/signature_request\/[^/]+$/.test(path))return json({signature_request:{signature_request_id:resource,title:`${provider} ${resource} agreement`,requester_email_address:owner,is_complete:resource!=='open',signatures:[{signer_name:'Client signer',signer_email_address:'client@example.test',signed_at:resource==='first'?1767225600:undefined}]}})
+  if(!adobe&&path==='/template/template')return json({template:{title:`${provider} service template`,creator_email_address:owners[0],signer_roles:[{name:'Client',order:0}],form_fields:[[{api_id:'signature',name:'Signature',type:'signature',signer:0,page:1,x:60,y:80,width:160,height:40,required:true}]]}})
+  if(path.endsWith('/combinedDocument')||path.endsWith('/auditTrail')||path.endsWith('/documents/pdf')||path.includes('/files/'))return new Response(pdf,{headers:{'content-type':'application/pdf'}})
+  throw new Error('Unexpected import fake request: '+path)
+ }
+ return {edge,pdf,calls,failOnce:()=>{fail=true},unmapped:()=>{unknown=true}}
+}
