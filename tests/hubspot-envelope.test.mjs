@@ -17,7 +17,9 @@ async function finish(h,id){
  const e=await read(h,id),email=e.signers[0].email,message=await h.mail(email,'Please sign:');assert.ok(message,'integration queues and dispatches the recipient invitation')
  const path='/api'+new URL(message.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
  await h.post(path+'/code',{},'');const code=(await h.mail(email,'verification code')).text.match(/\b\d{6}\b/)[0],cookie=(await h.post(path+'/verify',{code},'')).cookie
+ await h.post(path+'/sign',{values:{signature:'synthetic-inkwell-3'},consent:true,commandId:crypto.randomUUID()},cookie,403)
  await h.agree(path,cookie)
+ await h.post(path+'/sign',{values:{signature:'synthetic-inkwell-3'},consent:false,commandId:crypto.randomUUID()},cookie,400)
  await h.post(path+'/progress',{values:{amount:'1.00'}},cookie,400)
  await h.post(path+'/sign',{values:{signature:'synthetic-inkwell-3',amount:'1.00'},consent:true,commandId:crypto.randomUUID()},cookie,400)
  await h.post(path+'/sign',{values:{signature:'synthetic-inkwell-3'},consent:true,commandId:crypto.randomUUID()},cookie)
@@ -37,9 +39,11 @@ test('INTEG-001 PREP-008 AGENT-003: selected native consent, admin admission, el
   assert.equal((await h.send('/api/inkwell/hubspot/prepare',request(t),h.owner,{origin:'https://elsewhere.example'})).status,403,'preparation requires the native origin')
   assert.equal(edge.calls().length,0,'refused preparation reads no CRM data')
   const result=await launch(h,t,{},admin),e=await read(h,result.id),owner=(await h.send('/api/inkwell',undefined,h.owner)).value.actor.id
+  await h.post(`/api/inkwell/hubspot/envelopes/${e.id}/writeback`,{commandId:crypto.randomUUID()},admin,409)
   assert.equal(e.fields.find(f=>f.id==='amount').prefill.value,'48600.00');assert.equal(e.fields.find(f=>f.id==='amount').readOnly,true)
   assert.equal(e.fields.find(f=>f.id==='company').prefill.source,'HubSpot 7249 deals 901.company')
   const native=e.events.find(event=>event.action==='hubspot.record_prepared')
+  assert.equal(native.detail.followupGranted,false);assert.equal(native.detail.noAccessGranted,true)
   assert.equal(native.detail.authorization.actor,(await h.send('/api/inkwell',undefined,admin)).value.actor.id)
   assert.deepEqual(native.detail.authorization.mappings,[{field:'company',object:'deals',property:'company',readOnly:true},{field:'amount',object:'deals',property:'amount',readOnly:true}])
   assert.equal(native.detail.authorization.version,1);assert.match(native.detail.authorization.statement,/write completion status/)
