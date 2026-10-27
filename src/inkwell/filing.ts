@@ -8,25 +8,25 @@ import type { CommandContext } from './envelopes'
 export const filingConsent = 'I authorize automatic transfer of completed PDFs and certificates from this template to the selected provider folder.'
 interface Rule { template_id: string; provider: FilingProvider; folder: string; enabled: number; version: number; actor: string; at: string; folder_ref?:string|null }
 interface Job { envelope_id: string; provider: FilingProvider; folder: string; kind: 'signed' | 'certificate'; sha256: string; state: string; remote_id: string | null; filed_at: string | null; folder_ref:string|null;resolved_folder:string|null;folder_repair_json:string|null }
-const credential = (env: Env, provider: FilingProvider) => provider === 'box' ? env.BOX_ACCESS_TOKEN : env.DROPBOX_ACCESS_TOKEN
+const credential = (env: Env, provider: FilingProvider) => provider === 'sharepoint' ? env.MICROSOFT_GRAPH_ACCESS_TOKEN : provider === 'box' ? env.BOX_ACCESS_TOKEN : env.DROPBOX_ACCESS_TOKEN
 function administrator(actor: Actor) { insist(['owner','admin'].includes(actor.role) && actor.sessionId && !actor.apiKeyId && !actor.agentId, 'Only a signed-in owner or admin can manage automatic filing.', 403) }
 export async function filingView(env: Env, actor: Actor) {
  administrator(actor)
  const rules = (await env.DB.prepare('SELECT * FROM iw_filing_rules ORDER BY template_id,provider').all<Rule>()).results
  const jobs = (await env.DB.prepare('SELECT j.*,json_extract(e.data,\'$.title\') AS title FROM iw_filing_jobs j JOIN iw_envelopes e ON e.id=j.envelope_id ORDER BY j.rowid DESC LIMIT 40').all<Job & {title:string}>()).results
- return { owner:actor.role==='owner', providers: { box: Boolean(env.BOX_ACCESS_TOKEN), dropbox: Boolean(env.DROPBOX_ACCESS_TOKEN) }, rules, jobs, consent: filingConsent }
+ return { owner:actor.role==='owner', providers: { sharepoint: Boolean(env.MICROSOFT_GRAPH_ACCESS_TOKEN), box: Boolean(env.BOX_ACCESS_TOKEN), dropbox: Boolean(env.DROPBOX_ACCESS_TOKEN) }, rules, jobs, consent: filingConsent }
 }
 export async function saveFiling(env: Env, context: CommandContext, input: Record<string,unknown>) {
  administrator(context.actor)
  const templateId = text(input.templateId,'a template ID',100), provider = input.provider
- insist(provider === 'box' || provider === 'dropbox', 'Choose Box or Dropbox.')
+ insist(provider === 'box' || provider === 'dropbox' || provider === 'sharepoint', 'Choose Box, Dropbox or SharePoint.')
  await loadTemplate(env,context.actor,templateId,'manage')
  insist(typeof input.enabled === 'boolean', 'Choose whether automatic filing is enabled.')
  insist(!input.enabled || input.consent === true, 'Explicitly authorize automatic transfer before enabling filing.')
  insist(!input.enabled || credential(env,provider), 'Configure the provider credential in this installation first.', 409)
  const folder = typeof input.folder === 'string' ? input.folder.trim() : ''
  insist(folder.length <= 1000 && !/[\\\x00-\x1f\x7f]/.test(folder), 'Provide a valid provider folder.')
- insist(provider === 'box' ? /^\d+$/.test(folder) : folder === '' || folder.startsWith('/') && !folder.endsWith('/') && !folder.includes('//') && !folder.split('/').some(p=>p==='.'||p==='..'), 'Use a Box folder ID or an absolute Dropbox folder path.')
+ insist(provider === 'sharepoint' ? /^[A-Za-z0-9!_-]+:[A-Za-z0-9!_-]+$/.test(folder) : provider === 'box' ? /^\d+$/.test(folder) : folder === '' || folder.startsWith('/') && !folder.endsWith('/') && !folder.includes('//') && !folder.split('/').some(p=>p==='.'||p==='..'), 'Use a Box folder ID, an absolute Dropbox path, or SharePoint drive ID followed by a colon and folder ID.')
  const folderRef=input.enabled&&provider==='dropbox'&&folder!==''&&folder!=='/'?(await dropboxFolder(credential(env,provider)!,folder)).id:null
  const before = await env.DB.prepare('SELECT * FROM iw_filing_rules WHERE template_id=? AND provider=?').bind(templateId,provider).first<Rule>()
  insist(input.expectedVersion === (before?.version ?? 0), 'Filing settings changed. Refresh and try again.',409)

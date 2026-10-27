@@ -1379,3 +1379,91 @@ test('HubSpot refuses unauthorized, unconsented, cross-origin and malformed impo
   assert.deepEqual((await h.send('/api/inkwell/contacts?q=Good',undefined,h.owner)).value.contacts,[])
  }finally{await h.close()}
 })
+
+// Microsoft acceptance uses real HTTP doors and Graph faked only at the outbound network edge.
+test('Microsoft 365: OneDrive and SharePoint sources bind their PDF, enforce opt-in policy and file verified completed artifacts once',async()=>{
+ const {microsoftEdge}=await import('./microsoft-edge.mjs'),edge=await microsoftEdge(),h=await harness({bindings:{MICROSOFT_GRAPH_ACCESS_TOKEN:'synthetic-inkwell-1'},networkEdge:edge.networkEdge})
+ try{
+  const payload={kind:'onedrive',driveId:'personal-drive',itemId:'document'}
+  assert.equal((await h.send('/api/inkwell/microsoft/source',payload)).status,401)
+  const viewer=await h.invite('microsoft-viewer@harbour.example','member')
+  assert.equal((await h.send('/api/inkwell/microsoft/source',payload,viewer)).status,403)
+  assert.equal((await h.send('/api/inkwell/microsoft/source',payload,h.owner,{origin:'https://foreign.example'})).status,403)
+  const source=(await h.post('/api/inkwell/microsoft/source',payload)).value
+  const hash=await import('node:crypto').then(c=>c.createHash('sha256').update(edge.original).digest('hex'))
+  assert.equal(source.sha256,hash);assert.deepEqual(Buffer.from(source.pdfBase64,'base64'),Buffer.from(edge.original))
+  const template=(await h.command('template.save',{title:'Microsoft agreement',filename:source.filename,pdfBase64:source.pdfBase64,roles:[{role:'Client',order:1}],fields:source.fields})).result.id
+  await h.post('/api/inkwell/filing',{commandId:crypto.randomUUID(),templateId:template,provider:'sharepoint',folder:'share-drive:completed',enabled:true,consent:true,expectedVersion:0})
+  const loaded=(await h.post('/api/inkwell/microsoft/source',{...payload,templateId:template})).value
+  const id=(await h.command('envelope.prepare',{title:'OneDrive agreement',filename:loaded.filename,microsoftUploadId:loaded.uploadId,signers:[{name:'Mara Quinn',email:'mara@clients.example'}],fields:loaded.fields})).result.id
+  await h.command('envelope.approve',{id,eligible:true},h.owner,403)
+  assert.equal(await h.mail('mara@clients.example','Please sign:'),undefined,'off policy sends no invitation')
+  await h.command('account.send_policy',{source:'microsoft',mode:'person',expectedVersion:0})
+  await h.command('envelope.approve',{id,eligible:true})
+  const envelope=(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
+  assert.equal(envelope.originalSha256,hash);assert.equal(envelope.events.find(e=>e.action==='envelope.approved').detail.sendPolicy.source,'microsoft')
+  const path='/api'+new URL((await h.mail('mara@clients.example','Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+  await h.post(path+'/code',{},'');const cookie=(await h.post(path+'/verify',{code:(await h.mail('mara@clients.example','verification code')).text.match(/\b\d{6}\b/)[0]},'')).cookie;await h.agree(path,cookie)
+  await h.post(path+'/sign',{commandId:crypto.randomUUID(),values:Object.fromEntries(loaded.fields.map(f=>[f.id,'Mara Quinn'])),consent:true},cookie)
+  const view=(await h.send('/api/inkwell/filing',undefined,h.owner)).value
+  assert.deepEqual(view.jobs.map(j=>[j.kind,j.state]).sort(),[['certificate','filed'],['signed','filed']])
+  for(const kind of ['signed','certificate'])assert.deepEqual(Buffer.from(edge.files.get(`inkwell-${id}-${kind}.pdf`).bytes),Buffer.from((await h.send(`/api/inkwell/envelopes/${id}/artifacts/${kind}`,undefined,h.owner)).bytes))
+  await h.post('/api/inkwell/filing/retry',{id});assert.equal(edge.files.size,2)
+  const sharepoint=(await h.post('/api/inkwell/microsoft/source',{...payload,kind:'sharepoint'})).value;assert.equal(sharepoint.sha256,hash)
+  await h.post('/api/inkwell/microsoft/source',{...payload,itemId:'../escape'},h.owner,400)
+ }finally{await h.close()}
+})
+
+test('Microsoft 365: Outlook proposes exact attachment participants, sends, self-signs without mail, and Word binds converted PDF bytes',async()=>{
+ const {microsoftEdge}=await import('./microsoft-edge.mjs'),edge=await microsoftEdge(),h=await harness({bindings:{MICROSOFT_GRAPH_ACCESS_TOKEN:'synthetic-inkwell-1'},networkEdge:edge.networkEdge})
+ try{
+  await h.command('account.send_policy',{source:'microsoft',mode:'person',expectedVersion:0})
+  const proposal=(await h.post('/api/inkwell/microsoft/source',{kind:'outlook',messageId:'outlook-send'})).value
+  assert.deepEqual(proposal.participants,[{name:'Mara Quinn',email:'mara@clients.example'},{name:'Alex Morgan',email:'alex@clients.example'}]);assert.equal(proposal.filename,'outlook-agreement.pdf');assert.deepEqual(Buffer.from(proposal.pdfBase64,'base64'),Buffer.from(edge.outlook));assert.equal(proposal.fields.length,2)
+  const id=(await h.command('envelope.prepare',{title:'Outlook request',filename:proposal.filename,microsoftUploadId:proposal.uploadId,signers:proposal.participants,fields:proposal.fields})).result.id
+  await h.command('envelope.approve',{id,eligible:true});assert.ok(await h.mail('mara@clients.example','Please sign:'))
+  const self=(await h.post('/api/inkwell/microsoft/source',{kind:'outlook',messageId:'outlook-self',self:true})).value
+  assert.deepEqual(self.participants,[{name:'Harbour Owner',email:'owner@harbour.example'}]);const before=h.sent()
+  const own=(await h.command('envelope.prepare',{title:'My Outlook agreement',filename:self.filename,microsoftUploadId:self.uploadId,signers:self.participants,fields:self.fields})).result.id
+  await h.command('envelope.approve',{id:own,eligible:true});const opened=await h.post('/api/inkwell/commands',{command:'envelope.open_signing',input:{id:own},commandId:crypto.randomUUID()}),path='/api'+new URL(opened.value.result.signing.url).pathname
+  await h.agree(path,opened.cookie);await h.post(path+'/sign',{commandId:crypto.randomUUID(),values:Object.fromEntries(self.fields.map(f=>[f.id,'Harbour Owner'])),consent:true},opened.cookie)
+  assert.equal(h.sent(),before,'self signing sends no mail');assert.equal((await h.send('/api/inkwell/envelopes/'+own,undefined,h.owner)).value.envelope.status,'completed')
+  const word=(await h.post('/api/inkwell/microsoft/source',{kind:'word',driveId:'personal-drive',itemId:'word'})).value
+  assert.equal(word.filename,'open-document.pdf');assert.deepEqual(Buffer.from(word.pdfBase64,'base64'),Buffer.from(edge.converted));assert.notEqual(word.sha256,proposal.sha256)
+  const converted=(await h.command('envelope.prepare',{title:'Word request',filename:word.filename,microsoftUploadId:word.uploadId,signers:[{name:'Mara Quinn',email:'word@clients.example'}],fields:word.fields})).result.id
+  await h.command('envelope.approve',{id:converted,eligible:true});assert.equal((await h.send('/api/inkwell/envelopes/'+converted,undefined,h.owner)).value.envelope.originalSha256,word.sha256);assert.ok(await h.mail('word@clients.example','Please sign:'))
+ }finally{await h.close()}
+})
+
+test('Microsoft 365: authenticated fresh Outlook replies inherit grants, replay refusal, private visibility, pause, archive custody and erasure',async()=>{
+ const {microsoftEdge}=await import('./microsoft-edge.mjs'),edge=await microsoftEdge(),clock=Date.parse('2026-10-27T14:00:00Z'),h=await harness({now:clock,bindings:{MICROSOFT_GRAPH_ACCESS_TOKEN:'synthetic-inkwell-1',MAIL_INBOUND_DOMAIN:'replies.harbour.example'},networkEdge:edge.networkEdge})
+ try{
+  const source=(await h.post('/api/inkwell/microsoft/source',{kind:'onedrive',driveId:'personal-drive',itemId:'document'})).value
+  const id=(await h.command('envelope.prepare',{title:'Outlook follow-up',filename:source.filename,microsoftUploadId:source.uploadId,signers:[{name:'Mara Quinn',email:'mara@clients.example'}],fields:source.fields})).result.id
+  await h.command('account.send_policy',{source:'microsoft',mode:'person',expectedVersion:0});await h.command('envelope.approve',{id,eligible:true})
+  const envelope=(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
+  await h.command('envelope.followup',{id,enabled:true,maxContacts:2,days:[1,2,3,4,5],startHour:9,endHour:17,escalationOwner:envelope.createdBy})
+  await h.command('envelope.resend',{id,signer:0})
+  const invitation=await h.mail('mara@clients.example','Please sign:'),replyAddress=invitation.reply_to??invitation.headers?.['Reply-To'];assert.match(replyAddress,/^reply\+[A-Za-z0-9_-]{43}@/)
+  const privateText='Clause four needs legal review. synthetic-inkwell-9'
+  const message={id:'reply-one',from:edge.person('Mara Quinn','mara@clients.example'),toRecipients:[edge.person('Inkwell',replyAddress)],subject:'Re: agreement',body:{contentType:'text',content:privateText},receivedDateTime:new Date(clock).toISOString(),internetMessageId:'synthetic-inkwell-8',internetMessageHeaders:[{name:'Authentication-Results',value:'dkim=pass'}],hasAttachments:false}
+  edge.messages.set(message.id,message)
+  assert.equal((await h.send('/api/inkwell/microsoft/replies',{messageId:message.id})).status,401)
+  const viewer=await h.invite('outlook-reader@harbour.example','member');await h.post('/api/inkwell/microsoft/replies',{messageId:message.id},viewer,403)
+  edge.messages.set('stale-reply',{...message,id:'stale-reply',receivedDateTime:new Date(clock-301000).toISOString()});await h.post('/api/inkwell/microsoft/replies',{messageId:'stale-reply'},h.owner,403)
+  edge.messages.set('wrong-address',{...message,id:'wrong-address',toRecipients:[edge.person('Inkwell','reply+'+'a'.repeat(43)+'@replies.harbour.example')]});await h.post('/api/inkwell/microsoft/replies',{messageId:'wrong-address'},h.owner,403)
+  await h.post('/api/inkwell/microsoft/replies',{messageId:message.id});await h.post('/api/inkwell/microsoft/replies',{messageId:message.id},h.owner,409)
+  const view=async cookie=>(await h.send(`/api/inkwell/envelopes/${id}/followup`,undefined,cookie??h.owner)).value
+  let state=await view();assert.equal(state.replies.length,1);assert.equal(state.replies[0].text,privateText);assert.equal(state.replies[0].verified,true);assert.equal(state.states[0].paused,true)
+  assert.equal((await h.send(`/api/inkwell/envelopes/${id}/followup`,undefined,viewer)).status,403)
+  await h.command('envelope.followup_resume',{id,signer:0});assert.equal((await view()).states[0].paused,false)
+  edge.messages.set('spoofed-reply',{...message,id:'spoofed-reply',from:edge.person('Other sender','other@clients.example')});await h.post('/api/inkwell/microsoft/replies',{messageId:'spoofed-reply'})
+  state=await view();assert.equal(state.replies[1].verified,false);assert.equal(state.states[0].paused,false,'unverified sender never controls follow-up')
+  const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
+  assert.ok(JSON.stringify(archive).includes(privateText));assert.ok(!JSON.stringify(archive).includes(replyAddress.match(/reply\+([^@]+)/)[1]));assert.ok(!JSON.stringify(archive).includes('synthetic-inkwell-1'))
+  const restored=await harness({now:clock});try{await restored.post('/api/inkwell/archive/restore',{archive});assert.equal((await restored.send(`/api/inkwell/envelopes/${id}/followup`,undefined,restored.owner)).value.replies[0].text,privateText);assert.equal((await restored.db.prepare('SELECT count(*) AS n FROM iw_followup_capabilities').first()).n,0)}finally{await restored.close()}
+  const audit=(await h.send(`/api/inkwell/envelopes/${id}/artifacts/audit`,undefined,h.owner)).value;assert.ok(!JSON.stringify(audit).includes(privateText));assert.ok(!JSON.stringify(h.logs()).includes(privateText))
+  await h.command('envelope.followup',{id,enabled:false});edge.messages.set('revoked-reply',{...message,id:'revoked-reply'});await h.post('/api/inkwell/microsoft/replies',{messageId:'revoked-reply'},h.owner,403)
+  await h.command('envelope.void',{id,reason:'Owner erasure requested'});await h.post('/api/inkwell/erase',{id,confirmation:'ERASE'});assert.equal((await h.db.prepare('SELECT count(*) AS n FROM iw_followup_replies WHERE envelope_id=?').bind(id).first()).n,0)
+ }finally{await h.close()}
+})
