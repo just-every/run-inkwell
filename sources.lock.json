@@ -4493,7 +4493,7 @@
       "executable": false
     },
     "tests/test-mode.test.mjs": {
-      "sha256": "7c98e1868c67394f6c4e98dd7982f2c7a522b515d390fa7f00405773a52505ab",
+      "sha256": "9f5446c45ea4969d84501260370b349774f4b83c09874c6c539f365ea17ce79b",
       "executable": false
     },
     "tests/web-forms.test.mjs": {
