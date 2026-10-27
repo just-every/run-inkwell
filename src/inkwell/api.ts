@@ -1,3 +1,4 @@
+import { configureInbound, informationView, requestInformation, returnInbound, informationArtifact } from './agent-workflows'
 import { matchedRoutes } from 'hono/route'
 import { withAuditDatabase } from './account-audit-db'
 import { listAccountAudit, auditCsv } from './account-audit'
@@ -202,6 +203,11 @@ api.post('/api/sign/:token/comments',async c=>{sameOrigin(c.req.raw,c.env);const
 api.get('/api/inkwell/envelopes/:id/followup',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json(await followupView(c.env,actor,await getEnvelope(c.env.DB,c.req.param('id'))))})
 // Twilio requires empty TwiML when no automatic reply is authorized: https://www.twilio.com/docs/usage/webhooks/messaging-webhooks
 api.post('/api/inkwell/sms/replies',async c=>{await receiveSmsReply(c.env,c.req.raw);return c.body('<Response/>',200,{'content-type':'text/xml; charset=utf-8'})})
+api.get('/api/inkwell/envelopes/:id/information/attachments/:attachment',async c=>informationArtifact(c.env,await requireActor(c.req.raw,c.env),c.req.param('id'),c.req.param('attachment')))
+api.get('/api/inkwell/envelopes/:id/information',async c=>c.json(await informationView(c.env,await requireActor(c.req.raw,c.env),await getEnvelope(c.env.DB,c.req.param('id')))))
+api.post('/api/inkwell/information',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await requestInformation(c.env,await requireActor(c.req.raw,c.env),await readJson(c.req.raw,4096)))})
+api.post('/api/inkwell/inbound-return',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await returnInbound(c.env,await requireActor(c.req.raw,c.env,['owner']),await readJson(c.req.raw,4096)))})
+api.post('/api/inkwell/inbound-grant',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await configureInbound(c.env,await requireActor(c.req.raw,c.env,['owner']),await readJson(c.req.raw,4096)))})
 api.post('/api/inkwell/mail/replies',async c=>receiveFollowupReply(c.env,c.req.raw))
 api.post('/api/verify',async c=>c.json(await publicVerification(c.env,c.req.raw)))
 // ROUTE-009: a member signing with their session is offered the signature they saved.

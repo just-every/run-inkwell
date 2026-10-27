@@ -34,15 +34,15 @@ import { accessCodeWrites, draftDetail, readDraft } from './drafts'
 import { chooseSchedule, type Schedule } from './schedule'
 import { sealLink } from './links'
 import { memberLinkWrites } from './signing-groups'
-export interface CommandContext { actor: Actor; commandId: string; fingerprint: string; client?: Client; guards?: Guard[]; bulk?: {id:string;name:string;row:number;approvedAt:string;writes:(e:Envelope)=>D1PreparedStatement[]}; form?: { submission:import('./model').FormSubmission; origin?:import('./model').PolicySendOrigin; writes:(envelope:Envelope)=>Promise<D1PreparedStatement[]> } }
+export interface CommandContext { preparedWrites?: (envelope:Envelope)=>Promise<D1PreparedStatement[]>; actor: Actor; commandId: string; fingerprint: string; client?: Client; guards?: Guard[]; bulk?: {id:string;name:string;row:number;approvedAt:string;writes:(e:Envelope)=>D1PreparedStatement[]}; form?: { submission:import('./model').FormSubmission; origin?:import('./model').PolicySendOrigin; writes:(envelope:Envelope)=>Promise<D1PreparedStatement[]> } }
 export async function prepareEnvelope(env: Env, context: CommandContext, input: Record<string, unknown>, release=false) {
  const createdAt=now(),{draft,bytes,accessCodes,originals}=await readDraft(env,input,createdAt,undefined,context.actor)
  const envelope:Envelope={...(context.actor.testMode?{testMode:true as const}:{}),id:env.embedAllocation??id(),version:1,status:'prepared',createdAt,createdBy:context.actor.id,...draft,events:[]}
  await appendEvent(envelope,'envelope.prepared',context.actor.apiKeyId?`api-key:${context.actor.apiKeyId}`:context.actor.agentId?`agent:${context.actor.agentId}`:context.actor.id,{...draftDetail(draft),...(context.actor.testMode?{testMode:true}:{}),...(env.embedProvenance?{embedding:env.embedProvenance}:{})})
- const writes=[...await stagedBlobWrites(env,envelope.id,'original',bytes),...await documentWrites(env,envelope.id,originals),...consumedUploadWrites(env,input),...await accessCodeWrites(env,envelope.id,accessCodes)]
+ const writes=[...await stagedBlobWrites(env,envelope.id,'original',bytes),...await documentWrites(env,envelope.id,originals),...consumedUploadWrites(env,input),...await accessCodeWrites(env,envelope.id,accessCodes),...await context.preparedWrites?.(envelope)??[]]
  if(release)return approvePreparedEnvelope(env,context,{...input,id:envelope.id},envelope,writes)
  const result={id:envelope.id}
- await insertEnvelope(env.DB,envelope,context.actor,[...writes,commandWrite(env.DB,apiCommandActor(context.actor),context.commandId,context.fingerprint,result)])
+ await insertEnvelope(env.DB,envelope,context.actor,[...writes,commandWrite(env.DB,apiCommandActor(context.actor),context.commandId,context.fingerprint,result)],context.guards??[])
  await readBlob(env.DB,envelope.id,'original',envelope.originalSha256);return result
 }
 /** SEND-001: the person's eligibility confirmation authorizes the send; ROUTE-004's rules may first need named approvers. */

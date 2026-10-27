@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "3198d71e9db2e9a6231f58308a2d77a291fe760c773c81201839134a06f01812",
+      "sha256": "3ba208d8a32abd3563ec6284b028446e2039fc60453ff1fee368406033c53368",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "638dbe084b468c27d755b97bd80ac9efc73814f8f4442d3f0a322d6b080e4dab",
+      "sha256": "46aacd2b4b623790117864bf5e4e5bd0ed65dbe79a6fe17ee452e90a258202cf",
       "executable": false
     },
     "DEMO.md": {
@@ -210,6 +210,10 @@
     },
     "docs/agent-commands.md": {
       "sha256": "91392cac80f3b31f2cb1ae1e2bff876340e9680132a96725cecc4ef7a06b6eac",
+      "executable": false
+    },
+    "docs/agent-workflows.md": {
+      "sha256": "cd662c1afeacd806c97c443320855eb9706133230b462394176c8c7bcdf9b017",
       "executable": false
     },
     "docs/api.md": {
@@ -598,6 +602,10 @@
     },
     "migrations/core/0074_bulk.sql": {
       "sha256": "7957d434a8318c3e710b3a6bce44c735953049b1975461bd9ed650a1f6cbe6b9",
+      "executable": false
+    },
+    "migrations/core/0075_agent_workflows.sql": {
+      "sha256": "e93cecc40e4d8c22c3dfe2b0fbbb5ea904370a1729a81427eaa3142ca956470b",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -1156,6 +1164,10 @@
       "sha256": "bd9aa8176c8496e8aeebe73db2dfa35a53a3798233bf6b408f816edfcd8eba4c",
       "executable": false
     },
+    "src/inkwell/agent-workflows.ts": {
+      "sha256": "52f969da30d3472309ac21ba07622578891c1c68a6d43e6044df6afd0b379c19",
+      "executable": false
+    },
     "src/inkwell/agents.ts": {
       "sha256": "49b958f54ee1034adef585edc26ddff004fc93d5fe701f78d8e2f546d42b2e99",
       "executable": false
@@ -1185,7 +1197,7 @@
       "executable": false
     },
     "src/inkwell/api.ts": {
-      "sha256": "8b9a3f4a50afb04c141fcbb783a190f65710d8c1f04c7cb2d763ec95d1d60e1d",
+      "sha256": "063f54227b977740a09892fb4909c63a3f5844b761cce7d0d19054c06d4b352e",
       "executable": false
     },
     "src/inkwell/archive-policy.d.mts": {
@@ -1193,7 +1205,7 @@
       "executable": false
     },
     "src/inkwell/archive-policy.mjs": {
-      "sha256": "6cf3e100bb92f93f5d24da22769b71efdf2031a061b80ecd4c24c0bdf282f540",
+      "sha256": "48220be67de08a9a1c8d655c0b23c2bbd7eafd215084ceeede198c18fdc07ff1",
       "executable": false
     },
     "src/inkwell/archive-transfers.ts": {
@@ -1373,15 +1385,15 @@
       "executable": false
     },
     "src/inkwell/envelopes.ts": {
-      "sha256": "da3d60d6527c5997df28526f487ed8c24b0f901c38e36f6d54646795666c651c",
+      "sha256": "b51b7bf165b13cde90166e29c37f732de545ed8d166cb0b19db8c3a6ac5a3e34",
       "executable": false
     },
     "src/inkwell/erasure.ts": {
-      "sha256": "54cb12deb4568c4a2cde860b7f1e1d56fc55105478f2617a63a5c94b0f886490",
+      "sha256": "62c862f7e8cd8b82d454a6e036c909cb22ed785a32e7572f655ac8affffae76d",
       "executable": false
     },
     "src/inkwell/exit-export.ts": {
-      "sha256": "f1377e0c3e87616e7c5ec2f820386f58a2c16aae4f25b1e3a5b604f0bb861ed9",
+      "sha256": "9e8f4d0597a5c1a5a91a1e75e4084b6dad7ca29324e26d06b269bd5518e61fd0",
       "executable": false
     },
     "src/inkwell/expiry.ts": {
@@ -1409,7 +1421,7 @@
       "executable": false
     },
     "src/inkwell/followup-inbound.ts": {
-      "sha256": "9b81e24921455b4d4b398242b324c81e77fadfe89779a30035f9f9dbcf528cac",
+      "sha256": "ecc50e8875886209ca5093dc83277f7d758b79f950d31b709515113c49d92320",
       "executable": false
     },
     "src/inkwell/followup-recipients.ts": {
@@ -1506,6 +1518,10 @@
     },
     "src/inkwell/in-person.ts": {
       "sha256": "a91f65669316847d870c18087f3a0fa2a2a58537d975bd10fad622c4ff70956b",
+      "executable": false
+    },
+    "src/inkwell/inbound-content.ts": {
+      "sha256": "230397dfd990ae882e56ed138b326cb36844deaf2e665c533f5ce327638e5c81",
       "executable": false
     },
     "src/inkwell/internal-approval.ts": {
@@ -4158,6 +4174,10 @@
     },
     "tests/account-audit.test.mjs": {
       "sha256": "f01ab13d7a381aa0a3a9bc9226cd104416cd588899799dbab2a6aac097ae0e17",
+      "executable": false
+    },
+    "tests/agent-workflows.test.mjs": {
+      "sha256": "b7b4499d22245f484e688d24e60336d88a154bdd1c7cf8d1d0fa56bf852c6526",
       "executable": false
     },
     "tests/api-keys.test.mjs": {
