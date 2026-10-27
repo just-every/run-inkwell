@@ -50,12 +50,15 @@ function Page({ page, index, fields, values, activeField, onPlace, editing }: { 
   </div><ErrorNotice error={error} /></div>
 }
 export function PdfViewer(props: Props) {
+  const destroying = useRef<Promise<void>>(Promise.resolve())
   const [pages, setPages] = useState<PDFPageProxy[]>([])
   const [error, setError] = useState('')
   useEffect(() => {
     let disposed = false; let loadingTask: PDFDocumentLoadingTask | undefined
     setPages([]); setError('')
     void (async () => {
+      // A source replacement must finish releasing the shared worker before reusing its port.
+      await destroying.current
       const pdfjs = await preloadPdf()
       if (disposed) return
       loadingTask = pdfjs.getDocument(typeof props.source === 'string' ? { url: props.source, withCredentials: true } : { data: props.source.slice() })
@@ -65,7 +68,7 @@ export function PdfViewer(props: Props) {
       props.onPages?.(document.numPages)
       for (let index = 1; index <= document.numPages; index++) { const page = await document.getPage(index); if (disposed) return; setPages(current => [...current, page]) }
     })().catch(() => { if (!disposed) setError('Could not load this PDF. Check that it is a readable, unencrypted PDF.') })
-    return () => { disposed = true; if (loadingTask) void loadingTask.destroy().catch(() => {}) }
+    return () => { disposed = true; if (loadingTask) destroying.current = loadingTask.destroy().catch(() => {}) }
   }, [props.source])
   return <div className="iw-pdf-viewer"><ErrorNotice error={error} />{!pages.length && !error && <p role="status">Loading PDF…</p>}{props.onPlace && pages.length > 0 && <PageThumbnails pages={pages} fields={props.fields ?? []} onPlace={props.onPlace}>{props.toolbar}</PageThumbnails>}{pages.map((page, index) => <Page key={index} page={page} index={index} fields={props.fields} values={props.values} activeField={props.activeField} onPlace={props.onPlace} editing={props.editing} />)}</div>
 }
