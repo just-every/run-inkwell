@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "ea26e5c3ee20dc279d122eea8b083f752209438f6e0d6dcea54ee1b502915116",
+      "sha256": "9a3a937d62c04d80c2913ad74836305dfa0c71cac6a3170aa3faa38ace9ec609",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "1ff4f19a24a1cd17db673ec97460ba2975d160374197ff3b639a31af085dc05b",
+      "sha256": "85d29fd3a6e0aa804e30a2ed04c7bd56318c5f2341658f73de3bc6ec4ce2b08f",
       "executable": false
     },
     "DEMO.md": {
@@ -269,7 +269,7 @@
       "executable": false
     },
     "docs/sdk-test-mode.md": {
-      "sha256": "e7d8dfca46ed0fbaed284ed430158cd70c30d5092b33ececb565809b9f5bf0f3",
+      "sha256": "fd4e7a176572ad8dd8f1b8651561007387399d4467f2e5384c48588faf75d18e",
       "executable": false
     },
     "docs/send-an-agreement.md": {
@@ -296,16 +296,20 @@
       "sha256": "eec823f17eb42702f4016bf07732e327955f13aaf073fb4dc0fb526ca93cf201",
       "executable": false
     },
+    "examples/test-mode-flow.mjs": {
+      "sha256": "b83f81d6347ff21216eba395e99647972969a066dcb3119419ab815325afa60e",
+      "executable": false
+    },
     "examples/test-mode.mjs": {
-      "sha256": "a12aeaaa7134e400d9a7a995c0902b3e9f54ce692eb357dc81bc7d458853aa4a",
+      "sha256": "fc17401d2fd9a81ffda95b98b334a65a158090bcaee0cd5d3f131ed1f057fe48",
       "executable": false
     },
     "examples/test-mode.mts": {
-      "sha256": "562dccbbf39a444e528a68c89d621553a06c477195cc8059ae3db7c490c18685",
+      "sha256": "8361bcef04d06b100c80d1b22d80545dd21e6b741d8fb26bcc651aee692e27b7",
       "executable": false
     },
     "examples/test-mode.py": {
-      "sha256": "305a7a12bdd9c222f226af774c08ecba508ac89144582b9328b9ec211d0cd390",
+      "sha256": "9e0ee3d241e0a5e9282aa8455014e7b1357e774fa1eb543b4aa86cf097a6b5c8",
       "executable": false
     },
     "HOMEPAGE-VARIANTS.md": {
@@ -4361,7 +4365,7 @@
       "executable": false
     },
     "tests/journeys/prefill.mjs": {
-      "sha256": "2980ccc5b5b4e42a9aa3de9251a56fa7ff9d41fc3acaf261dcb7cc950f38b946",
+      "sha256": "33c243b190be566c1f2695c85651cbc72efb32a6f552b9e724bb8ee01ee0b15f",
       "executable": false
     },
     "tests/journeys/provider-auth.mjs": {
@@ -4433,7 +4437,7 @@
       "executable": false
     },
     "tests/journeys/worker.mjs": {
-      "sha256": "304dc900687a5ff7b837c4098c7c378398eb13be40e514870d741e85e112840a",
+      "sha256": "23334f0776233261513f490c49c0c919f4cf7c02dcb687a9be43d9860ae0fe65",
       "executable": false
     },
     "tests/manual-invitations.test.mjs": {
@@ -4489,7 +4493,7 @@
       "executable": false
     },
     "tests/test-mode.test.mjs": {
-      "sha256": "358a6ad5e0b6caa5816a4034a545ac1017b6e3a89095e485b5a18485ea8f34b0",
+      "sha256": "7c98e1868c67394f6c4e98dd7982f2c7a522b515d390fa7f00405773a52505ab",
       "executable": false
     },
     "tests/web-forms.test.mjs": {
