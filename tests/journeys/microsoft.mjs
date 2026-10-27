@@ -29,6 +29,7 @@ try{
   await atDesktop(()=>expect(page.getByLabel('Envelope title',{exact:true})).toHaveValue('outlook-agreement'))
   if(width===1440)await axe(page,'Microsoft Outlook preparation '+width)
   if(width===1440)assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Microsoft preparation has no sideways scroll')
+  const pdfPage=page.locator('.iw-pdf-page').first();await pdfPage.scrollIntoViewIfNeeded();await page.locator('.iw-pdf-page[data-rendered]').first().waitFor();await page.evaluate(()=>window.scrollTo(0,0))
   await page.screenshot({path:join(proof,`${width}-outlook.png`),fullPage:true})
   const remove=page.getByRole('button',{name:'Remove field 1',exact:true});await remove.focus();await atDesktop(()=>expect(page.getByRole('tooltip',{name:'Remove field',exact:true})).toBeVisible());await page.keyboard.press('Tab');await remove.hover();await atDesktop(()=>expect(page.getByRole('tooltip',{name:'Remove field',exact:true})).toBeVisible())
   if(width===1440){
