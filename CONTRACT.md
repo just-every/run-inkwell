@@ -455,8 +455,8 @@ SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing pu
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 10 | 0 | 0 | 10 |
-| Target and push further | 59 | 24 | 24 | 107 |
-| All | 69 | 24 | 24 | 117 |
+| Target and push further | 59 | 26 | 22 | 107 |
+| All | 69 | 26 | 22 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -578,4 +578,4 @@ SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing pu
 | `AGENT-008` | Signer assistant | push-further | missing |  | No signer assistant |
 | `AGENT-009` | Inbound agreements | push-further | partial | `tests/agent-workflows.test.mjs` — “Inbound agreements: authenticated forward selects the granted business-role signer; human approval and signing precede a once-only grant-bound executed return”. Signed intake, replay refusal, configured role selection, prepared fixed bytes, separate human approval and signature, denied and allowed return, concurrent once-only delivery, revocation and permanent authority suspension. `docs/agent-workflows.md` documents the native doors. | Adopted conservative default pending CT: owner-maintained business-role mapping, exact approved forwarder, and a separate owner return action under the current grant. Automatic organizational-role inference and intake from other agreement platforms remain unimplemented. Native HTTP doors ship; no new operator controls or live mailbox qualification is claimed. |
 
-Status provenance, 27 October 2026: this candidate has 69 done, 24 partial and 24 missing clauses, id for id with ACCEPTANCE.md. BULK-001 remains partial; API-004 has locally proven completion subject to exact-SHA release checks. The opening historical judgment pin does not identify the current candidate or its new proof. Its exact full SHA and receipt identifiers are supplied with the fleet handoff.
+Status provenance, 27 October 2026: this candidate has 69 done, 26 partial and 22 missing clauses, id for id with ACCEPTANCE.md. BULK-001 remains partial; API-004 has locally proven completion subject to exact-SHA release checks. The opening historical judgment pin does not identify the current candidate or its new proof. Its exact full SHA and receipt identifiers are supplied with the fleet handoff.
