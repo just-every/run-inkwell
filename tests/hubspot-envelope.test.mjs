@@ -201,6 +201,17 @@ test('INTEG-001 MANAGE-002: completion properties, custom metadata, one timeline
   assert.equal(edge.files().length,fileCount,'an invisible uncertain file is never uploaded twice')
   assert.equal(edge.calls().filter(call=>call.method==='POST'&&call.path==='/files/v3/files').length,uploadCount,'uncertainty forbids a second upload attempt')
   edge.intercept(undefined)
+  const moved=edge.files().find(file=>file.name.startsWith(drift.id+'-'));moved.path='/reviewed/'+moved.name
+  const movedHeld=await writeback(h,drift.id)
+  assert.equal(movedHeld.status,'held');assert.equal(movedHeld.uncertain,'file')
+  assert.deepEqual(movedHeld.fileRepair,{id:moved.id,path:moved.path,sha256:(await read(h,drift.id)).signedSha256})
+  assert.equal(edge.notes().filter(n=>n.properties.hs_note_body.includes(drift.id)).length,0,'a moved file is not attached before owner approval')
+  await h.post(path,{approveFileRepair:true,fileProposal:movedHeld.fileRepair},admin,403)
+  await h.post(path,{approveFileRepair:true,fileProposal:{...movedHeld.fileRepair,id:'synthetic-inkwell-42'}},h.owner,409)
+  const movedBytes=moved.bytes;moved.bytes=Buffer.from('synthetic-inkwell-43')
+  await h.post(path,{approveFileRepair:true,fileProposal:movedHeld.fileRepair},h.owner,409)
+  moved.bytes=movedBytes
+  assert.equal((await h.post(path,{commandId:crypto.randomUUID(),approveFileRepair:true,fileProposal:movedHeld.fileRepair})).value.status,'completed')
   const repaired=await Promise.all([writeback(h,drift.id),writeback(h,drift.id)])
   assert.ok(repaired.some(result=>result.status==='completed'))
   assert.equal((await h.send(path,undefined,h.owner)).value.status,'completed')
