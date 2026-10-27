@@ -38,7 +38,7 @@ async function authenticatedPush(env:Env,request:Request) {
 
 async function fetchedReply(env:Env,messageId:string,eventId:string) {
  insist(/^[A-Za-z0-9_-]{1,200}$/.test(messageId),'Invalid Google message identifier.',502)
- const message=await googleJson(env,`/messages/${messageId}?format=full`,16*1024*1024)
+ const message=await googleJson(env,`/messages/${messageId}?format=metadata&metadataHeaders=To`)
  insist(message.id===messageId&&message.payload,'Google returned another message.',502)
  const headers:Record<string,string>={}
  for(const header of message.payload.headers??[]){insist(typeof header.name==='string'&&typeof header.value==='string','Invalid Google message headers.',502);const name=header.name.toLowerCase();if(!['from','to','date','subject','message-id','in-reply-to','auto-submitted','authentication-results','x-autoreply','x-autorespond','x-ms-exchange-inbox-rules-loop'].includes(name))continue;insist(!Object.hasOwn(headers,name),'Ambiguous Google message headers.',502);headers[name]=header.value}
@@ -47,6 +47,12 @@ async function fetchedReply(env:Env,messageId:string,eventId:string) {
  if(!addresses.some(address=>/reply\+[A-Za-z0-9_-]{43}@/i.test(address)))return
  const source={id:messageId,from:headers.from??'',to:addresses,subject:headers.subject??'',message_id:headers['message-id']??'',headers}
  try{await keepFetchedReply(env,source,messageId,eventId,'gmail',async()=>{
+  const full=await googleJson(env,`/messages/${messageId}?format=full`,16*1024*1024)
+  insist(full.id===messageId&&full.payload,'Google returned another message.',502)
+  const complete:Record<string,string>={}
+  for(const header of full.payload.headers??[]){insist(typeof header.name==='string'&&typeof header.value==='string','Invalid Google message headers.',502);const name=header.name.toLowerCase();if(!['from','to','date','subject','message-id','in-reply-to','auto-submitted','authentication-results','x-autoreply','x-autorespond','x-ms-exchange-inbox-rules-loop'].includes(name))continue;insist(!Object.hasOwn(complete,name),'Ambiguous Google message headers.',502);complete[name]=header.value}
+  insist(complete.to===headers.to&&typeof complete.from==='string','Google message identity changed during intake.',502)
+  Object.assign(headers,complete);source.from=complete.from;source.subject=complete.subject??'';source.message_id=complete['message-id']??''
   let text='',html='',total=0
   const attachments:{filename:string;contentType:string;content:Uint8Array}[]=[]
   async function visit(part:Json) {
@@ -61,7 +67,7 @@ async function fetchedReply(env:Env,messageId:string,eventId:string) {
    insist(Array.isArray(part.parts??[])&&(part.parts??[]).length<=100,'Invalid Google message parts.',502)
    for(const child of part.parts??[])await visit(child)
   }
-  await visit(message.payload)
+  await visit(full.payload)
   return{text:text||undefined,html:html||undefined,attachments}
  })}catch(error){if(!(error instanceof Refusal&&error.status===403))throw error}
 }
