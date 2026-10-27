@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f82e404b20fa48a2802b6c8fa2a749654c5e8aa683ed795e5ee6694714bf20b9",
+      "sha256": "3198d71e9db2e9a6231f58308a2d77a291fe760c773c81201839134a06f01812",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "cb87874f12a121b1e98a3b01104660afb59249871c9e1cb882faa3f269bb06b9",
+      "sha256": "638dbe084b468c27d755b97bd80ac9efc73814f8f4442d3f0a322d6b080e4dab",
       "executable": false
     },
     "DEMO.md": {
@@ -297,15 +297,15 @@
       "executable": false
     },
     "examples/test-mode.mjs": {
-      "sha256": "0ebf52bd223d027df898abf933c505e1060384f91d42cf44234a3b715d631575",
+      "sha256": "a12aeaaa7134e400d9a7a995c0902b3e9f54ce692eb357dc81bc7d458853aa4a",
       "executable": false
     },
     "examples/test-mode.mts": {
-      "sha256": "3ff1b2a75c5a1e0221b8b9a1e91c02f810e9f21162a6ffe9e723b8f7b72fc297",
+      "sha256": "562dccbbf39a444e528a68c89d621553a06c477195cc8059ae3db7c490c18685",
       "executable": false
     },
     "examples/test-mode.py": {
-      "sha256": "73283d6ed8e70efbad4a36d7728fc7dc1fed1950a7e917c02cfc4f7f6731b4fa",
+      "sha256": "305a7a12bdd9c222f226af774c08ecba508ac89144582b9328b9ec211d0cd390",
       "executable": false
     },
     "HOMEPAGE-VARIANTS.md": {
@@ -985,7 +985,7 @@
       "executable": false
     },
     "sdk/javascript/index.d.mts": {
-      "sha256": "3db4f95d4b9061b89188777ac043018ce4e3301fbef30c0629c93210f1a073b8",
+      "sha256": "7402b0bc88400f32281bca4fcba443e405ba8213a8fccf491ca25e5e51b80d6c",
       "executable": false
     },
     "sdk/javascript/index.mjs": {
@@ -4173,7 +4173,7 @@
       "executable": false
     },
     "tests/bulk.test.mjs": {
-      "sha256": "bf015f0b0aa091d0659e0877345fb1fbef84d1b30937cf4bf3e68da2ffbe26bd",
+      "sha256": "b809bc06f567ba1b1c186e891fbd26bdecf2bd75f26fba408b314a4b18170431",
       "executable": false
     },
     "tests/compliance.test.mjs": {
@@ -4489,7 +4489,7 @@
       "executable": false
     },
     "tests/test-mode.test.mjs": {
-      "sha256": "ba91da12508c4269ae98438db426fd1671f129d584eecf2960db2a1d8e4daa2c",
+      "sha256": "358a6ad5e0b6caa5816a4034a545ac1017b6e3a89095e485b5a18485ea8f34b0",
       "executable": false
     },
     "tests/web-forms.test.mjs": {

@@ -1,4 +1,4 @@
-export interface Envelope {id:string;title:string;status:string;testMode?:true;[key:string]:unknown}
+export interface Envelope {id:string;title:string;status:string;signers:{email:string;[key:string]:unknown}[];events:{action:string;[key:string]:unknown}[];testMode?:true;[key:string]:unknown}
 export interface Result {result:{id:string;status?:string}}
 export interface Definition {title?:string;filename?:string;pdfBase64?:string;signers?:unknown[];fields?:unknown[];templateId?:string;recipients?:unknown[];status?:'draft'|'sent';[key:string]:unknown}
 export class Inkwell {
