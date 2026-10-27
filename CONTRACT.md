@@ -461,15 +461,15 @@ How the owner-approved scope for Inkwell (16 October 2026) maps to clauses.
 
 Judged from the code and tests at commit `9886d716013429c71d1abcc758ce71628fadc292` (27 October 2026).
 
-This inventory follows the CT reset of INTEG-001 to partial and closure of its audit, operational log privacy and visible reader assertions. The final provenance commit changes only the two status documents and their generated source lock; production code and tests are byte-identical to the source revision above. The fleet handoff records the exact candidate SHA, public-door tests, mutation probes, browser proof and verification runs. Counts describe the raw clause rows in this committed candidate tree and do not claim an independent CT judgment.
+This historical judgment pin records main’s INTEG-001 audit, operational log privacy and visible reader assertions. Current-main reconciliation, 27 October 2026: this candidate preserves those CRM assertions and main’s agent workflows and adds reviewed remote-import custody and recovery. Resolve its full execution SHA with `git rev-parse HEAD`; the fleet handoff records checks for that candidate. Counts describe the raw clause rows in this committed tree and do not claim a new independent CT judgment.
 
 SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing public-door proof on 25 October 2026.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 10 | 0 | 0 | 10 |
-| Target and push further | 60 | 24 | 23 | 107 |
-| All | 70 | 24 | 23 | 117 |
+| Target and push further | 60 | 26 | 21 | 107 |
+| All | 70 | 26 | 21 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -591,4 +591,4 @@ SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing pu
 | `AGENT-008` | Signer assistant | push-further | missing |  | No signer assistant |
 | `AGENT-009` | Inbound agreements | push-further | partial | `tests/agent-workflows.test.mjs` — “Inbound agreements: authenticated forward selects the granted business-role signer; human approval and signing precede a once-only grant-bound executed return”. Signed intake, replay refusal, configured role selection, prepared fixed bytes, separate human approval and signature, denied and allowed return, concurrent once-only delivery, revocation and permanent authority suspension. `docs/agent-workflows.md` documents the native doors. | Adopted conservative default pending CT: owner-maintained business-role mapping, exact approved forwarder, and a separate owner return action under the current grant. Automatic organizational-role inference and intake from other agreement platforms remain unimplemented. Native HTTP doors ship; no new operator controls or live mailbox qualification is claimed. |
 
-Status provenance, 27 October 2026: this committed candidate has 70 done, 24 partial and 23 missing clauses, id for id with ACCEPTANCE.md. Resolve its full SHA with `git rev-parse HEAD`; the fleet handoff records that SHA, its local execution and the exact verification runs. No earlier review pin identifies this implementation proof.
+Status provenance, 27 October 2026: this committed candidate has 70 done, 26 partial and 21 missing clauses, id for id with ACCEPTANCE.md. Resolve its full SHA with `git rev-parse HEAD`; the fleet handoff records that SHA, its local execution and the exact verification runs. No earlier review pin identifies this implementation proof.
