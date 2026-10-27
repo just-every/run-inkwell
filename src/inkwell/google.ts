@@ -4,7 +4,7 @@ const toBase64 = (bytes: Uint8Array) => { let value=''; for(let i=0;i<bytes.leng
 import { parsePdf } from './pdf'
 
 type Json = Record<string, any>
-const googleId = (value: unknown) => { const valueId=text(value,'a Google identifier',200); insist(/^[A-Za-z0-9_-]+$/.test(valueId),'Invalid Google identifier.'); return valueId }
+const googleId = (value: unknown, maximum=200) => { const valueId=text(value,'a Google identifier',maximum); insist(/^[A-Za-z0-9_-]+$/.test(valueId),'Invalid Google identifier.'); return valueId }
 /** Installation credentials never leave the Worker. Requests use fixed official hosts without redirects. */
 export async function googleRequest(env: Env, url: string, init: RequestInit = {}) {
  insist(env.GOOGLE_ACCESS_TOKEN,'Configure the Google connection in this installation first.',409)
@@ -48,12 +48,12 @@ export async function googleMessage(env:Env,value:unknown,ownEmail:string) {
  const messageId=googleId(value),message=await json(env,`https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=full`)
  insist(message.id===messageId&&message.payload,'Google message is unavailable.',502)
  const attachments:{id:string;filename:string;bytes:number}[]=[]
- function visit(part:Json) { if(part.mimeType==='application/pdf'&&part.filename&&part.body?.attachmentId)attachments.push({id:googleId(part.body.attachmentId),filename:part.filename,bytes:part.body.size});for(const child of part.parts??[])visit(child) }
+ function visit(part:Json) { if(part.mimeType==='application/pdf'&&part.filename&&part.body?.attachmentId)attachments.push({id:googleId(part.body.attachmentId,2048),filename:part.filename,bytes:part.body.size});for(const child of part.parts??[])visit(child) }
  visit(message.payload)
  return {messageId,attachments,participants:participants(message.payload.headers??[],ownEmail)}
 }
 export async function googleAttachment(env:Env,messageValue:unknown,attachmentValue:unknown,ownEmail:string) {
- const message=await googleMessage(env,messageValue,ownEmail),attachment=message.attachments.find(a=>a.id===googleId(attachmentValue))
+ const message=await googleMessage(env,messageValue,ownEmail),attachment=message.attachments.find(a=>a.id===googleId(attachmentValue,2048))
  insist(attachment,'Choose an attached PDF from this message.',404)
  const body=await json(env,`https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.messageId}/attachments/${attachment.id}`,3*1024*1024)
  insist(typeof body.data==='string'&&body.data.length<=2_800_000,'The attachment is unavailable or too large.',413)

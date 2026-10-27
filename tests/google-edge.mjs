@@ -26,7 +26,7 @@ export async function googleEdge() {
   if(url.pathname==='/drive/v3/files/google-doc')return Response.json({...file,id:'google-doc',name:'Client proposal',mimeType:'application/vnd.google-apps.document'})
   if(url.pathname==='/drive/v3/files/google-doc/export'){assert.equal(url.searchParams.get('mimeType'),'application/pdf');return new Response(bytes)}
   if(url.pathname===`/gmail/v1/users/me/messages/${message.id}`)return Response.json(message)
-  if(url.pathname===`/gmail/v1/users/me/messages/${message.id}/attachments/attachment-pdf`)return Response.json({size:bytes.length,data:bytes.toString('base64url')})
+  if(url.pathname===`/gmail/v1/users/me/messages/${message.id}/attachments/${message.payload.parts[0].body.attachmentId}`)return Response.json({size:bytes.length,data:bytes.toString('base64url')})
   return Response.json({error:'not found'},{status:404})
  }
  return {networkEdge,bytes,hash,files,requests,message,fail:()=>failure=true,corrupt:()=>corrupt=true,repair:()=>corrupt=false,loseUpload:()=>lost=true}
