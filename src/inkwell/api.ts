@@ -1,3 +1,4 @@
+import { microsoftSource, microsoftReply } from './microsoft'
 import { matchedRoutes } from 'hono/route'
 import { withAuditDatabase } from './account-audit-db'
 import { listAccountAudit, auditCsv } from './account-audit'
@@ -125,6 +126,8 @@ api.get('/api/inkwell/audit.csv',async c=>{await requireActor(c.req.raw,c.env,['
 api.get('/health',c=>c.json({status:'ok',product:'Inkwell',...deploymentHealth(c.env)}))
 // MANAGE-001: the workspace is who is signed in, their agent tokens and people; envelopes are read a page or one at a time.
 api.get('/api/inkwell',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json({actor:{id:actor.id,name:actor.name,email:actor.email,role:actor.role},agents:actor.role==='owner'?await listAgents(c.env):[],people:['owner','admin'].includes(actor.role)?await listPeople(c.env):[],...(['owner','admin'].includes(actor.role)?{settings:{envelopeDefaults:await envelopeDefaults(c.env),freeForm:await freeFormPolicy(c.env),freeFormHistory:await freeFormHistory(c.env),completedCopies:await completedCopyDelivery(c.env),retention:await retentionView(c.env),healthcare:await healthcareProfile(c.env),internalApproval:await approvalView(c.env),sendPolicies:await sendPolicies(c.env),sendPolicyHistory:await sendPolicyHistory(c.env)}}:{}),...(actor.role==='viewer'?{}:{signingGroups:await listGroups(c.env)})})})
+api.post('/api/inkwell/microsoft/source',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await microsoftSource(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),await readJson(c.req.raw,8192)))})
+api.post('/api/inkwell/microsoft/replies',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await microsoftReply(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),await readJson(c.req.raw,4096)))})
 api.get('/api/inkwell/filing',async c=>c.json(await filingView(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))
 api.post('/api/inkwell/filing',async c=>{
  sameOrigin(c.req.raw,c.env)

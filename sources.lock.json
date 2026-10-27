@@ -157,7 +157,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "9d2f4c18315d274a3e49e75f342305e9161ce11caa7f1ecdb2f4ceafea9e5001",
+      "sha256": "abe70a1e932f867a6d31799add267b0e0831eb37a7b84a055c1d07605286784a",
       "executable": false
     },
     ".gitignore": {
@@ -600,6 +600,10 @@
       "sha256": "7957d434a8318c3e710b3a6bce44c735953049b1975461bd9ed650a1f6cbe6b9",
       "executable": false
     },
+    "migrations/core/0075_microsoft.sql": {
+      "sha256": "6d0cc13cda6c9f265fbf103eda98fed533571748f5493c0de639e8e260ed1d39",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -1013,7 +1017,7 @@
       "executable": false
     },
     "src/auth.server.ts": {
-      "sha256": "f35735d0793f32726b98b94ae7a3e347d073363dae75e3d51ca099a7732d320e",
+      "sha256": "397bb21e6eafc1d3b12ef8f5852ac09d7ff41649db4565a528d6c8e0f61b6eb3",
       "executable": false
     },
     "src/base/contract-filter.ts": {
@@ -1185,7 +1189,7 @@
       "executable": false
     },
     "src/inkwell/api.ts": {
-      "sha256": "8b9a3f4a50afb04c141fcbb783a190f65710d8c1f04c7cb2d763ec95d1d60e1d",
+      "sha256": "44c0f8bdfcecebd4020ced21cbae027785474ac242ea42faf36d31a9e9ff91ba",
       "executable": false
     },
     "src/inkwell/archive-policy.d.mts": {
@@ -1193,7 +1197,7 @@
       "executable": false
     },
     "src/inkwell/archive-policy.mjs": {
-      "sha256": "6cf3e100bb92f93f5d24da22769b71efdf2031a061b80ecd4c24c0bdf282f540",
+      "sha256": "9b94b2902646d3862aef0a5682f6decbfc9b60be9202454637bb35cd6c3561e5",
       "executable": false
     },
     "src/inkwell/archive-transfers.ts": {
@@ -1373,7 +1377,7 @@
       "executable": false
     },
     "src/inkwell/envelopes.ts": {
-      "sha256": "da3d60d6527c5997df28526f487ed8c24b0f901c38e36f6d54646795666c651c",
+      "sha256": "30a29c3bc03354657aeab84ddfbdf2c097eb399a73247c451fbb788f16fea857",
       "executable": false
     },
     "src/inkwell/erasure.ts": {
@@ -1393,11 +1397,11 @@
       "executable": false
     },
     "src/inkwell/filing-provider.ts": {
-      "sha256": "e7303217c36459158b8ccb01424f7ff94fe52c7fe116d12f1d35c5b03ec46c7c",
+      "sha256": "d50ebf94d43fc8521db82109fc7573b495156721bc86333dea4bf44e89f70d6a",
       "executable": false
     },
     "src/inkwell/filing.ts": {
-      "sha256": "7eeb04cacd5161e7d69d072e938d0693fbd3b223d0ddf68408f57b58c754add6",
+      "sha256": "fdd9e424b7b18ff291c2603e0bf9389d5ecb02c362cceaf3ca55a27102a3dc9b",
       "executable": false
     },
     "src/inkwell/followup-engine.ts": {
@@ -1405,11 +1409,11 @@
       "executable": false
     },
     "src/inkwell/followup-inbound-types.ts": {
-      "sha256": "c9d65a728f3f97bfca97774e30387bc0c934a16cfa4fbf2037b7a46f267d904e",
+      "sha256": "16b00051e13a1fb4430119d125bfcb407327e2608049a234757d296eddbef5e7",
       "executable": false
     },
     "src/inkwell/followup-inbound.ts": {
-      "sha256": "9b81e24921455b4d4b398242b324c81e77fadfe89779a30035f9f9dbcf528cac",
+      "sha256": "b48247c989852dde95aefd4968d07366f08fa39f40d6191a5f07bf1dc89dbcb7",
       "executable": false
     },
     "src/inkwell/followup-recipients.ts": {
@@ -1536,8 +1540,16 @@
       "sha256": "5310f4ff0ad4725530de9898daf149c8512a08f8afd287e9160363edf464b6f7",
       "executable": false
     },
+    "src/inkwell/microsoft-graph.ts": {
+      "sha256": "4b4a36a91e64c5ffb44f4831df10a867f536bb1b565638a2b161e48e7e25283c",
+      "executable": false
+    },
+    "src/inkwell/microsoft.ts": {
+      "sha256": "5df2a3bafef6e3e4da1e6abc6b0488744c8dd65900acd88db548f805edfac071",
+      "executable": false
+    },
     "src/inkwell/model.ts": {
-      "sha256": "bf3778c155c783da5f173f874deb915c98858638a067c647f4b13bc28c671efc",
+      "sha256": "247c351585489ce155582ca6f9f7321c56bb05fa8ef196ea73a06cac5489c921",
       "executable": false
     },
     "src/inkwell/notices.ts": {
@@ -1717,7 +1729,7 @@
       "executable": false
     },
     "src/inkwell/send-policies.ts": {
-      "sha256": "877dfaf18260089c978682590c438f2b83f0415a5c58ef9c76fed221c8274a56",
+      "sha256": "cc3a464589b683003d084b945fd7cd9a7e852568d00f52ab1333dee1d3f89fef",
       "executable": false
     },
     "src/inkwell/send-policy-scopes.ts": {
@@ -3949,7 +3961,7 @@
       "executable": false
     },
     "src/ui/filing.tsx": {
-      "sha256": "26c70b9ede8aad8799a008f64e6fd4a61184e83aedaa6918e103649e8af7cbb6",
+      "sha256": "807d68733a8d6e5e6cc655ced27a6d59b4325548a4d94a3559859652060c3638",
       "executable": false
     },
     "src/ui/followup.tsx": {
@@ -3986,6 +3998,10 @@
     },
     "src/ui/marks.tsx": {
       "sha256": "7ebd674a50688845c543e969b0936dd59baafb7584473832c405d026fe13dcdd",
+      "executable": false
+    },
+    "src/ui/microsoft-source.tsx": {
+      "sha256": "f1f67f0c64e143e3c9c33f53517c15f226fafdccf239dd51303054ba3f1fb42d",
       "executable": false
     },
     "src/ui/move-in.tsx": {
@@ -4025,7 +4041,7 @@
       "executable": false
     },
     "src/ui/prepare-envelope.tsx": {
-      "sha256": "cadb1309a39cefe0d33ac676476e84fa70e36c762dcadf396de38bcba4afa00d",
+      "sha256": "e273d4a40ae291839960148500c2a85580599fe4c8f2d1c2e3da8539b59c60d5",
       "executable": false
     },
     "src/ui/provider-authentication.tsx": {
@@ -4073,7 +4089,7 @@
       "executable": false
     },
     "src/ui/send-policies.tsx": {
-      "sha256": "d410665823c4a771f9016e1fa457d4de9e4990201082109b849f1f32e206e9df",
+      "sha256": "5febe48988b3e431a6ee741d7a1c52714c52485543202890f2fec4044bd994d2",
       "executable": false
     },
     "src/ui/shell.tsx": {
@@ -4141,7 +4157,7 @@
       "executable": false
     },
     "src/ui/types.ts": {
-      "sha256": "d47f565bcf00dd31bcf8b051c37de4c3b4e00238e6e6d3f1830f2ba7ffec67e0",
+      "sha256": "375c384139ec130d11e48e9c979a0bab1318ed92ce36fdf9bd2e25c1b95a8641",
       "executable": false
     },
     "src/ui/usage.tsx": {
@@ -4181,7 +4197,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "1739b0a31fe512890ff967d748e31c6ad21d7f8fae60914e85b41603ddc335bf",
+      "sha256": "5810ad16783ecfab5d650231650593b4af90e8d10e111b1362298bad86d5ab8e",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
@@ -4438,6 +4454,10 @@
     },
     "tests/manual-invitations.test.mjs": {
       "sha256": "daa4ebd3d197599cd9995c35ac94711242ee26d78b2ca7ab3ba51e0671cd5600",
+      "executable": false
+    },
+    "tests/microsoft-edge.mjs": {
+      "sha256": "988a313f1daa7eef28a91b6236db4e4a6136822574f7b6a46dbd2dc5d4ed6a9e",
       "executable": false
     },
     "tests/own-signing.test.mjs": {

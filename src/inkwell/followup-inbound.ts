@@ -93,7 +93,7 @@ function providerId(value: unknown) {
   insist(/^[a-zA-Z0-9_-]{1,128}$/.test(result), 'The inbound provider identifier is invalid.', 400)
   return result
 }
-function htmlText(html: string): string {
+export function htmlText(html: string): string {
   // Render no HTML, execute nothing, fetch no image, and keep no script/style content.
   return html.replace(/<!--[\s\S]*?-->/g, '').replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
     .replace(/<(?:br|hr)\b[^>]*>|<\/(?:p|div|li|tr|h[1-6])\s*>/gi, '\n').replace(/<[^>]*>/g, '')
