@@ -50,6 +50,7 @@ export interface Bindings {
  MAIL_API_KEY?: string
  HUBSPOT_ACCESS_TOKEN?: string
  HUBSPOT_ACCOUNT_ID?: string
+ MICROSOFT_GRAPH_ACCESS_TOKEN?: string
  BOX_ACCESS_TOKEN?: string
  DROPBOX_ACCESS_TOKEN?: string
  TWILIO_ACCOUNT_SID?: string

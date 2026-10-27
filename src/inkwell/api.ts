@@ -2,6 +2,7 @@ import { prepareHubspotEnvelope } from './hubspot-envelope'
 import { getHubspotWriteback, retryHubspotWriteback } from './hubspot-writeback'
 import { hubspotSyncConfig, hubspotSyncProgress, hubspotSyncOperation } from './hubspot-sync'
 import { configureInbound, informationView, requestInformation, returnInbound, informationArtifact } from './agent-workflows'
+import { microsoftSource, microsoftReply } from './microsoft'
 import { matchedRoutes } from 'hono/route'
 import { withAuditDatabase } from './account-audit-db'
 import { listAccountAudit, auditCsv } from './account-audit'
@@ -151,6 +152,8 @@ api.get('/api/inkwell/hubspot/writebacks',async c=>{
 api.get('/api/inkwell/hubspot/config',async c=>c.json(await hubspotSyncConfig(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))
 api.get('/api/inkwell/hubspot/progress',async c=>c.json(await hubspotSyncProgress(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))
 api.post('/api/inkwell/hubspot/sync',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await hubspotSyncOperation(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),await readJson(c.req.raw,1200000)))})
+api.post('/api/inkwell/microsoft/source',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await microsoftSource(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),await readJson(c.req.raw,8192)))})
+api.post('/api/inkwell/microsoft/replies',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await microsoftReply(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),await readJson(c.req.raw,4096)))})
 api.get('/api/inkwell/filing',async c=>c.json(await filingView(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))
 api.post('/api/inkwell/filing',async c=>{
  sameOrigin(c.req.raw,c.env)
