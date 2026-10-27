@@ -34,7 +34,7 @@ import { accessCodeWrites, draftDetail, readDraft } from './drafts'
 import { chooseSchedule, type Schedule } from './schedule'
 import { sealLink } from './links'
 import { memberLinkWrites } from './signing-groups'
-export interface CommandContext { actor: Actor; commandId: string; fingerprint: string; client?: Client; guards?: Guard[]; form?: { submission:import('./model').FormSubmission; origin?:import('./model').PolicySendOrigin; writes:(envelope:Envelope)=>Promise<D1PreparedStatement[]> } }
+export interface CommandContext { crm?: {kind:"deals"|"contacts";recordId:string;ownerEmail?:string;consent:string}; actor: Actor; commandId: string; fingerprint: string; client?: Client; guards?: Guard[]; form?: { submission:import('./model').FormSubmission; origin?:import('./model').PolicySendOrigin; writes:(envelope:Envelope)=>Promise<D1PreparedStatement[]> } }
 export async function prepareEnvelope(env: Env, context: CommandContext, input: Record<string, unknown>, release=false) {
  const createdAt=now(),{draft,bytes,accessCodes,originals}=await readDraft(env,input,createdAt,undefined,context.actor)
  const envelope:Envelope={id:env.embedAllocation??id(),version:1,status:'prepared',createdAt,createdBy:context.actor.id,...draft,events:[]}

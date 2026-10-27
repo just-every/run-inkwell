@@ -1,3 +1,4 @@
+import { hubspotPreparationWrites } from './hubspot'
 import { configurePayment } from './payment-authority'
 import { providerChoice, requireProvider } from './provider-auth'
 import { parsePaymentRequirement, samePaymentRequirement, type PaymentRequirement } from './payment-requirement'
@@ -207,7 +208,7 @@ export async function useTemplate(env: Env, context: CommandContext, input: Reco
   const result = { id: envelope.id, template: template.id }
   const visible=visibleSql(context.actor),repeated=visible.sql.match(/\?1/g)?.length??0
   const guards:Guard[]=[{sql:`EXISTS(SELECT 1 FROM iw_templates t WHERE t.id=? AND t.data=? AND ${visible.sql.replaceAll('?1','?')})`,values:[template.id,JSON.stringify(template),...(repeated?Array.from({length:repeated},()=>context.actor.id):visible.values)]}]
-  const writes=[...(context.form?await context.form.writes(envelope):[]),...await stagedBlobWrites(env,envelope.id,'original',bytes),...(template.documents??[]).map((_,i)=>env.DB.prepare('INSERT INTO iw_blobs(envelope_id,kind,part,data) SELECT ?,?,part,data FROM iw_template_document_blobs WHERE template_id=? AND document=?').bind(envelope.id,`document-${i}`,template.id,i)),...artifacts.flatMap(a=>blobWrites(env.DB,envelope.id,`supplement-${a.supplement.id}`,a.bytes)),...await accessCodeWrites(env,envelope.id,accessCodes)]
+  const writes=[...(context.crm?await hubspotPreparationWrites(env,envelope,context):[]),...(context.form?await context.form.writes(envelope):[]),...await stagedBlobWrites(env,envelope.id,'original',bytes),...(template.documents??[]).map((_,i)=>env.DB.prepare('INSERT INTO iw_blobs(envelope_id,kind,part,data) SELECT ?,?,part,data FROM iw_template_document_blobs WHERE template_id=? AND document=?').bind(envelope.id,`document-${i}`,template.id,i)),...artifacts.flatMap(a=>blobWrites(env.DB,envelope.id,`supplement-${a.supplement.id}`,a.bytes)),...await accessCodeWrites(env,envelope.id,accessCodes)]
   if(release)return approvePreparedEnvelope(env,{...context,guards:[...(context.guards??[]),...guards]},{...input,id:envelope.id},envelope,writes)
   await insertEnvelope(env.DB,envelope,context.actor,[...writes,commandWrite(env.DB,apiCommandActor(context.actor),context.commandId,context.fingerprint,result)],[...(context.guards??[]),...guards])
   await readBlob(env.DB, envelope.id, 'original', envelope.originalSha256)

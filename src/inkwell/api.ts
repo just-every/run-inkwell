@@ -1,3 +1,4 @@
+import { prepareHubspot, syncHubspotContacts } from './hubspot'
 import { matchedRoutes } from 'hono/route'
 import { withAuditDatabase } from './account-audit-db'
 import { listAccountAudit, auditCsv } from './account-audit'
@@ -123,6 +124,15 @@ api.get('/api/inkwell/audit.csv',async c=>{await requireActor(c.req.raw,c.env,['
 api.get('/health',c=>c.json({status:'ok',product:'Inkwell',...deploymentHealth(c.env)}))
 // MANAGE-001: the workspace is who is signed in, their agent tokens and people; envelopes are read a page or one at a time.
 api.get('/api/inkwell',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json({actor:{id:actor.id,name:actor.name,email:actor.email,role:actor.role},agents:actor.role==='owner'?await listAgents(c.env):[],people:['owner','admin'].includes(actor.role)?await listPeople(c.env):[],...(['owner','admin'].includes(actor.role)?{settings:{envelopeDefaults:await envelopeDefaults(c.env),freeForm:await freeFormPolicy(c.env),freeFormHistory:await freeFormHistory(c.env),completedCopies:await completedCopyDelivery(c.env),retention:await retentionView(c.env),healthcare:await healthcareProfile(c.env),internalApproval:await approvalView(c.env),sendPolicies:await sendPolicies(c.env),sendPolicyHistory:await sendPolicyHistory(c.env)}}:{}),...(actor.role==='viewer'?{}:{signingGroups:await listGroups(c.env)})})})
+// Native CRM doors never accept API keys or preparation tokens.
+for(const action of ['prepare','sync'] as const)api.post('/api/inkwell/hubspot/'+action,async c=>{
+ sameOrigin(c.req.raw,c.env)
+ const actor=await requireActor(c.req.raw,c.env,['owner','admin']),body=await readJson(c.req.raw,16384),commandId=text(body.commandId,'a command ID',100),fingerprint=await sha256(canonical({hubspot:action,body}))
+ const previous=await previousCommand(c.env.DB,actor.id,commandId,fingerprint)
+ if(previous)return c.json({ok:true,result:previous})
+ const context={actor,commandId,fingerprint}
+ return c.json({ok:true,result:action==='prepare'?await prepareHubspot(c.env,context,body):await syncHubspotContacts(c.env,context,body)})
+})
 api.get('/api/inkwell/filing',async c=>c.json(await filingView(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))
 api.post('/api/inkwell/filing',async c=>{
  sameOrigin(c.req.raw,c.env)

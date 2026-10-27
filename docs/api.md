@@ -195,3 +195,41 @@ Origin changes, launch authorization and closure have local audit records.
 `ADMIN-005` retains the obligation to include these in the unified account log.
 The public-door journey is `tests/journeys/embedding.mjs`, named “Embedded signing
 and sending”, with independent allowed and refused host pages at 1440 and 390.
+
+## HubSpot preparation and contact import
+
+The native member-session connector is an initial preparation and import slice.
+It does not yet write status, timeline events or completed PDFs back to HubSpot.
+An installation administrator supplies `HUBSPOT_ACCESS_TOKEN` as a private Worker
+binding; it is never accepted in a request body, returned to the browser or
+included in document archives. Live provider provisioning is not established by
+the network-edge tests.
+
+A signed-in owner or admin may POST `/api/inkwell/hubspot/prepare` from the native
+origin with `commandId`, `consent: true`, `objectType` (`deals` or `contacts`),
+`recordId`, `templateId`, ordinary template `recipients`, and a `fields` map.
+Each map key is a template field ID and its value contains a HubSpot internal
+`property` name and an explicit `readOnly` boolean. Optional `customFields` use
+the template's ordinary metadata validation. Business values come from the
+server's CRM fetch, with their record and property named as the source. A missing
+or invalid property refuses preparation. Signatures and generated fields cannot
+be populated from CRM properties.
+
+Before submitting, obtain explicit consent with this wording:
+“I authorize reading the selected HubSpot record into this draft. Sending and
+follow-up require separate human approval.” The response identifies a prepared
+draft. Retrying the same command returns that draft. Review and send it through
+the ordinary native eligibility confirmation; opening or preparing sends nothing.
+The active CRM owner is suggested for escalation only if they can already read
+the envelope. The sender must separately authorize the per-envelope follow-up
+grant and its contact limits and allowed hours.
+
+POST `/api/inkwell/hubspot/sync` with a new `commandId` and `consent: true` after
+explicitly authorizing: “I authorize importing HubSpot contacts into the shared
+contact book.” The response reports `synced` and an optional `next` cursor. Pass
+that cursor as `after` with a new command ID and consent for the next page. Each
+page has at most 100 contacts, validates completely before writing, and updates
+contacts by normalized email. Existing native contact search and autocomplete
+immediately include the imported contacts. Sync consent and counts enter the
+account audit without contact field values. Preparation records consent and CRM
+provenance without retaining the raw provider response.

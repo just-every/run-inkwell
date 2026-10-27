@@ -8,7 +8,7 @@ export type Contact = { name: string; email: string; phone: string | null; compa
 const columns = ['name', 'email', 'phone', 'company'] as const
 const like = (value: string) => '%' + value.replace(/[\\%_]/g, c => '\\' + c) + '%'
 
-function contact(input: Record<string, unknown>, at = ''): Contact {
+export function contact(input: Record<string, unknown>, at = ''): Contact {
   const email = text(input.email, `an email${at}`, 254).toLowerCase()
   insist(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email), `Provide a valid email${at}.`)
   const optional = (value: unknown, label: string, max: number) => value === undefined || value === null || (typeof value === 'string' && !value.trim()) ? null : text(value, label + at, max)
@@ -16,7 +16,7 @@ function contact(input: Record<string, unknown>, at = ''): Contact {
   insist(phone === null || /^\+?[0-9 ().-]{4,40}$/.test(phone), `Give the phone number as digits, spaces, brackets, dots or dashes, with an optional leading +${at}.`)
   return { name: text(input.name, `a name${at}`, 160), email, phone, company: optional(input.company, 'a company', 160) }
 }
-const upsert = (env: Env, actor: Actor, c: Contact, at: string) => env.DB.prepare('INSERT INTO iw_contacts (email,name,phone,company,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,phone=excluded.phone,company=excluded.company,updated_at=excluded.updated_at').bind(c.email, c.name, c.phone, c.company, actor.id, at, at)
+export const contactWrite = (env: Env, actor: Actor, c: Contact, at: string) => env.DB.prepare('INSERT INTO iw_contacts (email,name,phone,company,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,phone=excluded.phone,company=excluded.company,updated_at=excluded.updated_at').bind(c.email, c.name, c.phone, c.company, actor.id, at, at)
 
 /** Contacts whose name, email or company contains the search, case-insensitively, by name, 1–100 at a time. */
 export async function searchContacts(env: Env, params: URLSearchParams) {
@@ -41,7 +41,7 @@ export async function recentRecipients(env: Env, actor: Actor) {
 }
 
 export async function saveContact(env: Env, actor: Actor, input: Record<string, unknown>) {
-  const saved = contact(object(input)); await upsert(env, actor, saved, now()).run(); return saved
+  const saved = contact(object(input)); await contactWrite(env, actor, saved, now()).run(); return saved
 }
 export async function removeContact(env: Env, input: Record<string, unknown>) {
   const email = text(input.email, 'an email', 254).toLowerCase(), removed = await env.DB.prepare('DELETE FROM iw_contacts WHERE email=?').bind(email).run()
@@ -64,7 +64,7 @@ export async function importContacts(env: Env, actor: Actor, request: Request) {
   rows.forEach((row, i) => { try { const c = contact(Object.fromEntries(columns.filter(name => index[name] >= 0).map(name => [name, row[index[name]] ?? ''])), ` on line ${i + 2}`); valid.set(c.email, c) } catch (error) { refused.push({ line: i + 2, reason: error instanceof Error ? error.message : 'Invalid row.' }) } })
   const existing = new Set<string>()
   for (let i = 0; i < valid.size; i += 90) { const batch = [...valid.keys()].slice(i, i + 90); for (const row of (await env.DB.prepare(`SELECT email FROM iw_contacts WHERE email IN (${batch.map(() => '?').join(',')})`).bind(...batch).all<{ email: string }>()).results) existing.add(row.email) }
-  const writes = [...valid.values()].map(c => upsert(env, actor, c, at))
+  const writes = [...valid.values()].map(c => contactWrite(env, actor, c, at))
   for (let i = 0; i < writes.length; i += 100) await env.DB.batch(writes.slice(i, i + 100))
   return { added: valid.size - existing.size, updated: existing.size, refused }
 }
