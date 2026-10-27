@@ -1,3 +1,5 @@
+import { receiveGoogleReplies } from './google-replies'
+import { googleDrive, googleMessage, googleAttachment } from './google'
 import { matchedRoutes } from 'hono/route'
 import { withAuditDatabase } from './account-audit-db'
 import { listAccountAudit, auditCsv } from './account-audit'
@@ -125,6 +127,16 @@ api.get('/api/inkwell/audit.csv',async c=>{await requireActor(c.req.raw,c.env,['
 api.get('/health',c=>c.json({status:'ok',product:'Inkwell',...deploymentHealth(c.env)}))
 // MANAGE-001: the workspace is who is signed in, their agent tokens and people; envelopes are read a page or one at a time.
 api.get('/api/inkwell',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json({actor:{id:actor.id,name:actor.name,email:actor.email,role:actor.role},agents:actor.role==='owner'?await listAgents(c.env):[],people:['owner','admin'].includes(actor.role)?await listPeople(c.env):[],...(['owner','admin'].includes(actor.role)?{settings:{envelopeDefaults:await envelopeDefaults(c.env),freeForm:await freeFormPolicy(c.env),freeFormHistory:await freeFormHistory(c.env),completedCopies:await completedCopyDelivery(c.env),retention:await retentionView(c.env),healthcare:await healthcareProfile(c.env),internalApproval:await approvalView(c.env),sendPolicies:await sendPolicies(c.env),sendPolicyHistory:await sendPolicyHistory(c.env)}}:{}),...(actor.role==='viewer'?{}:{signingGroups:await listGroups(c.env)})})})
+api.post('/api/inkwell/google/replies',async c=>await receiveGoogleReplies(c.env,c.req.raw))
+// Google import uses the native administrator session; it never sends or changes a message.
+api.post('/api/inkwell/google',async c=>{
+ sameOrigin(c.req.raw,c.env)
+ const actor=await requireActor(c.req.raw,c.env,['owner','admin']),body=await readJson(c.req.raw,4096)
+ if(body.kind==='drive')return c.json(await googleDrive(c.env,body.id))
+ if(body.kind==='message')return c.json(await googleMessage(c.env,body.id,actor.email))
+ insist(body.kind==='attachment','Choose a Google source.')
+ return c.json(await googleAttachment(c.env,body.id,body.attachmentId,actor.email))
+})
 api.get('/api/inkwell/filing',async c=>c.json(await filingView(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))
 api.post('/api/inkwell/filing',async c=>{
  sameOrigin(c.req.raw,c.env)

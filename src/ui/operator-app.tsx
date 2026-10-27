@@ -84,6 +84,8 @@ export function OperatorApp() {
   useEffect(() => {
     if (!data || !summary || opened.current) return
     opened.current = true
+    const gmailMessage=new URLSearchParams(window.location.search).get('gmailMessage')
+    if(gmailMessage&&/^[A-Za-z0-9_-]{1,200}$/.test(gmailMessage)&&['owner','admin'].includes(data.actor.role)){setPreparing(true);return}
     const decision = summary.envelopes[0]
     if (decision && canApprove(data.actor) && window.matchMedia(sideBySide).matches) choose(decision.id)
   }, [data, summary])

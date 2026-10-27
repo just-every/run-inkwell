@@ -48,6 +48,11 @@ export interface Bindings {
  MAIL_RELAY_URL?: string
  MAIL_FROM?: string
  MAIL_API_KEY?: string
+ GOOGLE_PUBSUB_EMAIL?: string
+ GOOGLE_PUBSUB_SUBSCRIPTION?: string
+ GOOGLE_MAILBOX?: string
+ GOOGLE_HISTORY_START?: string
+ GOOGLE_ACCESS_TOKEN?: string
  BOX_ACCESS_TOKEN?: string
  DROPBOX_ACCESS_TOKEN?: string
  TWILIO_ACCOUNT_SID?: string
