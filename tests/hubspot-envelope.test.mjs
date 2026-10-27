@@ -117,6 +117,8 @@ test('INTEG-001 MANAGE-002: completion properties, custom metadata, one timeline
  try {
   const t=await template(h,{customFields:[{name:'Cost center',value:'Client services',required:true}]});await policy(h,{mode:'autonomous',templates:[t]})
   await launch(h,t,{customFields:[]},h.owner,400)
+  const outsider=await h.invite('synthetic-inkwell-26@example.test','member'),viewer=await h.invite('synthetic-inkwell-27@example.test','member')
+  await h.command('member.role',{operatorId:(await h.send('/api/inkwell',undefined,outsider)).value.actor.id,role:'sender'})
   for(const [index,stage] of ['properties','file','note'].entries()){
    const dealId=`synthetic-inkwell-${20+index}`;edge.deals.set(dealId,{company:'synthetic-inkwell-23',amount:'48600.00'})
    const command=request(t,{recordId:dealId,send:true}),sent=(await h.post('/api/inkwell/hubspot/prepare',command)).value
@@ -124,6 +126,13 @@ test('INTEG-001 MANAGE-002: completion properties, custom metadata, one timeline
    edge.failNext(stage,'after')
    await finish(h,sent.id)
    const held=(await h.send(`/api/inkwell/hubspot/envelopes/${sent.id}/writeback`,undefined,h.owner)).value;assert.equal(held.status,'held');assert.equal(held.uncertain,stage)
+   const beforeUnauthorized=edge.calls().length
+   for(const [cookie,status] of [['',401],[outsider,403],[viewer,403]]){
+    const path=`/api/inkwell/hubspot/envelopes/${sent.id}/writeback`
+    assert.equal((await h.send(path,undefined,cookie)).status,status)
+    assert.equal((await h.send(path,{commandId:crypto.randomUUID()},cookie)).status,status)
+   }
+   assert.equal(edge.calls().length,beforeUnauthorized,'unauthorized progress reads and retries perform no provider operation')
    if(stage==='file'){
     const remote=edge.files().find(file=>file.name.startsWith(sent.id+'-')),original=remote.bytes
     remote.bytes=Buffer.from('synthetic-inkwell-conflicting-pdf')

@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "429a27a21abfd0b7fff61485cc878c6e4a05965ab56a19da1bda3df580f18fad",
+      "sha256": "cd52e698a96e9591483c3ddc3b0128f8e34a168d2ef002860534568a842d51c7",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "9a162075a005de78619c70b4a3c12539b3b6e8f687efd574296874a07b6c6b57",
+      "sha256": "0956cd885e496ea8c77b4b6218f7b18dd99eaa5b3b84644f7d2422544d441fdc",
       "executable": false
     },
     "DEMO.md": {
@@ -4321,7 +4321,7 @@
       "executable": false
     },
     "tests/hubspot-envelope.test.mjs": {
-      "sha256": "a8e0c20df98cc9fb80903acc34b7c5c61debad2879361864f1600b7785618425",
+      "sha256": "d19568c71450733e15f8d9352dc92960002b4a1b55be0d55ab641579f39478c6",
       "executable": false
     },
     "tests/hubspot-sync.test.mjs": {
