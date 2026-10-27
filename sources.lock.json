@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f82e404b20fa48a2802b6c8fa2a749654c5e8aa683ed795e5ee6694714bf20b9",
+      "sha256": "21237c3a1ac1162a6621ce43452a7f2898019c6ac61bf6c34e123939d920c0e7",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "cb87874f12a121b1e98a3b01104660afb59249871c9e1cb882faa3f269bb06b9",
+      "sha256": "3dd97cc4a77ab5d6057583e76530e47533a381c183657b077fddb92f1344a760",
       "executable": false
     },
     "DEMO.md": {
@@ -238,6 +238,10 @@
     },
     "docs/import-docuseal.md": {
       "sha256": "18def3f8422d073894c799099e4378a1b6023a2a564c3e68b53183bc5ca3ac5d",
+      "executable": false
+    },
+    "docs/microsoft-365.md": {
+      "sha256": "8e00ec20a82df1bc1c8d1d8bd6edf64016bbc58b2cd1f2ecf7cef75f69e2a407",
       "executable": false
     },
     "docs/move-in.md": {
@@ -1181,7 +1185,7 @@
       "executable": false
     },
     "src/inkwell/api-limits.ts": {
-      "sha256": "5230abc82f18612af3b39912eb415af275883fd6efb6d12be0e95921136fe37d",
+      "sha256": "5122fb04702a5993ec938a5b088579bac20c32d49013485f05bc091925c812bc",
       "executable": false
     },
     "src/inkwell/api-openapi.ts": {
@@ -1545,7 +1549,7 @@
       "executable": false
     },
     "src/inkwell/microsoft.ts": {
-      "sha256": "5df2a3bafef6e3e4da1e6abc6b0488744c8dd65900acd88db548f805edfac071",
+      "sha256": "26306a8d228d824f03132fabfe802aee6144c8975fdfe8e4a35dbdd483ced572",
       "executable": false
     },
     "src/inkwell/model.ts": {
@@ -1729,7 +1733,7 @@
       "executable": false
     },
     "src/inkwell/send-policies.ts": {
-      "sha256": "cc3a464589b683003d084b945fd7cd9a7e852568d00f52ab1333dee1d3f89fef",
+      "sha256": "23749826fd5a306ad24f397e4398cbc3d5298ba7d600c6f91be1f779f8ff7aac",
       "executable": false
     },
     "src/inkwell/send-policy-scopes.ts": {
@@ -4001,7 +4005,7 @@
       "executable": false
     },
     "src/ui/microsoft-source.tsx": {
-      "sha256": "f1f67f0c64e143e3c9c33f53517c15f226fafdccf239dd51303054ba3f1fb42d",
+      "sha256": "45fd6ccaec290ad0894ce1d3b08b4682af508a1471e74b1c9c4896544c1c04b1",
       "executable": false
     },
     "src/ui/move-in.tsx": {
@@ -4041,7 +4045,7 @@
       "executable": false
     },
     "src/ui/prepare-envelope.tsx": {
-      "sha256": "e273d4a40ae291839960148500c2a85580599fe4c8f2d1c2e3da8539b59c60d5",
+      "sha256": "68e5bbaeab9fb5da47738b9d70c95151419b1db7bc7ed81e91e677f5954f7a8a",
       "executable": false
     },
     "src/ui/provider-authentication.tsx": {
@@ -4197,7 +4201,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "5810ad16783ecfab5d650231650593b4af90e8d10e111b1362298bad86d5ab8e",
+      "sha256": "ae20b605832adc0bd6e8939e52f48354bf5370199179befe490b9eda55d69025",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
@@ -4368,6 +4372,10 @@
       "sha256": "4ab1b9dec2d3ed47bfac1845cf84b2b97ff96f74aaab32934417d083a72dc525",
       "executable": false
     },
+    "tests/journeys/microsoft.mjs": {
+      "sha256": "50c6f66be186b5600dd514cff03df7b9082ac88ac135b99d181c8ac739ec551a",
+      "executable": false
+    },
     "tests/journeys/mobile-sending.mjs": {
       "sha256": "0fd4ed0a88ce27b694ad52188a9c2515c6a014948a55a2651392d54db5b7f096",
       "executable": false
@@ -4409,7 +4417,7 @@
       "executable": false
     },
     "tests/journeys/run.mjs": {
-      "sha256": "9682e1238bfa64db37a0de820ac251615ce6ae8b1dde5943415685f2fcfe8e97",
+      "sha256": "7ea80398f356c6b9f0bb17f9f0ec98c11ea4d47788a39ea806c1323137105a6f",
       "executable": false
     },
     "tests/journeys/send-policies.mjs": {
@@ -4457,7 +4465,7 @@
       "executable": false
     },
     "tests/microsoft-edge.mjs": {
-      "sha256": "988a313f1daa7eef28a91b6236db4e4a6136822574f7b6a46dbd2dc5d4ed6a9e",
+      "sha256": "1378fcf1fb97eccaaf73e6651b1630af93eac050d3f7a2d06aaa2ad0354a2a3f",
       "executable": false
     },
     "tests/own-signing.test.mjs": {
@@ -4497,7 +4505,7 @@
       "executable": false
     },
     "tests/send-policies.test.mjs": {
-      "sha256": "ef541fb96e64d19ed8091004555f13511cbee8cad113393814d6ed0f12e9d0fe",
+      "sha256": "b64298cabe4478002424a5c064f29ccb1b1baa38f0921d8b8df740a65e103c16",
       "executable": false
     },
     "tests/supplements.test.mjs": {
