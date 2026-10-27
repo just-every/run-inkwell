@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { PDFDocument } from 'pdf-lib'
 import { harness } from './harness.mjs'
+import { businessPdf, encryptedPdf } from './fixtures/business-pdf.mjs'
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex')
 const base64 = bytes => Buffer.from(bytes).toString('base64')
@@ -363,12 +364,18 @@ test('Ordered documents: two signers complete agreement and W-9 in one session e
  }finally{await h.close()}
 })
 
-test('Document uploads: bounded private chunks refuse incomplete, foreign and conflicting parts, then preserve original bytes through prepare',async()=>{
+test('Document uploads: business-size PDFs preserve fingerprints through inspect, prepare, preview and signing; unsafe and oversized uploads refuse',async()=>{
  const h=await harness()
  try{
-  const bytes=await pdf('Chunk-uploaded agreement'),u=(await h.post('/api/inkwell/documents/uploads',{filename:'upload.pdf',bytes:bytes.length})).value
-  await h.post('/api/inkwell/documents/uploads',{filename:'upload.pdf',bytes:100*1024*1024+1},h.owner,400)
+  for(const [unsafe,reason] of [[await encryptedPdf(),/Encrypted PDFs cannot be signed/],[new TextEncoder().encode('corrupt PDF'),/could not be parsed/]]){
+   const refused=await h.command('envelope.prepare',{title:'Unsafe PDF',filename:'unsafe.pdf',pdfBase64:base64(unsafe),signers:people.slice(0,1),fields:[field(0)]},h.owner,400)
+   assert.match(refused.error,reason)
+   const inspection=await h.post('/api/inkwell/documents/fields',{pdfBase64:base64(unsafe)},h.owner,400);assert.match(inspection.value.error,reason)
+  }
+  const bytes=await businessPdf();assert.ok(bytes.length>=20_000_000&&bytes.length<=25_000_000,'the public door receives a real 20 MB document');const u=(await h.post('/api/inkwell/documents/uploads',{filename:'upload.pdf',bytes:bytes.length})).value
+  const oversized=await h.post('/api/inkwell/documents/uploads',{filename:'upload.pdf',bytes:30_000_000},h.owner,400);assert.match(oversized.value.error,/25 MB/)
   await h.post('/api/inkwell/documents/uploads',{filename:'upload.pdf',bytes:bytes.length},'',401)
+  for(const filename of ['source.docx','source.jpg']){const unsupported=await h.post('/api/inkwell/documents/uploads',{filename,bytes:500},h.owner,400);assert.match(unsupported.value.error,/PDF filename/)}
   const viewer=await h.invite('viewer@documents.example','member');await h.post('/api/inkwell/documents/uploads',{filename:'upload.pdf',bytes:bytes.length},viewer,403)
   const other=await h.invite('sender@documents.example','member'),actor=(await h.send('/api/inkwell',undefined,other)).value.actor
   await h.command('member.role',{operatorId:actor.id,role:'sender'})
@@ -376,11 +383,33 @@ test('Document uploads: bounded private chunks refuse incomplete, foreign and co
   await h.command('envelope.prepare',input,h.owner,409)
   await h.command('envelope.prepare',input,other,404)
   const put=async(cookie,body,status)=>{const response=await h.mf.dispatchFetch(h.origin+`/api/inkwell/documents/uploads/${u.id}/parts/0`,{method:'PUT',headers:{origin:h.origin,cookie,'content-type':'application/octet-stream'},body});assert.equal(response.status,status)}
-  await put(other,bytes,404);await put(h.owner,new Uint8Array(bytes.length+1),400);await put(h.owner,bytes,200);await put(h.owner,bytes,200)
-  const changed=bytes.slice();changed[changed.length-1]^=1;await put(h.owner,changed,409)
+  const first=bytes.slice(0,u.chunkBytes)
+  await put(other,first,404);await put(h.owner,new Uint8Array(first.length+1),413);await put(h.owner,first,200);await put(h.owner,first,200)
+  const changed=first.slice();changed[changed.length-1]^=1;await put(h.owner,changed,409)
+  for(let offset=u.chunkBytes,part=1;offset<bytes.length;offset+=u.chunkBytes,part++){const response=await h.mf.dispatchFetch(h.origin+`/api/inkwell/documents/uploads/${u.id}/parts/${part}`,{method:'PUT',headers:{origin:h.origin,cookie:h.owner,'content-type':'application/octet-stream'},body:bytes.slice(offset,offset+u.chunkBytes)});assert.equal(response.status,200)}
+  const inspected=(await h.post('/api/inkwell/documents/fields',{uploadId:u.id})).value;assert.deepEqual(inspected.fields.map(f=>[f.type,f.signer,f.name]),[['signature',0,'{{signature:1}}']])
   const id=(await h.command('envelope.prepare',input)).result.id
-  assert.deepEqual((await h.send(`/api/inkwell/envelopes/${id}/artifacts/document-0`,undefined,h.owner)).bytes,bytes)
+  const storedSource=await h.post(`/api/inkwell/envelopes/${id}/artifacts/document-0`,undefined);assert.ok(storedSource.bytes.length===bytes.length&&storedSource.bytes.every((b,i)=>b===bytes[i]),'the source artifact preserves every uploaded byte')
   assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM iw_pdf_upload_parts WHERE upload_id=?').bind(u.id).first()).n,0,'successful preparation consumes transient upload bytes')
+  const prepared=await envelope(h,id),original=(await h.post(`/api/inkwell/envelopes/${id}/artifacts/original`,undefined)).bytes
+  assert.equal(prepared.documents[0].sha256,digest(bytes));assert.equal(prepared.originalSha256,digest(original));assert.ok(original.length>=20_000_000,'preparation retains the large image')
+  await h.command('envelope.approve',{id,eligible:true})
+  const invitation=await h.mail(people[0].email,'Please sign:'),path='/api'+new URL(invitation.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+  await h.post(path+'/code',{},'');const code=(await h.mail(people[0].email,'verification code')).text.match(/\b\d{6}\b/)[0],cookie=(await h.post(path+'/verify',{code},'')).cookie
+  await h.agree(path,cookie)
+  const preview=await h.post(path+'/document',undefined,cookie);assert.ok(preview.bytes.length===original.length&&preview.bytes.every((b,i)=>b===original[i]),'the signer previews every byte of the fingerprint-bound PDF')
+  await sign(h,{path,cookie},0)
+  const finished=await envelope(h,id),signed=(await h.post(`/api/inkwell/envelopes/${id}/artifacts/signed`,undefined)).bytes
+  assert.equal(finished.status,'completed');assert.equal(finished.signedSha256,digest(signed));assert.ok(signed.length>=20_000_000);assert.match(await pdfText(signed),/Mara Quinn/)
+  assert.equal((await h.post(`/api/inkwell/envelopes/${id}/verify`,undefined)).value.ok,true)
+  const copy=(await h.command('envelope.copy',{id})).result.id,template=(await h.command('template.from_envelope',{id})).result.id
+  const reused=(await h.command('template.use',{id:template,recipients:people.slice(0,1)})).result.id
+  for(const fresh of [copy,reused]){const record=await envelope(h,fresh);assert.equal(record.status,'prepared');assert.equal(record.documents[0].sha256,digest(bytes));assert.equal(digest((await h.post(`/api/inkwell/envelopes/${fresh}/artifacts/document-0`,undefined)).bytes),digest(bytes))}
+  await h.command('envelope.hold',{id,reason:'Keep business-size custody'});await h.post('/api/inkwell/erase',{id,confirmation:'ERASE'},h.owner,409)
+  await h.command('envelope.lift_hold',{id});await h.post('/api/inkwell/erase',{id,confirmation:'ERASE'})
+  assert.equal((await h.send(`/api/inkwell/envelopes/${id}/artifacts/original`,undefined,h.owner)).status,404)
+  for(const fresh of [copy,reused])assert.equal(digest((await h.post(`/api/inkwell/envelopes/${fresh}/artifacts/document-0`,undefined)).bytes),digest(bytes),'erasing the source preserves independent copy and template custody')
+
  }finally{await h.close()}
 })
 
