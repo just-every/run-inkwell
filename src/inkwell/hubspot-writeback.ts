@@ -1,4 +1,4 @@
-import { canonical, id, insist, now, type Actor, type Envelope, type Env } from './model'
+import { canonical, id, insist, now, Refusal, type Actor, type Envelope, type Env } from './model'
 import { atomic, commandWrite, getEnvelope, previousCommand, roleGuard, type Guard } from './storage'
 import { readBlob } from './blobs'
 import { assertHubspotCredential, hubspotCredential, hubspotCredentialGuard, type HubspotCredential } from './hubspot-provider'
@@ -67,9 +67,9 @@ async function deliver(env:Env,row:Link,e:Envelope) {
     }
     const completed=now()
     await save(env,row,credential,{status:'completed',completed_at:completed,error:null},[env.DB.prepare('INSERT INTO iw_account_audit(id,at,actor_id,action,target,before_json,after_json) VALUES(?,?,?,?,?,NULL,?)').bind(id().replaceAll('-',''),completed,row.principal,'hubspot.writeback.completed',row.envelope_id,canonical({recordType:row.record_type,recordId:row.record_id,propertiesUpdated:true,pdfAttached:true,timelineEvent:true}))])
-  } catch {
+  } catch(error) {
     // Provider text and business field values never enter progress or operational audit.
-    await env.DB.prepare("UPDATE iw_hubspot_envelopes SET status='held',error=? WHERE envelope_id=? AND lease=?").bind('Completion write-back is held. Check connector authority and reconcile the provider result before retrying.',row.envelope_id,row.lease).run()
+    await env.DB.prepare("UPDATE iw_hubspot_envelopes SET status='held',error=? WHERE envelope_id=? AND lease=?").bind(error instanceof Refusal&&error.code==='hubspot_mapping_unresolved'?'Completion write-back is held because no unique writable CRM field matches. Correct the provider fields and reconcile again.':'Completion write-back is held. Check connector authority and reconcile the provider result before retrying.',row.envelope_id,row.lease).run()
   } finally {
     await env.DB.prepare('UPDATE iw_hubspot_envelopes SET lease=NULL,lease_at=NULL WHERE envelope_id=? AND lease=?').bind(row.envelope_id,row.lease).run()
   }
