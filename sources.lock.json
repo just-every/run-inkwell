@@ -4501,7 +4501,7 @@
       "executable": false
     },
     "tests/journeys/microsoft.mjs": {
-      "sha256": "50c6f66be186b5600dd514cff03df7b9082ac88ac135b99d181c8ac739ec551a",
+      "sha256": "2f881a2ce24096a1f2ab2ebda86e52ec7cf76eeb65ff5b58e28f0667caacf689",
       "executable": false
     },
     "tests/journeys/mobile-sending.mjs": {
