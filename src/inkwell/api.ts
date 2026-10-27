@@ -4,6 +4,7 @@ import { prepareHubspotEnvelope } from './hubspot-envelope'
 import { getHubspotWriteback, retryHubspotWriteback } from './hubspot-writeback'
 import { hubspotSyncConfig, hubspotSyncProgress, hubspotSyncOperation } from './hubspot-sync'
 import { configureInbound, informationView, requestInformation, returnInbound, informationArtifact } from './agent-workflows'
+import { previewRemoteImport, applyRemoteImport } from './remote-import'
 import { matchedRoutes } from 'hono/route'
 import { withAuditDatabase } from './account-audit-db'
 import { listAccountAudit, auditCsv } from './account-audit'
@@ -212,6 +213,7 @@ api.get('/api/inkwell/notices/settings',async c=>{const actor=await requireActor
 api.post('/api/inkwell/notices/settings',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env);return c.json({ok:true,result:await saveNoticeSettings(c.env,actor,await readJson(c.req.raw,8192))})})
 // ROUTE-008: the shared contact book and the member's recent recipients, for owners, admins and senders.
 const contactRoles=['owner','admin','sender'] as const
+api.post('/api/inkwell/remote-import/:action',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner']),input=await readJson(c.req.raw,12000),action=c.req.param('action');insist(['preview','apply'].includes(action),'Import route not found.',404);return c.json(action==='preview'?await previewRemoteImport(c.env,actor,input):await applyRemoteImport(c.env,actor,input))})
 api.get('/api/inkwell/contacts',async c=>{const actor=await requireActor(c.req.raw,c.env,contactRoles);return c.json({...await searchContacts(c.env,new URL(c.req.url).searchParams),recent:await recentRecipients(c.env,actor)})})
 api.post('/api/inkwell/contacts',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,contactRoles);return c.json({ok:true,result:await saveContact(c.env,actor,await readJson(c.req.raw,8192))})})
 api.post('/api/inkwell/contacts/remove',async c=>{sameOrigin(c.req.raw,c.env);await requireActor(c.req.raw,c.env,contactRoles);return c.json({ok:true,result:await removeContact(c.env,await readJson(c.req.raw,4096))})})
