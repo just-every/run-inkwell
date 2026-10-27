@@ -106,10 +106,11 @@ test('INTEG-001 ADMIN-004 SEND-001 A1-A5 A9: integration policy defaults off, re
 test('INTEG-001 MANAGE-002: completion properties, custom metadata, one timeline event and exact executed PDF reconcile uncertain provider results and durable replay',async()=>{
  const edge=hubspotEdge(),h=await harness({bindings,networkEdge:edge.networkEdge})
  try {
-  const t=await template(h);await policy(h,{mode:'autonomous',templates:[t]})
+  const t=await template(h,{customFields:[{name:'Cost center',value:'Client services',required:true}]});await policy(h,{mode:'autonomous',templates:[t]})
+  await launch(h,t,{customFields:[]},h.owner,400)
   for(const [index,stage] of ['properties','file','note'].entries()){
    const dealId=`synthetic-inkwell-${20+index}`;edge.deals.set(dealId,{company:'synthetic-inkwell-23',amount:'48600.00'})
-   const command=request(t,{recordId:dealId,send:true,customFields:[{name:'synthetic-inkwell-24',value:'synthetic-inkwell-25',required:true}]}),sent=(await h.post('/api/inkwell/hubspot/prepare',command)).value
+   const command=request(t,{recordId:dealId,send:true}),sent=(await h.post('/api/inkwell/hubspot/prepare',command)).value
    assert.deepEqual((await h.post('/api/inkwell/hubspot/prepare',command)).value,sent,'launch replay returns the same envelope')
    edge.failNext(stage,'after')
    await finish(h,sent.id)
@@ -128,7 +129,7 @@ test('INTEG-001 MANAGE-002: completion properties, custom metadata, one timeline
    const patches=edge.patches().filter(p=>p.id===dealId),notes=edge.notes().filter(n=>n.recordId===dealId)
    assert.equal(patches.length,1);assert.equal(notes.length,1)
    assert.equal(patches[0].properties.inkwell_status,'completed');assert.equal(patches[0].properties.inkwell_envelope_id,sent.id)
-   assert.deepEqual(JSON.parse(patches[0].properties.inkwell_custom_fields),[{name:'synthetic-inkwell-24',value:'synthetic-inkwell-25',required:true}])
+   assert.deepEqual(JSON.parse(patches[0].properties.inkwell_custom_fields),[{name:'Cost center',value:'Client services',required:true}])
    assert.deepEqual(JSON.parse(patches[0].properties.inkwell_key_fields),{company:'synthetic-inkwell-23',amount:'48600.00'})
    const file=edge.files().find(file=>file.id===recovered.fileId),signed=(await h.send(`/api/inkwell/envelopes/${sent.id}/artifacts/signed`,undefined,h.owner)).bytes
    assert.deepEqual(file.bytes,Buffer.from(signed));assert.equal(notes[0].properties.hs_attachment_ids,file.id)

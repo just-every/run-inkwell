@@ -4301,7 +4301,7 @@
       "executable": false
     },
     "tests/hubspot-envelope.test.mjs": {
-      "sha256": "898e0e66d39a67cf9259f951e2212133ad2a8c32f5d7f45186f0fc024def57e5",
+      "sha256": "c917e98b31e22e9c155cf5c3986914455ab91e1e213a1b28edeee9a28b9b267c",
       "executable": false
     },
     "tests/hubspot-sync.test.mjs": {
