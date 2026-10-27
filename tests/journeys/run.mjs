@@ -36,6 +36,7 @@ const groups = [[
  "tests/journeys/supplements.mjs",
  "tests/journeys/send-policies.mjs",
  "tests/journeys/filing.mjs",
+ "tests/journeys/google.mjs",
  "tests/journeys/account-audit.mjs"
 ]]
 const selector = process.env.INKWELL_JOURNEY_SHARD
