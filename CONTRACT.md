@@ -465,15 +465,15 @@ How the owner-approved scope for Inkwell (16 October 2026) maps to clauses.
 
 Judged from the code and tests at commit `9886d716013429c71d1abcc758ce71628fadc292` (27 October 2026).
 
-This inventory follows the CT reset of INTEG-001 to partial and closure of its audit, operational log privacy and visible reader assertions. The final provenance commit changes only the two status documents and their generated source lock; production code and tests are byte-identical to the source revision above. The fleet handoff records the exact candidate SHA, public-door tests, mutation probes, browser proof and verification runs. Counts describe the raw clause rows in this committed candidate tree and do not claim an independent CT judgment.
+This candidate retains the source revision above, including closure of INTEG-001's audit, operational log privacy and visible reader assertions, and replays Google Workspace support. The historical judgment pin predates this replay. Resolve the current candidate SHA with `git rev-parse HEAD`; the fleet handoff records its local tests, browser proof and exact-SHA verification runs. Counts describe this tree and do not claim a new independent CT judgment.
 
 SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing public-door proof on 25 October 2026.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 10 | 0 | 0 | 10 |
-| Target and push further | 60 | 24 | 23 | 107 |
-| All | 70 | 24 | 23 | 117 |
+| Target and push further | 61 | 24 | 22 | 107 |
+| All | 71 | 24 | 22 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
