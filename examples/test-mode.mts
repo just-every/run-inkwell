@@ -1,2 +1,3 @@
-import {Inkwell,type Definition} from '../sdk/javascript/index.mjs'
-export async function testExample(origin:string,key:string,definition:Definition){if(!key.startsWith('iwk_test_'))throw Error('Use a test-mode key.');const client=new Inkwell({origin,key});const {result}=await client.create(definition);const {envelope}=await client.get(result.id);if(!envelope.testMode)throw Error('Use a test-mode key.');await client.artifact(result.id,'original');await client.list();await client.send(result.id);await client.correct(result.id,{signers:[{...(definition.signers![0] as object),email:'synthetic.corrected@clients.example'}]});await client.resend(result.id,{signer:0});await client.templates();await client.openapi();await client.void(result.id,'Synthetic example complete');return envelope}
+import {testExample as exercise} from './test-mode.mjs'
+import type {Definition} from '../sdk/javascript/index.mjs'
+export async function testExample(origin:string,key:string,definition:Definition,templateId:string){return exercise(origin,key,definition,templateId)}
