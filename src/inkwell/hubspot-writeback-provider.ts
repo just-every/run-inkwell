@@ -1,7 +1,25 @@
 import { insist, object, sha256, type Envelope, type Env } from './model'
 import { assertHubspotCredential, hubspotRequest, type HubspotCredential } from './hubspot-provider'
 
-export interface HubspotDestination {record_type:string;record_id:string}
+export interface HubspotDestination {record_type:string;record_id:string;mapping_json?:string}
+export const completionLabels:Record<string,string>={inkwell_status:'Inkwell status',inkwell_envelope_id:'Inkwell envelope ID',inkwell_completed_at:'Inkwell completed at',inkwell_signed_sha256:'Inkwell signed SHA-256',inkwell_key_fields:'Inkwell key fields',inkwell_custom_fields:'Inkwell custom fields'}
+export type PropertyRepair={mapping:Record<string,string>;changes:{from:string;to:string;label:string}[]}
+export async function inspectCompletionMapping(env:Env,c:HubspotCredential,destination:HubspotDestination):Promise<PropertyRepair> {
+  const response=await hubspotRequest(env,c,`/crm/v3/properties/${destination.record_type}?archived=false`)
+  insist(Array.isArray(response.results)&&!response.paging,'The HubSpot property inventory is incomplete.',502)
+  const properties=response.results.map(object),mapping:Record<string,string>=destination.mapping_json?JSON.parse(destination.mapping_json):{},changes:PropertyRepair['changes']=[]
+  const writable=(p:Record<string,unknown>)=>p.archived!==true&&p.type==='string'&&object(p.modificationMetadata??{}).readOnlyValue!==true
+  for(const [logical,label] of Object.entries(completionLabels)){
+    const from=mapping[logical]??logical,existing=properties.filter(p=>p.name===from&&writable(p))
+    if(existing.length===1){mapping[logical]=from;continue}
+    const candidates=properties.filter(p=>p.label===label&&writable(p)&&typeof p.name==='string'&&/^[a-z][a-z0-9_]{0,99}$/.test(p.name))
+    insist(candidates.length===1,'The CRM mapping has no unambiguous writable replacement. Resolve its schema before replay.',409)
+    const to=String(candidates[0].name);mapping[logical]=to;changes.push({from,to,label})
+  }
+  insist(new Set(Object.values(mapping)).size===Object.keys(completionLabels).length,'The CRM mapping has conflicting destinations.',409)
+  return {mapping,changes}
+}
+const mappedProperties=(destination:HubspotDestination,e:Envelope)=>{const mapping:Record<string,string>=destination.mapping_json?JSON.parse(destination.mapping_json):{};return Object.fromEntries(Object.entries(completionProperties(e)).map(([key,value])=>[mapping[key]??key,value]))}
 export const completedNote=(e:Envelope)=>`Inkwell envelope ${e.id} completed. SHA-256 ${e.signedSha256}.`
 export const completedFilename=(e:Envelope)=>`${e.id}-${e.signedSha256}.pdf`
 export function completionProperties(e:Envelope):Record<string,string> {
@@ -10,13 +28,13 @@ export function completionProperties(e:Envelope):Record<string,string> {
 }
 const pathOf=(destination:HubspotDestination)=>`/crm/v3/objects/${destination.record_type}/${encodeURIComponent(destination.record_id)}`
 export async function reconcileProperties(env:Env,c:HubspotCredential,destination:HubspotDestination,e:Envelope) {
-  const properties=completionProperties(e),record=await hubspotRequest(env,c,`${pathOf(destination)}?properties=${encodeURIComponent(Object.keys(properties).join(','))}`)
+  const properties=mappedProperties(destination,e),record=await hubspotRequest(env,c,`${pathOf(destination)}?properties=${encodeURIComponent(Object.keys(properties).join(','))}`)
   insist(record.id===destination.record_id&&!record.archived,'HubSpot returned a different completion record.',502)
   const actual=object(record.properties)
   return Object.entries(properties).every(([key,value])=>actual[key]===value)
 }
 export async function writeProperties(env:Env,c:HubspotCredential,destination:HubspotDestination,e:Envelope) {
-  await hubspotRequest(env,c,pathOf(destination),{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({properties:completionProperties(e)})})
+  await hubspotRequest(env,c,pathOf(destination),{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({properties:mappedProperties(destination,e)})})
 }
 export async function reconcileFile(env:Env,c:HubspotCredential,e:Envelope):Promise<string|undefined> {
   const path=`/inkwell/${completedFilename(e)}`,result=await hubspotRequest(env,c,`/files/v3/files/search?path=${encodeURIComponent(path)}&limit=2`)

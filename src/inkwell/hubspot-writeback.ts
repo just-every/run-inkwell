@@ -3,12 +3,12 @@ import { atomic, commandWrite, getEnvelope, previousCommand, roleGuard, type Gua
 import { readBlob } from './blobs'
 import { assertHubspotCredential, hubspotCredential, hubspotCredentialGuard, type HubspotCredential } from './hubspot-provider'
 import { hubspotNativeAdministrator } from './hubspot-envelope-authority'
-import { createNote, reconcileFile, reconcileNote, reconcileProperties, uploadFile, writeProperties } from './hubspot-writeback-provider'
+import { inspectCompletionMapping, createNote, reconcileFile, reconcileNote, reconcileProperties, uploadFile, writeProperties } from './hubspot-writeback-provider'
 import type { CommandContext } from './envelopes'
 
-type Link={envelope_id:string;account_id:string;record_type:string;record_id:string;credential_version:number;principal:string;member_version:number;status:string;properties_done:number;file_id:string|null;note_id:string|null;uncertain:string|null;lease:string|null;lease_at:number|null;attempts:number;error:string|null;completed_at:string|null}
+type Link={envelope_id:string;account_id:string;record_type:string;record_id:string;credential_version:number;principal:string;member_version:number;status:string;properties_done:number;file_id:string|null;note_id:string|null;uncertain:string|null;lease:string|null;lease_at:number|null;attempts:number;error:string|null;completed_at:string|null;mapping_json:string;repair_json:string|null}
 const linkOf=(env:Env,id:string)=>env.DB.prepare('SELECT * FROM iw_hubspot_envelopes WHERE envelope_id=?').bind(id).first<Link>()
-const visible=(row:Link)=>({id:row.envelope_id,recordType:row.record_type,recordId:row.record_id,status:row.status,propertiesUpdated:Boolean(row.properties_done),fileId:row.file_id,noteId:row.note_id,uncertain:row.uncertain,attempts:row.attempts,error:row.error,completedAt:row.completed_at})
+const visible=(row:Link)=>({id:row.envelope_id,recordType:row.record_type,recordId:row.record_id,status:row.status,propertiesUpdated:Boolean(row.properties_done),fileId:row.file_id,noteId:row.note_id,uncertain:row.uncertain,attempts:row.attempts,error:row.error,completedAt:row.completed_at,repair:row.repair_json?JSON.parse(row.repair_json):null})
 export async function getHubspotWriteback(env:Env,actor:Actor,envelopeId:string) {
   hubspotNativeAdministrator(actor)
   const row=await linkOf(env,envelopeId);insist(row,'This envelope has no active HubSpot write-back authorization.',404);return visible(row)
@@ -32,11 +32,16 @@ async function deliver(env:Env,row:Link,e:Envelope) {
   try {
     credential=await hubspotCredential(env);await current(env,row,credential)
     if(!row.properties_done){
+      const repair=await inspectCompletionMapping(env,credential,row)
+      if(repair.changes.length){
+        await save(env,row,credential,{repair_json:canonical(repair)},row.repair_json===canonical(repair)?[]:[env.DB.prepare('INSERT INTO iw_account_audit(id,at,actor_id,action,target,before_json,after_json) VALUES(?,?,?,?,?,NULL,?)').bind(id().replaceAll('-',''),now(),row.principal,'hubspot.mapping.proposed',row.envelope_id,canonical(repair))])
+        insist(false,'Owner approval is required for the proposed CRM mapping repair.',409)
+      }
       if(!await reconcileProperties(env,credential,row,e)){
         await save(env,row,credential,{uncertain:'properties'});await current(env,row,credential)
         await writeProperties(env,credential,row,e)
       }
-      await save(env,row,credential,{properties_done:1,uncertain:null})
+      await save(env,row,credential,{properties_done:1,uncertain:null,repair_json:null})
     }
     if(!row.file_id){
       let file=await reconcileFile(env,credential,e)
@@ -78,6 +83,19 @@ export async function retryHubspotWriteback(env:Env,context:CommandContext,input
   const e=await getEnvelope(env.DB,input.id);insist(e.status==='completed'&&e.signedSha256,'Complete the envelope before writing back.',409)
   // Check the native caller's live role before claiming; provider authority is independently checked in deliver.
   await atomic(env.DB,[roleGuard(context.actor,['owner','admin'])],[])
+  if(input.approveRepair===true){
+    insist(context.actor.role==='owner','Only the owner may approve a CRM mapping repair.',403)
+    insist(initial.status==='held'&&!initial.lease&&initial.repair_json,'There is no held mapping repair to approve.',409)
+    insist(canonical(input.proposal)===initial.repair_json,'The repair proposal changed. Review it again.',409)
+    const credential=await hubspotCredential(env);await current(env,initial,credential)
+    const repair=await inspectCompletionMapping(env,credential,initial)
+    insist(canonical(repair)===initial.repair_json,'The remote schema changed. Reconcile and review a fresh proposal.',409)
+    const at=now()
+    await atomic(env.DB,[roleGuard(context.actor,['owner']),authority(initial,credential),hubspotCredentialGuard(credential),{sql:"EXISTS(SELECT 1 FROM iw_hubspot_envelopes WHERE envelope_id=? AND repair_json=? AND status='held' AND lease IS NULL)",values:[initial.envelope_id,initial.repair_json]}],[
+      env.DB.prepare('UPDATE iw_hubspot_envelopes SET mapping_json=?,repair_json=NULL WHERE envelope_id=?').bind(canonical(repair.mapping),initial.envelope_id),
+      env.DB.prepare('INSERT INTO iw_account_audit(id,at,actor_id,action,target,before_json,after_json) VALUES(?,?,?,?,?,?,?)').bind(id().replaceAll('-',''),at,context.actor.id,'hubspot.mapping.approved',initial.envelope_id,initial.mapping_json,canonical(repair.mapping))
+    ])
+  }
   const row=await claim(env,input.id)
   if(row)await deliver(env,row,e)
   const result=visible((await linkOf(env,input.id))!)
