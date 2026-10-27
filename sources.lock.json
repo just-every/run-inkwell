@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "bfeb5767b39e30ae8aea5ff9f30401cf6cd79971ba9d9b3bf9d7e2e591e295e5",
+      "sha256": "cfb28e2fb67f884ac2b4a44cdc9333675eedd689db9f6fbda38821ead53e7e98",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "20fa2598fccf40a21ecd86938bce5e5dd1726e083d531b7e24abb314a32df35d",
+      "sha256": "1e6391b6d87aca594ea33ea7546831b26de0151455af6125eb1366e2636d868a",
       "executable": false
     },
     "DEMO.md": {
@@ -805,7 +805,7 @@
       "executable": false
     },
     "RUN-LOCALLY.md": {
-      "sha256": "8376da60ef83caec5678e3c3f4045e7e40ee27b39943c3ed297b9949b5ffadb3",
+      "sha256": "2d7de7c60e705efd76a4c7d742d1f9dd78e418c30eda2c0d39e7f0d28037c935",
       "executable": false
     },
     "scripts/build-deployment-spec.mjs": {
@@ -1461,7 +1461,7 @@
       "executable": false
     },
     "src/inkwell/google-replies.ts": {
-      "sha256": "017951fd434458420ce01e120841a56ab5893dad09adcd1b726789e2df449090",
+      "sha256": "f07258f7ec33acbccb0aa3ebe3079efa6d4e70f535a1cfca4812532bc06e421b",
       "executable": false
     },
     "src/inkwell/google.ts": {
@@ -4273,11 +4273,11 @@
       "executable": false
     },
     "tests/google-reply-edge.mjs": {
-      "sha256": "14ac075d2f3c83d2c25fade9cd0f142fc4e70ed9e0f37f7a353e8a0c8e941817",
+      "sha256": "3a9552d07f85f4861aa380b16073b5bcad90fa7d54db318aa12ff01e8616284f",
       "executable": false
     },
     "tests/google.test.mjs": {
-      "sha256": "fdf9d098ba8b239b37b48c68cdd9971f3c61c777dad7212db7e4737200866a9e",
+      "sha256": "1923eae393ce548c334484ef8124a62eb7bfc073f3f4d7d7b335343810a84aa3",
       "executable": false
     },
     "tests/harness.mjs": {
