@@ -44,18 +44,26 @@ function participants(headers:Json[],ownEmail:string) {
  }
  return [...result.values()]
 }
-export async function googleMessage(env:Env,value:unknown,ownEmail:string) {
- const messageId=googleId(value),message=await json(env,`https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=full`)
+async function messageParts(env:Env,value:unknown,ownEmail:string) {
+ const messageId=googleId(value),message=await json(env,`https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=full`,3*1024*1024)
  insist(message.id===messageId&&message.payload,'Google message is unavailable.',502)
- const attachments:{id:string;filename:string;bytes:number}[]=[]
- function visit(part:Json) { if(part.mimeType==='application/pdf'&&part.filename&&part.body?.attachmentId)attachments.push({id:googleId(part.body.attachmentId,2048),filename:part.filename,bytes:part.body.size});for(const child of part.parts??[])visit(child) }
+ const attachments:{id:string;filename:string;bytes:number}[]=[],inline=new Map<string,string>()
+ function visit(part:Json,path='0') {
+  if(part.mimeType==='application/pdf'&&part.filename&&(part.body?.attachmentId||typeof part.body?.data==='string')){
+   const id=part.body.attachmentId?googleId(part.body.attachmentId,2048):'inline-'+path
+   insist(!attachments.some(a=>a.id===id),'Google returned ambiguous attachments.',502)
+   attachments.push({id,filename:part.filename,bytes:part.body.size});if(!part.body.attachmentId)inline.set(id,part.body.data)
+  }
+  for(const [index,child] of (part.parts??[]).entries())visit(child,path+'-'+index)
+ }
  visit(message.payload)
- return {messageId,attachments,participants:participants(message.payload.headers??[],ownEmail)}
+ return {messageId,attachments,participants:participants(message.payload.headers??[],ownEmail),inline}
 }
+export async function googleMessage(env:Env,value:unknown,ownEmail:string) {const {inline,...message}=await messageParts(env,value,ownEmail);return message}
 export async function googleAttachment(env:Env,messageValue:unknown,attachmentValue:unknown,ownEmail:string) {
- const message=await googleMessage(env,messageValue,ownEmail),attachment=message.attachments.find(a=>a.id===googleId(attachmentValue,2048))
+ const message=await messageParts(env,messageValue,ownEmail),attachment=message.attachments.find(a=>a.id===googleId(attachmentValue,2048))
  insist(attachment,'Choose an attached PDF from this message.',404)
- const body=await json(env,`https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.messageId}/attachments/${attachment.id}`,3*1024*1024)
+ const body=message.inline.has(attachment.id)?{size:attachment.bytes,data:message.inline.get(attachment.id)}:await json(env,`https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.messageId}/attachments/${attachment.id}`,3*1024*1024)
  insist(typeof body.data==='string'&&body.data.length<=2_800_000,'The attachment is unavailable or too large.',413)
  let bytes:Uint8Array
  try{bytes=Uint8Array.from(atob(body.data.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0))}catch{throw new Refusal('Google returned an invalid attachment.',502)}
