@@ -9,7 +9,7 @@ type Job={id:string;actor:string;state:string;created_at:string;owner_scope:numb
 type Entry={name:string;size:number;sha256:string;record:string;title:string;status:string;open:(offset:number,length:number)=>AsyncGenerator<Uint8Array>}
 const encode=(s:string)=>new TextEncoder().encode(s)
 const sum=(parts:Uint8Array[])=>parts.reduce((n,p)=>n+p.length,0)
-const names=(job:string)=>{insist(/^[a-f0-9-]{36}$/.test(job),'Export job not found.',404);const prefix='iw_exit_'+job.replaceAll('-','');return{envelopes:prefix+'_e',blobs:prefix+'_b',threads:prefix+'_t',imports:prefix+'_i'}}
+const names=(job:string)=>{insist(/^[a-f0-9-]{36}$/.test(job),'Export job not found.',404);const prefix='iw_exit_'+job.replaceAll('-','');return{envelopes:prefix+'_e',blobs:prefix+'_b',threads:prefix+'_t',imports:prefix+'_i',replies:prefix+'_r'}}
 const quote=(value:string)=>'"'+value+'"'
 export async function exportActor(request:Request,env:Bindings):Promise<Actor>{
  insist(!request.headers.has('authorization'),'Use a member session for document exports.',403)
@@ -39,6 +39,8 @@ async function create(env:Bindings,actor:Actor,input:Record<string,unknown>){
   env.DB.prepare(`CREATE INDEX ${quote(tables.blobs+'_index')} ON ${quote(tables.blobs)}(envelope_id,kind,part)`),
   env.DB.prepare(`CREATE TABLE ${quote(tables.threads)} AS SELECT t.* FROM iw_comment_threads t JOIN ${quote(tables.envelopes)} e ON e.id=t.envelope_id`),
   env.DB.prepare(`CREATE INDEX ${quote(tables.threads+'_index')} ON ${quote(tables.threads)}(envelope_id,id)`),
+  env.DB.prepare(`CREATE TABLE ${quote(tables.replies)} AS SELECT r.* FROM iw_followup_replies r JOIN ${quote(tables.envelopes)} e ON e.id=r.envelope_id`),
+  env.DB.prepare(`CREATE INDEX ${quote(tables.replies+'_index')} ON ${quote(tables.replies)}(envelope_id,id)`),
   env.DB.prepare(`CREATE TABLE ${quote(tables.imports)} AS SELECT * FROM iw_imported_archives WHERE ${importWhere}`).bind(...importParams),
   env.DB.prepare(`INSERT INTO iw_exit_members SELECT ?,id FROM ${quote(tables.envelopes)}`).bind(job),env.DB.prepare(`INSERT INTO iw_exit_members SELECT ?,'import:'||id FROM ${quote(tables.imports)}`).bind(job),
  ])
@@ -51,8 +53,9 @@ async function* entries(env:Bindings,job:Job):AsyncGenerator<Entry>{
  for await(const row of rows(env.DB,tables.envelopes)){
   const e:Envelope=JSON.parse(row.data),metadata={record:e.id,title:e.title,status:e.status},prefix=`envelopes/${e.id}`
   const threads=(await env.DB.prepare(`SELECT data FROM ${quote(tables.threads)} WHERE envelope_id=? ORDER BY id`).bind(e.id).all<{data:string}>()).results.map(r=>JSON.parse(r.data))
+  const replies=(await env.DB.prepare(`SELECT signer,data FROM ${quote(tables.replies)} WHERE envelope_id=? ORDER BY id`).bind(e.id).all<{signer:number;data:string}>()).results.map(r=>({signer:r.signer,...JSON.parse(r.data)}))
   yield memoryEntry(`${prefix}/audit.json`,encode(JSON.stringify({format:'inkwell-audit/1',envelope:e})),metadata)
-  yield memoryEntry(`${prefix}/custody.json`,encode(JSON.stringify({format:'inkwell-record-custody/1',envelope:e,threads})),metadata)
+  yield memoryEntry(`${prefix}/custody.json`,encode(JSON.stringify({format:'inkwell-record-custody/1',envelope:e,threads,replies})),metadata)
   const artifacts=(await env.DB.prepare(`SELECT kind,SUM(length(data)) AS bytes,COUNT(*) AS parts FROM ${quote(tables.blobs)} WHERE envelope_id=? GROUP BY kind ORDER BY kind`).bind(e.id).all<{kind:string;bytes:number;parts:number}>()).results
   for(const a of artifacts){const hash=expected(e,a.kind);if(!hash||a.kind.startsWith('mark-')||a.kind.startsWith('initials-'))continue;const pdf=!a.kind.startsWith('mark-')&&!a.kind.startsWith('initials-')&&(!a.kind.startsWith('paper-')||e.signers[Number(a.kind.slice(6))]?.paper?.mediaType==='application/pdf')
    yield{name:`${prefix}/${a.kind}.${pdf?'pdf':'bin'}`,size:a.bytes,sha256:hash,...metadata,async*open(offset,length){

@@ -10,6 +10,11 @@ const proof=process.env.INKWELL_GOOGLE_PROOF_DIR??'/tmp/inkwell-google'
 const widths=process.env.INKWELL_GOOGLE_PROOF==='both'?[1440,390]:[1440]
 try{
  await mkdir(proof,{recursive:true})
+ const field={id:'signature-0',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.4,height:.05}
+ const template=await app.command('template.save',{title:'Google filing agreement',filename:'agreement.pdf',pdfBase64:edge.bytes.toString('base64'),roles:[{role:'Client',order:1}],fields:[field]})
+ const id=(await app.command('template.use',{id:template.id,recipients:[{name:'Harbour Owner',email:'owner@harbour.example'}]})).id
+ // The first screen saves the rule by keyboard before this envelope completes.
+ let completed=false
  for(const width of widths){
   const context=await app.browser.newContext({viewport:{width,height:1000}});await context.addCookies([app.ownerCookie()])
   const page=await context.newPage();page.setDefaultTimeout(20000)
@@ -49,6 +54,25 @@ try{
   await filing.getByLabel('Filing provider',{exact:true}).selectOption('google')
   await expect(filing.getByLabel('Google Drive folder ID',{exact:true})).toBeVisible()
   await expect(filing.getByText('Google Drive credential configured.',{exact:true})).toBeVisible()
+  await filing.getByLabel('Filing template',{exact:true}).selectOption(template.id)
+  await filing.getByLabel('Google Drive folder ID',{exact:true}).fill('completed-folder')
+  await filing.getByRole('checkbox',{name:'Enable automatic filing for this template and provider',exact:true}).check()
+  await filing.getByRole('checkbox').last().check()
+  await tabTo(page,filing.getByRole('button',{name:'Save filing rule',exact:true}));await page.keyboard.press('Enter')
+  await expect(filing.getByText('Filing rule saved.',{exact:true})).toBeVisible()
+  if(!completed){
+   await app.command('envelope.approve',{id,eligible:true})
+   const opened=await app.call('/api/inkwell/commands',{body:{command:'envelope.open_signing',input:{id},commandId:crypto.randomUUID()},cookie:app.owner})
+   const path='/api'+new URL(opened.value.result.signing.url).pathname,cookie=opened.cookie
+   const view=(await app.call(path,{cookie})).value
+   await app.call(path+'/disclosure',{body:{version:view.disclosure.version,agree:true},cookie})
+   await app.call(path+'/sign',{body:{values:{'signature-0':'Harbour Owner'},consent:true,commandId:crypto.randomUUID()},cookie});completed=true
+  }
+  await filing.getByRole('button',{name:'Refresh filing status',exact:true}).click()
+  await expect(filing.getByRole('list',{name:'Filing receipts'}).getByRole('listitem')).toHaveCount(2)
+  await expect(filing.getByRole('list',{name:'Filing receipts'}).getByText(/Filed ·/)).toHaveCount(2)
+  assert.ok(await filing.locator('small').evaluateAll(elements=>elements.length>=3&&elements.every(element=>parseFloat(getComputedStyle(element).fontSize)>=13)),'populated filing text is at least 13px')
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'populated Google filing fits the viewport')
   await filing.scrollIntoViewIfNeeded();await axe(page,'Google filing');await filing.screenshot({path:`${proof}/${width}-google-filing.png`})
   await context.close()
  }
