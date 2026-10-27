@@ -31,7 +31,11 @@ test('INTEG-001 PREP-008 AGENT-003: selected native consent, admin admission, el
   const senderId=(await h.send('/api/inkwell',undefined,sender)).value.actor.id
   await h.command('member.role',{operatorId:senderId,role:'sender'})
   for(const cookie of ['',sender,viewer])await launch(h,t,{},cookie,cookie?403:401)
-  await launch(h,t,{consent:false},h.owner,403);assert.equal(edge.calls().length,0,'refused preparation reads no CRM data')
+  await launch(h,t,{consent:false},h.owner,403)
+  const token=(await h.command('agent.issue')).result.token
+  assert.equal((await h.send('/api/inkwell/hubspot/prepare',request(t),h.owner,{authorization:'Bearer '+token})).status,403,'a preparation token cannot use the native connector even beside an owner cookie')
+  assert.equal((await h.send('/api/inkwell/hubspot/prepare',request(t),h.owner,{origin:'https://elsewhere.example'})).status,403,'preparation requires the native origin')
+  assert.equal(edge.calls().length,0,'refused preparation reads no CRM data')
   const result=await launch(h,t,{},admin),e=await read(h,result.id),owner=(await h.send('/api/inkwell',undefined,h.owner)).value.actor.id
   assert.equal(e.fields.find(f=>f.id==='amount').prefill.value,'48600.00');assert.equal(e.fields.find(f=>f.id==='amount').readOnly,true)
   assert.equal(e.fields.find(f=>f.id==='company').prefill.source,'HubSpot 7249 deals 901.company')
@@ -106,7 +110,16 @@ test('INTEG-001 MANAGE-002: completion properties, custom metadata, one timeline
    edge.failNext(stage,'after')
    await finish(h,sent.id)
    const held=(await h.send(`/api/inkwell/hubspot/envelopes/${sent.id}/writeback`,undefined,h.owner)).value;assert.equal(held.status,'held');assert.equal(held.uncertain,stage)
-   const recovered=await writeback(h,sent.id);assert.equal(recovered.status,'completed');assert.equal(recovered.propertiesUpdated,true);assert.ok(recovered.fileId);assert.ok(recovered.noteId)
+   if(stage==='file'){
+    const remote=edge.files().find(file=>file.name.startsWith(sent.id+'-')),original=remote.bytes
+    remote.bytes=Buffer.from('synthetic-inkwell-conflicting-pdf')
+    assert.equal((await writeback(h,sent.id)).status,'held','a recovered path with different bytes never counts as the executed PDF')
+    assert.equal(edge.notes().filter(note=>note.recordId===dealId).length,0)
+    remote.bytes=original
+   }
+   const concurrent=await Promise.all([writeback(h,sent.id),writeback(h,sent.id)])
+   assert.ok(concurrent.some(result=>result.status==='completed'),'one concurrent reconciliation completes')
+   const recovered=(await h.send(`/api/inkwell/hubspot/envelopes/${sent.id}/writeback`,undefined,h.owner)).value;assert.equal(recovered.status,'completed');assert.equal(recovered.propertiesUpdated,true);assert.ok(recovered.fileId);assert.ok(recovered.noteId)
    const beforeCalls=edge.calls().length;await writeback(h,sent.id);assert.equal(edge.calls().length,beforeCalls,'completed replay performs no provider operation')
    const patches=edge.patches().filter(p=>p.id===dealId),notes=edge.notes().filter(n=>n.recordId===dealId)
    assert.equal(patches.length,1);assert.equal(notes.length,1)

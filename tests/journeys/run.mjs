@@ -25,6 +25,7 @@ const groups = [[
  "tests/journeys/conditional-fields.mjs",
  "tests/journeys/signing-groups.mjs",
  "tests/journeys/document-fields.mjs",
+ "tests/journeys/hubspot.mjs",
  "tests/journeys/template-release.mjs",
  "tests/journeys/provider-auth.mjs"
 ], [

@@ -48,6 +48,8 @@ export interface Bindings {
  MAIL_RELAY_URL?: string
  MAIL_FROM?: string
  MAIL_API_KEY?: string
+ HUBSPOT_ACCESS_TOKEN?: string
+ HUBSPOT_ACCOUNT_ID?: string
  BOX_ACCESS_TOKEN?: string
  DROPBOX_ACCESS_TOKEN?: string
  TWILIO_ACCOUNT_SID?: string

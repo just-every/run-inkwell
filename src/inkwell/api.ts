@@ -1,3 +1,6 @@
+import { prepareHubspotEnvelope } from './hubspot-envelope'
+import { getHubspotWriteback, retryHubspotWriteback } from './hubspot-writeback'
+import { hubspotSyncConfig, hubspotSyncProgress, hubspotSyncOperation } from './hubspot-sync'
 import { matchedRoutes } from 'hono/route'
 import { withAuditDatabase } from './account-audit-db'
 import { listAccountAudit, auditCsv } from './account-audit'
@@ -125,6 +128,28 @@ api.get('/api/inkwell/audit.csv',async c=>{await requireActor(c.req.raw,c.env,['
 api.get('/health',c=>c.json({status:'ok',product:'Inkwell',...deploymentHealth(c.env)}))
 // MANAGE-001: the workspace is who is signed in, their agent tokens and people; envelopes are read a page or one at a time.
 api.get('/api/inkwell',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json({actor:{id:actor.id,name:actor.name,email:actor.email,role:actor.role},agents:actor.role==='owner'?await listAgents(c.env):[],people:['owner','admin'].includes(actor.role)?await listPeople(c.env):[],...(['owner','admin'].includes(actor.role)?{settings:{envelopeDefaults:await envelopeDefaults(c.env),freeForm:await freeFormPolicy(c.env),freeFormHistory:await freeFormHistory(c.env),completedCopies:await completedCopyDelivery(c.env),retention:await retentionView(c.env),healthcare:await healthcareProfile(c.env),internalApproval:await approvalView(c.env),sendPolicies:await sendPolicies(c.env),sendPolicyHistory:await sendPolicyHistory(c.env)}}:{}),...(actor.role==='viewer'?{}:{signingGroups:await listGroups(c.env)})})})
+api.post('/api/inkwell/hubspot/prepare',async c=>{
+ sameOrigin(c.req.raw,c.env)
+ const actor=await requireActor(c.req.raw,c.env,['owner','admin']),input=await readJson(c.req.raw,32768),commandId=text(input.commandId,'a command ID',100),fingerprint=await sha256(canonical({hubspot:input}))
+ const previous=await previousCommand(c.env.DB,actor.id,commandId,fingerprint)
+ const result=previous??await prepareHubspotEnvelope(c.env,{actor,commandId,fingerprint,client:clientEvidence(c.req.raw)},input)
+ if(input.send===true){await dispatchMail(c.env,(result as {id:string}).id);await dispatchSms(c.env,(result as {id:string}).id)}
+ return c.json(result)
+})
+api.get('/api/inkwell/hubspot/envelopes/:id/writeback',async c=>c.json(await getHubspotWriteback(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),c.req.param('id'))))
+api.post('/api/inkwell/hubspot/envelopes/:id/writeback',async c=>{
+ sameOrigin(c.req.raw,c.env)
+ const actor=await requireActor(c.req.raw,c.env,['owner','admin']),input:Record<string,unknown>={...await readJson(c.req.raw,4096),id:c.req.param('id')},commandId=input.commandId===undefined?crypto.randomUUID():text(input.commandId,'a command ID',100),fingerprint=await sha256(canonical(input))
+ return c.json(await retryHubspotWriteback(c.env,{actor,commandId,fingerprint,client:clientEvidence(c.req.raw)},input))
+})
+api.get('/api/inkwell/hubspot/writebacks',async c=>{
+ const actor=await requireActor(c.req.raw,c.env,['owner','admin'])
+ const rows=(await c.env.DB.prepare("SELECT h.envelope_id AS id,json_extract(e.data,'$.title') AS title FROM iw_hubspot_envelopes h JOIN iw_envelopes e ON e.id=h.envelope_id ORDER BY h.authorized_at DESC LIMIT 50").all<{id:string;title:string}>()).results
+ return c.json({jobs:await Promise.all(rows.map(async row=>({...await getHubspotWriteback(c.env,actor,row.id),title:row.title})))})
+})
+api.get('/api/inkwell/hubspot/config',async c=>c.json(await hubspotSyncConfig(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))
+api.get('/api/inkwell/hubspot/progress',async c=>c.json(await hubspotSyncProgress(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))
+api.post('/api/inkwell/hubspot/sync',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await hubspotSyncOperation(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),await readJson(c.req.raw,1200000)))})
 api.get('/api/inkwell/filing',async c=>c.json(await filingView(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))
 api.post('/api/inkwell/filing',async c=>{
  sameOrigin(c.req.raw,c.env)

@@ -457,17 +457,15 @@ How the owner-approved scope for Inkwell (16 October 2026) maps to clauses.
 
 ## Status
 
-Judged from the code and tests at commit `248a70b00e01a99a193434302402e8c96449a74c` (27 October 2026).
-
-That is the historical CT fix-round review pin, which ruled BULK-001 and API-004 partial. The current candidate supersedes its status inventory and proof gaps as recorded below. Resolve this candidate with `git rev-parse HEAD`; the fleet receipt records that full SHA, local proofs and subsequent release checks. This candidate does not claim a new independent CT judgment.
+Implementation status describes this committed candidate tree, reconciled on 27 October 2026. Resolve its exact source SHA with `git rev-parse HEAD`; the fleet handoff names that SHA and its verification runs. This inventory does not claim a new independent CT judgment.
 
 SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing public-door proof on 25 October 2026.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 10 | 0 | 0 | 10 |
-| Target and push further | 59 | 22 | 26 | 107 |
-| All | 69 | 22 | 26 | 117 |
+| Target and push further | 59 | 23 | 25 | 107 |
+| All | 69 | 23 | 25 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -589,4 +587,4 @@ SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing pu
 | `AGENT-008` | Signer assistant | push-further | missing |  | No signer assistant |
 | `AGENT-009` | Inbound agreements | push-further | missing |  | No inbound agreement handling |
 
-Status provenance, 27 October 2026: this candidate has 69 done, 22 partial and 26 missing clauses, id for id with ACCEPTANCE.md. BULK-001 remains partial; API-004 has locally proven completion subject to exact-SHA release checks. The opening historical judgment pin does not identify the current candidate or its new proof. Its exact full SHA and receipt identifiers are supplied with the fleet handoff.
+Status provenance, 27 October 2026: this candidate has 69 done, 23 partial and 25 missing clauses, id for id with ACCEPTANCE.md. BULK-001 remains partial; API-004 has locally proven completion subject to exact-SHA release checks. Its exact full SHA and receipt identifiers are supplied with the fleet handoff.

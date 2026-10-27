@@ -1848,6 +1848,15 @@
       },
       "modes": {
         "VERIFY-WORKFLOW.md": "100644"
+      },
+      "adapted": {
+        "VERIFY-WORKFLOW.md": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
+      },
+      "acknowledged": {
+        "VERIFY-WORKFLOW.md": {
+          "sha256": "53d15791dce6446dacb3cc872d79ca2ee676aeb5d4c3761c28f623495ef20bcf",
+          "mode": "100644"
+        }
       }
     }
   ]
