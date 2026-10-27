@@ -1026,14 +1026,17 @@ test('Microsoft 365: OneDrive and SharePoint sources bind their PDF, enforce opt
   const source=(await h.post('/api/inkwell/microsoft/source',payload)).value
   const hash=await import('node:crypto').then(c=>c.createHash('sha256').update(edge.original).digest('hex'))
   assert.equal(source.sha256,hash);assert.deepEqual(Buffer.from(source.pdfBase64,'base64'),Buffer.from(edge.original))
-  const template=(await h.command('template.save',{title:'Microsoft agreement',filename:source.filename,pdfBase64:source.pdfBase64,roles:[{role:'Client',order:1}],fields:source.fields})).result.id
+  const approver=await h.invite('microsoft.approver@harbour.example','admin')
+  const template=(await h.command('template.save',{title:'Microsoft agreement',filename:source.filename,pdfBase64:source.pdfBase64,roles:[{role:'Client',order:1}],fields:source.fields,approval:{approverEmail:'microsoft.approver@harbour.example'}})).result.id
   await h.post('/api/inkwell/filing',{commandId:crypto.randomUUID(),templateId:template,provider:'sharepoint',folder:'share-drive:completed',enabled:true,consent:true,expectedVersion:0})
   const loaded=(await h.post('/api/inkwell/microsoft/source',{...payload,templateId:template})).value
   const id=(await h.command('envelope.prepare',{title:'OneDrive agreement',filename:loaded.filename,microsoftUploadId:loaded.uploadId,signers:[{name:'Mara Quinn',email:'mara@clients.example'}],fields:loaded.fields})).result.id
   await h.command('envelope.approve',{id,eligible:true},h.owner,403)
   assert.equal(await h.mail('mara@clients.example','Please sign:'),undefined,'off policy sends no invitation')
   await h.command('account.send_policy',{source:'microsoft',mode:'person',expectedVersion:0})
-  await h.command('envelope.approve',{id,eligible:true})
+  const waiting=await h.command('envelope.approve',{id,eligible:true});assert.ok(waiting.result.waitingForApproval.length,'the selected template approval remains required');assert.equal(await h.mail('mara@clients.example','Please sign:'),undefined)
+  await h.command('envelope.internal_decide',{id,decision:'approve'},h.owner,403)
+  await h.command('envelope.internal_decide',{id,decision:'approve'},approver)
   const envelope=(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
   assert.equal(envelope.originalSha256,hash);assert.equal(envelope.events.find(e=>e.action==='envelope.approved').detail.sendPolicy.source,'microsoft')
   const path='/api'+new URL((await h.mail('mara@clients.example','Please sign:')).text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
@@ -1063,7 +1066,8 @@ test('Microsoft 365: Outlook proposes exact attachment participants, sends, self
  const {microsoftEdge}=await import('./microsoft-edge.mjs'),edge=await microsoftEdge(),h=await harness({bindings:{MICROSOFT_GRAPH_ACCESS_TOKEN:'synthetic-inkwell-1'},networkEdge:edge.networkEdge})
  try{
   await h.command('account.send_policy',{source:'microsoft',mode:'person',expectedVersion:0})
-  const proposal=(await h.post('/api/inkwell/microsoft/source',{kind:'outlook',messageId:'outlook-send'})).value
+  edge.messages.set('outlook-padded=',{...edge.messages.get('outlook-send'),id:'outlook-padded='})
+  const proposal=(await h.post('/api/inkwell/microsoft/source',{kind:'outlook',messageId:'outlook-padded='})).value
   assert.deepEqual(proposal.participants,[{name:'Mara Quinn',email:'mara@clients.example'},{name:'Alex Morgan',email:'alex@clients.example'}]);assert.equal(proposal.filename,'outlook-agreement.pdf');assert.deepEqual(Buffer.from(proposal.pdfBase64,'base64'),Buffer.from(edge.outlook));assert.equal(proposal.fields.length,2)
   await h.command('envelope.prepare',{title:'Altered Outlook request',filename:proposal.filename,microsoftUploadId:proposal.uploadId,pdfBase64:Buffer.from(edge.original).toString('base64'),signers:proposal.participants,fields:proposal.fields},h.owner,409)
   const id=(await h.command('envelope.prepare',{title:'Outlook request',filename:proposal.filename,microsoftUploadId:proposal.uploadId,signers:proposal.participants,fields:proposal.fields})).result.id
