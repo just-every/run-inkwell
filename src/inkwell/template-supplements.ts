@@ -27,7 +27,7 @@ export async function templateSupplementBytes(env: Env, templateId: string, supp
 
 export async function supplementsFromEnvelope(env: Env, envelope: Envelope): Promise<TemplateSupplementArtifact[]> {
   return Promise.all((envelope.supplements ?? []).map(async value => {
-    const supplement = supplementDefinition(value), bytes = await readBlob(env.DB, envelope.id, `supplement-${supplement.id}`, supplement.sha256)
+    const supplement = supplementDefinition(value), bytes = await readBlob(env, envelope.id, `supplement-${supplement.id}`, supplement.sha256)
     insist(bytes.length === supplement.bytes, 'The stored supplemental document has an incorrect byte length.', 503)
     return { supplement, bytes }
   }))

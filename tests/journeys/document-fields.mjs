@@ -10,12 +10,12 @@ import { PDFDocument, StandardFonts } from 'pdf-lib'
 import { screenshots, startInkwell } from './worker.mjs'
 import { axe } from './a11y.mjs'
 
-const { origin, ownerCookie, browser, close } = await startInkwell()
+const { origin, ownerCookie, command, browser, close } = await startInkwell()
 const pdf = await PDFDocument.create(), font = await pdf.embedFont(StandardFonts.Helvetica), sheet = pdf.addPage([612, 792])
 sheet.drawText('Harbour Studio - Mutual NDA', { x: 72, y: 720, size: 18, font })
 for (const [n, y] of [[1, 600], [2, 520], [3, 440]]) sheet.drawText(`{{signature:${n}}}`, { x: 72, y, size: 14, font })
 pdf.getForm().createTextField('client.company').addToPage(sheet, { x: 320, y: 590, width: 200, height: 20 })
-const pdfBuffer = Buffer.from(await pdf.save())
+const pdfBuffer = Buffer.alloc(20*1024*1024,32);pdfBuffer.set(await pdf.save())
 const near = (a, b, label) => assert.ok(Math.abs(a - b) < .01, `${label}: ${a} vs ${b}`)
 
 try {
@@ -37,14 +37,27 @@ try {
     minor += await axe(page, `${label} light, placed from the document`)
     await page.emulateMedia({ colorScheme: 'dark' }); minor += await axe(page, `${label} dark, placed from the document`); await page.emulateMedia({ colorScheme: 'light' })
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${label}: no sideways scrolling`)
-    await page.screenshot({ path: join(tmpdir(), `prep-007-${width}.png`), fullPage: true })
+    await page.getByRole('button',{name:'Remove field 1',exact:true}).focus()
+    await page.getByRole('tooltip',{name:'Remove field',exact:true}).waitFor()
+    await page.screenshot({ path: join(process.env.INKWELL_PROOF_DIR??tmpdir(), `prep-001-${width}.png`), fullPage: true })
     await page.getByRole('button', { name: 'Save prepared envelope' }).click()
     await page.getByRole('checkbox', { name: /I reviewed this envelope/ }).waitFor()
     const found = await (await page.request.get(`${origin}/api/inkwell/envelopes?q=${encodeURIComponent(title)}`)).json()
     const saved = (await (await page.request.get(`${origin}/api/inkwell/envelopes/${found.envelopes.find(item => item.title === title).id}`)).json()).envelope
     assert.deepEqual(saved.fields.map(f => [f.origin, f.name, f.signer]).sort(), [['form_field', 'client.company', 0], ['text_tag', '{{signature:1}}', 0], ['text_tag', '{{signature:2}}', 1], ['text_tag', '{{signature:3}}', 2]], `${label}: saved with their document names and origins`)
     for (const f of saved.fields.filter(item => item.origin === 'text_tag')) near(f.x, 72 / 612, `${label} ${f.name} x`)
+    const invitation=(await command('envelope.approve',{id:saved.id,eligible:true})).invitations[0]
     await context.close()
+    const signing=await browser.newContext({viewport:{width,height}}),signer=await signing.newPage()
+    await signer.goto(invitation.url)
+    await signer.getByLabel('Verification code').fill(invitation.code)
+    await signer.getByRole('button',{name:'Verify code'}).click()
+    await signer.getByRole('checkbox',{name:/I have read the electronic record/}).check()
+    await signer.getByRole('button',{name:'Agree and continue'}).click()
+    await signer.locator('.iw-pdf-page[data-rendered]').first().waitFor()
+    if(width===1440){assert.ok(await signer.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));minor+=await axe(signer,'business-size signer preview')}
+    await signer.screenshot({path:join(process.env.INKWELL_PROOF_DIR??tmpdir(),`prep-001-sign-${width}.png`),fullPage:true})
+    await signing.close()
   }
   console.log(`PREP-007: text tags for three recipients and a form field placed on upload with no manual placement and saved with their names at 1440 and 390; SIGNX-003 scan clean in light and dark (${minor} minor or moderate)`)
 } catch (error) {

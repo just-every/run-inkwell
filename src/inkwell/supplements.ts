@@ -71,7 +71,7 @@ function signerRead(context: SigningContext) {
 }
 export async function supplementDocument(env: Env, context: SigningContext, supplementId: string) {
   signerRead(context)
-  const supplement = findSupplement(context.envelope, supplementId), bytes = await readBlob(env.DB, context.envelope.id, supplementKind(supplementId), supplement.sha256)
+  const supplement = findSupplement(context.envelope, supplementId), bytes = await readBlob(env, context.envelope.id, supplementKind(supplementId), supplement.sha256)
   if (!supplementStatus(context.envelope, context.recipient.signer, context.recipient.member).find(s => s.id === supplementId)?.viewedAt && context.envelope.status !== 'completed') {
     turn(context)
     const after = structuredClone(context.envelope)
@@ -87,12 +87,12 @@ export async function acknowledgeSupplement(env: Env, context: SigningContext, s
   const status = supplementStatus(context.envelope, context.recipient.signer, context.recipient.member).find(s => s.id === supplementId)!
   insist(status.viewedAt, `Open ${supplement.label} before acknowledging it.`, 409)
   if (status.acknowledgedAt) return { acknowledgedAt: status.acknowledgedAt }
-  await readBlob(env.DB, context.envelope.id, supplementKind(supplementId), supplement.sha256)
+  await readBlob(env, context.envelope.id, supplementKind(supplementId), supplement.sha256)
   const after = structuredClone(context.envelope), acknowledgedAt = now()
   await appendEvent(after, 'signer.supplement_acknowledged', `signer:${context.recipient.signer + 1}`, { signer: context.recipient.signer, ...(context.recipient.member === undefined ? {} : { member: context.recipient.member }), email: recipientOf(context).email, supplementId, sha256: supplement.sha256, statement: `I acknowledge ${supplement.label}.`, ...context.client }, acknowledgedAt)
   await commitEnvelope(env, context.envelope, after, null, [], [liveGuard(context), sessionGuard(context)])
   return { acknowledgedAt }
 }
 export async function copySupplementWrites(env: Env, source: Envelope, destination: string) {
-  return (await Promise.all((source.supplements ?? []).map(async s => blobWrites(env.DB, destination, supplementKind(s.id), await readBlob(env.DB, source.id, supplementKind(s.id), s.sha256))))).flat()
+  return (await Promise.all((source.supplements ?? []).map(async s => blobWrites(env.DB, destination, supplementKind(s.id), await readBlob(env, source.id, supplementKind(s.id), s.sha256))))).flat()
 }

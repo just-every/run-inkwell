@@ -67,7 +67,7 @@ export async function dispatchFiling(env: Env, envelopeId: string, retry = false
   if (!claimed) continue
   try {
    insist(token,'Provider credential is unavailable.',409)
-   const bytes = await readBlob(env.DB,envelopeId,job.kind,job.sha256)
+   const bytes = await readBlob(env,envelopeId,job.kind,job.sha256)
    const receipt = await fileArtifact(job.provider,token,job.folder,`inkwell-${envelopeId}-${job.kind}.pdf`,bytes)
    await env.DB.prepare("UPDATE iw_filing_jobs SET state='filed',remote_id=?,filed_at=?,claim=NULL WHERE envelope_id=? AND provider=? AND folder=? AND kind=? AND claim=?").bind(receipt.id,now(),envelopeId,job.provider,job.folder,job.kind,claim).run()
   } catch {
