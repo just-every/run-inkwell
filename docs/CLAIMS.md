@@ -2,7 +2,7 @@
 
 Generated from CONTRACT.md. Acceptance journeys remain in ACCEPTANCE.md.
 
-Inventory: 70 done, 25 partial, 22 missing; 117 total.
+Inventory: 71 done, 24 partial, 22 missing; 117 total.
 
 | Clause | Status | Evidence | Details |
 | --- | --- | --- | --- |
@@ -119,7 +119,7 @@ Inventory: 70 done, 25 partial, 22 missing; 117 total.
 | `AGENT-003` | done | `tests/delivery.test.mjs`, `tests/journeys/envelope-detail.mjs` | [Contract status](../CONTRACT.md#status) |
 | `AGENT-004` | partial | `src/inkwell/envelopes.ts` | [Contract status](../CONTRACT.md#status) |
 | `AGENT-005` | missing |  | [Contract status](../CONTRACT.md#status) |
-| `AGENT-006` | partial | `tests/hubspot-envelope.test.mjs`, `tests/delivery.test.mjs`, `tests/journeys/hubspot.mjs`, `tests/journeys/filing.mjs`, `tests/delivery.test.mjs`, `tests/journeys/account-audit.mjs` | [Contract status](../CONTRACT.md#status) |
+| `AGENT-006` | done | `tests/hubspot-envelope.test.mjs`, `tests/delivery.test.mjs`, `tests/journeys/hubspot.mjs`, `tests/journeys/filing.mjs`, `tests/delivery.test.mjs`, `tests/journeys/account-audit.mjs` | [Contract status](../CONTRACT.md#status) |
 | `AGENT-007` | done | `src/inkwell/template-maintenance.ts`, `src/ui/template-maintenance.tsx`, `tests/template-maintenance.test.mjs`, `tests/journeys/template-maintenance.mjs` | [Contract status](../CONTRACT.md#status) |
 | `AGENT-008` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `AGENT-009` | partial | `tests/agent-workflows.test.mjs`, `docs/agent-workflows.md` | [Contract status](../CONTRACT.md#status) |
