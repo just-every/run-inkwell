@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "f4c04c0c1deccb8fa78f66e6675d48cffaf1e253f004236eb97d372405a7654d",
+      "sha256": "9f5300bb7e7a6388b6209c906e6829856e0119c43d59a6813a4df14152ac5e3f",
       "executable": false
     },
     "DEMO.md": {
@@ -1493,11 +1493,11 @@
       "executable": false
     },
     "src/inkwell/hubspot-writeback-provider.ts": {
-      "sha256": "6a245ad64047064c772123815958e0b20735d6a89f97418e55a7932866807aeb",
+      "sha256": "250a17428ebf8b9bade46637cacaf789c6fdd4ff2cf0df64b241ec146038978e",
       "executable": false
     },
     "src/inkwell/hubspot-writeback.ts": {
-      "sha256": "033016b9c52377cdbf78220a0904eb45cf245a32705ef7f0d306b0f0be21fe3d",
+      "sha256": "c866788c47b6fe440705e34549198886247e770b73950bdaee684a698e324b78",
       "executable": false
     },
     "src/inkwell/identity-provider.ts": {

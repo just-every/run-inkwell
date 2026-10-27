@@ -1,4 +1,4 @@
-import { insist, object, sha256, type Envelope, type Env } from './model'
+import { insist, object, Refusal, sha256, type Envelope, type Env } from './model'
 import { assertHubspotCredential, hubspotRequest, type HubspotCredential } from './hubspot-provider'
 
 export interface HubspotDestination {record_type:string;record_id:string;mapping_json?:string}
@@ -13,7 +13,7 @@ export async function inspectCompletionMapping(env:Env,c:HubspotCredential,desti
     const from=mapping[logical]??logical,existing=properties.filter(p=>p.name===from&&writable(p))
     if(existing.length===1){mapping[logical]=from;continue}
     const candidates=properties.filter(p=>p.label===label&&writable(p)&&typeof p.name==='string'&&/^[a-z][a-z0-9_]{0,99}$/.test(p.name))
-    insist(candidates.length===1,'The CRM mapping has no unambiguous writable replacement. Resolve its schema before replay.',409)
+    if(candidates.length!==1)throw new Refusal('The CRM mapping has no unambiguous writable replacement. Resolve its schema before replay.',409,'hubspot_mapping_unresolved')
     const to=String(candidates[0].name);mapping[logical]=to;changes.push({from,to,label})
   }
   insist(new Set(Object.values(mapping)).size===Object.keys(completionLabels).length,'The CRM mapping has conflicting destinations.',409)
