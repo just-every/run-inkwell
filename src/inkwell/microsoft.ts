@@ -31,7 +31,9 @@ export async function microsoftSource(env:Env,actor:Actor,input:Record<string,un
   const proposed=[address(message.from),...list(message.toRecipients).map(address),...list(message.ccRecipients).map(address)]
   participants=[...new Map(proposed.filter(p=>p.email!==actor.email.toLowerCase()).map(p=>[p.email,p])).values()]
  }else{
-  resource=graphId(input.itemId);const base=itemPath(input.driveId,resource),metadata=await graphJson(token,base)
+  let driveId=input.driveId,itemId=input.itemId
+  if(kind==='word'&&input.wordUrl){const url=new URL(text(input.wordUrl,'the open Word document URL',4096));insist(url.protocol==='https:'&&!url.username&&!url.password&&(/\.sharepoint\.com$/i.test(url.hostname)||/\.onedrive\.live\.com$/i.test(url.hostname)),'Use the open document in your connected Microsoft tenant.');const share='u!'+btoa(new TextEncoder().encode(url.href).reduce((s,b)=>s+String.fromCharCode(b),'')).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');const opened=await graphJson(token,`/shares/${share}/driveItem`);driveId=object(opened.parentReference).driveId;itemId=opened.id}
+  resource=graphId(itemId);const base=itemPath(driveId,resource),metadata=await graphJson(token,base)
   insist(metadata.id===resource&&metadata.file,'Choose a file in the connected drive.',502)
   const original=text(metadata.name,'a Microsoft filename',240)
   insist(kind==='word'?/\.docx?$/i.test(original):/\.(pdf|docx?)$/i.test(original),'Choose a PDF or Word document.')

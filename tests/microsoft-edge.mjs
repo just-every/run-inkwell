@@ -6,15 +6,17 @@ export async function microsoftEdge(){
  const person=(name,address)=>({emailAddress:{name,address}})
  messages.set('outlook-send',{id:'outlook-send',from:person('Mara Quinn','mara@clients.example'),toRecipients:[person('Harbour Owner','owner@harbour.example')],ccRecipients:[person('Alex Morgan','alex@clients.example')]})
  messages.set('outlook-self',{id:'outlook-self',from:person('Mara Quinn','mara@clients.example'),toRecipients:[person('Harbour Owner','owner@harbour.example')],ccRecipients:[]})
+ let interrupt=false
  const networkEdge=async request=>{
   const url=new URL(request.url);if(url.hostname!=='graph.microsoft.com')return
   assert.equal(request.headers.get('authorization'),'Bearer synthetic-inkwell-1');requests.push({method:request.method,path:url.pathname,query:url.search})
   const path=decodeURIComponent(url.pathname.replace('/v1.0',''))
   if(path.startsWith('/me/messages/')){const id=path.split('/')[3],message=messages.get(id);if(!message)return new Response(null,{status:404});if(path.endsWith('/attachments')){const bytes=id==='outlook-self'?original:outlook;return Response.json({value:[{'@odata.type':'#microsoft.graph.fileAttachment',id:'pdf-attachment',name:'outlook-agreement.pdf',contentType:'application/pdf',contentBytes:Buffer.from(bytes).toString('base64'),isInline:false}]})}return Response.json(message)}
+  if(path.startsWith('/shares/'))return Response.json({id:'word',parentReference:{driveId:'personal-drive'}})
   if(request.method==='PUT'){
    const name=path.split(':/')[1]?.split(':/')[0]?.replace(/:.*$/,'');assert.ok(name);assert.equal(url.searchParams.get('@microsoft.graph.conflictBehavior'),'fail')
    if(files.has(name))return Response.json({error:'conflict'},{status:409})
-   const bytes=new Uint8Array(await request.arrayBuffer()),file={id:'file-'+files.size,name,size:bytes.length,parentReference:{driveId:'share-drive',id:'completed'},bytes};files.set(name,file);return Response.json({...file,bytes:undefined},{status:201})
+   const bytes=new Uint8Array(await request.arrayBuffer()),file={id:'file-'+files.size,name,size:bytes.length,parentReference:{driveId:'share-drive',id:'completed'},bytes};files.set(name,file);if(interrupt&&name.endsWith('-signed.pdf')){interrupt=false;return Response.json({error:'unconfirmed'},{status:503})}return Response.json({...file,bytes:undefined},{status:201})
   }
   if(path.includes(':/')){const name=path.split(':/')[1].replace(/:$/,'');return files.has(name)?Response.json({...files.get(name),bytes:undefined}):new Response(null,{status:404})}
   const id=path.split('/')[4]
@@ -23,5 +25,5 @@ export async function microsoftEdge(){
   if(path.endsWith('/content')){assert.equal(url.searchParams.get('format'),id==='word'?'pdf':null);return new Response(id==='word'?converted:original,{headers:{'content-type':'application/pdf'}})}
   return Response.json({id,name:id==='word'?'open-document.docx':'onedrive-agreement.pdf',file:{mimeType:id==='word'?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':'application/pdf'}})
  }
- return{original,outlook,converted,files,messages,requests,person,networkEdge}
+ return{interruptNext:()=>{interrupt=true},original,outlook,converted,files,messages,requests,person,networkEdge}
 }
