@@ -94,7 +94,7 @@ export async function dispatchNotices(env: Env) {
   const posts = (await env.DB.prepare("SELECT p.id,p.operator_id,p.channel,p.body,p.connection,c.sealed FROM iw_notice_posts p LEFT JOIN iw_notice_channels c ON c.operator_id=p.operator_id AND c.channel=p.channel WHERE p.state='pending' AND p.attempts<3 LIMIT 50").all<{id:string;operator_id:string;channel:Hook;body:string;connection:string|null;sealed:string|null}>()).results
   for (const post of posts) {
     if (!post.sealed || post.connection !== await sha256(post.sealed)) {
-      await env.DB.prepare("UPDATE iw_notice_posts SET state='held',repairable=1,result='Connection changed or disconnected; owner review required.' WHERE id=? AND state='pending'").bind(post.id).run()
+      await env.DB.prepare("UPDATE iw_notice_posts SET state='held',repairable=1,result='Connection changed or disconnected; owner review required.' WHERE id=? AND state='pending' AND connection IS ? AND (SELECT sealed FROM iw_notice_channels WHERE operator_id=? AND channel=?) IS ?").bind(post.id,post.connection,post.operator_id,post.channel,post.sealed).run()
       continue
     }
     const claimed=await env.DB.prepare("UPDATE iw_notice_posts SET state='sending',attempts=attempts+1,repairable=0 WHERE id=? AND state='pending' AND connection=? AND EXISTS(SELECT 1 FROM iw_notice_channels WHERE operator_id=? AND channel=? AND sealed=?) RETURNING id").bind(post.id,post.connection,post.operator_id,post.channel,post.sealed).first()

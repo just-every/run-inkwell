@@ -50,15 +50,19 @@ export function NoticeSettings() {
 
 type Repair={id:string;channel:string;state:string;result:string;attempts:number;destination:string|null;canReplay:boolean;proposal:string}
 function NoticeRepairs(){
- const [jobs,setJobs]=useState<Repair[]>()
+ const [jobs,setJobs]=useState<Repair[]>(),[nextCursor,setNextCursor]=useState<string|null>(null)
  const action=useAction()
- const load=async()=>setJobs((await request<{jobs:Repair[]}>('/api/inkwell/notices/reconciliation')).jobs)
- useEffect(()=>{void action.run(load)},[])
+ const load=async(before?:string)=>{
+  const page=await request<{jobs:Repair[];nextCursor:string|null}>('/api/inkwell/notices/reconciliation'+(before?'?before='+encodeURIComponent(before):''))
+  setJobs(current=>before?[...(current??[]),...page.jobs]:page.jobs);setNextCursor(page.nextCursor)
+ }
+ useEffect(()=>{void action.run(()=>load())},[])
  return <div className="iw-stack" aria-label="Notification repairs"><h3>Notification repairs</h3>
   <p>Replace an expired connection below, refresh, then approve each confirmed refusal. Unconfirmed provider effects remain unresolved to prevent duplicates.</p>
   <ErrorNotice error={action.error}/>
-  {jobs?.map(job=><div key={job.id} className="iw-stack"><strong>{channelNames[job.channel]} · {job.state}</strong><p>{job.result}</p>{job.destination&&<p>Current destination: {job.destination}</p>}{job.canReplay&&<button className="iw-fit" disabled={action.busy} onClick={()=>void action.run(async()=>{setJobs((await request<{jobs:Repair[]}>('/api/inkwell/notices/reconciliation',{id:job.id,proposal:job.proposal,approve:true})).jobs)})}>Approve {channelNames[job.channel]} replay</button>}</div>)}
+  {jobs?.map(job=><div key={job.id} className="iw-stack"><strong>{channelNames[job.channel]} · {job.state}</strong><p>{job.result}</p>{job.destination&&<p>Current destination: {job.destination}</p>}{job.canReplay&&<button className="iw-fit" disabled={action.busy} onClick={()=>void action.run(async()=>{await request('/api/inkwell/notices/reconciliation',{id:job.id,proposal:job.proposal,approve:true});await load()})}>Approve {channelNames[job.channel]} replay</button>}</div>)}
   {jobs?.length===0&&<p>No notification repairs pending.</p>}
-  <button type="button" className="iw-fit" disabled={action.busy} onClick={()=>void action.run(load)}>Refresh notification repairs</button>
+  {nextCursor&&<button type="button" className="iw-fit" disabled={action.busy} onClick={()=>void action.run(()=>load(nextCursor))}>Load older notification repairs</button>}
+  <button type="button" className="iw-fit" disabled={action.busy} onClick={()=>void action.run(()=>load())}>Refresh notification repairs</button>
  </div>
 }

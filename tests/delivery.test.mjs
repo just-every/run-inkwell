@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createHmac, generateKeyPairSync, randomBytes, sign } from 'node:crypto'
+import { createHash, createHmac, generateKeyPairSync, randomBytes, sign } from 'node:crypto'
 import { PDFDocument } from 'pdf-lib'
 import { harness } from './harness.mjs'
 
@@ -360,8 +360,14 @@ test('DELIV-008: subscribed to declines and completions in Slack, Teams, Nook an
   for (const [channel, url] of Object.entries(hooks)) await settings({ connect: { channel, url } })
   const events = ['viewed', 'signed', 'declined', 'completed', 'bounced', 'expiring'], channels = ['email', 'slack', 'teams', 'nook']
   const saved = (await settings({ choices: Object.fromEntries(events.map(e => [e, Object.fromEntries(channels.map(c => [c, e === 'declined' || e === 'completed']))])) })).value.result
-  assert.ok(Object.values(saved.connected).every(url => url && !/secret/.test(url)), 'connected webhook URLs are shown masked')
-  assert.ok(!JSON.stringify((await h.db.prepare('SELECT * FROM iw_notice_channels').all()).results).includes('secret'), 'and are sealed at rest')
+  assert.deepEqual(saved.connected,Object.fromEntries(Object.entries(hooks).map(([channel,url])=>[channel,new URL(url).origin+'/…'+new URL(url).pathname.slice(-4)])), 'every connected webhook URL is masked independently of its fixture text')
+  const stored=(await h.db.prepare('SELECT channel,sealed,masked FROM iw_notice_channels').all()).results
+  assert.equal(stored.length,3)
+  for(const row of stored){
+   assert.match(row.sealed,/^v1\.[A-Za-z0-9+/=]+\.[A-Za-z0-9+/=]+$/,'each capability is sealed')
+   assert.notEqual(row.sealed,hooks[row.channel],'plaintext capabilities fail custody proof')
+   for(const url of Object.values(hooks))assert.equal(JSON.stringify(stored).includes(url),false,'no full webhook capability is stored in plaintext')
+  }
   assert.equal(saved.choices.viewed.email, false); assert.equal(saved.choices.completed.teams, true)
 
   const run = async (title, decline) => {
@@ -424,7 +430,22 @@ test('DELIV-008: subscribed to declines and completions in Slack, Teams, Nook an
   await settings({connect:{channel:first.channel,url:hooks[first.channel]+'-fresh'}})
   await h.post(path,{id:first.id,proposal:first.proposal,approve:true},h.owner,409)
   jobs=await review();assert.ok(jobs.every(j=>j.canReplay))
+  // Older proposals stay actionable even when unrelated unresolved posts fill the first page.
+  const oldProposal=jobs[0]
+  const source=await h.db.prepare('SELECT * FROM iw_notice_posts WHERE id=?').bind(oldProposal.id).first()
+  await h.db.batch(Array.from({length:102},(_,i)=>h.db.prepare("INSERT INTO iw_notice_posts(id,notice_id,operator_id,channel,body,state,result,attempts,connection,repairable) VALUES(?,?,?,?,?,'uncertain','Unconfirmed provider effect',1,?,0)").bind('synthetic-inkwell-page-'+i,source.notice_id,source.operator_id,source.channel,source.body,source.connection)))
+  const firstPage=(await h.send(path,undefined,h.owner)).value
+  assert.equal(firstPage.jobs.length,100);assert.ok(firstPage.nextCursor)
+  assert.equal(firstPage.jobs.some(job=>job.id===oldProposal.id),false)
+  const secondPage=(await h.send(path+'?before='+firstPage.nextCursor,undefined,h.owner)).value
+  assert.equal(secondPage.nextCursor,null)
+  assert.deepEqual(secondPage.jobs.map(job=>job.id).sort(),['synthetic-inkwell-page-0','synthetic-inkwell-page-1',...jobs.map(job=>job.id)].sort(),'pagination reaches the exact older proposal set')
+  await h.send(path+'?before=invalid',undefined,h.owner).then(r=>assert.equal(r.status,400))
   refusals.clear()
+  await h.post(path,{id:oldProposal.id,proposal:oldProposal.proposal,approve:true})
+  assert.equal((await h.db.prepare('SELECT state FROM iw_notice_posts WHERE id=?').bind(oldProposal.id).first()).state,'sent','approval finds the post by identity outside the newest page')
+  await h.db.prepare("DELETE FROM iw_notice_posts WHERE id LIKE 'synthetic-inkwell-page-%'").run()
+  jobs=jobs.filter(job=>job.id!==oldProposal.id)
   const acceptedBefore=h.posts().length
   for(const job of jobs){
    const approval={id:job.id,proposal:job.proposal,approve:true}
@@ -432,7 +453,7 @@ test('DELIV-008: subscribed to declines and completions in Slack, Teams, Nook an
    assert.deepEqual(results.map(r=>r.status).sort(),[200,409],'only one concurrent approval can claim a replay')
    await h.post(path,approval,h.owner,409)
   }
-  assert.equal(h.posts().length,acceptedBefore+3,'each confirmed refusal produces exactly one accepted replay')
+  assert.equal(h.posts().length,acceptedBefore+2,'each remaining confirmed refusal produces exactly one accepted replay')
   assert.deepEqual(await review(),[])
   const audit=(await h.send('/api/inkwell/audit',undefined,h.owner)).value.entries.filter(e=>e.action==='notice.reconciliation.approved')
   assert.equal(audit.length,3)
@@ -480,6 +501,35 @@ test('DELIV-008: subscribed to declines and completions in Slack, Teams, Nook an
   assert.equal(h.posts().length,beforeQueued+1,'changed pending connections are held without provider requests')
   for(const job of queued)await h.post(path,{id:job.id,proposal:job.proposal,approve:true})
   assert.equal(h.posts().length,beforeQueued+3,'only owner approval releases each changed connection once')
+  // A stale dispatcher must not undo a repair while its approved replay waits behind another post.
+  const connections=(await h.db.prepare('SELECT operator_id,channel,sealed FROM iw_notice_channels').all()).results
+  const base=await h.db.prepare('SELECT notice_id,body FROM iw_notice_posts LIMIT 1').first()
+  for(const [suffix,channel,state] of [['a','slack','pending'],['c','nook','uncertain'],['b','teams','pending']]){
+   const connection=connections.find(row=>row.channel===channel)
+   await h.db.prepare("INSERT INTO iw_notice_posts(id,notice_id,operator_id,channel,body,state,connection) VALUES(?,?,?,?,?,?,?)").bind('synthetic-inkwell-race-'+suffix,base.notice_id,connection.operator_id,channel,base.body,state,suffix==='b'?'synthetic-inkwell-old':createHash('sha256').update(connection.sealed).digest('hex')).run()
+  }
+  let enterOld,releaseOld,enterApproved,releaseApproved
+  const oldEntered=new Promise(resolve=>{enterOld=resolve}),oldWait=new Promise(resolve=>{releaseOld=resolve})
+  const approvedEntered=new Promise(resolve=>{enterApproved=resolve}),approvedWait=new Promise(resolve=>{releaseApproved=resolve})
+  pauseHook=async host=>{
+   if(host==='hooks.slack.com'){enterOld();await oldWait}
+   if(host==='nook.harbour.example'){enterApproved();await approvedWait}
+  }
+  const staleDispatch=h.scheduled('2026-10-01T16:00:00.000Z')
+  await oldEntered
+  await h.scheduled('2026-10-01T16:01:00.000Z')
+  const raceJob=(await review()).find(job=>job.id==='synthetic-inkwell-race-b')
+  assert.ok(raceJob.canReplay)
+  await h.db.prepare("UPDATE iw_notice_posts SET state='pending' WHERE id='synthetic-inkwell-race-c'").run()
+  const approvedReplay=h.send(path,{id:raceJob.id,proposal:raceJob.proposal,approve:true},h.owner)
+  await approvedEntered
+  try{
+   assert.equal((await h.db.prepare('SELECT state FROM iw_notice_posts WHERE id=?').bind(raceJob.id).first()).state,'pending')
+   releaseOld();await staleDispatch
+   assert.equal((await h.db.prepare('SELECT state FROM iw_notice_posts WHERE id=?').bind(raceJob.id).first()).state,'pending','a stale snapshot cannot put an owner-approved replay back on hold')
+  }finally{releaseOld();releaseApproved();pauseHook=undefined;await staleDispatch}
+  assert.equal((await approvedReplay).status,200)
+  assert.equal((await h.db.prepare('SELECT state FROM iw_notice_posts WHERE id=?').bind(raceJob.id).first()).state,'sent','the approved replay completes once')
   const storedChannels=(await h.db.prepare('SELECT sealed FROM iw_notice_channels').all()).results
   const storedPosts=(await h.db.prepare('SELECT connection FROM iw_notice_posts').all()).results
   assert.ok(storedPosts.every(post=>!storedChannels.some(channel=>channel.sealed===post.connection)),'posts retain connection fingerprints, never a second sealed capability')

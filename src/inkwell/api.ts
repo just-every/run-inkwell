@@ -197,7 +197,7 @@ api.get('/api/inkwell/templates/:id/proposals',async c=>{const actor=await requi
 api.get('/api/inkwell/templates/:id/documents/:index',async c=>{const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']),{template}=await loadTemplate(c.env,actor,c.req.param('id'),'use'),index=Number(c.req.param('index'));insist(Number.isInteger(index)&&template.documents?.[index],'Template document not found.',404);return download(await templateOriginal(c.env,template,index),template.documents[index].filename)})
 api.get('/api/inkwell/templates/:id/document',async c=>{const actor=await requireActor(c.req.raw,c.env,['owner','admin','sender']);return templateDocument(c.env,actor,c.req.param('id'))})
 // DELIV-008: each member's activity feed and notification choices; every role has its own.
-api.get('/api/inkwell/notices/reconciliation',async c=>{const actor=await requireActor(c.req.raw,c.env,['owner']);return c.json(await noticeReconciliation(c.env,actor))})
+api.get('/api/inkwell/notices/reconciliation',async c=>{const actor=await requireActor(c.req.raw,c.env,['owner']);return c.json(await noticeReconciliation(c.env,actor,new URL(c.req.url).searchParams))})
 api.post('/api/inkwell/notices/reconciliation',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner']);return c.json(await repairNoticeConnection(c.env,actor,object(await readJson(c.req.raw,4096))))})
 api.get('/api/inkwell/notices',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json(await activityFeed(c.env,actor,new URL(c.req.url).searchParams))})
 api.get('/api/inkwell/envelope-defaults/history',async c=>{await requireActor(c.req.raw,c.env,['owner','admin']);return c.json({history:await envelopeDefaultHistory(c.env)})})
