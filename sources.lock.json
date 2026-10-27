@@ -4701,7 +4701,7 @@
       "executable": false
     },
     "tests/remote-import.test.mjs": {
-      "sha256": "50412ab60c701ae20693f86a21685fff9b9589265dd21aae51d15c75f8595ea7",
+      "sha256": "b28aa146c35abc896bae864752978b50a5ae27585289cbaedc7bb028b58800ee",
       "executable": false
     },
     "tests/routing.test.mjs": {
