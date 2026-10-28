@@ -8,7 +8,7 @@ import type { CommandContext } from './envelopes'
  * approval), for which templates, whether an internal approval (ROUTE-004) comes first and whether the send may be
  * deferred (PREP-009). Group/profile send policies narrow the account now; ADMIN-002/008 carry broader capabilities. Each
  * source that adds a door (BULK-001, FORM-001, API-001, the integrations) reads its policy here before it ships. */
-export const sendSources = ['ad_hoc', 'template', 'bulk', 'web_form', 'api', 'integration', 'microsoft'] as const
+export const sendSources = ['ad_hoc', 'template', 'bulk', 'web_form', 'api', 'integration', 'microsoft', 'salesforce'] as const
 export type SendSource = typeof sendSources[number]
 export type SendMode = 'off' | 'person' | 'autonomous'
 export interface SendPolicy { scope: 'account' | 'group' | 'profile'; scopeId?: string; source: SendSource; mode: SendMode; templates: string[] | null; requireInternalApproval: boolean; deferredRelease: boolean; version: number; actor: string | null; at: string | null; reason: string | null }
@@ -16,9 +16,9 @@ export interface SendPolicyVersion extends SendPolicy { before: Pick<SendPolicy,
 /** What an envelope records about the policy that allowed it: the source, who the send is for, and each contributing policy version. */
 export interface SendPolicyRecord { source: SendSource; mode: SendMode; principal: string; credential: { kind: 'api_key' | 'web_form' | 'hubspot' | 'salesforce'; id: string; version: number; memberVersion: number } | null; policies: { scope: 'account' | 'group' | 'profile'; scopeId?: string; version: number }[]; templates: string[] | null; requireInternalApproval: boolean; deferredRelease: boolean; fingerprint: string }
 export interface SendDecision { allowed: boolean; code?: string; reason?: string; requiresApproval: boolean; record: SendPolicyRecord; fence: Guard; versionFence: Guard }
-export const sourceLabel: Record<SendSource, string> = { ad_hoc: 'ad hoc', template: 'template', bulk: 'bulk', web_form: 'web form', api: 'API', integration: 'HubSpot integration', microsoft: 'Microsoft 365' }
+export const sourceLabel: Record<SendSource, string> = { ad_hoc: 'ad hoc', template: 'template', bulk: 'bulk', web_form: 'web form', api: 'API', integration: 'HubSpot integration', microsoft: 'Microsoft 365', salesforce: 'Salesforce integration' }
 /** Opt-in defaults: the person-based sources start with the person's confirmation, every other source starts off. */
-const defaultMode: Record<SendSource, SendMode> = { ad_hoc: 'person', template: 'person', bulk: 'person', web_form: 'off', api: 'off', integration: 'off', microsoft: 'off' }
+const defaultMode: Record<SendSource, SendMode> = { ad_hoc: 'person', template: 'person', bulk: 'person', web_form: 'off', api: 'off', integration: 'off', microsoft: 'off', salesforce: 'off' }
 const freshSeconds = 15 * 60
 
 interface Row { scope: string; source: SendSource; version: number; mode: SendMode; templates: string | null; require_internal_approval: number; deferred_release: number; actor: string; at: string; reason: string | null; before_value?: string }

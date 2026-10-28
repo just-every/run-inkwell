@@ -48,3 +48,6 @@ BEGIN UPDATE iw_salesforce_send_bindings SET active=0; END;
 
 CREATE TRIGGER iw_salesforce_member_completion_lost AFTER UPDATE OF status,role,version ON oa_operators WHEN NEW.status<>'active' OR NEW.role<>OLD.role OR NEW.version<>OLD.version BEGIN UPDATE iw_salesforce_envelopes SET status='retired',error='Authorizing member authority changed' WHERE principal=NEW.id AND status<>'completed'; END;
 CREATE TRIGGER iw_salesforce_credential_completion_lost AFTER UPDATE ON iw_salesforce_credentials WHEN NEW.version<>OLD.version OR NEW.active=0 BEGIN UPDATE iw_salesforce_envelopes SET status='retired',error='Connector authority changed' WHERE status<>'completed'; END;
+
+ALTER TABLE iw_salesforce_envelopes ADD COLUMN request_key TEXT;
+CREATE TABLE iw_salesforce_replay_fences(request_key TEXT PRIMARY KEY);

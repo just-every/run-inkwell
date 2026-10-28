@@ -2,7 +2,7 @@
 
 Generated from CONTRACT.md. Acceptance journeys remain in ACCEPTANCE.md.
 
-Inventory: 72 done, 27 partial, 18 missing; 117 total.
+Inventory: 72 done, 28 partial, 17 missing; 117 total.
 
 | Clause | Status | Evidence | Details |
 | --- | --- | --- | --- |
@@ -92,7 +92,7 @@ Inventory: 72 done, 27 partial, 18 missing; 117 total.
 | `API-003` | done | `tests/journeys/embedding.mjs`, `tests/embedding-cases.mjs`, `tests/embedding-limits.mjs`, `tests/payments-flow.mjs`, `tests/compliance.test.mjs` | [Contract status](../CONTRACT.md#status) |
 | `API-004` | partial | `tests/test-mode.test.mjs`, `tests/journeys/bulk.mjs` | [Contract status](../CONTRACT.md#status) |
 | `INTEG-001` | done | `tests/hubspot-envelope.test.mjs`, `tests/hubspot-sync.test.mjs`, `tests/journeys/hubspot.mjs`, `tests/hubspot-sync.test.mjs`, `tests/hubspot-envelope.test.mjs`, `tests/journeys/hubspot.mjs` | [Contract status](../CONTRACT.md#status) |
-| `INTEG-002` | missing |  | [Contract status](../CONTRACT.md#status) |
+| `INTEG-002` | partial | `tests/hubspot-envelope.test.mjs`, `tests/salesforce.mjs`, `tests/journeys/salesforce.mjs`, `tests/journeys/hubspot.mjs` | [Contract status](../CONTRACT.md#status) |
 | `INTEG-003` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `INTEG-004` | done | `tests/google.test.mjs`, `tests/journeys/google.mjs`, `tests/delivery.test.mjs` | [Contract status](../CONTRACT.md#status) |
 | `INTEG-005` | partial | `tests/delivery.test.mjs`, `tests/journeys/microsoft.mjs` | [Contract status](../CONTRACT.md#status) |

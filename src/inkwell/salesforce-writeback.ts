@@ -40,7 +40,7 @@ async function deliver(env:Env,r:Link,e:Envelope){
    }
    await save(env,r,c,{file_id:file,uncertain:null})
   }
-  const at=now();await save(env,r,c,{status:'completed',error:null,completed_at:at},[env.DB.prepare('INSERT INTO iw_account_audit(id,at,actor_id,action,target,before_json,after_json) VALUES(?,?,?,?,?,NULL,?)').bind(id(),at,r.principal,'salesforce.writeback.completed',e.id,canonical({recordId:r.record_id,recordType:r.record_type,fieldsUpdated:true,pdfAttached:true}))])
+  const at=now();await save(env,r,c,{status:'completed',error:null,completed_at:at},[env.DB.prepare('INSERT INTO iw_account_audit(id,at,actor_id,action,target,before_json,after_json) VALUES(?,?,?,?,?,NULL,?)').bind(id().replaceAll('-',''),at,r.principal,'salesforce.writeback.completed',e.id,canonical({recordId:r.record_id,recordType:r.record_type,fieldsUpdated:true,pdfAttached:true}))])
  }catch{await env.DB.prepare("UPDATE iw_salesforce_envelopes SET status=CASE WHEN status='retired' THEN status ELSE 'held' END,error='Completion is held. Check connector authority and reconcile the provider result.' WHERE envelope_id=? AND lease=?").bind(r.envelope_id,r.lease).run()}
  finally{await env.DB.prepare('UPDATE iw_salesforce_envelopes SET lease=NULL,lease_at=NULL WHERE envelope_id=? AND lease=?').bind(r.envelope_id,r.lease).run()}
 }

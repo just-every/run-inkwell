@@ -22,8 +22,8 @@ export async function salesforceSanity(){
   const before=(await h.db.prepare('SELECT count(*) n FROM iw_envelopes').first()).n
   await prepare({send:true},h.owner,403)
   assert.equal((await h.db.prepare('SELECT count(*) n FROM iw_envelopes').first()).n,before,'policy-off send creates no envelope')
-  const current=(await h.send('/api/inkwell/send-policies',undefined,h.owner)).value.policies.find(p=>p.source==='integration')
-  await h.command('account.send_policy',{source:'integration',expectedVersion:current.version,mode:'autonomous',templates:[template]})
+  const current=(await h.send('/api/inkwell/send-policies',undefined,h.owner)).value.policies.find(p=>p.source==='salesforce')
+  await h.command('account.send_policy',{source:'salesforce',expectedVersion:current.version,mode:'autonomous',templates:[template]})
   for(const [type,key,property] of [['Account','synthetic-inkwell-5','AnnualRevenue'],['Contact','synthetic-inkwell-6','Phone']]){
    if(type==='Contact')edge.records.get('Contact:'+key).Phone='48600'
    const value=(await prepare({recordType:type,recordId:key,mappings:[{field:'amount',property,readOnly:true}]})).value
@@ -34,7 +34,7 @@ export async function salesforceSanity(){
    const command={commandId:crypto.randomUUID(),send:true},sent=(await prepare(command)).value,e=await read(sent.id)
    assert.equal((await prepare(command)).value.id,sent.id,'preparation replay returns the same envelope')
    assert.equal(e.status,'awaiting_signature');assert.equal(e.sendOrigin.credential.kind,'salesforce')
-   const amount=e.fields.find(f=>f.id==='amount');assert.equal(amount.prefill.value,'48600');assert.equal(amount.readOnly,true);assert.equal(amount.prefill.source,'Salesforce synthetic-inkwell-2 Opportunity synthetic-inkwell-3.Amount')
+   const amount=e.fields.find(f=>f.id==='amount');assert.equal(amount.prefill.value,'48600.00');assert.equal(amount.readOnly,true);assert.equal(amount.prefill.source,'Salesforce synthetic-inkwell-2 Opportunity synthetic-inkwell-3.Amount')
    assert.equal((await h.send('/api/inkwell/envelopes/'+e.id,undefined,sender)).status,403,'CRM ownership grants no reader access')
    let follow=(await h.send(`/api/inkwell/envelopes/${e.id}/followup`,undefined,h.owner)).value
    assert.equal(follow.grant,null);assert.equal(follow.defaultEscalationOwner,e.createdBy)
@@ -60,7 +60,7 @@ export async function salesforceSanity(){
    }
    progress=(await h.post(wb,{})).value;assert.equal(progress.status,'completed');assert.equal(progress.propertiesUpdated,true);assert.ok(progress.fileId)
    const completed=await read(e.id),patches=edge.patches.filter(p=>p.fields.Inkwell_Envelope_Id__c===e.id),files=edge.files.filter(f=>f.Title.startsWith(e.id))
-   assert.equal(patches.length,1);assert.equal(files.length,1);assert.equal(patches[0].fields.Inkwell_Status__c,'completed');assert.equal(patches[0].fields.Inkwell_Signed_SHA256__c,completed.signedSha256);assert.deepEqual(JSON.parse(patches[0].fields.Inkwell_Key_Fields__c),{amount:'48600'})
+   assert.equal(patches.length,1);assert.equal(files.length,1);assert.equal(patches[0].fields.Inkwell_Status__c,'completed');assert.equal(patches[0].fields.Inkwell_Signed_SHA256__c,completed.signedSha256);assert.deepEqual(JSON.parse(patches[0].fields.Inkwell_Key_Fields__c),{amount:'48600.00'})
    assert.equal(files[0].FirstPublishLocationId,'synthetic-inkwell-3');assert.deepEqual(files[0].bytes,Buffer.from((await h.send(`/api/inkwell/envelopes/${e.id}/artifacts/signed`,undefined,h.owner)).bytes))
    const writes=edge.patches.length+edge.files.length;await h.post(wb,{});await h.post(path+'/sign',sign,cookie);assert.equal(edge.patches.length+edge.files.length,writes,'capture and completion replay duplicate nothing')
   }
@@ -81,11 +81,17 @@ export async function salesforceSanity(){
   await sync({operation:'revoke',authorizationId:auth.id})
   const calls=edge.calls.length;await sync({operation:'continue',runId:repeated.id},h.owner,403);assert.equal(edge.calls.length,calls,'revocation refuses the next page before reading')
   const ownerRecord=edge.records.get('User:synthetic-inkwell-4');ownerRecord.Email=salesforceAddress(10)
-  const ineligible=(await prepare()).value,ie=await read(ineligible.id);assert.equal(ie.events.find(e=>e.action==='salesforce.record_prepared').detail.escalationOwner,undefined);assert.equal((await h.send('/api/inkwell/envelopes/'+ie.id,undefined,sender)).status,403)
+  const capture={commandId:crypto.randomUUID()},ineligible=(await prepare(capture)).value,ie=await read(ineligible.id);assert.equal(ie.events.find(e=>e.action==='salesforce.record_prepared').detail.escalationOwner,undefined);assert.equal((await h.send('/api/inkwell/envelopes/'+ie.id,undefined,sender)).status,403)
   const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
   assert.ok(!JSON.stringify(archive).includes(salesforceBindings.SALESFORCE_ACCESS_TOKEN),'archive excludes installation credentials')
   const restored=await harness({bindings:salesforceBindings,networkEdge:edge.networkEdge})
   try{await restored.post('/api/inkwell/archive/restore',{archive});assert.deepEqual((await restored.send('/api/inkwell/envelopes/'+ie.id,undefined,restored.owner)).value.envelope.fields,ie.fields);assert.equal((await restored.db.prepare('SELECT count(*) n FROM iw_salesforce_envelopes').first()).n,0);await restored.post(`/api/inkwell/salesforce/envelopes/${ie.id}/writeback`,{},restored.owner,404)}finally{await restored.close()}
+  await h.post('/api/inkwell/erase',{id:ie.id,confirmation:'ERASE'})
+  assert.equal((await h.db.prepare('SELECT count(*) n FROM iw_salesforce_envelopes WHERE envelope_id=?').bind(ie.id).first()).n,0)
+  const erasedCalls=edge.calls.length;await prepare(capture,h.owner,410);assert.equal(edge.calls.length,erasedCalls,'erased preparation replay reads and writes nothing')
+  const laterJournal=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
+  const fenced=await harness()
+  try{await fenced.post('/api/inkwell/archive/restore',{archive,laterJournal},fenced.owner,400)}finally{await fenced.close()}
   const logs=JSON.stringify(h.logs())+(await h.send('/api/inkwell/audit.csv',undefined,h.owner)).value
   for(const value of ['48600','Local company','Provider update','Bearer '+salesforceBindings.SALESFORCE_ACCESS_TOKEN])assert.equal(logs.includes(value),false,'logs exclude provider values and credentials')
   const newAuth=(await sync({operation:'authorize',definition,consent:true})).value

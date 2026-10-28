@@ -13,13 +13,20 @@ export async function salesforceJourney(){
   await mkdir(proof,{recursive:true})
   const pdf=await PDFDocument.create();pdf.addPage([612,792]).drawText('Synthetic Salesforce agreement',{x:45,y:720,size:18})
   const template=await app.command('template.save',{title:'Salesforce service agreement',filename:'synthetic-inkwell-8.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),roles:[{role:'Client'}],fields:[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.7,width:.5,height:.05},{id:'amount',label:'Amount',type:'number',signer:0,page:0,x:.1,y:.3,width:.4,height:.05}]})
-  const policy=(await app.call('/api/inkwell/send-policies',{cookie:app.owner})).value.policies.find(p=>p.source==='integration')
-  await app.command('account.send_policy',{source:'integration',expectedVersion:policy.version,mode:'autonomous',templates:[template.id]})
   let envelopeId
   const context=await app.browser.newContext({viewport:{width:1440,height:1000}});await context.addCookies([app.ownerCookie()]);const page=await context.newPage();page.setDefaultTimeout(20_000)
   const settings=async()=>{await page.goto(app.origin+'/app');await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('heading',{name:'Salesforce',exact:true}).waitFor()}
   const panel=page.getByRole('region',{name:'Salesforce connector',exact:true})
   await settings()
+  const policyForm=page.getByRole('form',{name:'Salesforce integration sends',exact:true})
+  await policyForm.getByRole('combobox').selectOption('autonomous')
+  await policyForm.getByRole('checkbox',{name:'Use all templates',exact:true}).uncheck()
+  await policyForm.getByRole('checkbox',{name:'Salesforce service agreement',exact:true}).check()
+  await capture('send-policy',policyForm)
+  await policyForm.getByRole('button',{name:'Save Salesforce integration sends policy',exact:true}).click()
+  await expect(policyForm.getByRole('button',{name:'Save Salesforce integration sends policy',exact:true})).toBeDisabled()
+  const policies=(await app.call('/api/inkwell/send-policies',{cookie:app.owner})).value.policies
+  assert.equal(policies.find(p=>p.source==='salesforce').mode,'autonomous');assert.equal(policies.find(p=>p.source==='integration').mode,'off','Salesforce does not widen HubSpot sending')
   await expect(panel).toContainText('Connected account synthetic-inkwell-2')
   const authorize=panel.getByRole('checkbox',{name:/I authorize this account, record scope/})
   await expect(authorize).not.toBeChecked();await tabTo(page,authorize);await page.keyboard.press('Space')
@@ -31,7 +38,7 @@ export async function salesforceJourney(){
   const book=(await app.call('/api/inkwell/contacts?q=Synthetic',{cookie:app.owner})).value
   assert.ok(book.contacts.some(c=>c.email===salesforceAddress(6)&&c.company==='Synthetic company'))
   const launch=panel.getByRole('region',{name:'Prepare from Salesforce',exact:true})
-  await launch.getByLabel('CRM record ID',{exact:true}).fill('synthetic-inkwell-3');await launch.getByLabel('CRM agreement template',{exact:true}).selectOption(template.id)
+  await launch.getByLabel('CRM record ID',{exact:true}).fill('synthetic-inkwell-3');await launch.getByLabel('CRM agreement template').selectOption(template.id)
   await launch.getByLabel('CRM recipient name',{exact:true}).fill('Synthetic signer');await launch.getByLabel('CRM recipient email',{exact:true}).fill(salesforceAddress(6))
   await launch.getByRole('button',{name:'Add CRM field mapping',exact:true}).click();await launch.getByLabel('Template field ID',{exact:true}).fill('amount');await launch.getByLabel('Salesforce field',{exact:true}).fill('Amount')
   await launch.getByRole('checkbox',{name:'Send under the integration sending policy after preparation',exact:true}).check()
