@@ -7,7 +7,9 @@ export async function salesforceSanity(){
  try{
   const pdf=await PDFDocument.create();pdf.addPage([612,792])
   const field=(id,type,y)=>({id,label:id,type,signer:0,page:0,x:.1,y,width:.5,height:.05})
-  const template=(await h.command('template.save',{title:'synthetic-inkwell-8',filename:'synthetic-inkwell-8.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),roles:[{role:'Client'}],fields:[field('signature','signature',.5),field('amount','number',.3)]})).result.id
+  const templateDefinition={title:'synthetic-inkwell-8',filename:'synthetic-inkwell-8.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),roles:[{role:'Client'}],fields:[field('signature','signature',.5),field('amount','number',.3)]}
+  const template=(await h.command('template.save',templateDefinition)).result.id
+  const checkboxTemplate=(await h.command('template.save',{...templateDefinition,fields:[...templateDefinition.fields,field('approved','checkbox',.4)]})).result.id
   const read=async id=>(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
   const prepare=(extra={},cookie=h.owner,status=200)=>h.post('/api/inkwell/salesforce/prepare',{commandId:crypto.randomUUID(),consent:true,recordType:'Opportunity',recordId:'synthetic-inkwell-3',templateId:template,recipients:[{name:'Synthetic signer',email:salesforceAddress(6)}],mappings:[{field:'amount',property:'Amount',readOnly:true}],...extra},cookie,status)
   const admin=await h.invite(salesforceAddress(11),'admin')
@@ -24,7 +26,7 @@ export async function salesforceSanity(){
   await prepare({send:true},h.owner,403)
   assert.equal((await h.db.prepare('SELECT count(*) n FROM iw_envelopes').first()).n,before,'policy-off send creates no envelope')
   const current=(await h.send('/api/inkwell/send-policies',undefined,h.owner)).value.policies.find(p=>p.source==='salesforce')
-  await h.command('account.send_policy',{source:'salesforce',expectedVersion:current.version,mode:'autonomous',templates:[template]})
+  await h.command('account.send_policy',{source:'salesforce',expectedVersion:current.version,mode:'autonomous',templates:[template,checkboxTemplate]})
   for(const [type,key,property] of [['Account','synthetic-inkwell-5','AnnualRevenue'],['Contact','synthetic-inkwell-6','Phone']]){
    if(type==='Contact')edge.records.get('Contact:'+key).Phone='48600'
    const value=(await prepare({send:true,...(type==='Contact'?{recipients:undefined}:{}),recordType:type,recordId:key,mappings:[{field:'amount',property,readOnly:true}]})).value
@@ -53,10 +55,13 @@ export async function salesforceSanity(){
   assert.deepEqual(authorization.mappings,[{field:'amount',property:'Amount',readOnly:true}]);assert.match(authorization.statement,/return completion status/)
 
   for(const stage of ['properties','file']){
-   const command={commandId:crypto.randomUUID(),send:true},sent=(await prepare(command)).value,e=await read(sent.id)
+   const checkbox=stage==='properties',checkboxValue=String(checkbox),changedCheckbox=String(!checkbox)
+   edge.records.get('Opportunity:synthetic-inkwell-3').Approved__c=checkbox
+   const command={commandId:crypto.randomUUID(),send:true,templateId:checkboxTemplate,mappings:[{field:'amount',property:'Amount',readOnly:true},{field:'approved',property:'Approved__c',readOnly:true}]},sent=(await prepare(command)).value,e=await read(sent.id)
    assert.equal((await prepare(command)).value.id,sent.id,'preparation replay returns the same envelope')
    assert.equal(e.status,'awaiting_signature');assert.equal(e.sendOrigin.credential.kind,'salesforce')
    const amount=e.fields.find(f=>f.id==='amount');assert.equal(amount.prefill.value,'48600.00');assert.equal(amount.readOnly,true);assert.equal(amount.prefill.source,'Salesforce synthetic-inkwell-2 Opportunity synthetic-inkwell-3.Amount')
+   const approved=e.fields.find(f=>f.id==='approved');assert.equal(approved.prefill.value,checkboxValue);assert.equal(approved.readOnly,true);assert.equal(approved.prefill.source,'Salesforce synthetic-inkwell-2 Opportunity synthetic-inkwell-3.Approved__c')
    assert.equal((await h.send('/api/inkwell/envelopes/'+e.id,undefined,sender)).status,403,'CRM ownership grants no reader access')
    let follow=(await h.send(`/api/inkwell/envelopes/${e.id}/followup`,undefined,h.owner)).value
    assert.equal(follow.grant,null);assert.equal(follow.defaultEscalationOwner,e.createdBy)
@@ -66,8 +71,11 @@ export async function salesforceSanity(){
    const mail=await h.mail(salesforceAddress(6),'Please sign:'),path='/api'+new URL(mail.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
    await h.post(path+'/code',{},'');const code=(await h.mail(salesforceAddress(6),'verification code')).text.match(/\b\d{6}\b/)[0],cookie=(await h.post(path+'/verify',{code},'')).cookie
    await h.agree(path,cookie)
+   assert.deepEqual((await h.send(path,undefined,cookie)).value.fields.find(f=>f.id==='approved').prefill,approved.prefill,'the recipient sees the merged checkbox and its source')
    await h.post(path+'/progress',{values:{amount:'1'}},cookie,400)
    await h.post(path+'/sign',{commandId:crypto.randomUUID(),consent:true,values:{signature:'Synthetic signer',amount:'1'}},cookie,400)
+   await h.post(path+'/progress',{values:{approved:changedCheckbox}},cookie,400)
+   await h.post(path+'/sign',{commandId:crypto.randomUUID(),consent:true,values:{signature:'Synthetic signer',approved:changedCheckbox}},cookie,400)
    edge.failNext(stage)
    const sign={commandId:crypto.randomUUID(),consent:true,values:{signature:'Synthetic signer'}}
    await h.post(path+'/sign',sign,cookie)
@@ -82,7 +90,8 @@ export async function salesforceSanity(){
    }
    progress=(await h.post(wb,{})).value;assert.equal(progress.status,'completed');assert.equal(progress.propertiesUpdated,true);assert.ok(progress.fileId)
    const completed=await read(e.id),patches=edge.patches.filter(p=>p.fields.Inkwell_Envelope_Id__c===e.id),files=edge.files.filter(f=>f.Title.startsWith(e.id))
-   assert.equal(patches.length,1);assert.equal(files.length,1);assert.equal(patches[0].fields.Inkwell_Status__c,'completed');assert.equal(patches[0].fields.Inkwell_Signed_SHA256__c,completed.signedSha256);assert.deepEqual(JSON.parse(patches[0].fields.Inkwell_Key_Fields__c),{amount:'48600.00'})
+   assert.equal(completed.signers[0].values.approved,checkboxValue,'signing retains the locked checkbox when omitted from the submission')
+   assert.equal(patches.length,1);assert.equal(files.length,1);assert.equal(patches[0].fields.Inkwell_Status__c,'completed');assert.equal(patches[0].fields.Inkwell_Signed_SHA256__c,completed.signedSha256);assert.deepEqual(JSON.parse(patches[0].fields.Inkwell_Key_Fields__c),{amount:'48600.00',approved:checkboxValue})
    assert.equal(files[0].FirstPublishLocationId,'synthetic-inkwell-3');assert.deepEqual(files[0].bytes,Buffer.from((await h.send(`/api/inkwell/envelopes/${e.id}/artifacts/signed`,undefined,h.owner)).bytes))
    const writes=edge.patches.length+edge.files.length;await h.post(wb,{});await h.post(path+'/sign',sign,cookie);assert.equal(edge.patches.length+edge.files.length,writes,'capture and completion replay duplicate nothing')
   }

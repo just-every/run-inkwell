@@ -1877,7 +1877,7 @@
       "executable": false
     },
     "src/inkwell/salesforce.ts": {
-      "sha256": "b417e9d956e747af4fc0737a1dc0f186764e0b350dcc4420d2a84d95a02c8d06",
+      "sha256": "6ed38e6d70cfb337a4683da3b8f1fcc28f08e24e2537cd956666164c97d13e67",
       "executable": false
     },
     "src/inkwell/saved-marks.ts": {
@@ -4773,7 +4773,7 @@
       "executable": false
     },
     "tests/salesforce.mjs": {
-      "sha256": "dc79338f7e57322a359b7ded44d93b25862998d575612a3f56a66997b9e9ca77",
+      "sha256": "74201e1582187ee13eb2a63e0ac4c00f53863c8af452c7c6d0005f5f695a6c80",
       "executable": false
     },
     "tests/send-policies.test.mjs": {
