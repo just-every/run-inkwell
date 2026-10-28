@@ -10,6 +10,7 @@ export async function salesforceSanity(){
   const template=(await h.command('template.save',{title:'synthetic-inkwell-8',filename:'synthetic-inkwell-8.pdf',pdfBase64:Buffer.from(await pdf.save()).toString('base64'),roles:[{role:'Client'}],fields:[field('signature','signature',.5),field('amount','number',.3)]})).result.id
   const read=async id=>(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
   const prepare=(extra={},cookie=h.owner,status=200)=>h.post('/api/inkwell/salesforce/prepare',{commandId:crypto.randomUUID(),consent:true,recordType:'Opportunity',recordId:'synthetic-inkwell-3',templateId:template,recipients:[{name:'Synthetic signer',email:salesforceAddress(6)}],mappings:[{field:'amount',property:'Amount',readOnly:true}],...extra},cookie,status)
+  const admin=await h.invite(salesforceAddress(11),'admin')
   const viewer=await h.invite(salesforceAddress(9),'member'),sender=await h.invite(salesforceAddress(10),'member')
   const senderId=(await h.send('/api/inkwell',undefined,sender)).value.actor.id
   await h.command('member.role',{operatorId:senderId,role:'sender'})
@@ -26,10 +27,31 @@ export async function salesforceSanity(){
   await h.command('account.send_policy',{source:'salesforce',expectedVersion:current.version,mode:'autonomous',templates:[template]})
   for(const [type,key,property] of [['Account','synthetic-inkwell-5','AnnualRevenue'],['Contact','synthetic-inkwell-6','Phone']]){
    if(type==='Contact')edge.records.get('Contact:'+key).Phone='48600'
-   const value=(await prepare({recordType:type,recordId:key,mappings:[{field:'amount',property,readOnly:true}]})).value
-   const e=await read(value.id);assert.equal(e.status,'prepared');assert.equal(e.fields.find(f=>f.id==='amount').prefill.source,`Salesforce synthetic-inkwell-2 ${type} ${key}.${property}`)
+   const value=(await prepare({send:true,...(type==='Contact'?{recipients:undefined}:{}),recordType:type,recordId:key,mappings:[{field:'amount',property,readOnly:true}]})).value
+   const e=await read(value.id);assert.equal(e.status,'awaiting_signature');assert.equal(e.fields.find(f=>f.id==='amount').prefill.source,`Salesforce synthetic-inkwell-2 ${type} ${key}.${property}`)
+   const message=await h.mail(e.signers[0].email,'Please sign:'),path='/api'+new URL(message.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+   await h.post(path+'/code',{},'');const code=(await h.mail(e.signers[0].email,'verification code')).text.match(/\b\d{6}\b/)[0],cookie=(await h.post(path+'/verify',{code},'')).cookie
+   await h.agree(path,cookie);await h.post(path+'/sign',{commandId:crypto.randomUUID(),consent:true,values:{signature:'Synthetic signer'}},cookie)
+   const completion=(await h.send(`/api/inkwell/salesforce/envelopes/${e.id}/writeback`,undefined,h.owner)).value
+   assert.equal(completion.status,'completed');assert.equal(completion.recordType,type);assert.equal(completion.recordId,key)
+   const written=edge.patches.find(p=>p.fields.Inkwell_Envelope_Id__c===e.id),file=edge.files.find(f=>f.Title.startsWith(e.id))
+   assert.equal(written.record,type+':'+key);assert.equal(written.fields.Inkwell_Status__c,'completed');assert.equal(file.FirstPublishLocationId,key)
+   assert.deepEqual(file.bytes,Buffer.from((await h.send(`/api/inkwell/envelopes/${e.id}/artifacts/signed`,undefined,h.owner)).bytes))
+
   }
   edge.records.get('Contact:synthetic-inkwell-6').Phone=null
+  const owner=(await h.send('/api/inkwell',undefined,h.owner)).value.actor.id,adminEnvelope=(await prepare({send:true},admin)).value,ae=await read(adminEnvelope.id)
+  assert.notEqual(ae.createdBy,owner,'the selected CRM owner differs from the preparing administrator')
+  const crmOwner=(await h.send(`/api/inkwell/envelopes/${ae.id}/followup`,undefined,h.owner)).value
+  assert.equal(crmOwner.defaultEscalationOwner,owner);assert.equal(crmOwner.grant,null,'the eligible CRM owner is only a default')
+  await h.command('envelope.followup',{id:ae.id,enabled:true},admin)
+  const explicit=(await h.send(`/api/inkwell/envelopes/${ae.id}/followup`,undefined,h.owner)).value.grant
+  assert.equal(explicit.escalationOwner,owner);assert.equal(explicit.memberId,ae.createdBy);assert.equal(explicit.state,'active')
+  await h.command('envelope.followup',{id:ae.id,enabled:false},admin)
+  const authorization=ae.events.find(event=>event.action==='salesforce.record_prepared').detail.authorization
+  assert.equal(authorization.actor,ae.createdBy);assert.equal(authorization.accountId,'synthetic-inkwell-2');assert.equal(authorization.recordId,'synthetic-inkwell-3');assert.ok(Number.isFinite(Date.parse(authorization.at)))
+  assert.deepEqual(authorization.mappings,[{field:'amount',property:'Amount',readOnly:true}]);assert.match(authorization.statement,/return completion status/)
+
   for(const stage of ['properties','file']){
    const command={commandId:crypto.randomUUID(),send:true},sent=(await prepare(command)).value,e=await read(sent.id)
    assert.equal((await prepare(command)).value.id,sent.id,'preparation replay returns the same envelope')
@@ -70,6 +92,11 @@ export async function salesforceSanity(){
   await sync({operation:'authorize',definition,consent:true},sender,403)
   const auth=(await sync({operation:'authorize',definition,consent:true})).value
   const run=(await sync({operation:'start',authorizationId:auth.id,requestId:crypto.randomUUID()})).value;assert.equal(run.records,1);assert.equal(run.remaining,'more_pages')
+  edge.intercept(request=>new URL(request.url).pathname.endsWith('/query/synthetic-inkwell-page')?Response.json({error:'untrusted-provider-body'},{status:503}):undefined)
+  await sync({operation:'continue',runId:run.id},h.owner,502)
+  const failed=(await h.send('/api/inkwell/salesforce/progress',undefined,h.owner)).value.runs.find(item=>item.id===run.id)
+  assert.equal(failed.status,'failed');assert.equal(failed.pages,1);assert.equal(failed.failures,1)
+  edge.intercept(undefined)
   assert.equal((await sync({operation:'continue',runId:run.id})).value.status,'completed')
   const book=(await h.send('/api/inkwell/contacts?q=Synthetic',undefined,sender)).value
   assert.ok(book.contacts.some(c=>c.email===salesforceAddress(6)&&c.name==='Synthetic Signer'&&c.company==='Synthetic company'),'a provider contact is visible in the native sender contact book')
@@ -98,5 +125,12 @@ export async function salesforceSanity(){
   const newRun=(await sync({operation:'start',authorizationId:newAuth.id,requestId:crypto.randomUUID()})).value
   await h.db.prepare("UPDATE iw_salesforce_credentials SET active=0 WHERE id='salesforce'").run()
   const stopped=edge.calls.length;await sync({operation:'continue',runId:newRun.id},h.owner,403);assert.equal(edge.calls.length,stopped)
+  const adminAuth=(await sync({operation:'authorize',definition,consent:true},admin)).value
+  const adminRun=(await sync({operation:'start',authorizationId:adminAuth.id,requestId:crypto.randomUUID()},admin)).value
+  const adminId=(await h.send('/api/inkwell',undefined,admin)).value.actor.id
+  await h.db.prepare("UPDATE oa_operators SET role='member' WHERE id=?").bind(adminId).run()
+  await h.db.prepare("UPDATE oa_operators SET role='admin' WHERE id=?").bind(adminId).run()
+  const narrowed=edge.calls.length;await sync({operation:'continue',runId:adminRun.id},h.owner,403);assert.equal(edge.calls.length,narrowed,'restoring a member cannot revive the retired authorization')
+
  }finally{await h.close()}
 }
