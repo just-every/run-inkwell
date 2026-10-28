@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "f873447a5f5a41d2e05ae57d9b2af17463912d67fb44be16d0c85f7138c7256a",
+      "sha256": "1d958c6252795bc298a09ec73c41d8e1fd108cc632243efa13d13743da7eece4",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "081cfe82a329fb68db649734eaa062779cce8455f630d3f933360a7df48d7ce5",
+      "sha256": "1603c7bf82703111893e80d1fc821083ba8c9dcd379fb49d22df1a145e783ec8",
       "executable": false
     },
     "DEMO.md": {
@@ -4773,7 +4773,7 @@
       "executable": false
     },
     "tests/salesforce.mjs": {
-      "sha256": "1ca6a489e11d69a69d4d8b9a64a28c3e32a77b4a34438e3b4663d5d8854dbd0f",
+      "sha256": "dc79338f7e57322a359b7ded44d93b25862998d575612a3f56a66997b9e9ca77",
       "executable": false
     },
     "tests/send-policies.test.mjs": {
