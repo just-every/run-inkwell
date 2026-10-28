@@ -47,7 +47,7 @@ for(const provider of ['acrobat','dropbox'])test(`${provider}: reviewed API impo
   assert.equal((await h.send(`/api/inkwell/envelopes/${known.id}`,undefined,b)).status,403)
   assert.equal((await h.send(`/api/inkwell/envelopes/${fallback.id}/artifacts/signed`,undefined,a)).status,403)
   assert.deepEqual((await h.send(`/api/inkwell/envelopes/${known.id}/artifacts/signed`,undefined,a)).bytes,new Uint8Array(fake.pdf))
-  assert.deepEqual((await h.send(`/api/inkwell/envelopes/${known.id}/artifacts/certificate`,undefined,a)).bytes,new Uint8Array(fake.pdf))
+  assert.deepEqual((await h.send(`/api/inkwell/envelopes/${known.id}/artifacts/certificate`,undefined,a)).bytes,new Uint8Array(fake.audit))
   assert.deepEqual((await h.send('/api/inkwell/templates',undefined,a)).value.templates.map(t=>t.id),[template.id])
   assert.deepEqual((await h.send('/api/inkwell/templates',undefined,b)).value.templates,[])
   await h.command('template.use',{id:template.id,recipients:[{name:'New client',email:'new.client@example.test'}]},b,404)
