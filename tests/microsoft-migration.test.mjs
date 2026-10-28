@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare'
 import { unstable_splitSqlQuery } from 'wrangler'
 
-test('Microsoft filing migration preserves main folder identity and unresolved job custody on an existing installation',async()=>{
+test('Microsoft and Google filing migrations preserve main folder identity and unresolved job custody on an existing installation',async()=>{
  const mf=new Miniflare(convertV4MiniflareOptions({modules:true,script:'export default {fetch(){return new Response("ok")}}',compatibilityDate:'2026-09-08',d1Databases:{DB:'migration'}}))
  try{
   const db=await mf.getD1Database('DB')
@@ -20,5 +20,11 @@ test('Microsoft filing migration preserves main folder identity and unresolved j
   await db.prepare("INSERT INTO iw_filing_rules VALUES('template','sharepoint','drive:folder',1,1,'owner','recorded-at',NULL)").run()
   await db.prepare("INSERT INTO iw_microsoft_uploads VALUES('upload','{}')").run()
   assert.equal((await db.prepare('SELECT count(*) AS n FROM iw_filing_rules').first()).n,2)
+  const rules=(await db.prepare('SELECT * FROM iw_filing_rules ORDER BY provider').all()).results
+  await apply(await readFile('migrations/core/0082_google_filing.sql','utf8'))
+  assert.deepEqual((await db.prepare('SELECT * FROM iw_filing_rules ORDER BY provider').all()).results,rules)
+  assert.deepEqual(await db.prepare('SELECT * FROM iw_filing_jobs').first(),job)
+  await db.prepare("INSERT INTO iw_filing_rules VALUES('template','google','google-folder',1,1,'owner','recorded-at',NULL)").run()
+  assert.equal((await db.prepare('SELECT count(*) AS n FROM iw_filing_rules').first()).n,3)
  }finally{await mf.dispose()}
 })

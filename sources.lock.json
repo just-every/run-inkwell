@@ -4641,7 +4641,7 @@
       "executable": false
     },
     "tests/microsoft-migration.test.mjs": {
-      "sha256": "845dda8c85be2a3f280865ccb3ffe5d1f4bd2a5929510fcec7f6df4dfefe4a15",
+      "sha256": "4d59649784e96fd354a16c2ae3d70dd06ca6c8950b5197896fbacc80cf3343ac",
       "executable": false
     },
     "tests/own-signing.test.mjs": {
