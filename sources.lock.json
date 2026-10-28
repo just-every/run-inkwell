@@ -157,7 +157,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "570c0d3563d876802f346efe49d040d5f892d15d4acb789d74b8b89c5271481a",
+      "sha256": "59f497795936f71f01cde5feebf9bf9828408e583f334b145cb2c47c88c06fdc",
       "executable": false
     },
     ".gitignore": {
@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "e596c66bca7086373b45af7eec1fdbe876e6da2ada093a9481cb14e943626340",
+      "sha256": "510372ba1452586cfa89c8601e45f0f5272bff237a5e5ab1cbf770452265d350",
       "executable": false
     },
     "AGENTS.md": {
@@ -193,7 +193,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "ba505b777b824f6078cc693310341a9e629a267eb46b52918552fcc2227b7647",
+      "sha256": "bc97287d2e3b09d739b9d396866f0a60a086ded6f651a451c662d3faaa30f132",
       "executable": false
     },
     "DEMO.md": {
@@ -241,7 +241,7 @@
       "executable": false
     },
     "docs/contract/DONE-AUDIT.md": {
-      "sha256": "029480ad08d5b6e1b0d1d4e1542f9c46ce1e617f6657c164b0545fd321f928dd",
+      "sha256": "8e67c8b191a3facbe4f1d08b20d44fab44667bcd9ed67528dad6b2253720f835",
       "executable": false
     },
     "docs/contract/ID-MAP.json": {

@@ -26,7 +26,7 @@ Core · published · **done** · Cites BASE-OPS-001
 **Requirement.** Application documents, product API requests and unknown routes reach the intended public door, with deployment identity available to the operator. The [detailed record rules](docs/contract/record-rules.md#http-001) apply.
 
 **Acceptance.**
-1. the built Worker answers `/health` with its deployment fingerprint, source and version, serves the application document, and returns 404 for unknown routes.
+1. the built Worker answers the public health door with its deployment fingerprint, source and version, serves the application document, and returns 404 for unknown routes.
 
 **Evidence.** `tests/runtime.mjs`, `src/inkwell/api.ts`
 **Gap.** None.
@@ -101,7 +101,7 @@ Core · published · **partial** · Cites BASE-ROLE-001, BASE-AUDIT-001 · Rules
 
 #### DELEGATE-001 — Scoped preparation credentials
 
-Core · published · **partial** · Cites BASE-AGENT-004, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · Rules D-3
+Core · published · **partial** · Cites BASE-AGENT-004, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · Rules D-3
 
 **Requirement.** A preparation credential grants only envelope preparation. Sending and signing use separate capabilities carrying external and commitment, respectively; the company’s risk policy decides an agent’s calls. Human attribution is reserved for the person’s own action. The [detailed record rules](docs/contract/record-rules.md#delegate-001) apply.
 
@@ -282,7 +282,7 @@ Core · target · **partial** · Cites BASE-INPUT-001, BASE-INPUT-003 · Rules D
 2. Drag, resize, duplicate, align and reassign join `SIGNX-003`'s accessibility scan and keyboard-only journey (with a keyboard way to do each) before they ship.
 
 **Evidence.** `tests/journeys/field-placement.mjs`, `tests/journeys/a11y.mjs`, `src/ui/field-editor.tsx`, `src/ui/editable-field.tsx`, `src/ui/field-inspector.tsx`, `src/ui/field-layout.ts`, `src/ui/page-thumbnails.tsx`, `src/ui/pdf-viewer.tsx`
-**Gap.** Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: Duplicating to every page preserves positions..
+**Gap.** The carried evidence now has asserting citations for every acceptance outcome. A fresh ct status judgment is required before reversing this round’s published partial status.
 
 #### PREP-006 — AI field and recipient detection
 
@@ -318,7 +318,7 @@ Core · target · **partial** · Cites BASE-INPUT-001, BASE-INPUT-003 · Rules D
 1. send from a template with a HubSpot-fake deal supplied as the API payload; company, address and amount prefill with their reported source in the record, and the signer cannot change the locked amount.
 
 **Evidence.** `tests/prefill.test.mjs`, `tests/journeys/prefill.mjs`, `src/inkwell/prefill.ts`, `src/ui/field-prefill-editor.tsx`
-**Gap.** Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: The template accepts a HubSpot-fake deal supplied as API prefill..
+**Gap.** Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: The template accepts a HubSpot-fake deal supplied as API prefill.. The cited prefill value is read before the rejected edit; a post-refusal read of the locked amount is not established in the carried audit.
 
 #### PREP-009 — Messages, drafts and scheduled sending
 
@@ -819,7 +819,7 @@ Core · target · **partial** · Cites BASE-SECRET-001, BASE-ROLE-001 · Registe
 1. one envelope with four recipients using four different methods, one of them link only; each must pass their own method, the link-only recipient signs with no code, and the certificate lists each method and result.
 
 **Evidence.** `src/inkwell/signing.ts`, `src/inkwell/drafts.ts`, `src/inkwell/corrections.ts`, `src/inkwell/templates.ts`, `src/inkwell/certificate.ts`, `src/ui/prepare-envelope.tsx`, `src/ui/signer-app.tsx`, `tests/api.test.mjs`, `tests/journeys/templates.mjs`
-**Gap.** Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: The envelope preserves four distinct authentication combinations..
+**Gap.** The carried evidence now has asserting citations for every acceptance outcome. A fresh ct status judgment is required before reversing this round’s published partial status.
 
 #### IDV-002 — SMS one-time codes
 
@@ -1747,7 +1747,7 @@ Core · target · **partial** · Cites BASE-ACCESSIBILITY-001
 1. at 390 pixels, send from a template, remind a signer and void an envelope.
 
 **Evidence.** `public/manifest.webmanifest`, `src/routes/__root.tsx`, `src/ui/templates.tsx`, `public/app/shell.css`, `tests/journeys/mobile-sending.mjs`, `tests/journeys/correct-envelope.mjs`
-**Gap.** Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: The phone journey sends from a template..
+**Gap.** The carried evidence now has asserting citations for every acceptance outcome. A fresh ct status judgment is required before reversing this round’s published partial status.
 
 #### MOBILE-002 — Native iOS and Android apps
 
@@ -1889,7 +1889,7 @@ Core · target · **partial** · Cites BASE-ROLE-001, BASE-AUDIT-001 · Register
 
 #### AGENT-001 — Assemble the envelope from CRM and email context
 
-Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · Rules D-3
+Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · Rules D-3
 
 **Requirement.** From a request such as “send the MSA to Acme” or a deal-stage change, the agreement specialist selects the approved template and proposes roles, fields and signatories from Orbit, HubSpot or Salesforce and a granted Gmail or Outlook thread. Values carry their source and confidence; unsourced values stay empty. Preparation carries standard, sending carries external, and binding decisions carry commitment; the company’s risk policy decides each call. The [detailed record rules](docs/contract/record-rules.md#agent-001) apply.
 
@@ -1901,7 +1901,7 @@ Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BAS
 
 #### AGENT-002 — Fill what is missing
 
-Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · Rules D-3
+Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · Rules D-3
 
 **Requirement.** The specialist detects missing parties, fields, attachments and inconsistent entity names, titles or W-9s. It asks the appropriate sender, colleague or recipient one specific question and merges answers with provenance. Internal drafting carries standard, outside questions carry external, and changed material terms carry commitment; the company’s risk policy decides each step. The [detailed record rules](docs/contract/record-rules.md#agent-002) apply.
 
@@ -1913,7 +1913,7 @@ Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BAS
 
 #### AGENT-003 — Chase stalled signers under the sender's rules
 
-Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · Rules D-3
+Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · Rules D-3
 
 **Requirement.** The specialist distinguishes bad addresses, unavailable signers and substantive objections using delivery, signing and granted reply records. Follow-up observes the sender’s channels, contact limits, quiet hours and escalation owner; substantive objections go to the sender or Locket. Sending outside carries external and changing agreement terms carries commitment; the company’s risk policy decides those calls. Detailed reply identity and custody rules govern every connected mailbox. The [detailed record rules](docs/contract/record-rules.md#agent-003) apply.
 
@@ -1925,7 +1925,7 @@ Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BAS
 
 #### AGENT-004 — Verify the intended revision and parties
 
-Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · Rules D-3
+Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · Rules D-3
 
 **Requirement.** Before sending and at completion, the specialist compares each page to the approved Locket or template revision, checks every required party’s entity and capacity, and checks required fields for completeness and plausibility. A mismatch produces an exception with evidence. Releasing a binding exception carries commitment under the company’s risk policy; a completed record remains immutable. The [detailed record rules](docs/contract/record-rules.md#agent-004) apply.
 
@@ -1937,7 +1937,7 @@ Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BAS
 
 #### AGENT-005 — Complete the downstream work
 
-Core · push-further · **missing** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · Rules D-3
+Core · push-further · **missing** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · Rules D-3
 
 **Requirement.** After verified completion, the specialist updates the CRM deal stage, files the record in Locket and the file store, and creates the next onboarding or invoice-draft task in Nectar, Pantry or Willow. Each effect has a receipt and runs once. Outside handoffs carry external; charges carry money and binding terms carry commitment. The company’s risk policy decides each call within the granted systems, fields and task types. The [detailed record rules](docs/contract/record-rules.md#agent-005) apply.
 
@@ -1949,7 +1949,7 @@ Core · push-further · **missing** · Cites BASE-AGENT-002, BASE-AGENT-005, BAS
 
 #### AGENT-006 — Keep integrations correct
 
-Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · Rules D-3
+Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · Rules D-3
 
 **Requirement.** The specialist reconciles webhook and connector state against Inkwell records, detects renamed CRM fields, moved folders and expired tokens, and proposes mapping repairs without duplicate remote effects. Internal repairs carry standard, outside replays carry external and credential changes carry security; the company’s risk policy decides scope changes and repairs. An uncertain remote outcome remains unresolved until evidence establishes it. The [detailed record rules](docs/contract/record-rules.md#agent-006) apply.
 
@@ -1961,7 +1961,7 @@ Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BAS
 
 #### AGENT-007 — Keep templates current
 
-Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · Rules D-3
+Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · Rules D-3
 
 **Requirement.** The specialist proposes template revisions from repeated sender corrections, new IRS W-9 revisions and changed company addresses. Suggestions cite the supporting envelopes and show the old and proposed definitions. Publishing an internal reusable template carries standard, and changing binding terms carries commitment; the company’s risk policy decides each call through the normal template validator. The [detailed record rules](docs/contract/record-rules.md#agent-007) apply.
 
@@ -1973,7 +1973,7 @@ Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BAS
 
 #### AGENT-008 — Signer assistant
 
-Core · push-further · **missing** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · Rules D-3
+Core · push-further · **missing** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · Rules D-3
 
 **Requirement.** The signer assistant explains fields in English or Spanish and answers questions with the visible document’s page and passage. It gives no legal advice. Questions remain private unless that signer shares them. Reading regulated identity or payment facts carries sensitive, outside sharing carries external, and an agent’s own binding act carries commitment under the company’s risk policy; it cannot impersonate the signer. The [detailed record rules](docs/contract/record-rules.md#agent-008) apply.
 
@@ -1985,7 +1985,7 @@ Core · push-further · **missing** · Cites BASE-AGENT-002, BASE-AGENT-005, BAS
 
 #### AGENT-009 — Inbound agreements
 
-Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · Rules D-3
+Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · Rules D-3
 
 **Requirement.** The specialist reads forwarded agreements and requests from other agreement platforms, identifies the internal signer by business role, prepares their signing and tracks the request. The inbound source follows the authenticated reply and record-custody rules of AGENT-003. Preparation carries standard, returning the executed record carries external and signing carries commitment; the company’s risk policy decides an agent’s calls, and a person’s signature comes from that person’s session. The [detailed record rules](docs/contract/record-rules.md#agent-009) apply.
 
@@ -2001,7 +2001,7 @@ Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BAS
 
 #### SURFACE-001 — Discoverable agreement jobs
 
-Agent surface · target · **missing** · From new · Cites BASE-AGENT-001, BASE-AGENT-002, BASE-AGENT-013 · Register R-11
+Agent surface · target · **missing** · From new · Cites BASE-AGENT-001, BASE-AGENT-002, BASE-AGENT-013 · Rules D-3 · Register R-11
 
 **Requirement.** Discoverable agreement jobs for Inkwell’s agreement specialist.
 
@@ -2015,7 +2015,7 @@ Agent surface · target · **missing** · From new · Cites BASE-AGENT-001, BASE
 
 #### SURFACE-002 — Standard agreement calls
 
-Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · Rules D-3
 
 **Requirement.** Standard agreement calls for Inkwell’s agreement specialist.
 
@@ -2028,7 +2028,7 @@ Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE
 
 #### SURFACE-003 — External agreement calls
 
-Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · Rules D-3
 
 **Requirement.** External agreement calls for Inkwell’s agreement specialist.
 
@@ -2042,7 +2042,7 @@ Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE
 
 #### SURFACE-004 — Money agreement calls
 
-Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · Rules D-3
 
 **Requirement.** Money agreement calls for Inkwell’s agreement specialist.
 
@@ -2055,7 +2055,7 @@ Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE
 
 #### SURFACE-005 — Commitment agreement calls
 
-Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · Rules D-3
 
 **Requirement.** Commitment agreement calls for Inkwell’s agreement specialist.
 
@@ -2068,7 +2068,7 @@ Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE
 
 #### SURFACE-006 — Gated agreement calls
 
-Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · Rules D-3
 
 **Requirement.** Gated agreement calls for Inkwell’s agreement specialist.
 
@@ -2081,7 +2081,7 @@ Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE
 
 #### SURFACE-007 — Access agreement calls
 
-Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · Rules D-3
 
 **Requirement.** Access agreement calls for Inkwell’s agreement specialist.
 
@@ -2094,7 +2094,7 @@ Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE
 
 #### SURFACE-008 — Security agreement calls
 
-Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · Rules D-3
 
 **Requirement.** Security agreement calls for Inkwell’s agreement specialist.
 
@@ -2106,7 +2106,7 @@ Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE
 
 #### SURFACE-009 — Destructive agreement calls
 
-Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · Rules D-3
 
 **Requirement.** Destructive agreement calls for Inkwell’s agreement specialist.
 
@@ -2119,7 +2119,7 @@ Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE
 
 #### SURFACE-010 — Sensitive agreement calls
 
-Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · Rules D-3
 
 **Requirement.** Sensitive agreement calls for Inkwell’s agreement specialist.
 
@@ -2132,7 +2132,7 @@ Agent surface · target · **missing** · From new · Cites BASE-AGENT-006, BASE
 
 #### SURFACE-011 — Agreement resources and change events
 
-Agent surface · target · **missing** · From new · Cites BASE-AGENT-003, BASE-AGENT-010
+Agent surface · target · **missing** · From new · Cites BASE-AGENT-003, BASE-AGENT-010 · Rules D-3
 
 **Requirement.** Agreement resources and change events for Inkwell’s agreement specialist.
 
@@ -2145,7 +2145,7 @@ Agent surface · target · **missing** · From new · Cites BASE-AGENT-003, BASE
 
 #### SURFACE-012 — Agreement handoffs and pending work
 
-Agent surface · target · **missing** · From new · Cites BASE-AGENT-010, BASE-AGENT-012
+Agent surface · target · **missing** · From new · Cites BASE-AGENT-010, BASE-AGENT-012 · Rules D-3
 
 **Requirement.** Agreement handoffs and pending work for Inkwell’s agreement specialist.
 
@@ -2159,7 +2159,7 @@ Agent surface · target · **missing** · From new · Cites BASE-AGENT-010, BASE
 
 #### SURFACE-013 — A specialist’s seeded week
 
-Agent surface · target · **missing** · From new · Cites BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-013
+Agent surface · target · **missing** · From new · Cites BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-013 · Rules D-3
 
 **Requirement.** A specialist’s seeded week for Inkwell’s agreement specialist.
 

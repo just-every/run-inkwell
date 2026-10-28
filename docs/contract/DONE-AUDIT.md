@@ -2,9 +2,9 @@ Old reference: `dd4fa16e1fe4075c776411349f067f15ac9c7e81`.
 
 | Clause | Point | Outcome | Asserting test | Result |
 | --- | --- | --- | --- | --- |
-| HTTP-001 | 1 | Deployment fingerprint is exposed.. | `tests/runtime.mjs:32` | asserted |
-| HTTP-001 | 1 | Deployment source is exposed.. | `tests/runtime.mjs:32` | asserted |
-| HTTP-001 | 1 | Deployment version is exposed.. | `tests/runtime.mjs:32` | asserted |
+| HTTP-001 | 1 | The public health door exposes fingerprint.. | `tests/runtime.mjs:32` | asserted |
+| HTTP-001 | 1 | The public health door exposes source.. | `tests/runtime.mjs:32` | asserted |
+| HTTP-001 | 1 | The public health door exposes version.. | `tests/runtime.mjs:32` | asserted |
 | HTTP-001 | 1 | The application document is served.. | `tests/runtime.mjs:36` | asserted |
 | HTTP-001 | 1 | Unknown routes return 404.. | `tests/runtime.mjs:38` | asserted |
 | ACCESS-001 | 1 | Signed-out, viewer, sender, admin, owner and agent-token authority agrees with the declared matrix at every document, import, agent and archive door.. | none | none |
@@ -72,7 +72,7 @@ Old reference: `dd4fa16e1fe4075c776411349f067f15ac9c7e81`.
 | PREP-004 | 1 | The calculated total prints in the executed PDF.. | `tests/api.test.mjs:1199` | asserted |
 | PREP-005 | 1 | At both widths, pointer placement preserves twelve fields across three pages.. | `tests/journeys/field-placement.mjs:49` | asserted |
 | PREP-005 | 1 | At both widths, keyboard placement preserves the fields across pages.. | `tests/journeys/field-placement.mjs:49` | asserted |
-| PREP-005 | 1 | Duplicating to every page preserves positions.. | none | none |
+| PREP-005 | 1 | Duplicating to every page preserves positions.. | `tests/journeys/field-placement.mjs:106` | asserted |
 | PREP-005 | 1 | Reassigning two fields changes both recipients.. | `tests/journeys/field-placement.mjs:119` | asserted |
 | PREP-005 | 1 | Saving preserves every field and its geometry.. | `tests/journeys/field-placement.mjs:50` | asserted |
 | PREP-005 | 2 | Drag, resize, duplicate, align and reassign join `SIGNX-003`'s accessibility scan and keyboard-only journey (with a keyboard way to do each) before they ship. | `tests/journeys/field-placement.mjs:119` | asserted |
@@ -83,7 +83,7 @@ Old reference: `dd4fa16e1fe4075c776411349f067f15ac9c7e81`.
 | PREP-008 | 1 | Company prefill and its reported source are retained.. | `tests/prefill.test.mjs:47` | asserted |
 | PREP-008 | 1 | Address prefill and its reported source are retained.. | `tests/prefill.test.mjs:48` | asserted |
 | PREP-008 | 1 | Amount prefill and its reported source are retained.. | `tests/prefill.test.mjs:30` | asserted |
-| PREP-008 | 1 | A locked amount cannot be changed by the signer.. | `tests/prefill.test.mjs:30` | asserted |
+| PREP-008 | 1 | A locked amount cannot be changed by the signer.. | none | none |
 | PREP-009 | 1 | Reopening the saved draft preserves its edited fields and private messages.. | `tests/api.test.mjs:663` | asserted |
 | PREP-009 | 1 | The scheduled send records the exact next-business-day Chicago 09:00 time.. | `tests/api.test.mjs:672` | asserted |
 | PREP-009 | 1 | No invitation is sent before that scheduled time.. | `tests/api.test.mjs:675` | asserted |
@@ -279,7 +279,7 @@ Old reference: `dd4fa16e1fe4075c776411349f067f15ac9c7e81`.
 | SIGNX-011 | 3 | A correction changing the name or email, or a reassignment, starts a new recipient identity epoch even when a mailbox is reused. | none | none |
 | SIGNX-011 | 4 | The explicit Record custody export and whole-installation archive carry the complete transcript under the document record-holder’s existing access. | none | none |
 | SIGNX-011 | 4 | custody restoration never grants interactive comment access to the destination owner. | none | none |
-| IDV-001 | 1 | The envelope preserves four distinct authentication combinations.. | none | none |
+| IDV-001 | 1 | The envelope preserves four distinct authentication combinations.. | `tests/api.test.mjs:474` | asserted |
 | IDV-001 | 1 | Each recipient must pass their own authentication method.. | `tests/api.test.mjs:506` | asserted |
 | IDV-001 | 1 | Link-only recipients receive no code.. | `tests/api.test.mjs:503` | asserted |
 | IDV-001 | 1 | The certificate lists link-only, email-code and access-code results.. | `tests/api.test.mjs:506` | asserted |
@@ -423,7 +423,7 @@ Old reference: `dd4fa16e1fe4075c776411349f067f15ac9c7e81`.
 | INTEG-015 | 4 | Unconsented or unauthorized preparation and sync are refused. An ineligible CRM owner gains neither envelope access nor a follow-up grant. | none | none |
 | INTEG-015 | 5 | The audit retains the exact authorization scope, version, actor, time and outcome without credentials or imported field values in operational logs. Restored prepared provenance does not restore connector authority. | none | none |
 | INTEG-015 | 6 | The connector’s configuration, launch and progress screens expose page and record counts, failures and remaining work at both required widths. | none | none |
-| MOBILE-001 | 1 | The phone journey sends from a template.. | none | none |
+| MOBILE-001 | 1 | The phone journey sends from a template.. | `tests/journeys/mobile-sending.mjs:52` | asserted |
 | MOBILE-001 | 1 | The phone journey sends one reminder to the signer.. | `tests/journeys/mobile-sending.mjs:40` | asserted |
 | MOBILE-001 | 1 | The phone journey voids the intended envelope.. | `tests/journeys/mobile-sending.mjs:52` | asserted |
 | PORT-002 | 1 | The exported data is at least 2 GB.. | `tests/journeys/archive-capacity.mjs:40` | asserted |

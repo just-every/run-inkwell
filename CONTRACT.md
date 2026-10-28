@@ -26,7 +26,7 @@ The primary journey: Move templates and records in, prepare the agreement, route
 
 - **D-1.** A sent agreement keeps its original bytes; later corrections do not alter an already signed field or signature.
 - **D-2.** Connected sources preserve the sending authority and document-specific identity, audience and record-custody rules.
-- **D-3.** An agent’s reversible internal work carries standard, outside exposure carries external, binding acts carry commitment, and payment changes carry money. The company’s risk policy decides each call.
+- **D-3.** Agreement risk. Invitations, follow-ups, completed copies and remote filings carry external; signatures and binding agreement decisions carry commitment; frozen Stripe collections carry money. The company’s risk policy decides each call.
 
 ## Shared duties (Base)
 
@@ -69,7 +69,7 @@ The primary journey: Move templates and records in, prepare the agreement, route
 | BASE-AGENT-003 | Records are resources | SURFACE-011 | not run |
 | BASE-AGENT-004 | Business identity and short-lived, audience-bound tokens | DELEGATE-001 | not run |
 | BASE-AGENT-005 | An agent acts as a person in a role, never more | DELEGATE-001, AGENT-001, AGENT-002, AGENT-003, AGENT-004, AGENT-005, AGENT-006, AGENT-007, AGENT-008, AGENT-009, SURFACE-013 | not run |
-| BASE-AGENT-006 | Every action declares its risk class | SURFACE-002, SURFACE-003, SURFACE-004, SURFACE-005, SURFACE-006, SURFACE-007, SURFACE-008, SURFACE-009, SURFACE-010 | not run |
+| BASE-AGENT-006 | Every action declares its risk class | DELEGATE-001, AGENT-001, AGENT-002, AGENT-003, AGENT-004, AGENT-005, AGENT-006, AGENT-007, AGENT-008, AGENT-009, SURFACE-002, SURFACE-003, SURFACE-004, SURFACE-005, SURFACE-006, SURFACE-007, SURFACE-008, SURFACE-009, SURFACE-010 | not run |
 | BASE-AGENT-007 | The company's policy decides, at one chokepoint | DELEGATE-001, AGENT-001, AGENT-002, AGENT-003, AGENT-004, AGENT-005, AGENT-006, AGENT-007, AGENT-008, AGENT-009, SURFACE-002, SURFACE-003, SURFACE-004, SURFACE-005, SURFACE-006, SURFACE-007, SURFACE-008, SURFACE-009, SURFACE-010, SURFACE-013 | not run |
 | BASE-AGENT-008 | Truthful attribution | DELEGATE-001, AGENT-001, AGENT-002, AGENT-003, AGENT-004, AGENT-005, AGENT-006, AGENT-007, AGENT-008, AGENT-009, SURFACE-013 | not run |
 | BASE-AGENT-009 | Every agent action is audited with its class and decision | none | not run |
@@ -86,7 +86,7 @@ The primary journey: Move templates and records in, prepare the agreement, route
 - `SEND-003`: *Tier:* Core · *From:* SEND-001 · *Cites:* BASE-ROLE-001, BASE-AUDIT-001 · *Rules:* D-1
 - `SIGN-001`: *Tier:* Core · *Cites:* BASE-ROLE-001 · *Rules:* D-1
 - `SEND-002`: *Tier:* Core · *Cites:* BASE-ROLE-001, BASE-AUDIT-001 · *Rules:* D-1
-- `DELEGATE-001`: *Tier:* Core · *Cites:* BASE-AGENT-004, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · *Rules:* D-3
+- `DELEGATE-001`: *Tier:* Core · *Cites:* BASE-AGENT-004, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · *Rules:* D-3
 - `RECORD-001`: *Tier:* Core · *Cites:* BASE-AUDIT-001, BASE-DATA-006
 - `MOVE-001`: *Tier:* Core · *Cites:* BASE-DATA-001, BASE-DATA-006, BASE-ROLE-001 · *Rules:* D-2
 - `PORT-001`: *Tier:* Core · *Cites:* BASE-DATA-001, BASE-BACKUP-001
@@ -99,7 +99,7 @@ The primary journey: Move templates and records in, prepare the agreement, route
 **Requirement.** Application documents, product API requests and unknown routes reach the intended public door, with deployment identity available to the operator. The [detailed record rules](docs/contract/record-rules.md#http-001) apply.
 
 **Acceptance.**
-1. the built Worker answers `/health` with its deployment fingerprint, source and version, serves the application document, and returns 404 for unknown routes.
+1. the built Worker answers the public health door with its deployment fingerprint, source and version, serves the application document, and returns 404 for unknown routes.
 
 #### ACCESS-001 — Server-side roles and scoped authority
 
@@ -1713,7 +1713,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### SURFACE-001 — Discoverable agreement jobs
 
-*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-001, BASE-AGENT-002, BASE-AGENT-013 · *Register:* R-11
+*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-001, BASE-AGENT-002, BASE-AGENT-013 · *Rules:* D-3 · *Register:* R-11
 
 **Requirement.** Discoverable agreement jobs for Inkwell’s agreement specialist.
 
@@ -1724,7 +1724,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### SURFACE-002 — Standard agreement calls
 
-*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · *Rules:* D-3
 
 **Requirement.** Standard agreement calls for Inkwell’s agreement specialist.
 
@@ -1734,7 +1734,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### SURFACE-003 — External agreement calls
 
-*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · *Rules:* D-3
 
 **Requirement.** External agreement calls for Inkwell’s agreement specialist.
 
@@ -1745,7 +1745,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### SURFACE-004 — Money agreement calls
 
-*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · *Rules:* D-3
 
 **Requirement.** Money agreement calls for Inkwell’s agreement specialist.
 
@@ -1755,7 +1755,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### SURFACE-005 — Commitment agreement calls
 
-*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · *Rules:* D-3
 
 **Requirement.** Commitment agreement calls for Inkwell’s agreement specialist.
 
@@ -1765,7 +1765,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### SURFACE-006 — Gated agreement calls
 
-*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · *Rules:* D-3
 
 **Requirement.** Gated agreement calls for Inkwell’s agreement specialist.
 
@@ -1775,7 +1775,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### SURFACE-007 — Access agreement calls
 
-*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · *Rules:* D-3
 
 **Requirement.** Access agreement calls for Inkwell’s agreement specialist.
 
@@ -1785,7 +1785,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### SURFACE-008 — Security agreement calls
 
-*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · *Rules:* D-3
 
 **Requirement.** Security agreement calls for Inkwell’s agreement specialist.
 
@@ -1794,7 +1794,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### SURFACE-009 — Destructive agreement calls
 
-*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · *Rules:* D-3
 
 **Requirement.** Destructive agreement calls for Inkwell’s agreement specialist.
 
@@ -1804,7 +1804,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### SURFACE-010 — Sensitive agreement calls
 
-*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013
+*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-006, BASE-AGENT-007, BASE-AGENT-013 · *Rules:* D-3
 
 **Requirement.** Sensitive agreement calls for Inkwell’s agreement specialist.
 
@@ -1814,7 +1814,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### SURFACE-011 — Agreement resources and change events
 
-*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-003, BASE-AGENT-010
+*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-003, BASE-AGENT-010 · *Rules:* D-3
 
 **Requirement.** Agreement resources and change events for Inkwell’s agreement specialist.
 
@@ -1824,7 +1824,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### SURFACE-012 — Agreement handoffs and pending work
 
-*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-010, BASE-AGENT-012
+*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-010, BASE-AGENT-012 · *Rules:* D-3
 
 **Requirement.** Agreement handoffs and pending work for Inkwell’s agreement specialist.
 
@@ -1835,7 +1835,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### SURFACE-013 — A specialist’s seeded week
 
-*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-013
+*Tier:* Agent surface · *From:* new · *Cites:* BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-013 · *Rules:* D-3
 
 **Requirement.** A specialist’s seeded week for Inkwell’s agreement specialist.
 
@@ -1851,7 +1851,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### AGENT-001 — Assemble the envelope from CRM and email context
 
-*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · *Rules:* D-3
+*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · *Rules:* D-3
 
 **Requirement.** From a request such as “send the MSA to Acme” or a deal-stage change, the agreement specialist selects the approved template and proposes roles, fields and signatories from Orbit, HubSpot or Salesforce and a granted Gmail or Outlook thread. Values carry their source and confidence; unsourced values stay empty. Preparation carries standard, sending carries external, and binding decisions carry commitment; the company’s risk policy decides each call. The [detailed record rules](docs/contract/record-rules.md#agent-001) apply.
 
@@ -1860,7 +1860,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### AGENT-002 — Fill what is missing
 
-*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · *Rules:* D-3
+*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · *Rules:* D-3
 
 **Requirement.** The specialist detects missing parties, fields, attachments and inconsistent entity names, titles or W-9s. It asks the appropriate sender, colleague or recipient one specific question and merges answers with provenance. Internal drafting carries standard, outside questions carry external, and changed material terms carry commitment; the company’s risk policy decides each step. The [detailed record rules](docs/contract/record-rules.md#agent-002) apply.
 
@@ -1869,7 +1869,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### AGENT-003 — Chase stalled signers under the sender's rules
 
-*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · *Rules:* D-3
+*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · *Rules:* D-3
 
 **Requirement.** The specialist distinguishes bad addresses, unavailable signers and substantive objections using delivery, signing and granted reply records. Follow-up observes the sender’s channels, contact limits, quiet hours and escalation owner; substantive objections go to the sender or Locket. Sending outside carries external and changing agreement terms carries commitment; the company’s risk policy decides those calls. Detailed reply identity and custody rules govern every connected mailbox. The [detailed record rules](docs/contract/record-rules.md#agent-003) apply.
 
@@ -1878,7 +1878,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### AGENT-004 — Verify the intended revision and parties
 
-*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · *Rules:* D-3
+*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · *Rules:* D-3
 
 **Requirement.** Before sending and at completion, the specialist compares each page to the approved Locket or template revision, checks every required party’s entity and capacity, and checks required fields for completeness and plausibility. A mismatch produces an exception with evidence. Releasing a binding exception carries commitment under the company’s risk policy; a completed record remains immutable. The [detailed record rules](docs/contract/record-rules.md#agent-004) apply.
 
@@ -1887,7 +1887,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### AGENT-005 — Complete the downstream work
 
-*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · *Rules:* D-3
+*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · *Rules:* D-3
 
 **Requirement.** After verified completion, the specialist updates the CRM deal stage, files the record in Locket and the file store, and creates the next onboarding or invoice-draft task in Nectar, Pantry or Willow. Each effect has a receipt and runs once. Outside handoffs carry external; charges carry money and binding terms carry commitment. The company’s risk policy decides each call within the granted systems, fields and task types. The [detailed record rules](docs/contract/record-rules.md#agent-005) apply.
 
@@ -1896,7 +1896,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### AGENT-006 — Keep integrations correct
 
-*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · *Rules:* D-3
+*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · *Rules:* D-3
 
 **Requirement.** The specialist reconciles webhook and connector state against Inkwell records, detects renamed CRM fields, moved folders and expired tokens, and proposes mapping repairs without duplicate remote effects. Internal repairs carry standard, outside replays carry external and credential changes carry security; the company’s risk policy decides scope changes and repairs. An uncertain remote outcome remains unresolved until evidence establishes it. The [detailed record rules](docs/contract/record-rules.md#agent-006) apply.
 
@@ -1905,7 +1905,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### AGENT-007 — Keep templates current
 
-*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · *Rules:* D-3
+*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · *Rules:* D-3
 
 **Requirement.** The specialist proposes template revisions from repeated sender corrections, new IRS W-9 revisions and changed company addresses. Suggestions cite the supporting envelopes and show the old and proposed definitions. Publishing an internal reusable template carries standard, and changing binding terms carries commitment; the company’s risk policy decides each call through the normal template validator. The [detailed record rules](docs/contract/record-rules.md#agent-007) apply.
 
@@ -1914,7 +1914,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### AGENT-008 — Signer assistant
 
-*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · *Rules:* D-3
+*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · *Rules:* D-3
 
 **Requirement.** The signer assistant explains fields in English or Spanish and answers questions with the visible document’s page and passage. It gives no legal advice. Questions remain private unless that signer shares them. Reading regulated identity or payment facts carries sensitive, outside sharing carries external, and an agent’s own binding act carries commitment under the company’s risk policy; it cannot impersonate the signer. The [detailed record rules](docs/contract/record-rules.md#agent-008) apply.
 
@@ -1923,7 +1923,7 @@ Inherits BASE-AGENT-001 to BASE-AGENT-013. The company’s policy decides every 
 
 #### AGENT-009 — Inbound agreements
 
-*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008 · *Rules:* D-3
+*Tier:* Core · *Cites:* BASE-AGENT-002, BASE-AGENT-005, BASE-AGENT-007, BASE-AGENT-008, BASE-AGENT-006 · *Rules:* D-3
 
 **Requirement.** The specialist reads forwarded agreements and requests from other agreement platforms, identifies the internal signer by business role, prepares their signing and tracks the request. The inbound source follows the authenticated reply and record-custody rules of AGENT-003. Preparation carries standard, returning the executed record carries external and signing carries commitment; the company’s risk policy decides an agent’s calls, and a person’s signature comes from that person’s session. The [detailed record rules](docs/contract/record-rules.md#agent-009) apply.
 
@@ -2014,10 +2014,10 @@ Judged from the code and tests at commit `f5dab1a4491a157fdf3370f0b5d53b18af9dfd
 | `PREP-014` | Image stamp evidence | target | partial | `src/inkwell/business-fields.ts`, `src/inkwell/field-rules.ts`, `src/inkwell/pdf.ts`, `src/ui/field-choices-editor.tsx`, `src/ui/signing-field-input.tsx`, `tests/prefill.test.mjs`, `tests/journeys/field-types.mjs`, `tests/journeys/template-maintenance.mjs` | Round A: initials (typed/drawn/uploaded, independently adopted, saved for members), automatic date signed in a chosen US zone, full name/email/company/title, pattern validation and masked display; business-data prefill/source/read-only, public-door API proof and 1440/390 scan/keyboard/accessibility-tree journey. Round B slice: radio/dropdown exact options, checkbox group inclusive minimum/maximum, notes and uploaded PNG/JPEG stamps, with source/prefill/read-only enforcement, executed PDF, copy/template/restore custody and 1440/390 keyboard/accessibility-tree/light-dark scans (PREP-003 in the same tests). R23 stamp slice: signing audit SHA-256/type/bytes/supplier, honest certificate lines and staged restore recomputation (src/inkwell/stamp-evidence.mjs, PREP-003 tests). Gap: attachments unshipped; 25 MB target awaits PREP-001 object storage and full ct-approved attachment custody/access/refusal/retention acceptance |
 | `PREP-015` | Signer-uploaded attachment custody | target | missing | `src/inkwell/business-fields.ts`, `src/inkwell/field-rules.ts`, `src/inkwell/pdf.ts`, `src/ui/field-choices-editor.tsx`, `src/ui/signing-field-input.tsx`, `tests/prefill.test.mjs`, `tests/journeys/field-types.mjs`, `tests/journeys/template-maintenance.mjs` | No attachment field or upload door is delivered. The complete 25 MB attachment, large-file, validation and record-custody journeys remain unasserted. |
 | `PREP-004` | Conditional and calculated fields | target | partial | `src/inkwell/field-rules.ts`, `src/inkwell/pdf.ts`, `src/inkwell/signing.ts`, `src/ui/field-rules-editor.tsx`, `src/ui/signing-field-input.tsx`, `tests/api.test.mjs`, `tests/journeys/conditional-fields.mjs` | Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: The checked box reveals two required fields.; Unchecking permits completion with both fields absent.; The calculated total updates live.. |
-| `PREP-005` | Direct field placement and editing | target | partial | `tests/journeys/field-placement.mjs`, `tests/journeys/a11y.mjs`, `src/ui/field-editor.tsx`, `src/ui/editable-field.tsx`, `src/ui/field-inspector.tsx`, `src/ui/field-layout.ts`, `src/ui/page-thumbnails.tsx`, `src/ui/pdf-viewer.tsx` | Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: Duplicating to every page preserves positions.. |
+| `PREP-005` | Direct field placement and editing | target | partial | `tests/journeys/field-placement.mjs`, `tests/journeys/a11y.mjs`, `src/ui/field-editor.tsx`, `src/ui/editable-field.tsx`, `src/ui/field-inspector.tsx`, `src/ui/field-layout.ts`, `src/ui/page-thumbnails.tsx`, `src/ui/pdf-viewer.tsx` | The carried evidence now has asserting citations for every acceptance outcome. A fresh ct status judgment is required before reversing this round’s published partial status. |
 | `PREP-006` | AI field and recipient detection | target | missing |  | No AI field or recipient detection |
 | `PREP-007` | Text tags and existing PDF form fields | target | done | `src/inkwell/document-fields.ts`, `src/inkwell/pdf-layout.ts`, `src/inkwell/drafts.ts`, `src/inkwell/pdf.ts`, `src/ui/prepare-envelope.tsx`, `tests/document-fields.test.mjs`, `tests/journeys/document-fields.mjs`, `tests/fixtures/fw9.pdf` |  |
-| `PREP-008` | Prefill from business data | target | partial | `tests/prefill.test.mjs`, `tests/journeys/prefill.mjs`, `src/inkwell/prefill.ts`, `src/ui/field-prefill-editor.tsx` | Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: The template accepts a HubSpot-fake deal supplied as API prefill.. |
+| `PREP-008` | Prefill from business data | target | partial | `tests/prefill.test.mjs`, `tests/journeys/prefill.mjs`, `src/inkwell/prefill.ts`, `src/ui/field-prefill-editor.tsx` | Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: The template accepts a HubSpot-fake deal supplied as API prefill.. The cited prefill value is read before the rejected edit; a post-refusal read of the locked amount is not established in the carried audit. |
 | `PREP-009` | Messages, drafts and scheduled sending | target | done | `tests/api.test.mjs`, `src/inkwell/drafts.ts`, `src/inkwell/schedule.ts`, `src/inkwell/mail.ts`, `src/ui/prepare-envelope.tsx` |  |
 | `PREP-010` | Copy an envelope | target | done | `tests/api.test.mjs`, `src/inkwell/envelopes.ts`, `src/ui/envelope-detail.tsx` |  |
 | `PREP-011` | Free-form signing | target | partial | `tests/freeform-fields.test.mjs`, `tests/freeform-policy.test.mjs`, `tests/journeys/freeform-settings.mjs`, `tests/journeys/freeform.mjs` | Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: send a one-page letter with no fields to one signer; the signer places a signature; a date on page 1 and finishes; the executed PDF shows both at the places chosen; finishing with no signature placed is refused; with the setting off, sending without fields is refused in the UI and API. |
@@ -2054,7 +2054,7 @@ Judged from the code and tests at commit `f5dab1a4491a157fdf3370f0b5d53b18af9dfd
 | `SIGNX-008` | Signer document actions and paper signing | target | partial | `tests/api.test.mjs`, `tests/journeys/envelope-detail.mjs` | Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: the API refuses the upload. |
 | `SIGNX-009` | Recipient comments and supplemental documents | target | partial | `tests/supplements.test.mjs`, `tests/journeys/supplements.mjs` | Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: a signer comments on page 2, the sender replies; the next signer sees the thread when it was shared with them; a supplemental handbook must be acknowledged before the signer can finish; the certificate lists the acknowledgment; its time; Comments and supplemental documents join `SIGNX-003`'s accessibility scan; its keyboard-only and screen-reader journeys before they ship; Each document declares view or explicit acknowledgment required; requesting approval fixes these bytes and requirements; A verified recipient who accepted the existing disclosure opens the fingerprint-checked PDF; this records that the application served it, not proof the person read or understood it; Explicit acknowledgment requires that opening first; Electronic and paper signing refuse unmet requirements for that recipient and identity; a replacement recipient starts again; The certificate lists every reference document fingerprint; each recipient’s opening and acknowledgment times, without adding the reference pages to the signed PDF; Copies, drafts, templates, archives, verification and erasure retain the document custody; new envelopes retain no earlier acknowledgment. |
 | `SIGNX-011` | Private comment custody | target | partial | `tests/supplements.test.mjs`, `tests/journeys/supplements.mjs` | Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: Page-anchored threads use explicitly selected sender and/or recipient identities; the thread author alone changes the audience, and replies inherit it; The author is not added implicitly; A correction changing the name or email, or a reassignment, starts a new recipient identity epoch even when a mailbox is reused; The explicit Record custody export and whole-installation archive carry the complete transcript under the document record-holder’s existing access; custody restoration never grants interactive comment access to the destination owner. |
-| `IDV-001` | Per-recipient authentication choice | target | partial | `src/inkwell/signing.ts`, `src/inkwell/drafts.ts`, `src/inkwell/corrections.ts`, `src/inkwell/templates.ts`, `src/inkwell/certificate.ts`, `src/ui/prepare-envelope.tsx`, `src/ui/signer-app.tsx`, `tests/api.test.mjs`, `tests/journeys/templates.mjs` | Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: The envelope preserves four distinct authentication combinations.. |
+| `IDV-001` | Per-recipient authentication choice | target | partial | `src/inkwell/signing.ts`, `src/inkwell/drafts.ts`, `src/inkwell/corrections.ts`, `src/inkwell/templates.ts`, `src/inkwell/certificate.ts`, `src/ui/prepare-envelope.tsx`, `src/ui/signer-app.tsx`, `tests/api.test.mjs`, `tests/journeys/templates.mjs` | The carried evidence now has asserting citations for every acceptance outcome. A fresh ct status judgment is required before reversing this round’s published partial status. |
 | `IDV-002` | SMS one-time codes | target | partial | `tests/delivery.test.mjs`, `tests/journeys/sms.mjs` | Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: through an SMS provider fake, a recipient receives and enters a code, a wrong code; an expired code are refused; the certificate records the masked number; a `DELIV-006` correction of a recipient's number is audited with its before and after values; the old link refuses; a `DELIV-005` resend by SMS through the provider fake reaches the signer, who opens the SMS link and signs, and after rotation the old link refuses. |
 | `IDV-003` | Access codes | target | partial | `tests/api.test.mjs`, `src/inkwell/signing.ts`, `src/inkwell/envelopes.ts`, `src/ui/signer-app.tsx`, `src/ui/prepare-envelope.tsx` | Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: A wrong access code is refused.. |
 | `IDV-004` | Identity document verification through a provider | target | partial | `tests/delivery.test.mjs`, `tests/journeys/provider-auth.mjs` | CT policy ruling, 25 October 2026: APPROVED WITH RIDERS. This approves the product defaults below only. Implementation, provider operation, legal suitability and release acceptance remain separately evidenced; this clause remains partial. |
@@ -2119,7 +2119,7 @@ Judged from the code and tests at commit `f5dab1a4491a157fdf3370f0b5d53b18af9dfd
 | `INTEG-010` | Payment at signing through Stripe | target | partial | `tests/payments-flow.mjs`, `tests/journeys/payments.mjs`, `tests/payment-sandbox.mjs` | BLOCKED sandbox dependency: a Checkout-capable Stripe test account. The held account rejects a correctly formed 500 USD card Checkout request with HTTP 400 on payment_method_types; its default test payment-method configuration reports card available and on, so no missing native foundation is claimed. Both original real-sandbox acceptance points remain unproved. CT-approved test-mode-only, explicit-consent and reference-only custody defaults are adopted. Payment Element, refunds and disputes handling, receipts, tax, recurring billing handoff to Nectar and live mode remain named Gaps; ASK INTEG-010-scope retains partial status pending their disposition. |
 | `INTEG-011` | Signing service for sibling products | target | partial | `src/inkwell/api.ts`, `src/inkwell/api-keys.ts`, `src/inkwell/api-openapi.ts`, `tests/api-keys.test.mjs` | Scoped clients can send files or templates autonomously under the shared API-source policy and read artifacts. No sibling-specific integration policy sources or completion webhooks; the Lodge-style end-to-end callback journey is unbuilt. |
 | `INTEG-015` | Authorized HubSpot contact sync | target | partial | `tests/hubspot-envelope.test.mjs`, `tests/hubspot-sync.test.mjs`, `tests/journeys/hubspot.mjs` | Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: One scoped import spans several provider pages, interrupts and resumes, reconciles every selected contact without duplicates and does not ask for consent again for each page; An authorized recurring sync retains source record identity; conflicting local edits are reported, and absence from a provider page never silently deletes a local contact; Every continuation checks the current authorization, authorizing member and connector credential before reads and commits. Revocation or authority loss prevents the next page’s reads and writes; restoring authority does not revive the authorization; Unconsented or unauthorized preparation and sync are refused. An ineligible CRM owner gains neither envelope access nor a follow-up grant; The audit retains the exact authorization scope, version, actor, time and outcome without credentials or imported field values in operational logs. Restored prepared provenance does not restore connector authority; The connector’s configuration, launch and progress screens expose page and record counts, failures and remaining work at both required widths. |
-| `MOBILE-001` | Responsive sending and tracking | target | partial | `public/manifest.webmanifest`, `src/routes/__root.tsx`, `src/ui/templates.tsx`, `public/app/shell.css`, `tests/journeys/mobile-sending.mjs`, `tests/journeys/correct-envelope.mjs` | Carried evidence contains the assertions indexed in docs/contract/DONE-AUDIT.md. Unasserted outcomes: The phone journey sends from a template.. |
+| `MOBILE-001` | Responsive sending and tracking | target | partial | `public/manifest.webmanifest`, `src/routes/__root.tsx`, `src/ui/templates.tsx`, `public/app/shell.css`, `tests/journeys/mobile-sending.mjs`, `tests/journeys/correct-envelope.mjs` | The carried evidence now has asserting citations for every acceptance outcome. A fresh ct status judgment is required before reversing this round’s published partial status. |
 | `MOBILE-002` | Native iOS and Android apps | target | missing |  | No native apps |
 | `MOVE-002` | Docusign move-in | target | missing |  | No Docusign import |
 | `MOVE-003` | Adobe Acrobat Sign move-in | target | partial | `tests/remote-import.test.mjs`, `tests/journeys/remote-import.mjs`, `src/inkwell/remote-import.ts`, `src/inkwell/remote-import-provider.ts` | Reviewed batches import terminal records and mapped one-PDF signature and text templates, preserve sender custody, send through native template review, and assert imported retention, hold, erasure and restore fencing. Remaining: account-wide preview and the throttled background job promised by MOVE-008, durable continuation across grant expiry, pause and cancel controls, provider limit-header accounting and scale proof. Other field types remain explicitly unmapped. Acrobat roles use documented field assignees and source owner email; Dropbox template ownership is known only when the credential account is the creator, otherwise the reviewed fallback administrator is used. Dropbox template fields without page metadata are mapped only for one-document, single-page PDFs; broader placement remains unmapped. |

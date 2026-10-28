@@ -2,7 +2,7 @@ name: Verify
 
 on:
   push:
-    branches: [main, cloud/sx-inkwell-c-f2, cloud/sx-inkwell-c-i953]
+    branches: [main, cloud/sx-inkwell-c-f2, cloud/sx-inkwell-c-i953, cloud/ct-cleanup-rewrite-inkwell-cx-20261028-0345]
   workflow_dispatch:
 
 permissions:
