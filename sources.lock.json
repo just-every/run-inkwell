@@ -4513,7 +4513,7 @@
       "executable": false
     },
     "tests/journeys/prefill.mjs": {
-      "sha256": "2980ccc5b5b4e42a9aa3de9251a56fa7ff9d41fc3acaf261dcb7cc950f38b946",
+      "sha256": "33c243b190be566c1f2695c85651cbc72efb32a6f552b9e724bb8ee01ee0b15f",
       "executable": false
     },
     "tests/journeys/provider-auth.mjs": {
@@ -4585,7 +4585,7 @@
       "executable": false
     },
     "tests/journeys/worker.mjs": {
-      "sha256": "ffc5a24e97727bd0eab144b48cd0cf64d6809c0d0d50c6fb03d48a9072dbc803",
+      "sha256": "fdc25e5bcb5755fbb2d4accbeac6f7a14702cd144d805dc0c7409bd1c748ddc3",
       "executable": false
     },
     "tests/manual-invitations.test.mjs": {
