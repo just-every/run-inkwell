@@ -1,9 +1,9 @@
-import { appendEvent, canonical, id, insist, now, object, text, type Envelope, type Env } from './model'
+import { appendEvent, canonical, id, insist, now, object, sha256, text, type Envelope, type Env } from './model'
 import { useTemplate, loadTemplate } from './templates'
 import { salesforceCredential, salesforceRequest, type SalesforceCredential } from './salesforce-provider'
 import { salesforceNativeAdministrator, salesforcePreparationGuard } from './salesforce-envelope-authority'
 import { hubspotEscalationOwner } from './hubspot-envelope-authority'
-import { roleGuard, type Guard } from './storage'
+import { atomic, roleGuard, type Guard } from './storage'
 import type { CommandContext } from './envelopes'
 export const salesforceRecordId=(value:unknown)=>{const result=text(value,'a Salesforce record ID',100);insist(/^[A-Za-z0-9_-]+$/.test(result),'Invalid Salesforce record ID.');return result}
 export const salesforceField=(value:unknown)=>{const result=text(value,'a Salesforce field',100);insist(/^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*$/.test(result),'Invalid Salesforce field.');return result}
@@ -16,6 +16,8 @@ async function nativeRecord(env:Env,c:SalesforceCredential,type:string,record:st
 }
 export async function prepareSalesforceEnvelope(env:Env,context:CommandContext,input:Record<string,unknown>){
  const actor=context.actor;salesforceNativeAdministrator(actor)
+ const requestKey=await sha256(actor.id+'\n'+context.commandId)
+ insist(!await env.DB.prepare('SELECT 1 FROM iw_salesforce_replay_fences WHERE request_key=?').bind(requestKey).first(),'This preparation was erased. A replay cannot restore it.',410)
  insist(input.consent===true,'Explicitly authorize this selected Salesforce record.',403)
  insist(input.send===undefined||typeof input.send==='boolean','Choose whether to request an integration send.')
  insist(['Opportunity','Account','Contact'].includes(String(input.recordType)),'Choose an Opportunity, Account or Contact.')
@@ -28,17 +30,17 @@ export async function prepareSalesforceEnvelope(env:Env,context:CommandContext,i
  let ownerId:string|undefined
  if(typeof selected.OwnerId==='string'){const owner=await nativeRecord(env,c,'User',salesforceRecordId(selected.OwnerId),['Email','IsActive']);if(owner.IsActive===true&&typeof owner.Email==='string')ownerId=(await env.DB.prepare("SELECT id FROM oa_operators WHERE lower(email)=lower(?) AND status='active'").bind(owner.Email).first<{id:string}>())?.id}
  const at=now(),binding=id(),scope={version:1,accountId:c.accountId,recordType:type,recordId:record,templateId,mappings,writeback:{fields:['Inkwell_Status__c','Inkwell_Envelope_Id__c','Inkwell_Completed_At__c','Inkwell_Signed_SHA256__c','Inkwell_Key_Fields__c'],executedPdf:true}}
- const guards:Guard[]=[...(context.guards??[]),roleGuard(actor,['owner','admin']),await salesforcePreparationGuard(env,c)]
+ const guards:Guard[]=[{sql:'NOT EXISTS(SELECT 1 FROM iw_salesforce_replay_fences WHERE request_key=?)',values:[requestKey]},...(context.guards??[]),roleGuard(actor,['owner','admin']),await salesforcePreparationGuard(env,c)]
+ if(input.send)await atomic(env.DB,guards,[env.DB.prepare('INSERT INTO iw_salesforce_send_bindings(id,credential_version,account_id,principal,member_version,member_role) VALUES(?,?,?,?,?,?)').bind(binding,c.version,c.accountId,actor.id,actor.version,actor.role)])
  return useTemplate(env,{...context,guards,crm:{
-  ...(input.send?{origin:{source:'integration' as const,principal:actor.id,credential:{kind:'salesforce' as const,id:binding}}}:{}),
+  ...(input.send?{origin:{source:'salesforce' as const,principal:actor.id,credential:{kind:'salesforce' as const,id:binding}}}:{}),
   prepare:async e=>{
    if(ownerId){ownerId=await hubspotEscalationOwner(env,{...e,events:[...e.events,{action:'salesforce.record_prepared',detail:{escalationOwner:ownerId}}]} as Envelope)}
    await appendEvent(e,'salesforce.record_prepared',actor.id,{authorization:{...scope,actor:actor.id,at,statement:salesforceConsent},...(ownerId?{escalationOwner:ownerId}:{}),noAccessGranted:true,followupGranted:false})
   },
   writes:async e=>{await salesforcePreparationGuard(env,c);return[
-   ...(input.send?[env.DB.prepare('INSERT INTO iw_salesforce_send_bindings(id,credential_version,account_id,principal,member_version,member_role) VALUES(?,?,?,?,?,?)').bind(binding,c.version,c.accountId,actor.id,actor.version,actor.role)]:[]),
-   env.DB.prepare('INSERT INTO iw_salesforce_envelopes(envelope_id,account_id,record_type,record_id,credential_version,principal,member_version,authorized_at,scope) VALUES(?,?,?,?,?,?,?,?,?)').bind(e.id,c.accountId,type,record,c.version,actor.id,actor.version,at,canonical(scope)),
-   env.DB.prepare('INSERT INTO iw_account_audit(id,at,actor_id,action,target,before_json,after_json) VALUES(?,?,?,?,?,NULL,?)').bind(id(),at,actor.id,'salesforce.record.authorized',e.id,canonical({consent:true,statement:salesforceConsent,scope,outcome:'prepared'}))
+   env.DB.prepare('INSERT INTO iw_salesforce_envelopes(envelope_id,account_id,record_type,record_id,credential_version,principal,member_version,authorized_at,scope,request_key) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(e.id,c.accountId,type,record,c.version,actor.id,actor.version,at,canonical(scope),requestKey),
+   env.DB.prepare('INSERT INTO iw_account_audit(id,at,actor_id,action,target,before_json,after_json) VALUES(?,?,?,?,?,NULL,?)').bind(id().replaceAll('-',''),at,actor.id,'salesforce.record.authorized',e.id,canonical({consent:true,statement:salesforceConsent,scope,outcome:'prepared'}))
   ]},
  }},{id:templateId,recipients:input.recipients??(type==='Contact'?[{name:selected.Name,email:selected.Email}]:undefined),prefill,customFields:input.customFields,sendAt:input.sendAt},input.send===true)
 }
