@@ -157,7 +157,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "414263956f00cf536ba085154efd82787354fff695daadce92c5f7318a00bf48",
+      "sha256": "1b69b550955fc0e0501196cf00ac8f84264d51788f4df6abef006814bee39074",
       "executable": false
     },
     ".gitignore": {
@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "3dbfab1084afb922130d7b93ac0e8552b6b2789bee2fe52d011b2a6886127c3d",
+      "sha256": "2477dba9b52e78ca7a9dab0d181f97e24be42333edec50fbdfbefdac086f96f7",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "26f7fb4502366d56a6151c2dcb88661a9e658cf8482f4c52e30ac52e2ebe0ed9",
+      "sha256": "8a91ecbc58226943d6fb4f0986d41953532511cb535eff0dc42bdf762ec237d4",
       "executable": false
     },
     "DEMO.md": {
@@ -1477,7 +1477,7 @@
       "executable": false
     },
     "src/inkwell/filing.ts": {
-      "sha256": "f102717d71bbf38abec47d404fcb575670e079422bf3de090fc1d305cc6801b5",
+      "sha256": "6e0819c2e8e2624fe910bc5adb49425c5db5c2daa43091426db304f57900421e",
       "executable": false
     },
     "src/inkwell/followup-engine.ts": {
@@ -1557,7 +1557,7 @@
       "executable": false
     },
     "src/inkwell/hubspot-writeback-provider.ts": {
-      "sha256": "9c4a1ec498ce96f883b4ca28fe8a0287986cff458f99372eb96c58103e36bb0e",
+      "sha256": "cca0492766873011064d9c35bc77fb288b12f2b0f2898412c4b52bba0d09e23c",
       "executable": false
     },
     "src/inkwell/hubspot-writeback.ts": {
@@ -4349,7 +4349,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "7082b956e07c0054b89bbd1b4c38aee42364c30b2d9d7257d64ec619874d47ee",
+      "sha256": "70d78be124032def0d93752cddda0752502d85dc417a0bf4f94c0668403466dc",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
@@ -4437,11 +4437,11 @@
       "executable": false
     },
     "tests/hubspot-edge.mjs": {
-      "sha256": "56400e8983af8e999130a656a82249fe50f306e7078ae6f958c73efbaf6a1e03",
+      "sha256": "23d4b47df32e9c0eaf1ae5325b23d1f8fe2af7915a9f0c368a322edf4539f811",
       "executable": false
     },
     "tests/hubspot-envelope.test.mjs": {
-      "sha256": "f0455c9d5779d8249672b83b6e2f52a296e6b2c51bb55d0e5f5d547029064786",
+      "sha256": "aa4870f7e6b09828f3fe36b217266d0bb52a4beed5b7b9b6474b09552d45618d",
       "executable": false
     },
     "tests/hubspot-sync.test.mjs": {
