@@ -108,4 +108,77 @@ for(const provider of ['acrobat','dropbox'])test(`${provider}: reviewed API impo
   assert.deepEqual(repeated.counts,{agreements:0,templates:0},'erased source records never resurrect on reimport')
   assert.ok(!h.logs().join('\n').includes('synthetic-inkwell-99'))
  }finally{await h.close()}
+ if(provider==='acrobat')await accountJobProof()
 })
+
+async function accountJobProof(){
+ const fake=await remoteImportFake('acrobat')
+ let expire=true,limit=true
+ const calls=[]
+ const edge=async request=>{
+  const path=new URL(request.url).pathname.replace('/api/rest/v6','');calls.push(path)
+  if(path==='/agreements/second'&&expire){expire=false;return new Response(null,{status:401})}
+  if(path==='/agreements')return Response.json(new URL(request.url).searchParams.has('cursor')?{userAgreementList:[{id:'third'}],page:{}}:{userAgreementList:[{id:'first'},{id:'second'},{id:'open'}],page:{nextCursor:'next'}})
+  const response=await fake.edge(request)
+  if(path==='/agreements/first/combinedDocument'&&limit){limit=false;return new Response(response.body,{headers:{'x-ratelimit-remaining':'0','x-ratelimit-reset':'60'}})}
+  return response
+ }
+ const h=await harness({networkEdge:edge,now:at})
+ try {
+  const sender=await h.invite('first@example.test','member'),other=await h.invite('second@example.test','member')
+  for(const cookie of [sender,other]){const actor=(await h.send('/api/inkwell',undefined,cookie)).value.actor;await h.command('member.role',{operatorId:actor.id,role:'sender'})}
+  const start={action:'start',provider:'acrobat',region:'na1',credential:'synthetic-inkwell-99',fallbackAdmin:'owner@harbour.example'}
+  const action=(body,status=200,cookie=h.owner)=>h.post('/api/inkwell/remote-import/job',body,cookie,status)
+  await action(start,401,'');await action(start,403,sender)
+  const job=(await action(start)).value,id=job.id
+  const view=async()=>(await h.send('/api/inkwell/remote-import/jobs?id='+id,undefined,h.owner)).value
+  await h.send('/api/inkwell/remote-import/jobs?id='+id,undefined,sender).then(r=>assert.equal(r.status,403))
+  await action({action:'approve',id,fingerprint:'wrong'},409)
+  await h.scheduled(at)
+  assert.equal((await view()).state,'rate_limited')
+  const before=calls.length
+  await h.scheduled(at+1000);assert.equal(calls.length,before,'limit headers prevent the next provider call')
+  await action({action:'pause',id});h.advanceTo(at+60_000);await view();await h.scheduled(at+60_000)
+  assert.equal(calls.length,before,'paused jobs do no background work')
+  await action({action:'resume',id});await h.scheduled(at+60_000)
+  assert.equal((await view()).state,'grant_required')
+  await action({action:'resume',id},400)
+  await action({action:'resume',id,credential:'synthetic-inkwell-100'})
+  await h.db.prepare("CREATE TRIGGER stop_preview BEFORE INSERT ON iw_remote_job_pages BEGIN SELECT RAISE(ABORT,'synthetic-inkwell-preview-interruption'); END").run()
+  await h.scheduled(at+60_000)
+  const interrupted=await view();assert.equal(interrupted.state,'failed');assert.equal(interrupted.pages,0);assert.deepEqual(interrupted.counts,{agreements:0,templates:0},'a failed preview checkpoint cannot advance the reviewed account')
+  await h.db.prepare('DROP TRIGGER stop_preview').run()
+  await action({action:'resume',id})
+  await h.scheduled(at+60_000)
+  const preview=await view()
+  assert.equal(preview.state,'previewing')
+  await h.scheduled(at+60_000)
+  Object.assign(preview,await view())
+  assert.equal(preview.state,'review')
+  assert.equal(preview.pages,2)
+  const secondPage=(await h.send('/api/inkwell/remote-import/jobs?id='+id+'&page=1',undefined,h.owner)).value
+  assert.deepEqual(secondPage.preview.items.map(item=>item.title),['acrobat third agreement'])
+  assert.deepEqual(preview.counts,{agreements:3,templates:1})
+  assert.deepEqual(preview.owners,{'first@example.test':{agreements:1,templates:1},'second@example.test':{agreements:2,templates:0}})
+  assert.equal(calls.filter(p=>p==='/agreements/first').length,1,'grant renewal resumes successful resource checkpoints')
+  assert.equal((await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.envelopes.length,0,'complete preview remains side effect free')
+  await action({action:'approve',id,fingerprint:'wrong'},409)
+  await action({action:'approve',id,fingerprint:preview.fingerprint})
+  await h.db.prepare("CREATE TRIGGER stop_job BEFORE INSERT ON iw_envelopes WHEN json_extract(NEW.data,'$.source.id')='second' BEGIN SELECT RAISE(ABORT,'synthetic-inkwell-interruption'); END").run()
+  await h.scheduled(at+60_000);assert.equal((await view()).state,'failed')
+  assert.equal((await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.envelopes.length,1)
+  await h.db.prepare('DROP TRIGGER stop_job').run()
+  await action({action:'resume',id});await h.scheduled(at+60_000)
+  assert.equal((await view()).state,'applying')
+  await h.scheduled(at+60_000)
+  assert.equal((await view()).state,'completed')
+  assert.equal((await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.envelopes.length,3,'restart does not duplicate the first committed record')
+  assert.equal((await h.db.prepare('SELECT sealed FROM iw_remote_jobs WHERE id=?').bind(id).first()).sealed,null)
+  assert.equal((await h.db.prepare('SELECT count(*) AS n FROM iw_remote_preview_parts').first()).n,0,'completion drops all staged document bytes')
+  const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
+  assert.ok(!archive.ndjson.includes('synthetic-inkwell-99')&&!archive.ndjson.includes('synthetic-inkwell-100'),'active grants stay outside business archives')
+  const cancelled=(await action(start)).value
+  await action({action:'cancel',id:cancelled.id});const stopped=calls.length;await h.scheduled(at+60_000);assert.equal(calls.length,stopped)
+  await action({action:'resume',id:cancelled.id},409)
+ }finally{await h.close()}
+}

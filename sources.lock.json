@@ -648,6 +648,10 @@
       "sha256": "541a25996c8bc61871de75a14002b31312f24399e187124e3a13a4b06d7d0d72",
       "executable": false
     },
+    "migrations/core/0077_remote_jobs.sql": {
+      "sha256": "a581b33ffdfcd2fe54587efc2902feb2a6f64b13fe91dd16e0075277947b3466",
+      "executable": false
+    },
     "migrations/core/0078_hubspot_file_repair.sql": {
       "sha256": "535a0df51b67048e619e853e5187ff80ba9bfcfb0679da68dd88fc14d0be60ec",
       "executable": false
@@ -1261,7 +1265,7 @@
       "executable": false
     },
     "src/inkwell/api.ts": {
-      "sha256": "670617a521152584fbcbb2df1bc6b4a91d12342a75da167675f55eefe68b68a5",
+      "sha256": "9f44536af3f58829e46431a593a6fb8f837487bad2a74779cfdcc15681596ef9",
       "executable": false
     },
     "src/inkwell/archive-policy.d.mts": {
@@ -1269,7 +1273,7 @@
       "executable": false
     },
     "src/inkwell/archive-policy.mjs": {
-      "sha256": "062ca1f35a0c9ac8875ed8a2b2da80955958aae8ac4ea7ed4a34c7762813a7f6",
+      "sha256": "b54ba30f7a2bbdd94f3085e7f822a57586323582125408cad3bdd18bccb66c62",
       "executable": false
     },
     "src/inkwell/archive-transfers.ts": {
@@ -1800,12 +1804,16 @@
       "sha256": "6bcc195cc03a4b44766d936651c415fa3ec300697c74e811357641e714fa7cd6",
       "executable": false
     },
+    "src/inkwell/remote-import-jobs.ts": {
+      "sha256": "262d8119b1571e834c151a632fbf55f0e979e468bbaa8c6cef3f1cd583581745",
+      "executable": false
+    },
     "src/inkwell/remote-import-provider.ts": {
-      "sha256": "aed70836aa586b9973943cab98ecd51c260c077ea381b38068ab97eed74c6c71",
+      "sha256": "3844769260cbf67df84cdbed62ba8f529bb25783d231bdf685b5b36e6bdfcb14",
       "executable": false
     },
     "src/inkwell/remote-import.ts": {
-      "sha256": "21baf1b5583ac8db1470dfe453e5b84e82f68d17c32e0dbe93b6e74da06dfc7c",
+      "sha256": "12b876319a5d4110aa075199b6d7869e0a703b15ad8ed0fd91f5fc2e08090d64",
       "executable": false
     },
     "src/inkwell/reports.ts": {
@@ -1841,7 +1849,7 @@
       "executable": false
     },
     "src/inkwell/scheduled.ts": {
-      "sha256": "7118e941fd4cc92806f4ea22f4cacbab962cbc937cf2f331cc81b5179a9807b7",
+      "sha256": "beebda45dbffe5bd856cdcbc70649501421a30cf163be50a7708fe3d15e1f707",
       "executable": false
     },
     "src/inkwell/seal.ts": {
@@ -3785,7 +3793,7 @@
       "executable": false
     },
     "src/server.ts": {
-      "sha256": "082736427d589671ab37162dfe212e7a6c34156306b4576e0a4cfeb059df31c2",
+      "sha256": "b169b5b2e3809c8f03154e668aff01c8466d616e28cbedb7883495223f7d139d",
       "executable": false
     },
     "src/site/docs/build/manifest.ts": {
@@ -3993,7 +4001,7 @@
       "executable": false
     },
     "src/ui/api-move-in.tsx": {
-      "sha256": "eb9393b67b7b9257fdd9f241ba4593529782b9361aac3a0dacb02f44aad7e9e3",
+      "sha256": "b076ad87d4e517cb48eac5332fbcc5a35d04fb00daf13fd224f6e205bd9e86ec",
       "executable": false
     },
     "src/ui/archive-access.tsx": {
@@ -4222,6 +4230,10 @@
     },
     "src/ui/recipient-viewing.tsx": {
       "sha256": "c9439db9349523490db3c1c67ee7de0cdcd045dd1a5beee3eaec7964b85bfce0",
+      "executable": false
+    },
+    "src/ui/remote-import-job.tsx": {
+      "sha256": "68969d5a314665537c1f3b5833fe5bfbc608353d495362d461711906bebcd462",
       "executable": false
     },
     "src/ui/reports.tsx": {
@@ -4605,7 +4617,7 @@
       "executable": false
     },
     "tests/journeys/remote-import.mjs": {
-      "sha256": "3ee0470fadaf406dd73fb8574c89a3d8f05c824677fbeff494dc1fdf9fd7a605",
+      "sha256": "db1e47ed97043916a5c2e7061528507e5630b4451f613067d7a532773db00ed6",
       "executable": false
     },
     "tests/journeys/routing.mjs": {
@@ -4693,7 +4705,7 @@
       "executable": false
     },
     "tests/remote-import.test.mjs": {
-      "sha256": "18f06279ae29f268369b64b16344a3d2710df2d3c589bdc5f32f982118dd9516",
+      "sha256": "cbf09611367da1648f3ca6e5a21ec3ed17f1e4c7471cac25717cd84ca6d8f2cb",
       "executable": false
     },
     "tests/routing.test.mjs": {
@@ -4749,7 +4761,7 @@
       "executable": false
     },
     "wrangler.jsonc": {
-      "sha256": "c9ae6592a28474a1a6fea4a1369fa9dba4e91eb679ab9a5f7491a76feb54a038",
+      "sha256": "e96e1b6e919d15189e7c56ed854fcf03ba8868e6341c571ee1da5746154b2f98",
       "executable": false
     }
   }

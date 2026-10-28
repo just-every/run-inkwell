@@ -46,6 +46,30 @@ export async function remoteImportJourney() {
      assert.deepEqual(violations.map(v=>v.id),[],'import controls meet accessibility checks')
     }
    }
+   await screen.getByRole('combobox',{name:/Signing provider/}).selectOption('acrobat')
+   await screen.getByLabel('Acrobat access token',{exact:true}).fill('synthetic-inkwell-99')
+   await screen.getByRole('button',{name:'Preview entire Acrobat account',exact:true}).click()
+   const account=screen.getByRole('region',{name:'Account import job'})
+   await account.getByRole('heading',{name:'Account import · previewing',exact:true}).waitFor()
+   await app.scheduled(Date.now())
+   await screen.getByRole('button',{name:'Refresh account jobs',exact:true}).click()
+   await account.getByRole('heading',{name:'Account import · review',exact:true}).waitFor()
+   await capture('account-preview')
+   await account.getByRole('checkbox').focus();await page.keyboard.press('Space')
+   await account.getByRole('button',{name:'Approve account import',exact:true}).focus();await page.keyboard.press('Enter')
+   await account.getByRole('button',{name:'Pause account job',exact:true}).click()
+   await account.getByRole('heading',{name:'Account import · paused',exact:true}).waitFor()
+   await capture('account-paused')
+   await account.getByRole('button',{name:'Resume account job',exact:true}).focus();await page.keyboard.press('Enter')
+   await account.getByRole('heading',{name:'Account import · applying',exact:true}).waitFor()
+   await app.scheduled(Date.now())
+   await screen.getByRole('button',{name:'Refresh account jobs',exact:true}).click()
+   await account.getByRole('heading',{name:'Account import · completed',exact:true}).waitFor()
+   if(width===1440){
+    const violations=await page.evaluate(async()=> (await window.axe.run(document.querySelector('[aria-label="API move-in"]'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}})).violations)
+    assert.deepEqual(violations.map(v=>v.id),[],'account job controls meet accessibility checks')
+   }
+   await capture('account-completed')
    await context.close()
    if(width===1440)for(const [i,cookie] of senders.entries()) {
     const senderContext=await app.browser.newContext({viewport:{width,height:900}})
