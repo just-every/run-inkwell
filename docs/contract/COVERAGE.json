@@ -312,9 +312,9 @@
       "file": "CONTRACT.md",
       "line": 65,
       "text": "Changes require the application's own origin.",
-      "to": "base",
+      "to": "clause",
       "ids": [
-        "BASE-ROLE-001"
+        "ACCESS-001"
       ]
     },
     {
@@ -324,6 +324,12 @@
       "to": "base",
       "ids": [
         "BASE-ROLE-001"
+      ],
+      "also": [
+        {
+          "to": "docs",
+          "path": "docs/contract/record-rules.md"
+        }
       ]
     },
     {
@@ -718,6 +724,14 @@
       "to": "base",
       "ids": [
         "BASE-DATA-001"
+      ],
+      "also": [
+        {
+          "to": "clause",
+          "ids": [
+            "PORT-001"
+          ]
+        }
       ]
     },
     {
@@ -3357,6 +3371,14 @@
       "to": "base",
       "ids": [
         "BASE-ACCESSIBILITY-001"
+      ],
+      "also": [
+        {
+          "to": "clause",
+          "ids": [
+            "SIGNX-003"
+          ]
+        }
       ]
     },
     {
@@ -3391,6 +3413,14 @@
       "to": "base",
       "ids": [
         "BASE-ACCESSIBILITY-001"
+      ],
+      "also": [
+        {
+          "to": "clause",
+          "ids": [
+            "SIGNX-003"
+          ]
+        }
       ]
     },
     {
@@ -5993,6 +6023,14 @@
       "to": "base",
       "ids": [
         "BASE-SIGNIN-001"
+      ],
+      "also": [
+        {
+          "to": "clause",
+          "ids": [
+            "ADMIN-003"
+          ]
+        }
       ]
     },
     {
@@ -6002,6 +6040,14 @@
       "to": "base",
       "ids": [
         "BASE-SIGNIN-001"
+      ],
+      "also": [
+        {
+          "to": "clause",
+          "ids": [
+            "ADMIN-003"
+          ]
+        }
       ]
     },
     {
@@ -6654,6 +6700,14 @@
       "to": "base",
       "ids": [
         "BASE-SIGNIN-002"
+      ],
+      "also": [
+        {
+          "to": "clause",
+          "ids": [
+            "ADMIN-009"
+          ]
+        }
       ]
     },
     {
@@ -6663,6 +6717,14 @@
       "to": "base",
       "ids": [
         "BASE-SIGNIN-002"
+      ],
+      "also": [
+        {
+          "to": "clause",
+          "ids": [
+            "ADMIN-009"
+          ]
+        }
       ]
     },
     {
