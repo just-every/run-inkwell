@@ -5,6 +5,7 @@ import { api } from '../src/inkwell/api'
 import { authResponse, runtimeBindings } from '../src/auth.server'
 import { importResponse } from '../src/inkwell/imports'
 import { archiveResponse } from '../src/inkwell/archive'
+import { processRemoteJobs } from '../src/inkwell/remote-import-jobs'
 import { scheduledPass } from '../src/inkwell/scheduled'
 // Test-only wall clock for expiry and fixed-window boundary journeys. This entry point is
 // never shipped; production handlers and their stored expiry values stay unchanged.
@@ -21,4 +22,4 @@ export default { async fetch(request: Request, env: any, ctx: ExecutionContext) 
  testNow = clock === null ? undefined : Number(clock)
  return complianceRequest(request,env,async()=>await hostedResponse(request,runtimeBindings(env)) ?? await authResponse(request,env) ?? await importResponse(request,runtimeBindings(env)) ?? await archiveResponse(request,env) ?? await embedResponse(request,runtimeBindings(env),async(req,scope)=>api.fetch(req,scope,ctx)) ?? api.fetch(request,env,ctx))
 },
-async scheduled(controller: ScheduledController, env: any) { await scheduledPass(runtimeBindings(env), controller.scheduledTime) } }
+async scheduled(controller: ScheduledController, env: any) { if(controller.cron==='* * * * *')await processRemoteJobs(runtimeBindings(env),controller.scheduledTime);else await scheduledPass(runtimeBindings(env), controller.scheduledTime) } }

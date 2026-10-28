@@ -10,7 +10,8 @@ export async function remoteImportJourney() {
  // Assertions use one desktop viewport. The phone run records the same changed states once.
  for(const width of [1440,390]) {
   const acrobat=await remoteImportFake('acrobat'),dropbox=await remoteImportFake('dropbox')
-  const app=await startInkwellWithMail({networkEdge:async request=>await acrobat.edge(request)??await dropbox.edge(request)})
+  const accountSource=await remoteImportFake('acrobat',{account:'synthetic-inkwell-2',titlePrefix:'Account preview '})
+  const app=await startInkwellWithMail({networkEdge:async request=>request.headers.get('authorization')==='Bearer synthetic-inkwell-100'?accountSource.edge(request):await acrobat.edge(request)??await dropbox.edge(request)})
   try {
    const senders=[]
    for(const email of ['first@example.test','second@example.test']) {
@@ -47,13 +48,19 @@ export async function remoteImportJourney() {
     }
    }
    await screen.getByRole('combobox',{name:/Signing provider/}).selectOption('acrobat')
-   await screen.getByLabel('Acrobat access token',{exact:true}).fill('synthetic-inkwell-99')
+   await screen.getByLabel('Acrobat access token',{exact:true}).fill('synthetic-inkwell-100')
+   await screen.getByRole('checkbox',{name:/I authorize this installation to read my Acrobat account/}).check()
    await screen.getByRole('button',{name:'Preview entire Acrobat account',exact:true}).click()
    const account=screen.getByRole('region',{name:'Account import job'})
    await account.getByRole('heading',{name:'Account import · previewing',exact:true}).waitFor()
    await app.scheduled(Date.now())
    await screen.getByRole('button',{name:'Refresh account jobs',exact:true}).click()
    await account.getByRole('heading',{name:'Account import · review',exact:true}).waitFor()
+   if(width===1440){
+    assert.equal(await account.getByText('Account preview acrobat first agreement · Owner: first'+String.fromCharCode(64)+'example.test',{exact:true}).count(),1)
+    assert.equal(await account.getByText('Account preview acrobat second agreement · Owner: second'+String.fromCharCode(64)+'example.test',{exact:true}).count(),1)
+    assert.match(await account.getByRole('status').innerText(),/2 agreements · 1 templates/)
+   }
    await capture('account-preview')
    await account.getByRole('checkbox').focus();await page.keyboard.press('Space')
    await account.getByRole('button',{name:'Approve account import',exact:true}).focus();await page.keyboard.press('Enter')
@@ -69,6 +76,7 @@ export async function remoteImportJourney() {
     const violations=await page.evaluate(async()=> (await window.axe.run(document.querySelector('[aria-label="API move-in"]'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}})).violations)
     assert.deepEqual(violations.map(v=>v.id),[],'account job controls meet accessibility checks')
    }
+   if(width===1440){const native=(await app.call('/api/inkwell/envelopes',{cookie:app.owner})).value.envelopes;assert.equal(native.filter(e=>e.title.startsWith('Account preview ')).length,2,'the reviewed account job creates its visible native agreements')}
    await capture('account-completed')
    await context.close()
    if(width===1440)for(const [i,cookie] of senders.entries()) {

@@ -1,12 +1,14 @@
-import { id, insist, text, sha256, canonical, type Env, type Actor } from './model'
+import { id, insist, text, now, sha256, canonical, type Env, type Actor } from './model'
 import { atomic, roleGuard, type Guard } from './storage'
 import { seal, unseal } from './seal'
 import { ApiRateLimit } from './api-limits'
 import { previewRemoteImport, applyRemoteImport } from './remote-import'
 import { readBytes } from './body'
 
-interface Data { provider:'acrobat';region:string;fallbackAdmin:string;account?:string;cursor?:string|null;templateCursor?:string|null;continuation?:boolean;pages:number;applied:number;counts:{agreements:number;templates:number};owners:Record<string,{agreements:number;templates:number}>;fingerprint?:string;startedAt:number;calls:number;reviewHash?:string;message?:string }
+interface Data { provider:'acrobat';region:string;fallbackAdmin:string;account?:string;cursor?:string|null;templateCursor?:string|null;continuation?:boolean;pages:number;applied:number;counts:{agreements:number;templates:number};states:Record<string,number>;consent:{actor:string;at:string;version:string};owners:Record<string,{agreements:number;templates:number}>;fingerprint?:string;startedAt:number;calls:number;reviewHash?:string;message?:string }
 interface Job { id:string;owner_id:string;owner_version:number;version:number;state:string;phase:string;data:string;sealed:string|null;next_at:number;claim:string|null;lease_until:number }
+const consentVersion='acrobat-read-account-v1'
+const audit=(env:Env,actor:string,jobId:string,action:string,detail:unknown)=>env.DB.prepare('INSERT INTO iw_account_audit(id,at,actor_id,action,target,before_json,after_json) VALUES(?,?,?,?,?,NULL,?)').bind(id().replaceAll('-',''),now(),actor,'remote_import.'+action,'remote-import:'+jobId,canonical(detail))
 const terminal=['completed','cancelled','authority_lost']
 const live=['previewing','applying','rate_limited']
 const bound=(job:Job):Guard=>({sql:'EXISTS(SELECT 1 FROM iw_remote_jobs WHERE id=? AND version=? AND claim=? AND state IN (\'previewing\',\'applying\',\'rate_limited\') AND EXISTS(SELECT 1 FROM oa_operators o WHERE o.id=owner_id AND o.version=owner_version AND o.role=\'owner\' AND o.status=\'active\'))',values:[job.id,job.version,job.claim]})
@@ -29,11 +31,12 @@ export async function remoteJobView(env:Env,actor:Actor,jobId?:string,page=0) {
 export async function remoteJobAction(env:Env,actor:Actor,input:Record<string,unknown>) {
  insist(actor.role==='owner'&&actor.sessionId&&!actor.agentId&&!actor.apiKeyId,'A signed-in owner must manage imports.',403)
  if(input.action==='start') {
+  insist(input.consent===true,'Authorize account reading and sealed grant custody before starting.',400)
   insist(input.provider==='acrobat','Background imports currently support Acrobat Sign only.')
   const region=String(input.region??'na1');insist(['na1','na2','na3','na4','eu1','eu2','au1','jp1','in1','sg1'].includes(region),'Choose an Acrobat region.')
   const credential=text(input.credential,'the provider credential',4096);insist(!/[\r\n]/.test(credential),'Invalid credential.')
-  const jobId=id(),data:Data={provider:'acrobat',region,fallbackAdmin:text(input.fallbackAdmin,'the fallback admin email',254).toLowerCase(),pages:0,applied:0,counts:{agreements:0,templates:0},owners:{},startedAt:Date.now(),calls:0}
-  await atomic(env.DB,[roleGuard(actor,['owner'])],[env.DB.prepare("INSERT INTO iw_remote_jobs(id,owner_id,owner_version,state,phase,data,sealed) VALUES(?,?,?,'previewing','previewing',?,?)").bind(jobId,actor.id,actor.version,JSON.stringify(data),await seal(env,'remote-import',jobId,credential))])
+  const jobId=id(),data:Data={provider:'acrobat',region,fallbackAdmin:text(input.fallbackAdmin,'the fallback admin email',254).toLowerCase(),pages:0,applied:0,counts:{agreements:0,templates:0},states:{},consent:{actor:actor.id,at:now(),version:consentVersion},owners:{},startedAt:Date.now(),calls:0}
+  await atomic(env.DB,[roleGuard(actor,['owner'])],[env.DB.prepare("INSERT INTO iw_remote_jobs(id,owner_id,owner_version,state,phase,data,sealed) VALUES(?,?,?,'previewing','previewing',?,?)").bind(jobId,actor.id,actor.version,JSON.stringify(data),await seal(env,'remote-import',jobId,credential)),audit(env,actor.id,jobId,'started',{provider:data.provider,region:data.region,consent:data.consent,permission:'Read account for this reviewed import only; no provider writes or signing invitations.'})])
   return remoteJobView(env,actor,jobId)
  }
  const job=await load(env,actor,input.id),data=JSON.parse(job.data) as Data,action=input.action
@@ -48,7 +51,7 @@ export async function remoteJobAction(env:Env,actor:Actor,input:Record<string,un
    const resource=await sha256(`https://api.${data.region}.adobesign.com/api/rest/v6/users/me`);await env.DB.prepare('DELETE FROM iw_remote_response_parts WHERE job_id=? AND resource=?').bind(job.id,resource).run();sealed=await seal(env,'remote-import',job.id,text(input.credential,'a renewed provider grant',4096))}
   state=phase
  }else insist(false,'Unknown job action.')
- await atomic(env.DB,[roleGuard(actor,['owner']),{sql:'EXISTS(SELECT 1 FROM iw_remote_jobs WHERE id=? AND version=?)',values:[job.id,job.version]}],[env.DB.prepare('UPDATE iw_remote_jobs SET state=?,phase=?,sealed=?,claim=NULL,lease_until=0,version=version+1 WHERE id=?').bind(state,phase,sealed,job.id)])
+ await atomic(env.DB,[roleGuard(actor,['owner']),{sql:'EXISTS(SELECT 1 FROM iw_remote_jobs WHERE id=? AND version=?)',values:[job.id,job.version]}],[env.DB.prepare('UPDATE iw_remote_jobs SET state=?,phase=?,sealed=?,claim=NULL,lease_until=0,version=version+1 WHERE id=?').bind(state,phase,sealed,job.id),audit(env,actor.id,job.id,String(action),{from:job.state,to:state,version:job.version+1})])
  if(state==='cancelled')await clearPrivate(env,job.id)
  return remoteJobView(env,actor,job.id)
 }
@@ -72,10 +75,15 @@ function jobFetch(env:Env,job:Job,data:Data):typeof fetch {
   if(response.status===401||response.status===403)throw new Error('grant_required')
   insist(response.ok,'The provider refused this resource. Resume after checking the source grant.',502)
   const bytes=await readBytes(new Request('https://import.invalid',{method:'POST',body:response.body,duplex:'half'} as RequestInit),2*1024*1024)
+  if(new URL(url).pathname.endsWith('/users/me')){
+   const identity=JSON.parse(new TextDecoder().decode(bytes)),account=text(identity.accountId??identity.userId,'the source account ID')
+   insist(!data.account||account===data.account,'The renewed grant belongs to another source account.',409)
+   data.account=account
+  }
   let raw='';for(let i=0;i<bytes.length;i+=16384)raw+=String.fromCharCode(...bytes.slice(i,i+16384))
   const encoded=btoa(raw),writes:D1PreparedStatement[]=[]
   for(let offset=0,part=0;offset<encoded.length;offset+=50000,part++)writes.push(env.DB.prepare('INSERT INTO iw_remote_response_parts VALUES(?,?,?,?)').bind(job.id,resource,part,encoded.slice(offset,offset+50000)))
-  if(writes.length)await atomic(env.DB,[bound(job)],writes)
+  if(writes.length)await atomic(env.DB,[bound(job)],[...writes,env.DB.prepare('UPDATE iw_remote_jobs SET data=? WHERE id=?').bind(JSON.stringify(data),job.id)])
   return new Response(bytes)
  }
 }
@@ -95,6 +103,7 @@ export async function processRemoteJobs(env:Env,at=Date.now()) {
     data.account=preview.account
     data.reviewHash=await sha256(canonical([data.reviewHash??null,preview.fingerprint]))
     for(const item of preview.items){const key=item.owner,counts=data.owners[key]??={agreements:0,templates:0};counts[item.kind==='envelope'?'agreements':'templates']++}
+    for(const [state,count] of Object.entries(preview.states as Record<string,number>))data.states[state]=(data.states[state]??0)+count
     data.counts.agreements+=preview.counts.agreements;data.counts.templates+=preview.counts.templates
     const page=data.pages++;Object.assign(data,preview.next,{continuation:true})
     const more=Object.values(preview.next).some(Boolean)
@@ -102,7 +111,8 @@ export async function processRemoteJobs(env:Env,at=Date.now()) {
     await atomic(env.DB,[roleGuard(principal,['owner']),bound(job)],[env.DB.prepare('INSERT INTO iw_remote_job_pages VALUES(?,?,?,?)').bind(job.id,page,preview.previewId,preview.fingerprint),env.DB.prepare('UPDATE iw_remote_jobs SET state=?,data=?,claim=NULL,lease_until=0,next_at=? WHERE id=?').bind(state,JSON.stringify(data),nextAt,job.id),env.DB.prepare('DELETE FROM iw_remote_response_parts WHERE job_id=?').bind(job.id)])
    } else {
     const page=await env.DB.prepare('SELECT preview_id,fingerprint FROM iw_remote_job_pages WHERE job_id=? AND page=?').bind(job.id,data.applied).first<{preview_id:string;fingerprint:string}>()
-    if(page)await applyRemoteImport(env,principal,{previewId:page.preview_id,fingerprint:page.fingerprint},[bound(job)])
+    insist(page,'The reviewed account page is no longer available. Start a new preview.',409)
+   if(page)await applyRemoteImport(env,principal,{previewId:page.preview_id,fingerprint:page.fingerprint},[bound(job)])
     if(page)data.applied++
     if(data.applied>=data.pages)state='completed'
     await atomic(env.DB,[roleGuard(principal,['owner']),bound(job)],[env.DB.prepare('UPDATE iw_remote_jobs SET state=?,data=?,claim=NULL,lease_until=0,next_at=0 WHERE id=?').bind(state,JSON.stringify(data),job.id)])

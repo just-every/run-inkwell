@@ -105,7 +105,7 @@ Inventory: 71 done, 28 partial, 18 missing; 117 total.
 | `MOBILE-001` | done | `public/manifest.webmanifest`, `src/routes/__root.tsx`, `src/ui/templates.tsx`, `public/app/shell.css`, `tests/journeys/mobile-sending.mjs`, `tests/journeys/correct-envelope.mjs` | [Contract status](../CONTRACT.md#status) |
 | `MOBILE-002` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `MOVE-002` | missing |  | [Contract status](../CONTRACT.md#status) |
-| `MOVE-003` | partial | `tests/remote-import.test.mjs`, `tests/journeys/remote-import.mjs`, `src/inkwell/remote-import.ts`, `src/inkwell/remote-import-provider.ts` | [Contract status](../CONTRACT.md#status) |
+| `MOVE-003` | partial | `tests/remote-import.test.mjs`, `tests/journeys/remote-import.mjs`, `tests/journeys/remote-import-scale.mjs` | [Contract status](../CONTRACT.md#status) |
 | `MOVE-004` | partial | `tests/remote-import.test.mjs`, `tests/journeys/remote-import.mjs`, `src/inkwell/remote-import.ts`, `src/inkwell/remote-import-provider.ts` | [Contract status](../CONTRACT.md#status) |
 | `MOVE-005` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `MOVE-006` | missing |  | [Contract status](../CONTRACT.md#status) |

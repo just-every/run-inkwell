@@ -28,6 +28,7 @@ for(const provider of ['acrobat','dropbox'])test(`${provider}: reviewed API impo
   const unsupported=(await h.post('/api/inkwell/remote-import/preview',input)).value
   assert.deepEqual(unsupported.counts,{agreements:2,templates:0})
   assert.ok(unsupported.unmapped.some(v=>v.sourceId==='template'&&v.reason.includes('skipped')))
+  if(provider==='acrobat')assert.ok(unsupported.unmapped.some(v=>v.title==='acrobat service template'&&v.sourceId==='template'&&v.reason.includes('CHECKBOX')))
   fake.unsupported(false)
   if(provider==='dropbox'){
    fake.shared(true)
@@ -116,7 +117,9 @@ async function accountJobProof(){
  let expire=true,limit=true
  const calls=[]
  const edge=async request=>{
+  if(new URL(request.url).hostname!=='api.na1.adobesign.com')return
   const path=new URL(request.url).pathname.replace('/api/rest/v6','');calls.push(path)
+  if(path==='/users/me'&&request.headers.get('authorization')==='Bearer synthetic-inkwell-101')return Response.json({accountId:'synthetic-inkwell-other-account'})
   if(path==='/agreements/second'&&expire){expire=false;return new Response(null,{status:401})}
   if(path==='/agreements')return Response.json(new URL(request.url).searchParams.has('cursor')?{userAgreementList:[{id:'third'}],page:{}}:{userAgreementList:[{id:'first'},{id:'second'},{id:'open'}],page:{nextCursor:'next'}})
   const response=await fake.edge(request)
@@ -127,14 +130,19 @@ async function accountJobProof(){
  try {
   const sender=await h.invite('first@example.test','member'),other=await h.invite('second@example.test','member')
   for(const cookie of [sender,other]){const actor=(await h.send('/api/inkwell',undefined,cookie)).value.actor;await h.command('member.role',{operatorId:actor.id,role:'sender'})}
-  const start={action:'start',provider:'acrobat',region:'na1',credential:'synthetic-inkwell-99',fallbackAdmin:'owner@harbour.example'}
+  const start={action:'start',consent:true,provider:'acrobat',region:'na1',credential:'synthetic-inkwell-99',fallbackAdmin:'owner@harbour.example'}
   const action=(body,status=200,cookie=h.owner)=>h.post('/api/inkwell/remote-import/job',body,cookie,status)
   await action(start,401,'');await action(start,403,sender)
+  await action({...start,consent:false},400)
+  assert.equal(calls.length,0,'declining account custody starts no provider request')
   const job=(await action(start)).value,id=job.id
+  const audit=(await h.send('/api/inkwell/audit?target='+encodeURIComponent('remote-import:'+id),undefined,h.owner)).value.entries
+  assert.ok(audit.some(entry=>entry.action==='remote_import.started'&&entry.after.consent.actor&&entry.after.consent.at),'account reading consent is durably audited without the grant')
+  assert.ok(!JSON.stringify(audit).includes(start.credential))
   const view=async()=>(await h.send('/api/inkwell/remote-import/jobs?id='+id,undefined,h.owner)).value
   await h.send('/api/inkwell/remote-import/jobs?id='+id,undefined,sender).then(r=>assert.equal(r.status,403))
   await action({action:'approve',id,fingerprint:'wrong'},409)
-  await h.scheduled(at)
+  await Promise.all([h.scheduled(at),h.scheduled(at)])
   assert.equal((await view()).state,'rate_limited')
   const before=calls.length
   await h.scheduled(at+1000);assert.equal(calls.length,before,'limit headers prevent the next provider call')
@@ -156,6 +164,7 @@ async function accountJobProof(){
   Object.assign(preview,await view())
   assert.equal(preview.state,'review')
   assert.equal(preview.pages,2)
+  assert.deepEqual(preview.states,{SIGNED:3,template:1})
   const secondPage=(await h.send('/api/inkwell/remote-import/jobs?id='+id+'&page=1',undefined,h.owner)).value
   assert.deepEqual(secondPage.preview.items.map(item=>item.title),['acrobat third agreement'])
   assert.deepEqual(preview.counts,{agreements:3,templates:1})
@@ -163,6 +172,7 @@ async function accountJobProof(){
   assert.equal(calls.filter(p=>p==='/agreements/first').length,1,'grant renewal resumes successful resource checkpoints')
   assert.equal((await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.envelopes.length,0,'complete preview remains side effect free')
   await action({action:'approve',id,fingerprint:'wrong'},409)
+  await h.post('/api/inkwell/remote-import/apply',{previewId:id+'-0',fingerprint:(await h.db.prepare('SELECT fingerprint FROM iw_remote_job_pages WHERE job_id=? AND page=0').bind(id).first()).fingerprint},h.owner,409)
   await action({action:'approve',id,fingerprint:preview.fingerprint})
   await h.db.prepare("CREATE TRIGGER stop_job BEFORE INSERT ON iw_envelopes WHEN json_extract(NEW.data,'$.source.id')='second' BEGIN SELECT RAISE(ABORT,'synthetic-inkwell-interruption'); END").run()
   await h.scheduled(at+60_000);assert.equal((await view()).state,'failed')
@@ -170,15 +180,56 @@ async function accountJobProof(){
   await h.db.prepare('DROP TRIGGER stop_job').run()
   await action({action:'resume',id});await h.scheduled(at+60_000)
   assert.equal((await view()).state,'applying')
-  await h.scheduled(at+60_000)
+  await Promise.all([h.scheduled(at+60_000),h.scheduled(at+60_000)])
   assert.equal((await view()).state,'completed')
   assert.equal((await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.envelopes.length,3,'restart does not duplicate the first committed record')
   assert.equal((await h.db.prepare('SELECT sealed FROM iw_remote_jobs WHERE id=?').bind(id).first()).sealed,null)
   assert.equal((await h.db.prepare('SELECT count(*) AS n FROM iw_remote_preview_parts').first()).n,0,'completion drops all staged document bytes')
+  expire=true
+  const switched=(await action(start)).value
+  await h.scheduled(at+60_000)
+  assert.equal((await h.send('/api/inkwell/remote-import/jobs?id='+switched.id,undefined,h.owner)).value.state,'grant_required')
+  await action({action:'resume',id:switched.id,credential:'synthetic-inkwell-101'})
+  await h.scheduled(at+60_000)
+  const wrongAccount=(await h.send('/api/inkwell/remote-import/jobs?id='+switched.id,undefined,h.owner)).value
+  assert.equal(wrongAccount.state,'failed','renewal from another source account cannot mix cached private documents')
+  assert.equal(wrongAccount.account,'synthetic-inkwell-1','the source account is bound before the first batch finishes')
+  assert.equal((await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.envelopes.length,3)
+  await action({action:'cancel',id:switched.id})
   const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
   assert.ok(!archive.ndjson.includes('synthetic-inkwell-99')&&!archive.ndjson.includes('synthetic-inkwell-100'),'active grants stay outside business archives')
   const cancelled=(await action(start)).value
   await action({action:'cancel',id:cancelled.id});const stopped=calls.length;await h.scheduled(at+60_000);assert.equal(calls.length,stopped)
   await action({action:'resume',id:cancelled.id},409)
+  assert.equal((await h.db.prepare('SELECT sealed FROM iw_remote_jobs WHERE id=?').bind(cancelled.id).first()).sealed,null)
+  const staged=(await action(start)).value
+  await h.scheduled(at+60_000)
+  assert.ok((await h.db.prepare('SELECT count(*) AS n FROM iw_remote_preview_parts').first()).n>0)
+  const imported=(await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.envelopes[0]
+  await h.post('/api/inkwell/erase',{id:imported.id,confirmation:'ERASE'})
+  await h.post('/api/inkwell/remote-import/job',{action:'resume',id:staged.id},h.owner,404)
+  assert.equal((await h.db.prepare('SELECT count(*) AS n FROM iw_remote_preview_parts').first()).n,0,'erasure invalidates staged private previews')
+  assert.equal((await h.db.prepare('SELECT count(*) AS n FROM iw_remote_response_parts').first()).n,0,'erasure removes interrupted provider bytes')
+  assert.equal((await h.db.prepare('SELECT count(*) AS n FROM iw_remote_jobs').first()).n,0,'erasure removes sealed grants and preview identities')
+  await h.scheduled(at+60_000)
+  assert.equal((await h.send('/api/inkwell/envelopes/'+imported.id,undefined,h.owner)).status,404,'an erased import cannot return from staged work')
+  const restored=await harness()
+  try {
+   await restored.post('/api/inkwell/archive/restore',{archive})
+   assert.deepEqual((await restored.send('/api/inkwell/remote-import/jobs',undefined,restored.owner)).value.jobs,[],'restore carries business records without active import authority')
+   assert.equal((await restored.db.prepare('SELECT count(*) AS n FROM iw_remote_response_parts').first()).n,0)
+  }finally{await restored.close()}
+  const backup=(await h.send('/api/inkwell',undefined,other)).value.actor
+  await h.db.prepare("UPDATE oa_operators SET role='owner' WHERE id=?").bind(backup.id).run()
+  const retired=(await action(start)).value
+  const owner=(await h.send('/api/inkwell',undefined,h.owner)).value.actor
+  await h.db.prepare("UPDATE oa_operators SET role='admin' WHERE id=?").bind(owner.id).run()
+  await h.scheduled(at+60_000)
+  const retiredAt=calls.length
+  await h.db.prepare("UPDATE oa_operators SET role='owner' WHERE id=?").bind(owner.id).run()
+  assert.equal((await h.db.prepare('SELECT state FROM iw_remote_jobs WHERE id=?').bind(retired.id).first()).state,'authority_lost')
+  await action({action:'resume',id:retired.id},401)
+  await h.scheduled(at+60_000);assert.equal(calls.length,retiredAt,'restoring an owner never revives retired import authority')
+  assert.equal((await h.db.prepare('SELECT sealed FROM iw_remote_jobs WHERE id=?').bind(retired.id).first()).sealed,null)
  }finally{await h.close()}
 }

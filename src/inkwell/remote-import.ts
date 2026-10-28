@@ -23,9 +23,9 @@ export async function previewRemoteImport(env:Env,actor:Actor,input:Record<strin
  for(const item of batch.items) {
   const target='remote-'+await sha256(canonical([batch.provider,batch.account,item.kind,item.sourceId]))
   const seen=await env.DB.prepare('SELECT id FROM iw_remote_imports WHERE id=?').bind(target).first()
-  if(seen){unmapped.push({sourceId:item.sourceId,reason:'Already imported or erased; retry will not recreate it.'});continue}
+  if(seen){unmapped.push({sourceId:item.sourceId,title:item.title,reason:'Already imported or erased; retry will not recreate it.'});continue}
   const {owner,unmapped:missing}=await mappedOwner(env,item.ownerEmail,fallback)
-  if(missing)unmapped.push({sourceId:item.sourceId,reason:`No active member matches the source owner; assigned to ${owner.email}.`})
+  if(missing)unmapped.push({sourceId:item.sourceId,title:item.title,reason:`No active member matches the source owner; assigned to ${owner.email}.`})
   const pdf=fromBase64(item.pdf),{pageSizes}=await parsePdf(pdf)
   if(item.kind==='envelope') {
    const audit=fromBase64(item.audit);await parsePdf(audit)
@@ -35,7 +35,7 @@ export async function previewRemoteImport(env:Env,actor:Actor,input:Record<strin
    planned.push({id:target,kind:item.kind,owner,envelope,pdf:item.pdf,audit:item.audit})
   } else {
    // Dropbox template field responses carry no page number; multi-page placement is ambiguous.
-   if(batch.provider==='dropbox'&&pageSizes.length!==1){unmapped.push({sourceId:item.sourceId,reason:'Template page mapping is unavailable; only single-page PDFs can be mapped.'});continue}
+   if(batch.provider==='dropbox'&&pageSizes.length!==1){unmapped.push({sourceId:item.sourceId,title:item.title,reason:'Template page mapping is unavailable; only single-page PDFs can be mapped.'});continue}
    const fields=(item.fields??[]).map(f=>{const size=pageSizes[Number(f.page)];insist(size,'Template field names a missing page.');return {...f,x:Number(f.x)/size.width,y:(f.fromBottom?size.height-Number(f.y)-Number(f.height):Number(f.y))/size.height,width:Number(f.width)/size.width,height:Number(f.height)/size.height}})
    const validated=validateFields(fields,item.roles!.length,pageSizes.length)
    const {definition}=await importedTemplateDefinition(env,{title:item.title,filename:'imported-template.pdf',pdfBase64:item.pdf,roles:item.roles,fields:validated,expiryDays:30},actor)
@@ -43,7 +43,9 @@ export async function previewRemoteImport(env:Env,actor:Actor,input:Record<strin
    planned.push({id:target,kind:item.kind,owner,template,pdf:item.pdf,audit:''})
   }
  }
- const summary={provider:batch.provider,account:batch.account,counts:{agreements:planned.filter(p=>p.kind==='envelope').length,templates:planned.filter(p=>p.kind==='template').length},items:planned.map(p=>({id:p.id,title:p.envelope?.title??p.template!.title,kind:p.kind,owner:p.owner.email})),unmapped,next:batch.next}
+ const states:Record<string,number>={}
+ for(const plan of planned){const state=plan.envelope?String((plan.envelope.source as Record<string,unknown>).status):'template';states[state]=(states[state]??0)+1}
+ const summary={provider:batch.provider,account:batch.account,states,counts:{agreements:planned.filter(p=>p.kind==='envelope').length,templates:planned.filter(p=>p.kind==='template').length},items:planned.map(p=>({id:p.id,title:p.envelope?.title??p.template!.title,kind:p.kind,owner:p.owner.email})),unmapped,next:batch.next}
  const fingerprint=await sha256(canonical({planned,summary})),previewId=options.previewId??id()
  await atomic(env.DB,[roleGuard(actor,['owner']),...(options.guards??[])],[env.DB.prepare('DELETE FROM iw_remote_previews WHERE expires_at<=?').bind(Date.now()),env.DB.prepare('INSERT INTO iw_remote_previews VALUES(?,?,?,?,?)').bind(previewId,actor.id,fingerprint,JSON.stringify({summary}),options.previewId?8640000000000000:Date.now()+30*60_000),...previewParts(env,previewId,JSON.stringify(planned))])
  return {...summary,previewId,fingerprint}
@@ -51,6 +53,7 @@ export async function previewRemoteImport(env:Env,actor:Actor,input:Record<strin
 /** Each native record and its opaque checkpoint commit together; a lost response is safe to resume. */
 export async function applyRemoteImport(env:Env,actor:Actor,input:Record<string,unknown>,guards:Guard[]=[]) {
  const previewId=text(input.previewId,'the preview ID'),fingerprint=text(input.fingerprint,'the approved fingerprint')
+ if(!guards.length)insist(!await env.DB.prepare('SELECT 1 FROM iw_remote_job_pages WHERE preview_id=?').bind(previewId).first(),'Approve account imports through their job controls.',409)
  const row=await env.DB.prepare('SELECT data,fingerprint,expires_at FROM iw_remote_previews WHERE id=? AND owner_id=?').bind(previewId,actor.id).first<{data:string;fingerprint:string;expires_at:number}>()
  insist(row&&row.expires_at>Date.now(),'Preview expired. Review a fresh provider batch.',409)
  insist(row.fingerprint===fingerprint,'The reviewed fingerprint changed.',409)

@@ -2,7 +2,7 @@ import { RemoteImportJob } from './remote-import-job'
 import { useState } from 'react'
 import { request } from './types'
 import { ErrorNotice, useAction } from './feedback'
-interface Preview { previewId:string;fingerprint:string;counts:{agreements:number;templates:number};items:{id:string;title:string;kind:string;owner:string}[];unmapped:{sourceId:string;reason:string}[];next:{cursor?:string|null;templateCursor?:string|null;page?:number|null} }
+interface Preview { previewId:string;fingerprint:string;counts:{agreements:number;templates:number};items:{id:string;title:string;kind:string;owner:string}[];unmapped:{sourceId:string;title?:string;reason:string}[];next:{cursor?:string|null;templateCursor?:string|null;page?:number|null} }
 export function ApiMoveIn() {
  const [provider,setProvider]=useState('acrobat'),[region,setRegion]=useState('na1'),[credential,setCredential]=useState(''),[fallbackAdmin,setFallback]=useState(''),[preview,setPreview]=useState<Preview>(),[approved,setApproved]=useState(false),[complete,setComplete]=useState(false)
  const [continuation,setContinuation]=useState<Record<string,unknown>>({})
@@ -16,7 +16,7 @@ export function ApiMoveIn() {
  <p>A single-batch preview uses the credential only for that request. Account jobs keep it sealed until completion or cancellation. A reviewed single batch expires after 30 minutes. Signed PDFs and provider audit evidence become private records under their mapped owners.</p>
  <button className="iw-fit" disabled={action.busy||!credential||!fallbackAdmin} onClick={()=>void action.run(async()=>{setApproved(false);setComplete(false);setPreview(await request<Preview>('/api/inkwell/remote-import/preview',{provider,region,credential,fallbackAdmin,...continuation}));setCredential('')})}>Preview provider import</button>
  {preview&&<div className="iw-callout iw-stack"><h4>Provider import preview</h4><p>{preview.counts.agreements} agreements · {preview.counts.templates} templates</p><ul>{preview.items.map(item=><li key={item.id}>{item.title} · {item.kind} · Owner: {item.owner}</li>)}</ul>
- {!!preview.unmapped.length&&<div><h4>Unmapped or skipped items</h4><ul>{preview.unmapped.map((item,i)=><li key={i}>{item.sourceId}: {item.reason}</li>)}</ul></div>}
+ {!!preview.unmapped.length&&<div><h4>Unmapped or skipped items</h4><ul>{preview.unmapped.map((item,i)=><li key={i}>{item.title?`${item.title} · ${item.sourceId}`:item.sourceId}: {item.reason}</li>)}</ul></div>}
  <dl className="iw-hashes"><dt>Reviewed batch fingerprint</dt><dd>{preview.fingerprint}</dd></dl>
  {Object.values(preview.next).some(Boolean)&&<p>More source pages remain. This preview covers only the batch listed above.</p>}
  {!complete&&<><label className="iw-check"><input type="checkbox" checked={approved} onChange={e=>setApproved(e.target.checked)} />I reviewed the source owners, skipped items and batch fingerprint.</label><button className="iw-primary iw-fit" disabled={!approved||action.busy} onClick={()=>void action.run(async()=>{await request('/api/inkwell/remote-import/apply',{previewId:preview.previewId,fingerprint:preview.fingerprint});setComplete(true);setApproved(false)})}>Import reviewed batch</button></>}
