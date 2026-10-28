@@ -461,15 +461,15 @@ How the owner-approved scope for Inkwell (16 October 2026) maps to clauses.
 
 Judged from the code and tests at commit `f5dab1a4491a157fdf3370f0b5d53b18af9dfd66` (27 October 2026).
 
-That source and test revision proves owner-reviewed CRM mapping, moved-file, pinned-folder, legacy-folder, verified webhook projection and notification-connection repairs through network-edge fakes. The final publication candidate changes only contract status, generated claims and the source lock after that source revision; production code, migrations and tests are byte-identical. Legacy Dropbox inspection and replay verify existing artifact bytes without uploading, including when the old path is recreated. Unknown or missing remote effects stay unresolved. No live-provider operation is claimed. Exact-candidate tests, mutation probes, browser proof and guarded release gates are recorded in the fleet handoff.
+That source and test revision proves owner-reviewed CRM mapping, moved-file, pinned-folder, legacy-folder, verified webhook projection and notification-connection repairs through network-edge fakes. That historical revision records the repair proof; this candidate preserves it and adds reviewed remote-import custody and recovery for MOVE-003 and MOVE-004. Resolve the current execution SHA with `git rev-parse HEAD`; the historical pin does not identify these added changes. Legacy Dropbox inspection and replay verify existing artifact bytes without uploading, including when the old path is recreated. Unknown or missing remote effects stay unresolved. No live-provider operation is claimed. Exact-candidate tests, mutation probes, browser proof and guarded release gates are recorded in the fleet handoff.
 
 SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing public-door proof on 25 October 2026.
 
 | Clauses | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
 | Published | 10 | 0 | 0 | 10 |
-| Target and push further | 61 | 24 | 22 | 107 |
-| All | 71 | 24 | 22 | 117 |
+| Target and push further | 61 | 26 | 20 | 107 |
+| All | 71 | 26 | 20 | 117 |
 
 | Clause | Title | Kind | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- | --- |
@@ -591,4 +591,4 @@ SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing pu
 | `AGENT-008` | Signer assistant | push-further | missing |  | No signer assistant |
 | `AGENT-009` | Inbound agreements | push-further | partial | `tests/agent-workflows.test.mjs` — “Inbound agreements: authenticated forward selects the granted business-role signer; human approval and signing precede a once-only grant-bound executed return”. Signed intake, replay refusal, configured role selection, prepared fixed bytes, separate human approval and signature, denied and allowed return, concurrent once-only delivery, revocation and permanent authority suspension. `docs/agent-workflows.md` documents the native doors. | Adopted conservative default pending CT: owner-maintained business-role mapping, exact approved forwarder, and a separate owner return action under the current grant. Automatic organizational-role inference and intake from other agreement platforms remain unimplemented. Native HTTP doors ship; no new operator controls or live mailbox qualification is claimed. |
 
-Status provenance, 27 October 2026: this committed candidate has 71 done, 24 partial and 22 missing clauses, id for id with ACCEPTANCE.md. Resolve its full SHA with `git rev-parse HEAD`; the fleet handoff records that SHA, its local execution and the exact verification runs. No earlier review pin identifies this implementation proof.
+Status provenance, 27 October 2026: this committed candidate has 71 done, 26 partial and 20 missing clauses, id for id with ACCEPTANCE.md. Resolve its full SHA with `git rev-parse HEAD`; the fleet handoff records that SHA, its local execution and the exact verification runs. No earlier review pin identifies this implementation proof.
