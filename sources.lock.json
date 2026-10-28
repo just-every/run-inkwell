@@ -1805,7 +1805,7 @@
       "executable": false
     },
     "src/inkwell/remote-import-jobs.ts": {
-      "sha256": "ab35ffacc706303ebe72b8574f013ac2d1368b2b2feaa1928cd2d81cbf256493",
+      "sha256": "d78e9ed4f4df5269e5aa84572dd5a477c92059b407059abafda9feca705eecd0",
       "executable": false
     },
     "src/inkwell/remote-import-provider.ts": {
@@ -4621,7 +4621,7 @@
       "executable": false
     },
     "tests/journeys/remote-import.mjs": {
-      "sha256": "a011eed5fdd9f4d01972d2b0a7d14f52b549ce6922577bd4c91bb71f4e1842e8",
+      "sha256": "aa2ec223f0f7594e5879e2601b6e31717a7e390e0ff65c102c8a07bc38f6cf63",
       "executable": false
     },
     "tests/journeys/routing.mjs": {
@@ -4709,7 +4709,7 @@
       "executable": false
     },
     "tests/remote-import.test.mjs": {
-      "sha256": "bc366f75422e0ae0a8c2df86843bdfffe87b52d5a2cdc3b8846a14f910565ebf",
+      "sha256": "d8426aad060a939c7401c3929d7d1a571c1f834f2ea0c8ef3ac1dbe7ac4bb1c1",
       "executable": false
     },
     "tests/routing.test.mjs": {

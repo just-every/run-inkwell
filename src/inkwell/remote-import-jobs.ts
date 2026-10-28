@@ -13,9 +13,9 @@ const terminal=['completed','cancelled','authority_lost']
 const live=['previewing','applying','rate_limited']
 const bound=(job:Job):Guard=>({sql:'EXISTS(SELECT 1 FROM iw_remote_jobs WHERE id=? AND version=? AND claim=? AND state IN (\'previewing\',\'applying\',\'rate_limited\') AND EXISTS(SELECT 1 FROM oa_operators o WHERE o.id=owner_id AND o.version=owner_version AND o.role=\'owner\' AND o.status=\'active\'))',values:[job.id,job.version,job.claim]})
 async function load(env:Env,actor:Actor,jobId:unknown) {const row=await env.DB.prepare('SELECT * FROM iw_remote_jobs WHERE id=? AND owner_id=?').bind(text(jobId,'the job ID'),actor.id).first<Job>();insist(row,'Import job not found.',404);return row}
-async function clearPrivate(env:Env,jobId:string) {
+async function clearPrivate(env:Env,jobId:string,keepReport=false) {
  const pages=(await env.DB.prepare('SELECT id AS preview_id FROM iw_remote_previews WHERE id GLOB ?').bind(jobId+'-*').all<{preview_id:string}>()).results
- for(const page of pages)await env.DB.prepare('DELETE FROM iw_remote_previews WHERE id=?').bind(page.preview_id).run()
+ for(const page of pages)await env.DB.prepare(keepReport?'DELETE FROM iw_remote_preview_parts WHERE preview_id=?':'DELETE FROM iw_remote_previews WHERE id=?').bind(page.preview_id).run()
  await env.DB.prepare('DELETE FROM iw_remote_response_parts WHERE job_id=?').bind(jobId).run()
  await env.DB.prepare('UPDATE iw_remote_jobs SET sealed=NULL WHERE id=?').bind(jobId).run()
 }
@@ -116,7 +116,7 @@ export async function processRemoteJobs(env:Env,at=Date.now()) {
     if(page)data.applied++
     if(data.applied>=data.pages)state='completed'
     await atomic(env.DB,[roleGuard(principal,['owner']),bound(job)],[env.DB.prepare('UPDATE iw_remote_jobs SET state=?,data=?,claim=NULL,lease_until=0,next_at=0 WHERE id=?').bind(state,JSON.stringify(data),job.id)])
-    if(state==='completed')await clearPrivate(env,job.id)
+    if(state==='completed')await clearPrivate(env,job.id,true)
    }
   }catch(error){
    const durable=await env.DB.prepare('SELECT data FROM iw_remote_jobs WHERE id=? AND claim=?').bind(job.id,claim).first<{data:string}>()

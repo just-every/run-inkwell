@@ -76,6 +76,7 @@ export async function remoteImportJourney() {
     const violations=await page.evaluate(async()=> (await window.axe.run(document.querySelector('[aria-label="API move-in"]'),{runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}})).violations)
     assert.deepEqual(violations.map(v=>v.id),[],'account job controls meet accessibility checks')
    }
+   if(width===1440)assert.equal(await account.getByText(/Account preview acrobat open agreement · open:/).count(),1,'completed account jobs retain the unmapped report')
    if(width===1440){const native=(await app.call('/api/inkwell/envelopes',{cookie:app.owner})).value.envelopes;assert.equal(native.filter(e=>e.title.startsWith('Account preview ')).length,2,'the reviewed account job creates its visible native agreements')}
    await capture('account-completed')
    await context.close()
