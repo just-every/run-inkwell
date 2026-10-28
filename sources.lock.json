@@ -4489,7 +4489,7 @@
       "executable": false
     },
     "tests/journeys/prefill.mjs": {
-      "sha256": "2980ccc5b5b4e42a9aa3de9251a56fa7ff9d41fc3acaf261dcb7cc950f38b946",
+      "sha256": "33c243b190be566c1f2695c85651cbc72efb32a6f552b9e724bb8ee01ee0b15f",
       "executable": false
     },
     "tests/journeys/provider-auth.mjs": {
@@ -4561,7 +4561,7 @@
       "executable": false
     },
     "tests/journeys/worker.mjs": {
-      "sha256": "9a98cc9c41b43cf1a2a8fb28c2804eed74f46a0e783a8863c53929b5252ca9dd",
+      "sha256": "79b4500267ac31a09d34d3e0905ead11e526e9725081c34dda8d7edee9967293",
       "executable": false
     },
     "tests/manual-invitations.test.mjs": {
