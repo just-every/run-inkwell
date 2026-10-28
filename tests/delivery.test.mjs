@@ -804,6 +804,45 @@ const smsTestCode=texts=>texts.at(-1).body.match(/\b\d{6}\b/)[0]
 const smsTestDetail=async(h,id)=>(await h.post('/api/inkwell/envelopes/'+id,undefined)).value.envelope
 async function smsTestPdfText(bytes){const {getDocument}=await import('pdfjs-dist/legacy/build/pdf.mjs');const doc=await getDocument({data:new Uint8Array(bytes),standardFontDataUrl:new URL('../node_modules/pdfjs-dist/standard_fonts/',import.meta.url).pathname}).promise;let text='';for(let n=1;n<=doc.numPages;n++)text+=(await(await doc.getPage(n)).getTextContent()).items.map(i=>i.str).join(' ');return text}
 
+test('ROUTE-009: an SMS replacement never receives or overwrites the former member’s saved signature',async()=>{
+ const {h,texts}=await smsHarness()
+ try{
+  const email='saved-member@example.test',cookie=await h.invite(email,'member'),member=(await h.send('/api/inkwell',undefined,cookie)).value.actor
+  const prepare=async(title,signer)=>{
+   const id=(await h.command('envelope.prepare',{title,filename:'saved-mark.pdf',pdfBase64:await pdf(),signers:[signer],fields:[{id:'signature',label:'Signature',type:'signature',signer:0,page:0,x:.1,y:.5,width:.4,height:.07}]})).result.id
+   await h.command('envelope.approve',{id,eligible:true})
+   return id
+  }
+  const openInApp=async id=>{
+   const opened=await h.post('/api/inkwell/commands',{command:'envelope.open_signing',input:{id},commandId:crypto.randomUUID()},cookie)
+   return {path:'/api'+new URL(opened.value.result.signing.url).pathname,cookie:opened.cookie}
+  }
+
+  const first=await prepare('Save member signature',{name:'Saved Member',email})
+  const original=await openInApp(first)
+  await h.agree(original.path,original.cookie)
+  await h.post(original.path+'/sign',{values:{signature:'Saved Member'},consent:true,commandId:crypto.randomUUID()},original.cookie)
+  const savedBefore=await h.db.prepare('SELECT * FROM iw_member_marks WHERE operator_id=?').bind(member.id).first()
+  assert.equal(savedBefore.signature,'Saved Member','the member saved a signature through an earlier in-app signing turn')
+
+  const second=await prepare('Replace member signer',{name:'Saved Member',email,phone:'+12025550102',sms:true})
+  const former=await openInApp(second)
+  assert.equal((await h.send(former.path,undefined,former.cookie)).value.savedSignature,'Saved Member','the member sees their own saved signature before replacement')
+  const replacement={name:'Replacement Signer',email:'replacement@example.test',phone:'+12025550103',sms:true,order:1}
+  await h.command('envelope.correct',{id:second,signers:[replacement]})
+  const invitation=await h.mail(replacement.email,'Please sign:'),path='/api'+new URL(invitation.text.match(/http:\/\/[^\s]+\/sign\/[^\s]+/)[0]).pathname
+  await h.post(path+'/code',{},'')
+  const verified=(await h.post(path+'/verify',{code:smsTestCode(texts)},'')).cookie
+  assert.equal((await h.send(path,undefined,verified)).value.savedSignature,undefined,'the replacement receives no saved signature from the former member')
+  await h.agree(path,verified)
+  await h.post(path+'/sign',{values:{signature:replacement.name},consent:true,commandId:crypto.randomUUID()},verified)
+
+  assert.deepEqual(await h.db.prepare('SELECT * FROM iw_member_marks WHERE operator_id=?').bind(member.id).first(),savedBefore,'replacement signing leaves the former member mark unchanged')
+  const signed=(await smsTestDetail(h,second)).events.find(event=>event.action==='signer.signed')
+  assert.equal(signed.detail.operator,undefined);assert.equal(signed.detail.saved,false)
+ }finally{await h.close()}
+})
+
 test('SMS recipient verifies only an SMS code, corrects phone with audited rotation, resends same and new SMS links, signs and receives masked certificate evidence',async()=>{
  const {h,texts}=await smsHarness()
  try{

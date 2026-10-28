@@ -1,4 +1,4 @@
-import { now, type Adoption, type Envelope, type Env } from './model'
+import { identityEvents, now, type Adoption, type Envelope, type Env } from './model'
 
 /** ROUTE-009: a member who signs with their Inkwell session (MANAGE-003) adopts a signature once; it is saved to them
  * and offered for their later in-app signing, and signing with a different one replaces it. SIGNX-002: the saved
@@ -6,7 +6,7 @@ import { now, type Adoption, type Envelope, type Env } from './model'
 const authActions = ['signer.provider_verified', 'signer.sms_verified', 'signer.email_verified', 'signer.code_verified', 'signer.session_verified', 'signer.link_opened']
 /** The member whose session last authenticated this signer, if their latest authentication was a session. */
 export function sessionMember(envelope: Envelope, signer: number) {
-  const last = envelope.events.filter(e => authActions.includes(e.action) && e.detail.signer === signer).at(-1)
+  const last = identityEvents(envelope, signer).filter(e => authActions.includes(e.action) && e.detail.signer === signer).at(-1)
   return last?.action === 'signer.session_verified' ? last.detail.operator as string : undefined
 }
 export type SavedMark = { signature: string; adoption: Adoption; imageBase64?: string; initials?: { value: string; adoption: Adoption; imageBase64?: string } }
