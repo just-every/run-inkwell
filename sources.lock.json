@@ -4616,6 +4616,10 @@
       "sha256": "0cb08097a5ae0cc7eb446bc52d9e8c2fb11e8e4d8870de63c5a8a4fe3862b328",
       "executable": false
     },
+    "tests/journeys/remote-import-scale.mjs": {
+      "sha256": "33f2239ed583627bf496fc1b9c43f5b3997b27f75ff50804cb49451dda7c7730",
+      "executable": false
+    },
     "tests/journeys/remote-import.mjs": {
       "sha256": "a011eed5fdd9f4d01972d2b0a7d14f52b549ce6922577bd4c91bb71f4e1842e8",
       "executable": false
