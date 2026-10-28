@@ -12,7 +12,7 @@ Imported records keep their provider provenance and are private to their mapped 
    Progress survives closing the page, interruption, a provider limit or an expired key.
    Reopen the saved review and supply a current key to continue; a key for another
    source account is refused.
-3. Review the total request and template counts, counts by sender, unmapped items and
+3. Review the total request and template counts, counts by sender and source state, unmapped items and
    fingerprint. A template with an unsupported field type or ambiguous page placement
    is listed for review rather than silently changed.
 4. Confirm the review and choose **Approve account import**. Approved pages import in

@@ -1188,6 +1188,26 @@ test('Box and Dropbox file the completed PDF and certificate exactly once despit
   const attempts=edge.attempts().length
   await h.scheduled(Date.now());assert.equal(edge.attempts().length,attempts,'filed jobs are never uploaded again')
   assert.ok(!(JSON.stringify(h.logs())+JSON.stringify(view)).includes(JSON.stringify('synthetic-inkwell-1')),'provider credentials never enter views or logs')
+  {
+  // Existing installations have rules and outstanding jobs without a pinned folder identity.
+  edge.failNext('dropbox','after')
+  const legacy=await finishFilingEnvelope(h,templateId,'synthetic-inkwell-63@example.test')
+  // Seed pre-migration custody after both artifacts reached the provider. Main's
+  // read-only legacy recovery must never create a missing remote artifact.
+  await h.db.prepare("UPDATE iw_filing_rules SET folder_ref=NULL WHERE provider='dropbox'").run()
+  await h.db.prepare("UPDATE iw_filing_jobs SET folder_ref=NULL WHERE envelope_id=? AND provider='dropbox'").bind(legacy.id).run()
+  const legacyBefore=(await h.send('/api/inkwell/filing',undefined,h.owner)).value
+  const legacyJob=legacyBefore.jobs.find(job=>job.envelope_id===legacy.id&&job.provider==='dropbox'&&job.state==='uncertain')
+  assert.ok(legacyJob);assert.equal(legacyJob.folder_ref,null)
+  await saveFilingRule(h,templateId,'dropbox',{expectedVersion:1})
+  const legacySaved=(await h.send('/api/inkwell/filing',undefined,h.owner)).value
+  assert.equal(legacySaved.jobs.find(job=>job.envelope_id===legacy.id&&job.kind===legacyJob.kind&&job.provider==='dropbox').state,'uncertain','saving the rule preserves outstanding uncertainty')
+  await h.post('/api/inkwell/filing/retry',{id:legacy.id})
+  const legacyAfter=(await h.send('/api/inkwell/filing',undefined,h.owner)).value
+  assert.deepEqual(legacyAfter.jobs.filter(job=>job.envelope_id===legacy.id).map(job=>[job.provider,job.kind,job.state]).sort(),[['box','certificate','filed'],['box','signed','filed'],['dropbox','certificate','filed'],['dropbox','signed','filed']],'legacy work remains recoverable after a rule save')
+  assert.equal(edge.files().filter(file=>file.name.includes(legacy.id)).length,4,'legacy recovery creates no duplicate artifacts')
+  assert.equal(legacyAfter.jobs.find(job=>job.envelope_id===legacy.id&&job.kind===legacyJob.kind&&job.provider==='dropbox').folder_ref,null,'saving a rule does not invent historical folder authority')
+  }
   // AGENT-006: a moved Dropbox folder is resolved only by its pinned identity.
   edge.failNext('dropbox','after')
   const moved=await finishFilingEnvelope(h,templateId,'synthetic-inkwell-61@example.test')

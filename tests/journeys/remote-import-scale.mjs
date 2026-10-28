@@ -31,7 +31,7 @@ const edge=async request=>{
  if(previous!==undefined)assert.ok(clock-previous>=15*60000,'an interrupted resource is not polled twice within 15 minutes')
  resources.set(resource,clock)
  if(path.startsWith('/signature_request/files/'))return new Response(fixture.pdf,{headers:{...headers,'content-type':'application/pdf'}})
- return json({signature_request:{signature_request_id:identity,title:'Scale request '+index,requester_email_address:index%2?[address('second')]:address('first'),is_complete:true,signatures:[{signer_name:'Synthetic client',signer_email_address:address('client'),signed_at:1767225600}]}})
+ return json({signature_request:{signature_request_id:identity,title:'Scale request '+index,requester_email_address:index%2?address('second'):address('first'),is_complete:true,signatures:[{signer_name:'Synthetic client',signer_email_address:address('client'),signed_at:1767225600}]}})
 }
 const h=await harness({networkEdge:edge,now:clock}),route='/api/inkwell/remote-import/jobs/'
 try {
@@ -49,7 +49,7 @@ try {
   else{assert.equal(response.status,200,JSON.stringify(response.value));state=response.value}
   if(state.pages&&state.pages%100===0)console.log('Reviewed pages',state.pages,'of',total/20)
  }
- assert.equal(state.state,'ready');assert.equal(state.agreements,total);assert.equal(state.templates,0)
+ assert.equal(state.state,'ready');assert.equal(state.agreements,total);assert.equal(state.templates,0);assert.deepEqual(state.states,{completed:total})
  assert.deepEqual(state.senders,{[address('first')]:{agreements:9000,templates:0},[address('second')]:{agreements:9000,templates:0}})
  assert.equal(state.items.length,total);assert.equal(new Set(state.items.map(i=>i.id)).size,total)
  assert.equal((await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.total,0)

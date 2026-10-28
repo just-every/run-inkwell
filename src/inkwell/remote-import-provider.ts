@@ -9,7 +9,7 @@ const base64=(bytes:Uint8Array)=>{let result='';for(let at=0;at<bytes.length;at+
 const email=(value:unknown)=>typeof value==='string'?value.trim().toLowerCase():''
 const instant=(value:unknown)=>typeof value==='number'&&value>0?new Date(value*1000).toISOString():typeof value==='string'&&Number.isFinite(Date.parse(value))?new Date(value).toISOString():undefined
 /** Only fixed provider hosts are reachable; credentials and raw errors never enter a receipt. */
-export interface RemoteReadControl { account?:string; before?:()=>Promise<void>; response?:(response:Response)=>Promise<void>; identified?:(account:string)=>Promise<void>; cached?:(path:string)=>Promise<Uint8Array|undefined>; cache?:(path:string,bytes:Uint8Array)=>Promise<void> }
+export interface RemoteReadControl { account?:string; before?:()=>Promise<void>; response?:(response:Response)=>Promise<void>; identified?:(account:string)=>Promise<void>; cached?:(path:string)=>Promise<Uint8Array|undefined>; cache?:(path:string,bytes:Uint8Array)=>Promise<void>; skip?:(provider:Provider,account:string,kind:'envelope'|'template',sourceId:string)=>Promise<boolean> }
 export async function readRemoteBatch(input:Record<string,unknown>,control:RemoteReadControl={}) {
  const provider=input.provider as Provider;insist(['acrobat','dropbox'].includes(provider),'Choose an import provider.')
  const credential=text(input.credential,'the provider credential',4096);insist(!/[\r\n]/.test(credential),'Invalid credential.')
@@ -31,6 +31,10 @@ export async function readRemoteBatch(input:Record<string,unknown>,control:Remot
   try{return object(JSON.parse(new TextDecoder().decode(bytes)))}catch{throw new Refusal('The provider returned an invalid response.',502)}
  }
  const items:RemoteItem[]=[],unmapped:{sourceId:string;reason:string}[]=[]
+ async function handled(account:string,kind:'envelope'|'template',sourceId:string) {
+  if(!await control.skip?.(provider,account,kind,sourceId))return false
+  unmapped.push({sourceId,reason:'Already imported or erased; retry will not recreate it.'});return true
+ }
  const page=Number(input.page??1);insist(Number.isSafeInteger(page)&&page>=1&&page<=100000,'Choose a valid source page.')
  if(provider==='acrobat') {
   const identity=await get('/users/me') as any,account=text(identity.accountId??identity.userId,'the source account ID')
@@ -41,7 +45,9 @@ export async function readRemoteBatch(input:Record<string,unknown>,control:Remot
   const templates=input.continuation&&input.templateCursor===null?{libraryDocumentList:[],page:{}}:await get('/libraryDocuments?pageSize=20'+(input.templateCursor?'&cursor='+encode(text(input.templateCursor,'a template cursor',1000)):'')) as any
   insist(Array.isArray(list.userAgreementList)&&list.userAgreementList.length<=20&&Array.isArray(templates.libraryDocumentList)&&templates.libraryDocumentList.length<=20,'Invalid provider batch.',502)
   for(const entry of list.userAgreementList) {
-   const sourceId=text(entry.id,'an agreement ID'),path='/agreements/'+encode(sourceId),detail=await get(path) as any
+   const sourceId=text(entry.id,'an agreement ID')
+   if(await handled(account,'envelope',sourceId))continue
+   const path='/agreements/'+encode(sourceId),detail=await get(path) as any
    if(!['SIGNED','CANCELLED','EXPIRED'].includes(detail.status)){unmapped.push({sourceId,reason:'Agreement is not terminal; no invitation was sent.'});continue}
    const members=await get(path+'/members') as any,events=await get(path+'/events') as any
    const terminalTypes=detail.status==='SIGNED'
@@ -53,7 +59,9 @@ export async function readRemoteBatch(input:Record<string,unknown>,control:Remot
    items.push({kind:'envelope',sourceId,title:text(detail.name,'an agreement name'),ownerEmail:email(detail.senderEmail),status:detail.status,terminalAt:end,signers,pdf:await get(path+'/combinedDocument',true) as string,audit:await get(path+'/auditTrail',true) as string})
   }
   for(const entry of templates.libraryDocumentList) {
-   const sourceId=text(entry.id,'a library template ID'),path='/libraryDocuments/'+encode(sourceId),detail=await get(path) as any,documents=await get(path+'/documents') as any,form=await get(path+'/formFields') as any
+   const sourceId=text(entry.id,'a library template ID')
+   if(await handled(account,'template',sourceId))continue
+   const path='/libraryDocuments/'+encode(sourceId),detail=await get(path) as any,documents=await get(path+'/documents') as any,form=await get(path+'/formFields') as any
    if(documents.documents?.length!==1){unmapped.push({sourceId,reason:'Template needs exactly one PDF; review its document mapping.'});continue}
    // Library documents expose field assignees, not agreement participant sets.
    const assignees=[...new Set<string>((form.fields??[]).map((f:any)=>f.assignee??'1'))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}))
@@ -70,13 +78,17 @@ export async function readRemoteBatch(input:Record<string,unknown>,control:Remot
  const list=await get(`/signature_request/list?page=${page}&page_size=20&account_id=all`) as any,templates=await get(`/template/list?page=${page}&page_size=20&account_id=all`) as any
  insist(Array.isArray(list.signature_requests)&&list.signature_requests.length<=20&&Array.isArray(templates.templates)&&templates.templates.length<=20,'Invalid provider batch.',502)
  for(const entry of list.signature_requests) {
-  const sourceId=text(entry.signature_request_id,'a request ID'),detail=(await get('/signature_request/'+encode(sourceId)) as any).signature_request
+  const sourceId=text(entry.signature_request_id,'a request ID')
+  if(await handled(account,'envelope',sourceId))continue
+  const detail=(await get('/signature_request/'+encode(sourceId)) as any).signature_request
   if(!detail?.is_complete&&!detail?.is_declined){unmapped.push({sourceId,reason:`Request "${detail?.title??sourceId}" is not terminal; no invitation was sent.`});continue}
   const pdf=await get('/signature_request/files/'+encode(sourceId)+'?file_type=pdf',true) as string
   items.push({kind:'envelope',sourceId,title:text(detail.title,'a request title'),ownerEmail:email(detail.requester_email_address),status:detail.is_complete?'completed':'declined',terminalAt:instant(detail.is_complete?Math.max(0,...(detail.signatures??[]).map((s:any)=>Number(s.signed_at??0))):detail.last_declined_at),signers:(detail.signatures??[]).map((s:any)=>({name:String(s.signer_name??s.signer_email_address),email:email(s.signer_email_address)})),pdf,audit:pdf})
  }
  for(const entry of templates.templates) {
-  const sourceId=text(entry.template_id,'a template ID'),detail=(await get('/template/'+encode(sourceId)) as any).template
+  const sourceId=text(entry.template_id,'a template ID')
+  if(await handled(account,'template',sourceId))continue
+  const detail=(await get('/template/'+encode(sourceId)) as any).template
   insist(detail,'Invalid template response.',502)
   const roles=(detail.signer_roles??[]).map((r:any,i:number)=>({role:String(r.name),order:Number(r.order??i)+1}))
   if(detail.documents?.length!==1){unmapped.push({sourceId,reason:'Template needs exactly one PDF; review its document mapping.'});continue}

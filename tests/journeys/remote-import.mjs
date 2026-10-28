@@ -38,7 +38,7 @@ export async function remoteImportJourney() {
    await screen.getByLabel('Dropbox Sign API key',{exact:true}).fill('synthetic-inkwell-99')
    await screen.getByRole('button',{name:'Review account pages',exact:true}).click()
    await screen.getByRole('status').filter({hasText:'Account review: ready.'}).waitFor()
-   if(width===1440){assert.match(await screen.getByRole('status').innerText(),/2 pages reviewed.*3 agreements.*1 templates/);assert.equal(await screen.getByRole('button',{name:'Approve account import',exact:true}).isDisabled(),true)}
+   if(width===1440){assert.match(await screen.getByRole('status').innerText(),/2 pages reviewed.*3 agreements.*1 templates/);assert.equal(await screen.getByText('declined: 1 record',{exact:true}).count(),1);assert.equal(await screen.getByRole('button',{name:'Approve account import',exact:true}).isDisabled(),true)}
    await capture('account-ready')
    await screen.getByRole('button',{name:'Pause account job',exact:true}).focus();await page.keyboard.press('Enter')
    await screen.getByRole('status').filter({hasText:'Account review: paused.'}).waitFor();await capture('account-paused')

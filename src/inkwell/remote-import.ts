@@ -18,13 +18,13 @@ async function mappedOwner(env:Env,email:string,fallback:string) {
 const ownerGuard=(owner:Actor):Guard=>({sql:"EXISTS(SELECT 1 FROM oa_operators WHERE id=? AND version=? AND status='active')",values:[owner.id,owner.version]})
 export async function previewRemoteImport(env:Env,actor:Actor,input:Record<string,unknown>,control:RemoteReadControl&{guard?:Guard}={}) {
  const fallback=text(input.fallbackAdmin,'the fallback admin email',254).toLowerCase()
- const batch=await readRemoteBatch(input,remoteReadControl(env,String(input.provider),control)),planned:Planned[]=[],unmapped=[...batch.unmapped],at=now()
+ const batch=await readRemoteBatch(input,remoteReadControl(env,String(input.provider),{...control,skip:async(provider,account,kind,sourceId)=>Boolean(await env.DB.prepare('SELECT id FROM iw_remote_imports WHERE id=?').bind('remote-'+await sha256(canonical([provider,account,kind,sourceId]))).first())})),planned:Planned[]=[],unmapped=[...batch.unmapped],at=now()
  for(const item of batch.items) {
   const target='remote-'+await sha256(canonical([batch.provider,batch.account,item.kind,item.sourceId]))
   const seen=await env.DB.prepare('SELECT id FROM iw_remote_imports WHERE id=?').bind(target).first()
   if(seen){unmapped.push({sourceId:item.sourceId,reason:'Already imported or erased; retry will not recreate it.'});continue}
   const {owner,unmapped:missing}=await mappedOwner(env,item.ownerEmail,fallback)
-  if(missing)unmapped.push({sourceId:item.sourceId,reason:`No active member matches the source owner; assigned to ${owner.email}.`})
+  if(missing)unmapped.push({sourceId:item.sourceId,reason:`Source "${item.title}" has no matching active member; assigned to ${owner.email}.`})
   const pdf=fromBase64(item.pdf),{pageSizes}=await parsePdf(pdf)
   if(item.kind==='envelope') {
    const audit=fromBase64(item.audit);await parsePdf(audit)
@@ -42,7 +42,9 @@ export async function previewRemoteImport(env:Env,actor:Actor,input:Record<strin
    planned.push({id:target,kind:item.kind,owner,template,pdf:item.pdf,audit:''})
   }
  }
- const summary={provider:batch.provider,account:batch.account,counts:{agreements:planned.filter(p=>p.kind==='envelope').length,templates:planned.filter(p=>p.kind==='template').length},items:planned.map(p=>({id:p.id,title:p.envelope?.title??p.template!.title,kind:p.kind,owner:p.owner.email})),unmapped,next:batch.next}
+ const states:Record<string,number>={}
+ for(const item of planned){const state=item.envelope?String((item.envelope.source as {status:string}).status):'template';states[state]=(states[state]??0)+1}
+ const summary={provider:batch.provider,account:batch.account,states,counts:{agreements:planned.filter(p=>p.kind==='envelope').length,templates:planned.filter(p=>p.kind==='template').length},items:planned.map(p=>({id:p.id,title:p.envelope?.title??p.template!.title,kind:p.kind,owner:p.owner.email})),unmapped,next:batch.next}
  const fingerprint=await sha256(canonical({planned,summary})),previewId=id()
  await atomic(env.DB,[roleGuard(actor,['owner']),...(control.guard?[control.guard]:[])],[env.DB.prepare('INSERT INTO iw_remote_previews VALUES(?,?,?,?,?)').bind(previewId,actor.id,fingerprint,JSON.stringify({summary}),Date.now()+30*60_000),...previewParts(env,previewId,JSON.stringify(planned))])
  return {...summary,previewId,fingerprint}

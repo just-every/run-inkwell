@@ -37,7 +37,7 @@ export function hubspotEdge() {
    }
   }
   if(method==='GET'&&path.startsWith('/crm/v3/owners/'))return owners.has(path.split('/').at(-1))?response(owners.get(path.split('/').at(-1))):response({},404)
-  if(method==='GET'&&path==='/files/v3/files/search')return response({results:files.filter(file=>url.searchParams.has('path')?file.path===url.searchParams.get('path'):file.name===url.searchParams.get('name')).map(({bytes,...file})=>file)})
+  if(method==='GET'&&path==='/files/v3/files/search')return response({results:files.filter(file=>url.searchParams.has('path')?file.path===url.searchParams.get('path'):file.name.slice(0,-4)===url.searchParams.get('name')).map(({bytes,...file})=>({...file,name:file.name.slice(0,-4),extension:'pdf'}))})
   if(method==='POST'&&path==='/files/v3/files'){
    const before=fail('file','before');if(before)return before
    const form=await request.formData(),file=form.get('file'),options=JSON.parse(form.get('options'))

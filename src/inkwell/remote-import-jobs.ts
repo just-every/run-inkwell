@@ -5,7 +5,7 @@ import { ApiRateLimit } from './api-limits'
 import { applyRemoteImport, previewRemoteImport } from './remote-import'
 
 type State = 'reviewing'|'ready'|'importing'|'paused'|'complete'|'cancelled'
-interface Job { id:string; owner:string; ownerVersion:number; provider:string; fallbackAdmin:string; region:string; account?:string; state:State; resume?:State; version:number; next:Record<string,unknown>; pages:number; applied:number; agreements:number; templates:number; senders:Record<string,{agreements:number;templates:number}>; nextAt:number; reason?:string; fingerprint?:string }
+interface Job { id:string; owner:string; ownerVersion:number; provider:string; fallbackAdmin:string; region:string; account?:string; state:State; resume?:State; version:number; next:Record<string,unknown>; pages:number; applied:number; agreements:number; templates:number; states:Record<string,number>; senders:Record<string,{agreements:number;templates:number}>; nextAt:number; reason?:string; fingerprint?:string }
 interface Row { data:string; version:number }
 const guard=(j:Job):Guard=>({sql:'EXISTS(SELECT 1 FROM iw_remote_jobs WHERE id=? AND version=?)',values:[j.id,j.version]})
 async function load(env:Env,actor:Actor,jobId:unknown) {
@@ -28,7 +28,7 @@ export async function remoteImportJob(env:Env,actor:Actor,action:string,input:Re
  if(action==='jobs')return {jobs:(await env.DB.prepare('SELECT data FROM iw_remote_jobs WHERE owner_id=? ORDER BY rowid DESC LIMIT 20').bind(actor.id).all<{data:string}>()).results.map(r=>JSON.parse(r.data))}
  if(action==='start') {
   insist(['acrobat','dropbox'].includes(String(input.provider)),'Choose an import provider.')
-  const j:Job={id:id(),owner:actor.id,ownerVersion:actor.version,provider:String(input.provider),fallbackAdmin:text(input.fallbackAdmin,'the fallback admin email',254).toLowerCase(),region:String(input.region??'na1'),state:'reviewing',version:1,next:{},pages:0,applied:0,agreements:0,templates:0,senders:{},nextAt:0}
+  const j:Job={id:id(),owner:actor.id,ownerVersion:actor.version,provider:String(input.provider),fallbackAdmin:text(input.fallbackAdmin,'the fallback admin email',254).toLowerCase(),region:String(input.region??'na1'),state:'reviewing',version:1,next:{},pages:0,applied:0,agreements:0,templates:0,states:{},senders:{},nextAt:0}
   await atomic(env.DB,[roleGuard(actor,['owner'])],[env.DB.prepare('INSERT INTO iw_remote_jobs VALUES(?,?,?,?)').bind(j.id,actor.id,j.version,JSON.stringify(j))]);return view(env,j)
  }
  const j=await load(env,actor,input.jobId)
@@ -58,15 +58,22 @@ export async function remoteImportJob(env:Env,actor:Actor,action:string,input:Re
     return fromBase64(parts.map(p=>p.data).join(''))
    },cache:async(path,bytes)=>{
     if(path==='/account'||path==='/users/me')return
+    // List responses can contain source identities. Resume needs only opaque IDs and pagination.
+    if(path.startsWith('/signature_request/list')){const list=JSON.parse(new TextDecoder().decode(bytes));bytes=new TextEncoder().encode(JSON.stringify({signature_requests:list.signature_requests.map((item:any)=>({signature_request_id:item.signature_request_id})),list_info:{num_pages:list.list_info?.num_pages}}))}
+    if(path.startsWith('/template/list')){const list=JSON.parse(new TextDecoder().decode(bytes));bytes=new TextEncoder().encode(JSON.stringify({templates:list.templates.map((item:any)=>({template_id:item.template_id})),list_info:{num_pages:list.list_info?.num_pages}}))}
+    if(path.startsWith('/agreements?')){const list=JSON.parse(new TextDecoder().decode(bytes));bytes=new TextEncoder().encode(JSON.stringify({userAgreementList:list.userAgreementList.map((item:any)=>({id:item.id})),page:{nextCursor:list.page?.nextCursor}}))}
+    if(path.startsWith('/libraryDocuments?')){const list=JSON.parse(new TextDecoder().decode(bytes));bytes=new TextEncoder().encode(JSON.stringify({libraryDocumentList:list.libraryDocumentList.map((item:any)=>({id:item.id})),page:{nextCursor:list.page?.nextCursor}}))}
     let encoded='';for(let offset=0;offset<bytes.length;offset+=16384)encoded+=String.fromCharCode(...bytes.slice(offset,offset+16384))
     const data=btoa(encoded),writes:D1PreparedStatement[]=[]
     for(let offset=0,part=0;offset<data.length;offset+=50000,part++)writes.push(env.DB.prepare('INSERT OR REPLACE INTO iw_remote_read_cache VALUES(?,?,?,?)').bind(j.id,path,part,data.slice(offset,offset+50000)))
     await atomic(env.DB,[roleGuard(actor,['owner']),guard(j)],writes)
    }})
+   j.states??={}
+   for(const [state,count] of Object.entries(preview.states))j.states[state]=(j.states[state]??0)+count
    j.account=preview.account;j.pages++;j.agreements+=preview.counts.agreements;j.templates+=preview.counts.templates
    for(const item of preview.items){const sender=j.senders[item.owner]??={agreements:0,templates:0};sender[item.kind==='envelope'?'agreements':'templates']++}
    j.next={...preview.next,continuation:true};j.nextAt=0;delete j.reason
-   if(!Object.values(preview.next).some(Boolean)){j.state='ready';j.fingerprint=await sha256(canonical({account:j.account,pages:j.pages,senders:j.senders,agreements:j.agreements,templates:j.templates,fingerprints:[...(await env.DB.prepare('SELECT p.fingerprint FROM iw_remote_job_pages b JOIN iw_remote_previews p ON p.id=b.preview_id WHERE b.job_id=? ORDER BY b.page').bind(j.id).all<{fingerprint:string}>()).results.map(p=>p.fingerprint),preview.fingerprint]}))}
+   if(!Object.values(preview.next).some(Boolean)){j.state='ready';j.fingerprint=await sha256(canonical({account:j.account,pages:j.pages,senders:j.senders,agreements:j.agreements,templates:j.templates,states:j.states,fingerprints:[...(await env.DB.prepare('SELECT p.fingerprint FROM iw_remote_job_pages b JOIN iw_remote_previews p ON p.id=b.preview_id WHERE b.job_id=? ORDER BY b.page').bind(j.id).all<{fingerprint:string}>()).results.map(p=>p.fingerprint),preview.fingerprint]}))}
    await save(env,actor,j,[env.DB.prepare('INSERT INTO iw_remote_job_pages VALUES(?,?,?)').bind(j.id,j.pages,preview.previewId),env.DB.prepare('DELETE FROM iw_remote_read_cache WHERE job_id=?').bind(j.id)])
    return view(env,j,j.state==='ready')
   }catch(error){

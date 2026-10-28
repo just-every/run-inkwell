@@ -202,6 +202,14 @@ test('INTEG-001 MANAGE-002: completion properties, custom metadata, one timeline
   assert.equal(edge.calls().filter(call=>call.method==='POST'&&call.path==='/files/v3/files').length,uploadCount,'uncertainty forbids a second upload attempt')
   edge.intercept(undefined)
   const moved=edge.files().find(file=>file.name.startsWith(drift.id+'-'));moved.path='/reviewed/'+moved.name
+  // A normal file record separates its name and extension; nearby unsupported files do not establish recovery.
+  for(const metadata of [{extension:'txt'},{name:'synthetic-inkwell-unrelated'},{access:'PUBLIC_INDEXABLE'}]){
+   edge.intercept(request=>{const url=new URL(request.url);return url.pathname==='/files/v3/files/search'&&url.searchParams.has('name')?Response.json({results:[{id:moved.id,name:moved.name.slice(0,-4),extension:'pdf',path:moved.path,access:'PRIVATE',...metadata}]}):undefined})
+   const refused=await writeback(h,drift.id)
+   assert.equal(refused.status,'held');assert.equal(refused.fileRepair,null,'unsupported moved-file metadata grants no repair authority')
+   assert.equal(edge.calls().filter(call=>call.method==='POST'&&call.path==='/files/v3/files').length,uploadCount,'unsupported metadata never retries an uncertain upload')
+  }
+  edge.intercept(undefined)
   const movedHeld=await writeback(h,drift.id)
   assert.equal(movedHeld.status,'held');assert.equal(movedHeld.uncertain,'file')
   assert.deepEqual(movedHeld.fileRepair,{id:moved.id,path:moved.path,sha256:(await read(h,drift.id)).signedSha256})

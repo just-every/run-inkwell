@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { request } from './types'
 import { ErrorNotice, useAction } from './feedback'
 interface Preview { previewId:string;fingerprint:string;counts:{agreements:number;templates:number};items:{id:string;title:string;kind:string;owner:string}[];unmapped:{sourceId:string;reason:string}[];next:{cursor?:string|null;templateCursor?:string|null;page?:number|null} }
-interface ImportJob {id:string;provider:string;region:string;fallbackAdmin:string;state:string;pages:number;applied:number;agreements:number;templates:number;senders:Record<string,{agreements:number;templates:number}>;fingerprint?:string;reason?:string;nextAt:number;unmapped?:{sourceId:string;reason:string}[];estimatedFinishAt?:string}
+interface ImportJob {id:string;provider:string;region:string;fallbackAdmin:string;state:string;pages:number;applied:number;agreements:number;templates:number;states?:Record<string,number>;senders:Record<string,{agreements:number;templates:number}>;fingerprint?:string;reason?:string;nextAt:number;unmapped?:{sourceId:string;reason:string}[];estimatedFinishAt?:string}
 export function ApiMoveIn() {
  const [provider,setProvider]=useState('acrobat'),[region,setRegion]=useState('na1'),[credential,setCredential]=useState(''),[fallbackAdmin,setFallback]=useState(''),[preview,setPreview]=useState<Preview>(),[approved,setApproved]=useState(false),[complete,setComplete]=useState(false)
  const [continuation,setContinuation]=useState<Record<string,unknown>>({})
@@ -48,6 +48,7 @@ export function ApiMoveIn() {
  <button className="iw-fit" disabled={action.busy||collectingPages||!fallbackAdmin} onClick={()=>void action.run(()=>jobAction('start',{provider,region,fallbackAdmin}))}>Start account review</button>
  {jobs.filter(j=>!['complete','cancelled'].includes(j.state)).map(j=><button className="iw-fit" key={j.id} disabled={action.busy||collectingPages} onClick={()=>void action.run(async()=>{const saved=await request<ImportJob>('/api/inkwell/remote-import/jobs/status',{jobId:j.id});setJob(saved);setProvider(saved.provider);setRegion(saved.region);setFallback(saved.fallbackAdmin);setCredential('');setAccountApproved(false)})}>Open saved review {j.id.slice(0,8)}</button>)}
  {job&&<><p role="status">Account review: {job.state}. {job.pages} pages reviewed · {job.applied} pages imported. {job.agreements} agreements · {job.templates} templates.</p>
+ {Object.entries(job.states??{}).map(([state,count])=><p key={'state:'+state}>{state}: {count} {count===1?'record':'records'}</p>)}
  {Object.entries(job.senders).map(([owner,counts])=><p key={owner}>{owner}: {counts.agreements} agreements · {counts.templates} templates</p>)}
  {job.unmapped?.map((item,i)=><p key={i}>{item.sourceId}: {item.reason}</p>)}
  {job.reason&&<p>{job.reason}</p>}{job.nextAt>Date.now()&&<p>Next provider attempt after {new Date(job.nextAt).toISOString()}.</p>}

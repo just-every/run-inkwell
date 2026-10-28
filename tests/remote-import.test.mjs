@@ -78,6 +78,7 @@ for(const provider of ['acrobat','dropbox'])test(`${provider}: reviewed API impo
   assert.match((await h.mail(address('new.client'),'Please sign:')).text,/sign/)
   const read=async id=>(await h.send(`/api/inkwell/envelopes/${id}`,undefined,h.owner)).value.envelope
   assert.equal((await read(known.id)).source.terminalAt,'2026-01-01T00:00:00.000Z')
+  assert.equal((await read(fallback.id)).source.status,provider==='dropbox'?'declined':'SIGNED')
   assert.equal((await read(fallback.id)).source.importedAt,new Date(at).toISOString())
   assert.equal((await read(fallback.id)).source.basis,'terminal time not in the source')
   const archived=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
@@ -110,8 +111,10 @@ for(const provider of ['acrobat','dropbox'])test(`${provider}: reviewed API impo
   assert.equal((await h.send(`/api/inkwell/envelopes/${known.id}/artifacts/certificate`,undefined,h.owner)).status,404)
   const later=(await h.send('/api/inkwell/archive',undefined,h.owner)).value,destination=await harness()
   try{const refused=await destination.post('/api/inkwell/archive/restore',{archive:archived,laterJournal:later},destination.owner,400);assert.match(refused.value.error,/erasure_epoch/)}finally{await destination.close()}
+  const afterEraseCalls=fake.calls.length
   const repeated=(await h.post('/api/inkwell/remote-import/preview',input)).value
   assert.deepEqual(repeated.counts,{agreements:0,templates:0},'erased source records never resurrect on reimport')
+  assert.ok(!fake.calls.slice(afterEraseCalls).some(path=>path.includes('/files/')||path.endsWith('/combinedDocument')||path.endsWith('/auditTrail')),'erased source artifacts are never fetched again during replay')
   assert.ok(!h.logs().join('\n').includes('synthetic-inkwell-99'))
  }finally{await h.close()}
  if(provider==='dropbox')await accountImportJourney()
@@ -144,7 +147,7 @@ async function accountImportJourney(){
   assert.equal((await call('status',input)).pages,1,'partial source reads never advance an unfinished page')
   h.advanceTo(at+110*60_000);result=await call('review',input)
   assert.equal(fake.calls.filter(path=>path==='/v3/signature_request/third').length,1,'a resumed page reuses its successful source reads')
-  assert.equal(result.state,'ready');assert.deepEqual([result.pages,result.agreements,result.templates],[2,3,1]);assert.equal(result.items.length,4)
+  assert.equal(result.state,'ready');assert.deepEqual([result.pages,result.agreements,result.templates],[2,3,1]);assert.equal(result.items.length,4);assert.deepEqual(result.states,{completed:2,declined:1,template:1})
   await call('approve',{jobId:j.id,fingerprint:result.fingerprint,approved:true})
   await call('pause',input);await h.scheduled(at);assert.equal((await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.envelopes.length,0)
   await call('resume',input)
