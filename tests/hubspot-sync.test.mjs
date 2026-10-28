@@ -12,7 +12,7 @@ const start = (h, auth, requestId, cookie = h.owner, status = 200) => operation(
 const resume = (h, run, cookie = h.owner, status = 200) => operation(h, { operation: 'continue', runId: run.id }, cookie, status)
 const contacts = async (h, cookie = h.owner) => (await h.send('/api/inkwell/contacts', undefined, cookie)).value.contacts
 
-test('INTEG-001 ROUTE-008: one versioned recurring authorization spans provider pages, resumes a failed page, deduplicates repeated syncs and resolves local edits without deleting absent contacts; audit retains exact scope without values', async () => {
+test('INTEG-015 ROUTE-008: one versioned recurring authorization spans provider pages, resumes a failed page, deduplicates repeated syncs and resolves local edits without deleting absent contacts; audit retains exact scope without values', async () => {
  let calls = 0, failure = true, changed = false, changedAgain = false
  const clock = Date.parse('2026-10-27T12:00:00.000Z')
  const h = await harness({ bindings, now: clock, networkEdge: async request => {
@@ -87,7 +87,7 @@ test('INTEG-001 ROUTE-008: one versioned recurring authorization spans provider 
  } finally { await h.close() }
 })
 
-test('INTEG-001: revocation and temporary loss of an authorizing admin permanently stop further reads and commits; selected scope reads only approved IDs and cadence runs under standing authority', async () => {
+test('INTEG-015: revocation and temporary loss of an authorizing admin permanently stop further reads and commits; selected scope reads only approved IDs and cadence runs under standing authority', async () => {
  let calls = 0, revokeDuringRead = false, h, adminId, selectedLarge = false
  const largeIds = Array.from({ length: 101 }, (_, index) => `synthetic-inkwell-${index + 10}`)
  h = await harness({ bindings, networkEdge: async request => {
@@ -135,7 +135,7 @@ test('INTEG-001: revocation and temporary loss of an authorizing admin permanent
  } finally { await h.close() }
 })
 
-test('INTEG-001: native configuration refuses unconsented, sender, viewer, bearer and cross-origin requests; malformed provider pages commit no partial contacts and once-only scope cannot be reused', async () => {
+test('INTEG-015: native configuration refuses unconsented, sender, viewer, bearer and cross-origin requests; malformed provider pages commit no partial contacts and once-only scope cannot be reused', async () => {
  let calls = 0, malformed = true
  const h = await harness({ bindings, networkEdge: async request => {
   if (new URL(request.url).hostname !== 'api.hubapi.com') return

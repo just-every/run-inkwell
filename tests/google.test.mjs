@@ -94,7 +94,7 @@ test('Gmail self-signs a separate message attachment without sending any mail to
  }finally{await h.close()}
 })
 
-test('Gmail authenticated reply intake inherits current grants, contact and identity gates, private custody, holds, archive and erasure fences',async()=>{
+test('INTEG-012: Gmail authenticated reply intake inherits current grants, contact and identity gates, private custody, holds, archive and erasure fences',async()=>{
  const {googleReplyEdge}=await import('./google-reply-edge.mjs'),sourceEdge=await googleEdge(),edge=googleReplyEdge(sourceEdge),h=await harness({bindings:{GOOGLE_ACCESS_TOKEN:'synthetic-inkwell-1',GOOGLE_PUBSUB_EMAIL:'synthetic-inkwell-3@service.example',GOOGLE_PUBSUB_SUBSCRIPTION:['projects','synthetic-inkwell-4','subscriptions','synthetic-inkwell-5'].join('/'),GOOGLE_MAILBOX:'owner@harbour.example',GOOGLE_HISTORY_START:'100',MAIL_INBOUND_DOMAIN:'replies.harbour.example'},networkEdge:edge.networkEdge})
  try{
   const imported=await source(h,{kind:'drive',id:'drive-pdf'}),id=(await h.command('envelope.prepare',{title:'Gmail reply custody',...imported,signers:[{name:'Mara Quinn',email:'mara@client.example'}],fields:[field()]})).result.id

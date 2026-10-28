@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative, resolve, isAbsolute } from 'node:path';
 import type { DocsSection } from '../types.ts';
 
 // docs/site.json lists the published pages in display order, grouped in sections. Each page names its slug, its title, its
@@ -31,7 +31,8 @@ export function readManifest(root: string): DocsSection[] {
         if (!pageTitle) problems.push(`${where}: no title`);
         if (!summary) problems.push(`${where}: no summary`);
         const path = join(root, docsDirectory, file);
-        if (!file.endsWith('.md') || file.includes('/') || file.includes('\\')) problems.push(`${where}: file "${file}" must be a Markdown file in ${docsDirectory}/`);
+        const contained = relative(resolve(root), resolve(path));
+        if (!file.endsWith('.md') || isAbsolute(file) || file.includes('\\') || contained.startsWith('..') || isAbsolute(contained)) problems.push(`${where}: file "${file}" must be a contained repository Markdown file`);
         else if (!existsSync(path) || !statSync(path).isFile()) problems.push(`${where}: ${docsDirectory}/${file} does not exist`);
         if (files.has(file)) problems.push(`${where}: ${docsDirectory}/${file} is listed twice`);
         files.add(file);

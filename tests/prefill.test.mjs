@@ -156,7 +156,7 @@ test('PREP-003 round A: initials adoption, automatic US signing dates, business-
  }finally{await h.close()}
 })
 
-test('PREP-003 round B: radio, dropdown, checkbox group bounds, notes and image stamps retain source/locks and signed-record custody', async()=>{
+test('PREP-013 PREP-014: radio, dropdown, checkbox group bounds, notes and image stamps retain source/locks and signed-record custody', async()=>{
  const h=await harness({mailProvider:null})
  try {
   const pdf=await PDFDocument.create();pdf.addPage([612,792]);pdf.addPage([612,792])

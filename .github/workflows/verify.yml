@@ -30,6 +30,7 @@ jobs:
           package-manager-cache: false
       - run: npm install --global pnpm@10.12.4
       - run: pnpm install --frozen-lockfile
+      - run: node src/base/contract-docs.mjs check
       - run: pnpm exec rer check --profile first-party
       - name: Use the Ubuntu archive for browser dependencies
         run: |

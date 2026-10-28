@@ -15,9 +15,10 @@
       ]
     },
     "SEND-001": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "SEND-001"
+        "SEND-001",
+        "SEND-003"
       ]
     },
     "SIGN-001": {
@@ -75,9 +76,12 @@
       ]
     },
     "PREP-003": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "PREP-003"
+        "PREP-003",
+        "PREP-013",
+        "PREP-014",
+        "PREP-015"
       ]
     },
     "PREP-004": {
@@ -207,15 +211,17 @@
       ]
     },
     "ROUTE-008": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "ROUTE-008"
+        "ROUTE-008",
+        "ROUTE-013"
       ]
     },
     "ROUTE-009": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "ROUTE-009"
+        "ROUTE-009",
+        "ROUTE-014"
       ]
     },
     "ROUTE-010": {
@@ -225,21 +231,24 @@
       ]
     },
     "ROUTE-011": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "ROUTE-011"
+        "ROUTE-011",
+        "ROUTE-015"
       ]
     },
     "ROUTE-012": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "ROUTE-012"
+        "ROUTE-012",
+        "ROUTE-016"
       ]
     },
     "SIGNX-001": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "SIGNX-001"
+        "SIGNX-001",
+        "SIGNX-010"
       ]
     },
     "SIGNX-002": {
@@ -285,9 +294,10 @@
       ]
     },
     "SIGNX-009": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "SIGNX-009"
+        "SIGNX-009",
+        "SIGNX-011"
       ]
     },
     "IDV-001": {
@@ -309,15 +319,22 @@
       ]
     },
     "IDV-004": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "IDV-004"
+        "IDV-004",
+        "IDV-006",
+        "IDV-007",
+        "IDV-008"
       ]
     },
     "IDV-005": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "IDV-005"
+        "IDV-005",
+        "IDV-009",
+        "IDV-010",
+        "IDV-011",
+        "IDV-012"
       ]
     },
     "DELIV-001": {
@@ -375,9 +392,10 @@
       ]
     },
     "FORM-001": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "FORM-001"
+        "FORM-001",
+        "FORM-002"
       ]
     },
     "MANAGE-001": {
@@ -387,9 +405,10 @@
       ]
     },
     "MANAGE-002": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "MANAGE-002"
+        "MANAGE-002",
+        "MANAGE-006"
       ]
     },
     "MANAGE-003": {
@@ -465,9 +484,10 @@
       ]
     },
     "ADMIN-006": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "ADMIN-006"
+        "ADMIN-006",
+        "ADMIN-010"
       ]
     },
     "ADMIN-008": {
@@ -489,9 +509,12 @@
       ]
     },
     "API-001": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "API-001"
+        "API-001",
+        "API-005",
+        "API-006",
+        "API-007"
       ]
     },
     "API-002": {
@@ -513,9 +536,10 @@
       ]
     },
     "INTEG-001": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "INTEG-001"
+        "INTEG-001",
+        "INTEG-015"
       ]
     },
     "INTEG-002": {
@@ -531,15 +555,18 @@
       ]
     },
     "INTEG-004": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "INTEG-004"
+        "INTEG-004",
+        "INTEG-012"
       ]
     },
     "INTEG-005": {
-      "how": "kept",
+      "how": "split",
       "to": [
-        "INTEG-005"
+        "INTEG-005",
+        "INTEG-013",
+        "INTEG-014"
       ]
     },
     "INTEG-006": {
