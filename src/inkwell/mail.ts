@@ -1,3 +1,4 @@
+import { dispatchSalesforceWriteback } from './salesforce-writeback'
 import { dispatchHubspotWriteback } from './hubspot-writeback'
 import { dispatchFiling } from './filing'
 import { recipientPdf, recipientCertificate } from './document-visibility'
@@ -30,6 +31,7 @@ export async function dispatchMail(env: Env, envelopeId: string) {
  if(await env.DB.prepare("SELECT 1 FROM iw_envelopes WHERE id=? AND json_extract(data,'$.testMode')=1").bind(envelopeId).first()){await env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND state='pending'").bind(envelopeId).run();return}
  await dispatchFiling(env,envelopeId)
  await dispatchHubspotWriteback(env,envelopeId)
+ await dispatchSalesforceWriteback(env,envelopeId)
  await dispatchNotices(env)
  if(mailSuppressed(env)){await env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND state='pending'").bind(envelopeId).run();return}
  await env.DB.prepare("UPDATE iw_mail SET state='cancelled',body='' WHERE envelope_id=? AND state='pending' AND kind IN ('invitation','code') AND EXISTS(SELECT 1 FROM iw_envelopes WHERE id=iw_mail.envelope_id AND json_extract(data,'$.signers[' || iw_mail.signer || '].inPerson')=1)").bind(envelopeId).run()
