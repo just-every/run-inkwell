@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { harness } from '../harness.mjs'
 import { remoteImportFake } from '../fixtures/remote-import.mjs'
+const address=(name,domain='example.test')=>[name,domain].join('@')
 
 const sha=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim()
 assert.equal(execFileSync('git',['status','--porcelain'],{encoding:'utf8'}),'','commit the candidate before scale proof')
@@ -30,17 +31,17 @@ const edge=async request=>{
  if(previous!==undefined)assert.ok(clock-previous>=15*60000,'an interrupted resource is not polled twice within 15 minutes')
  resources.set(resource,clock)
  if(path.startsWith('/signature_request/files/'))return new Response(fixture.pdf,{headers:{...headers,'content-type':'application/pdf'}})
- return json({signature_request:{signature_request_id:identity,title:'Scale request '+index,requester_email_address:index%2?'second@example.test':'first@example.test',is_complete:true,signatures:[{signer_name:'Synthetic client',signer_email_address:'client@example.test',signed_at:1767225600}]}})
+ return json({signature_request:{signature_request_id:identity,title:'Scale request '+index,requester_email_address:index%2?[address('second')]:address('first'),is_complete:true,signatures:[{signer_name:'Synthetic client',signer_email_address:address('client'),signed_at:1767225600}]}})
 }
 const h=await harness({networkEdge:edge,now:clock}),route='/api/inkwell/remote-import/jobs/'
 try {
  // Keep this scale fixture authorized while its simulated provider windows advance over several days.
  await h.db.prepare('UPDATE oa_sessions SET expires_at=?').bind(base+30*86400000).run()
  const senders=[]
- for(const email of ['first@example.test','second@example.test']){const cookie=await h.invite(email,'member'),actor=(await h.send('/api/inkwell',undefined,cookie)).value.actor;await h.command('member.role',{operatorId:actor.id,role:'sender'});senders.push(cookie)}
+ for(const email of [address('first'),address('second')]){const cookie=await h.invite(email,'member'),actor=(await h.send('/api/inkwell',undefined,cookie)).value.actor;await h.command('member.role',{operatorId:actor.id,role:'sender'});senders.push(cookie)}
  await h.db.prepare('UPDATE oa_sessions SET expires_at=?').bind(base+30*86400000).run()
  const call=async(action,input={},status=200)=>(await h.post(route+action,input,h.owner,status)).value
- const j=await call('start',{provider:'dropbox',fallbackAdmin:'owner@harbour.example'}),input={jobId:j.id,credential:'synthetic-inkwell-99'}
+ const j=await call('start',{provider:'dropbox',fallbackAdmin:address('owner','harbour.example')}),input={jobId:j.id,credential:'synthetic-inkwell-99'}
  let state=j,pauses=0
  while(state.state==='reviewing'){
   const response=await h.send(route+'review',input,h.owner)
@@ -49,7 +50,7 @@ try {
   if(state.pages&&state.pages%100===0)console.log('Reviewed pages',state.pages,'of',total/20)
  }
  assert.equal(state.state,'ready');assert.equal(state.agreements,total);assert.equal(state.templates,0)
- assert.deepEqual(state.senders,{'first@example.test':{agreements:9000,templates:0},'second@example.test':{agreements:9000,templates:0}})
+ assert.deepEqual(state.senders,{[address('first')]:{agreements:9000,templates:0},[address('second')]:{agreements:9000,templates:0}})
  assert.equal(state.items.length,total);assert.equal(new Set(state.items.map(i=>i.id)).size,total)
  assert.equal((await h.send('/api/inkwell/envelopes',undefined,h.owner)).value.total,0)
  await call('approve',{jobId:j.id,fingerprint:state.fingerprint,approved:true})

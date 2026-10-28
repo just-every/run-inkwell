@@ -1,3 +1,37 @@
+## Dropbox Sign requests and templates
+
+The owner can import completed and declined Dropbox Sign requests, their combined
+PDFs with provider audit trails, and supported templates from **Move in**.
+Source sender addresses map to active Inkwell members. Choose a fallback administrator
+for source owners that cannot be matched; those assignments appear in the review.
+Imported records keep their provider provenance and are private to their mapped sender.
+
+1. Select **Dropbox Sign**, enter the API key and fallback administrator, and choose
+   **Start account review**.
+2. Choose **Review account pages**. Keep the page open while it collects the account.
+   Progress survives closing the page, interruption, a provider limit or an expired key.
+   Reopen the saved review and supply a current key to continue; a key for another
+   source account is refused.
+3. Review the total request and template counts, counts by sender, unmapped items and
+   fingerprint. A template with an unsupported field type or ambiguous page placement
+   is listed for review rather than silently changed.
+4. Confirm the review and choose **Approve account import**. Approved pages import in
+   the background, one batch each minute. Repeating an interrupted batch creates no
+   duplicate records or signing invitations.
+
+**Pause account job** stops further checkpoints until you resume. **Cancel account job**
+removes the remaining staged work and keeps records already imported. The provider key
+stays only in the open page and outgoing request; it is never saved in the job, logs or
+archive. Provider limits pause collection until the displayed retry time. A changed
+authorizing owner requires a new review.
+
+Open **Templates** to prepare a new envelope from an imported template. Sending still
+requires ordinary review and explicit eligibility confirmation. Retention warnings,
+legal holds, erasure and backup restore fences apply to imported requests too. When the
+source has no terminal time, the durable import time is labeled as the retention basis.
+
+## DocuSeal archives
+
 Bring your completed DocuSeal agreements into Inkwell, signed PDFs and provider evidence
 included. Moving in is for the owner, and it can be undone.
 

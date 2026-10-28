@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdir, readFile } from 'node:fs/promises'
 import { startInkwellWithMail } from './mail-worker.mjs'
 import { remoteImportFake } from '../fixtures/remote-import.mjs'
+const address=(name,domain='example.test')=>[name,domain].join('@')
 
 export async function remoteImportJourney() {
  const images=process.env.INKWELL_REMOTE_IMPORT_IMAGES??'/tmp/inkwell-remote-import-screens'
@@ -14,7 +15,7 @@ export async function remoteImportJourney() {
   const app=await startInkwellWithMail({networkEdge:async request=>await acrobat.edge(request)??await dropbox.edge(request)})
   try {
    const senders=[]
-   for(const email of ['first@example.test','second@example.test']) {
+   for(const email of [address('first'),address('second')]) {
     await app.call('/auth/invite',{cookie:app.owner,body:{email,role:'member',displayName:email.split('@')[0]},status:202})
     const message=app.mail(email,''),token=new URL(message.text.match(/http:\/\/[^\s]+\/auth\/confirm\?token=[^\s]+/)[0]).searchParams.get('token')
     const cookie=(await app.call('/auth/confirm',{body:{token},status:303})).cookie
@@ -30,7 +31,7 @@ export async function remoteImportJourney() {
 
    const capture=async name=>{if(width===1440)assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no sideways scroll');await page.screenshot({path:`${images}/${width}-${name}.png`,fullPage:true})}
    await screen.getByRole('combobox',{name:/Signing provider/}).selectOption('dropbox')
-   await screen.getByLabel('Fallback administrator email',{exact:true}).fill('owner@harbour.example')
+   await screen.getByLabel('Fallback administrator email',{exact:true}).fill(address('owner','harbour.example'))
    await screen.getByRole('button',{name:'Start account review',exact:true}).click()
    await screen.getByRole('status').filter({hasText:'Account review: reviewing.'}).waitFor()
    await capture('account-reviewing')
@@ -52,7 +53,7 @@ export async function remoteImportJourney() {
    for(const provider of ['acrobat','dropbox']) {
     await screen.getByRole('combobox',{name:/Signing provider/}).selectOption(provider)
     await screen.getByLabel(provider==='acrobat'?'Acrobat access token':'Dropbox Sign API key',{exact:true}).fill('synthetic-inkwell-99')
-    await screen.getByLabel('Fallback administrator email',{exact:true}).fill('owner@harbour.example')
+    await screen.getByLabel('Fallback administrator email',{exact:true}).fill(address('owner','harbour.example'))
     await screen.getByRole('button',{name:'Preview provider import',exact:true}).click()
     await screen.getByRole('heading',{name:'Provider import preview'}).waitFor()
     if(width===1440){assert.equal(await screen.getByText('2 agreements · 1 templates',{exact:true}).count(),1);assert.equal(await screen.getByLabel(provider==='acrobat'?'Acrobat access token':'Dropbox Sign API key',{exact:true}).inputValue(),'')}
