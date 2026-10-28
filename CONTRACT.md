@@ -459,7 +459,7 @@ How the owner-approved scope for Inkwell (16 October 2026) maps to clauses.
 
 ## Status
 
-Judged from the code and tests at commit `f5dab1a4491a157fdf3370f0b5d53b18af9dfd66` (27 October 2026).
+Judged from the code and tests at commit `753a396b9b28c70809f03df69cff780beaf3c3e3` (27 October 2026).
 
 Main's current AGENT-006 judgment and complete evidence are retained. This candidate adds normal HubSpot moved-file metadata validation and preserves outstanding legacy Dropbox jobs when a rule is re-saved. Legacy recovery retains main's read-only artifact verification and owner-approved moved-folder controls; missing remote artifacts remain unresolved. No new independent CT judgment or live-provider operation is claimed. Exact-candidate tests and release gates are recorded in the fleet handoff.
 
