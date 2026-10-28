@@ -1,3 +1,4 @@
+import { salesforceJourney } from './salesforce.mjs'
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -135,3 +136,5 @@ try{
  }
  console.log('INTEG-001 configuration, paged sync, native locked preparation, policy send, completion, uncertain result reconciliation, replay and tooltips passed at 1440 and 390.')
 }catch(error){await screenshots(app.browser,'inkwell-hubspot-failure');throw error}finally{await app.close()}
+
+await salesforceJourney()

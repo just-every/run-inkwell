@@ -1,3 +1,4 @@
+import { salesforceSanity } from './salesforce.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { PDFDocument } from 'pdf-lib'
@@ -26,7 +27,7 @@ async function finish(h,id){
  assert.equal((await read(h,id)).status,'completed')
 }
 
-test('INTEG-001 PREP-008 AGENT-003: selected native consent, admin admission, eligible owner defaults and provenance custody grant no new access or follow-up',async()=>{
+test('INTEG-001 INTEG-002 PREP-008 AGENT-003: selected native consent, admin admission, eligible owner defaults and provenance custody grant no new access or follow-up',async()=>{
  const edge=hubspotEdge(),h=await harness({bindings,networkEdge:edge.networkEdge})
  try {
   await h.command('account.healthcare',{enabled:true})
@@ -88,6 +89,7 @@ test('INTEG-001 PREP-008 AGENT-003: selected native consent, admin admission, el
    assert.equal((await restored.send(`/api/inkwell/hubspot/envelopes/${e.id}/writeback`,undefined,restored.owner)).status,404)
   }finally{await restored.close()}
  }finally{await h.close()}
+ await salesforceSanity()
 })
 
 test('INTEG-001 ADMIN-004 SEND-001 A1-A5 A9: integration policy defaults off, records principal and credential, and intersects account group and profile scope',async()=>{
