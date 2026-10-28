@@ -1,3 +1,4 @@
+import { ApiMoveIn } from './api-move-in'
 import { useEffect, useState } from 'react'
 import { request, dateTime, type Message } from './types'
 import { ErrorNotice, useAction } from './feedback'
@@ -21,7 +22,7 @@ export function MoveIn() {
   const action = useAction()
   async function load() { const [journal, library] = await Promise.all([request<{ jobs: Job[] }>('/api/inkwell/import/jobs'), request<{ records: Imported[] }>('/api/inkwell/import/records')]); setJobs(journal.jobs); setRecords(library.records) }
   useEffect(() => { void action.run(load) }, [])
-  return <section className="iw-panel iw-stack"><div className="iw-section-head"><div><h2>Move in from DocuSeal</h2><p>Preview the archive, approve its fingerprint, then apply the journaled import.</p></div><button disabled={action.busy} onClick={() => void action.run(load)}>Refresh journal</button></div>
+  return <><section className="iw-panel"><ApiMoveIn /></section><section className="iw-panel iw-stack"><div className="iw-section-head"><div><h2>Move in from DocuSeal</h2><p>Preview the archive, approve its fingerprint, then apply the journaled import.</p></div><button disabled={action.busy} onClick={() => void action.run(load)}>Refresh journal</button></div>
     <details><summary>Archive file format</summary><p>Upload a JSON object with provider <code>docuseal</code>, an <code>account</code> label, <code>submissions</code> from DocuSeal’s submission detail API, and <code>files</code>. Every file needs its original <code>url</code>, <code>name</code>, and <code>base64</code> contents. Include each signed PDF and its upstream audit PDF. Import reads only the attached bytes. The archive can contain up to 100 completed submissions within 750,000 UTF-8 bytes, including base64. Split larger collections into smaller files.</p><p>Provider records remain in a separate imported library. Their audit PDF is preserved as the provider certificate.</p></details>
     <label className="iw-file">DocuSeal archive JSON<input type="file" accept="application/json,.json" disabled={action.busy} onChange={event => { const file = event.target.files?.[0]; setArchive(undefined); setPreview(undefined); setApproved(false); setFilename(file?.name || ''); if (file) void action.run(async () => { if (file.size > 750000) throw new Error('This archive exceeds the 750,000-byte import limit. Split it into smaller archives.'); const text = await file.text(); JSON.parse(text); setArchive(text) }) }} /></label>
     <button className="iw-fit" disabled={!archive || action.busy} onClick={() => void action.run(async () => { setApproved(false); setPreview(await request<Preview>('/api/inkwell/import/preview', { archive })) })}>{action.busy ? 'Working…' : 'Run dry-run preview'}</button>
@@ -33,5 +34,5 @@ export function MoveIn() {
     {record.messages.length > 0 && <details><summary>Retention warning emails</summary><ul>{record.messages.map(message => <li key={message.id}>{message.recipient} · {message.label}{message.sentAt ? ` · ${dateTime(message.sentAt)}` : ''}</li>)}</ul></details>}{record.retention && <p>Retention warning: this archive will be purged {dateTime(record.retention.purgeAt)}. Place a legal hold on a record in it to keep the archive.</p>}
     {!!record.holdHistory.length && <details><summary>Legal hold history</summary><ul>{record.holdHistory.map((event,index) => <li key={index}>{dateTime(event.at)} · {event.action === 'hold' ? 'Placed' : 'Lifted'} · {event.reason}</li>)}</ul></details>}
     <details><summary>Preserved artifact hashes</summary><dl className="iw-hashes">{record.artifacts.map((artifact, index) => <div key={index}><dt>{artifact.name}</dt><dd>{artifact.sha256}</dd></div>)}</dl></details></article>)}
-  </section>
+  </section></>
 }

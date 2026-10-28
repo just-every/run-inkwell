@@ -2,7 +2,7 @@
   "schema": 1,
   "seed": "inkwell",
   "old": {
-    "commit": "3d348eb352988b83b7c13ee0447686799af18b24",
+    "commit": "dd4fa16e1fe4075c776411349f067f15ac9c7e81",
     "files": [
       "CONTRACT.md",
       "ACCEPTANCE.md",
@@ -1408,7 +1408,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 339,
+      "line": 343,
       "text": "**INTEG-005 — Microsoft 365.** Pick sources from OneDrive and SharePoint and file completed envelopes there; use the Outlook add-in, which from an open message with an attachment shows the attachment and the message's participants (sender, To and Cc) proposed as recipients, then sends it for signature or lets you sign it yourself (`ROUTE-009`); and use the Word add-in, which sends the open document (converted as in `PREP-001`) for signature. Connected Outlook reply sources inherit AGENT-003’s grant, authenticated reply intake, contact rules, reply visibility, logging and envelope custody before shipping. **Acceptance evidence:** through a Microsoft Graph fake, send a OneDrive document and show the completed record filed in the SharePoint folder; in the Outlook add-in test harness, open a message with a PDF attachment and two participants, see the attachment and both participants proposed as recipients, and send; sign another message's attachment yourself with no mail sent to you; in the Word add-in test harness, send the open document and show the envelope binds the converted PDF's fingerprint.",
       "to": "clause",
       "ids": [
@@ -1417,7 +1417,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 341,
+      "line": 351,
       "text": "**INTEG-006 — Box and Dropbox.** File completed envelopes automatically to a Box or Dropbox folder per template. Implemented semantics: a signed-in owner or admin explicitly authorizes a template and existing provider folder in Settings. Completion atomically queues the executed PDF and certificate; deterministic filenames and verified remote content prevent duplicate or overwritten files on retry, including a lost provider response. Unconfirmed work stays visible until an explicit retry. Disabling a rule cancels remaining work; a request already in flight may finish. Provider credentials, filing rules and dispatch receipts remain installation state and do not restore into outbound activity. The envelope audit preserves the authorization reference. RECORD-005, PORT-001, ERASE-001 and COMPLY-002 retain their existing custody, erasure and logging boundaries; remote copies are not erased by local erasure. **Acceptance evidence:** through Box and Dropbox fakes, a completion files the PDF and certificate once each, and a retry does not duplicate.",
       "to": "clause",
       "ids": [
@@ -1426,7 +1426,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 343,
+      "line": 353,
       "text": "**INTEG-007 — Chest.** Pick sources from Chest and file completed envelopes to a Chest folder. **Acceptance evidence:** in a test installation of Chest, a completion appears in the configured Chest folder with its fingerprint.",
       "to": "clause",
       "ids": [
@@ -1435,7 +1435,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 345,
+      "line": 355,
       "text": "**INTEG-008 — Locket handoff.** Locket starts signature for an approved contract revision, and the completed record (documents, certificate, parties, signing dates and fingerprints) is delivered to Locket's repository, which records it against that revision. Objections routed to Locket inherit AGENT-003’s grant, pause, reply readers and envelope custody before shipping. **Acceptance evidence:** a Locket-initiated envelope completes and Locket shows the executed record against the approved revision; a downloaded handoff manifest still verifies offline.",
       "to": "clause",
       "ids": [
@@ -1444,7 +1444,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 347,
+      "line": 357,
       "text": "**INTEG-009 — Zapier, Make, Power Automate, n8n and Crank.** Published apps expose triggers (envelope sent, completed, declined, voided) and actions (send from template, find envelope, download), built on the API and webhooks. **Acceptance evidence:** each app's test harness triggers on a completion and sends from a template.",
       "to": "clause",
       "ids": [
@@ -1453,7 +1453,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 349,
+      "line": 359,
       "text": "**INTEG-010 — Payment at signing through Stripe.** A template can require a payment, deposit, saved card or ACH mandate when the signer signs, collected through the buyer’s Stripe account using Payment Element or Checkout. The envelope completes only after Stripe confirms the required outcome. Inkwell retains the immutable requirement, opaque Stripe references and normalized outcome, with ordinary authorization and consent audit evidence; it never handles card or bank data and holds no balances.",
       "to": "clause",
       "ids": [
@@ -1462,7 +1462,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 351,
+      "line": 361,
       "text": "**CT policy ruling, 26 October 2026: APPROVED WITH RIDERS.** This approves interim product defaults only. Implementation, provider operation, legal suitability and release acceptance require separate evidence. This ruling makes no clause status change.",
       "to": "clause",
       "ids": [
@@ -1471,7 +1471,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 353,
+      "line": 363,
       "text": "A signed-in owner or admin explicitly configures each template payment requirement. Record the configuring actor, timestamp, requirement kind, amount and currency where applicable, buyer Stripe account reference and immutable requirement version. Every configuration write rechecks current authority server-side. Template use freezes the requirement on the envelope. Later template edits do not change that frozen requirement or any signed evidence.",
       "to": "clause",
       "ids": [
@@ -1480,7 +1480,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 355,
+      "line": 365,
       "text": "Stripe-hosted Checkout is the interim collection interface. Only the assigned authenticated signer using the current authorized signing session may separately consent and start Checkout for their requirement. A sender, administrator, agent or API credential cannot consent on that signer’s behalf. Before starting Checkout, show the buyer, Stripe as provider, requirement kind, amount and currency where applicable, and an unchecked consent control.",
       "to": "clause",
       "ids": [
@@ -1489,7 +1489,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 357,
+      "line": 367,
       "text": "For payment or deposit, use: “I agree to continue to Stripe Checkout to pay {amount} {currency} to {buyer} for this signing request. Stripe collects my payment details directly. Inkwell keeps the payment requirement, Stripe references, result and consent audit evidence. My signature will not be saved until Stripe confirms successful payment.”",
       "to": "clause",
       "ids": [
@@ -1498,7 +1498,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 359,
+      "line": 369,
       "text": "For a saved card, use: “I agree to continue to Stripe Checkout to save a card with {buyer} for this signing request. Stripe collects my card details directly. This step does not charge my card or authorize unspecified future charges. Inkwell keeps the requirement, Stripe references, result and consent audit evidence. My signature will not be saved until Stripe confirms successful setup.”",
       "to": "clause",
       "ids": [
@@ -1507,7 +1507,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 361,
+      "line": 371,
       "text": "For an ACH mandate, use: “I agree to continue to Stripe Checkout to review and authorize the ACH mandate for {buyer} for the purpose shown here. Stripe collects my bank details directly. Establishing this mandate does not confirm a payment or authorize charges beyond the mandate’s disclosed terms. Inkwell keeps the requirement, Stripe references, result and consent audit evidence. My signature will not be saved until Stripe confirms successful setup and an active mandate.”",
       "to": "clause",
       "ids": [
@@ -1516,7 +1516,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 363,
+      "line": 373,
       "text": "Identify the applicable provider terms and privacy notice before consent. Stripe presents the applicable payment or mandate terms. Record the signer, current invitation, requirement version, exact consent wording or immutable wording version, and timestamp. Refusing consent starts no Checkout request and satisfies no payment requirement. Payment consent is separate from electronic signature consent.",
       "to": "clause",
       "ids": [
@@ -1525,7 +1525,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 365,
+      "line": 375,
       "text": "Payment and deposit require authenticated server confirmation that the PaymentIntent bound to this requirement succeeded for the required amount and currency in the buyer’s Stripe account. Saved card requires authenticated server confirmation that the bound SetupIntent succeeded and its payment method is attached to the buyer’s Customer. ACH mandate additionally requires an active applicable ACH mandate. A successful setup is not a successful payment and grants no implicit charge authority.",
       "to": "clause",
       "ids": [
@@ -1534,7 +1534,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 367,
+      "line": 377,
       "text": "Browser returns, Checkout completion alone, pending, processing, declined, canceled, unknown or mismatched results never satisfy the requirement. Replayed evidence cannot satisfy another requirement or duplicate a completed action. While the requirement is unsatisfied, the envelope remains waiting, the attempted signature remains unsaved and completion is denied. Existing valid signatures remain intact. Payment success does not replace any other signing, consent or routing condition.",
       "to": "clause",
       "ids": [
@@ -1543,7 +1543,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 369,
+      "line": 379,
       "text": "Business custody contains only the immutable requirement, opaque Stripe references, normalized outcome and minimum configuration, consent and verification audit evidence. No card or bank details, raw provider responses, usable Checkout capabilities or provider credentials enter business records, certificates, logs, traces, error reports or archives. Inkwell holds no balances. RECORD-005, PORT-001 and ERASE-001 govern this business evidence without creating a separate payment retention period.",
       "to": "clause",
       "ids": [
@@ -1552,7 +1552,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 371,
+      "line": 381,
       "text": "Provider credentials and active Checkout authority remain installation-local and outside archives and copies. Restore preserves historical references and outcomes as evidence but grants no active payment authority. Unfinished restored requirements need fresh signer consent and newly established installation-local authority. Copies preserve requirement definitions, reset payment outcomes and carry no active Checkout authority.",
       "to": "clause",
       "ids": [
@@ -1561,7 +1561,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 373,
+      "line": 383,
       "text": "**Sandbox limits and named Gaps.** The interim proof uses Stripe test mode only. It performs no implicit charges, refunds, recurring billing or production money operations. Payment Element, refunds and disputes handling, receipts, tax, recurring billing handoff to Nectar, and live mode remain named Gaps. Recurring billing belongs in Nectar or the buyer’s billing system. These Gaps remain visible parts of the complete target and are not satisfied by this policy ruling. No payment-processing, money-transmission or tax compliance is certified.",
       "to": "clause",
       "ids": [
@@ -1570,7 +1570,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 375,
+      "line": 385,
       "text": "**Acceptance evidence:** in Stripe test mode, a signer pays a 500 USD deposit and the envelope completes with the payment reference; a declined card leaves the envelope waiting with the signature unsaved.",
       "to": "clause",
       "ids": [
@@ -1579,7 +1579,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 377,
+      "line": 387,
       "text": "**INTEG-011 — Signing service for sibling products.** Platter, Lodge, Willow, Terrace and other Run Edit Run products send their documents through Inkwell's API and receive the completed record through webhooks, each with its own scoped key, sending under the account's sending policy for that key with no per-envelope human approval (`SEND-001`). **Acceptance evidence:** a Lodge-style client sends an offer letter from a template with no approval step, the record names its key and the policy, and the client receives the completion webhook and executed PDF.",
       "to": "clause",
       "ids": [
@@ -1588,7 +1588,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 381,
+      "line": 391,
       "text": "**MOBILE-001 — Responsive sending and tracking.** Senders send from templates, track status, remind, correct and void from a phone browser at 390 pixels, with the app installable as a PWA. A phone browser here is a 390 by 844 pixel touch screen at 3x density; each of those screens (the Templates send form, the envelope list, the envelope detail page with its status, timeline, Remind, Correct and Void actions, and the correction screen) works there by touch without sideways scrolling. Installable means the app's web manifest (`/manifest.webmanifest`, linked from every app page: the Inkwell name, standalone display, start at `/app`, 192 and 512 pixel icons) parses in the browser with no error and the browser reports nothing that stops installation; the installed app is the same web app and needs the network, with no offline mode. Screens later clauses add to sending and tracking work at 390 pixels before they ship. **Acceptance evidence:** at 390 pixels, send from a template, remind a signer and void an envelope.",
       "to": "clause",
       "ids": [
@@ -1597,7 +1597,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 383,
+      "line": 393,
       "text": "**MOBILE-002 — Native iOS and Android apps.** Native apps sign, send from templates, track and remind, receive push notifications, and scan paper pages with the camera into a PDF to send. **Acceptance evidence:** on iOS and Android simulators, sign a received envelope with a drawn signature using guided Next; send from a template, track its recipients and send a reminder; scan a two-page document and send it; and receive a push notification on each signature and on completion.",
       "to": "clause",
       "ids": [
@@ -1606,7 +1606,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 387,
+      "line": 397,
       "text": "**MOVE-002 — Docusign move-in.** Through the Docusign eSignature REST API with the buyer's OAuth grant, Inkwell imports completed, declined and voided envelopes with their documents, certificates of completion, recipients and custom fields; templates with roles, fields, routing and their shared folders; signing groups with their members (`ROUTE-005`); and the account's address book (`ROUTE-008`). Ownership carries over: Docusign users are matched to Inkwell members by email, each imported envelope belongs to its original sender and stays private to them under `ADMIN-001` (and shared as it was in Docusign), each template keeps its owner, and each shared folder keeps its people, groups and use or edit permissions (`TMPL-002`). Users with no matching member go on the unmapped list and their items go to an admin the owner names, who can reassign them later (`ADMIN-002`). Account objects import too: brands become Inkwell brands (`SIGNX-006`); the account's custom ESIGN consumer disclosure becomes the account disclosure as a new version (`SIGNX-005`); default reminder, expiry and recipient authentication settings become account defaults (`ADMIN-004`); saved bulk-send lists become saved lists for `BULK-001`; and each PowerForm becomes a web form (`FORM-001`) on its imported template, with its old PowerForm URL recorded beside the new link and listed on a cutover checklist so the owner can swap the link on their website. The import previews first, with counts per sender and per object type, and lists what did not map, with each unmapped object's Docusign name and ID; it runs throttled and resumable at real account size (`MOVE-008`). Before this door ships, imported envelopes preserve the source terminal instant or a durable import instant labeled “terminal time not in the source”, and meet `RECORD-005`’s warning, legal-hold, erasure and restore-fence rules. **Acceptance evidence:** through a Docusign API fake with two senders, 50 envelopes, five templates in a shared folder, two signing groups and 120 contacts, preview and import; each sender sees only their own imported envelopes in the UI and API while an admin sees all; the shared folder's settings carry over, so a member with use access can send from a template but not edit it; an imported signing group sends as one recipient; contacts autocomplete; a third Docusign user with no member is on the unmapped list and their envelopes belong to the named admin; open an imported certificate and send from an imported template; the unmapped list names each skipped field type; the fake's PowerForm arrives as a web form whose page and the cutover checklist show the old PowerForm URL beside the new link, and a signed-out submission to the new link sends an envelope; the fake's brand, custom disclosure, default reminder and expiry settings and a saved bulk-send list arrive, and the next envelope and bulk batch use them.",
       "to": "clause",
       "ids": [
@@ -1615,7 +1615,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 389,
+      "line": 399,
       "text": "**MOVE-003 — Adobe Acrobat Sign move-in.** Agreements with their audit reports and library templates import through the Acrobat Sign API with the same preview, unmapped list, ownership mapping by email as `MOVE-002`, and the throttled, resumable job of `MOVE-008`. Before this door ships, imported envelopes preserve the source terminal instant or a durable import instant labeled “terminal time not in the source”, and meet `RECORD-005`’s warning, legal-hold, erasure and restore-fence rules. **Acceptance evidence:** through an Acrobat Sign API fake with two senders, import agreements and a library template, show each sender owns only their own agreements, and send from the template.",
       "to": "clause",
       "ids": [
@@ -1624,7 +1624,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 391,
+      "line": 401,
       "text": "**MOVE-004 — Dropbox Sign move-in.** Signature requests with their files and audit trails and templates import through the Dropbox Sign API, with the preview, unmapped list and ownership mapping of `MOVE-002` and the job of `MOVE-008`. Before this door ships, imported envelopes preserve the source terminal instant or a durable import instant labeled “terminal time not in the source”, and meet `RECORD-005`’s warning, legal-hold, erasure and restore-fence rules. **Acceptance evidence:** through a Dropbox Sign API fake with two senders, import requests and templates, show each sender owns only their own requests, and send from one.",
       "to": "clause",
       "ids": [
@@ -1633,7 +1633,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 393,
+      "line": 403,
       "text": "**MOVE-005 — Documenso move-in.** Documents with their audit logs and templates import from Documenso's API or export, with the preview, unmapped list and ownership mapping of `MOVE-002` and the job of `MOVE-008`. Before this door ships, imported envelopes preserve the source terminal instant or a durable import instant labeled “terminal time not in the source”, and meet `RECORD-005`’s warning, legal-hold, erasure and restore-fence rules. **Acceptance evidence:** through a Documenso fake with two senders, import documents and a template, show each sender owns only their own documents, and send from it.",
       "to": "clause",
       "ids": [
@@ -1642,7 +1642,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 395,
+      "line": 405,
       "text": "**MOVE-006 — Cutover of in-flight envelopes.** Envelopes still waiting in the incumbent at cutover are listed under their mapped sender and tracked read-only until they complete there, then imported automatically; nothing is re-sent to signers. Tracking uses the incumbent's completion webhooks (Docusign Connect) where the grant allows and otherwise polls no more often than the incumbent permits (`MOVE-008`). Before this door ships, imported envelopes preserve the source terminal instant or a durable import instant labeled “terminal time not in the source”, and meet `RECORD-005`’s warning, legal-hold, erasure and restore-fence rules. **Acceptance evidence:** a fake with two in-flight envelopes; one completes after cutover and is imported under its sender, the other is voided upstream and is listed as voided; the fake's call log shows neither envelope polled twice within 15 minutes.",
       "to": "clause",
       "ids": [
@@ -1651,7 +1651,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 397,
+      "line": 407,
       "text": "**MOVE-007 — API compatibility for common calls.** A compatibility layer accepts the most common Docusign and Dropbox Sign API calls (create from template, create and send in one call, status, download, void, and completion webhooks shaped as Docusign Connect messages and Dropbox Sign callbacks) so an existing integration switches by changing its base URL, key and webhook secret. A create call with status sent sends straight away under the account's sending policy for API sends (`SEND-001`, `ADMIN-004`). **Acceptance evidence:** a client written against the incumbent's documented requests runs unchanged against the compatibility layer for create, create-and-send, status, download and void; a listener written for Docusign Connect receives a Connect-shaped completion message (envelope and recipient statuses, and the documents when configured) whose HMAC signature header its existing verification accepts; a listener written for Dropbox Sign callbacks receives a callback-shaped signature-request-all-signed event and accepts it the same way.",
       "to": "clause",
       "ids": [
@@ -1660,7 +1660,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 399,
+      "line": 409,
       "text": "**MOVE-008 — Throttled, resumable imports at account size.** Every API import (`MOVE-002` to `MOVE-006`) runs as a background job sized for real accounts (tens of thousands of envelopes over many years). It stays under the incumbent's published limits, reading the limit headers (for Docusign, the account's hourly limit, 3,000 calls by default, and the burst limit, and never polling one resource more than once every 15 minutes); on a rate-limit response (`HOURLY_APIINVOCATION_LIMIT_EXCEEDED`, HTTP 429) it pauses until the window resets. It checkpoints after every batch, so an interruption, a restart or an expired grant resumes from the last checkpoint, and it is idempotent on the incumbent's envelope and template IDs, so a resumed or repeated import creates no duplicate. The job shows progress, an estimated finish time, counts per state and the unmapped list, and the owner can pause or cancel it. Before this door ships, imported envelopes preserve the source terminal instant or a durable import instant labeled “terminal time not in the source”, and meet `RECORD-005`’s warning, legal-hold, erasure and restore-fence rules. **Acceptance evidence:** a Docusign fake with 18,000 envelopes and a 3,000-call hourly limit, with the clock advanced: the import returns the hourly-limit error mid-import, pauses, resumes after the window and finishes; the job is killed mid-batch and resumed, and exactly 18,000 envelopes exist with no duplicates; the fake's call log shows no hour over the limit and no resource polled twice within 15 minutes.",
       "to": "clause",
       "ids": [
@@ -1669,7 +1669,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 401,
+      "line": 411,
       "text": "**PORT-002 — Self-service export at any size.** Admins export all or selected envelopes as PDFs, certificates, audit JSON and a CSV index, streamed in chunks without the 24 MiB browser limit, and a whole-installation archive restores at that size. Exact semantics: native owner/admin sessions prepare a stable all-or-selected document snapshot and download a streamed TAR containing available original/executed PDFs, certificates, audit JSON, record-custody JSON, a CSV index and per-file SHA-256 manifest. Imported archives retain owner-only custody access. Custody JSON includes the SIGNX-009 transcript; ordinary audit JSON never includes its text. Downloads accept one byte range with a stable snapshot ETag. Erasure or retention purge invalidates snapshots containing the retired record. The owner builds and restores whole-installation NDJSON archives through the pinned portability service with durable part cursors, repeat-safe uploads and bounded browser record parsing; the whole file is never loaded into browser memory. An empty destination publishes only after every part, closing checksum, stored document fingerprint and erasure fence passes. Existing small JSON wrappers retain their 24 MiB bound. **Acceptance evidence:** export 2 GB of envelopes, interrupt and resume, and restore into an empty installation with every fingerprint verified.",
       "to": "clause",
       "ids": [
@@ -1678,7 +1678,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 405,
+      "line": 415,
       "text": "**COMPLY-001 — 21 CFR Part 11 signing profile.** An optional profile for life-science buyers requires re-authentication at each signature, a signing reason, the signature manifestation (printed name, date and meaning) on the document, and a validation package: installation, operational and performance qualification (IQ, OQ and PQ) scripts with their executed results for the installed version, a traceability matrix from each Part 11 requirement (11.10, 11.50, 11.70, 11.100, 11.200 and 11.300) to the feature and test that meets it, and the change log since the last validated version. Signing door (ct 22 Oct): each Part 11 signature requires two distinct components. The first signature in a session uses a credential the signer alone holds (password, passkey or OIDC tied to a verified Inkwell identity) plus the fresh emailed code. Later signatures in the same continuous session require at least the fresh code. A recipient with no such identity is refused in this profile with 'Part 11 signing needs a verified signer account', never downgraded. Meanings: Approval, Review, Responsibility, Authorship, plus owner-defined meanings recorded with their text. An admin verifies a signer's identity, and records the method, before that signer's first Part 11 signature. A locked-out or exhausted code notifies the owner/admin security contact within one minute and is listed. The organization's FDA certification under 11.100(c) is recorded with its date and reference. 'Validated' means only this: IQ/OQ/PQ executed on the installed version, every matrix row (11.10(a)-(k), 11.30, 11.50, 11.70, 11.100, 11.200, 11.300) citing a test that passed in that run, and a change log since the last validated version. Procedural controls (11.10(i), (j)) are the customer's and are listed in the matrix as theirs. Implemented semantics: frozen owner/admin per-draft opt-in, with no removal through edits/copies/templates; paper signing refused; a fresh recipient/link/session-bound code at each signature (10 minutes, five attempts, 60-second spacing, ten requests per link); verified printed name and exact meaning in PDF/certificate and immutable signature evidence. Independent password identity sessions grant no app access and last at most 24 hours; hosted termination revokes them. Account identity/version, current status, credential session and code are fenced in the signing transaction. Legacy signed records preserve their original proof and are never retroactively qualified. Enrollment and recovery (ct 22 Oct, approved as implemented): an owner or admin other than the signer verifies the signer's identity and records the method; this issues a one-use activation token, valid for 24 hours, shown only to that verifier for separate trusted delivery and never emailed automatically. Separate delivery is the verifier's responsibility. The signed-in, verified account holder chooses a separate 15–128 character signer password, stored salted with PBKDF2-SHA256 at 600,000 iterations. Recovery requires fresh admin reverification and a new activation token; reverification immediately revokes the old password, any unused token and every identity session. Identity sessions last at most 24 hours. The per-account password bucket counts all authentication attempts, including successful attempts, in fixed ten-minute windows aligned to Unix time. An incorrect or exhausted attempt at count five or greater records a security alert and attempts mandatory email to active owner/admin security contacts; attempts after five are refused even with the correct password. A correct fifth attempt succeeds. The bucket resets at the next fixed boundary, not ten minutes after the last failure; up to ten attempts within the two five-attempt allowances can fall around a boundary. These lifetimes, lengths, hash parameters, attempt/code limits and the one-minute alert target are Inkwell product choices, not numeric requirements set by 21 CFR Part 11. Password aging and periodic credential review under 11.300(b) remain the customer's procedure. Only the owner defines custom meanings. `docs/part11/README.md`, `docs/part11/traceability.md` and `scripts/qualify-part11.mjs` provide the qualification procedure, complete requirement inventory and exact-candidate technical receipts; a passing technical phase never labels an installation validated. Remaining: Customer-installed IQ/OQ/PQ execution and reviewed passing evidence for every matrix row, customer procedural controls, installed real-provider one-minute alert receipt, OIDC composition qualification and a reviewed change log from the last validated version remain unproved. No qualification or certification is claimed. **Acceptance evidence:** with the profile on, a signer re-authenticates and picks a reason; the executed PDF shows the manifestation; the validation package for the installed version contains IQ, OQ and PQ scripts with executed results, and every traceability-matrix row cites a test that passed in that run.",
       "to": "clause",
       "ids": [
@@ -1687,7 +1687,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 407,
+      "line": 417,
       "text": "**COMPLY-002 — HIPAA-ready installation.** Healthcare buyers can run Inkwell with logging that excludes document content, access reviews, and a documented shared-responsibility guide for their Cloudflare account; a business associate agreement is the buyer's arrangement with their providers. The owner or admin enables the healthcare profile in Settings and reviews every member, including invited and inactive members, with their current role, status and last successful authenticated request (HTTP status below 400, stored in UTC, displayed in the reviewer's local time); no recorded access is explicit. Tracking covers every current page, API, auth, import and archive door and continues with the profile off. Newly issued member sessions count; anonymous recipient and preparation-agent sessions do not. Operational request logs contain only a fixed event, fixed door category and status; provider receipt logs retain normalized delivery facts and fingerprints, excluding raw payloads. Document content and field values are excluded from operational and provider logs while signed documents, field values and audit evidence are preserved. This profile makes no certification or provider-verification claim; the shared-responsibility guide names provider agreements, logging configuration, access, retention and incident duties. Existing capabilities conform; future doors, providers and record kinds added under PREP-006, API-001 through API-004, INTEG-001 through INTEG-011, IDV-002 through IDV-005 and AGENT-001 through AGENT-009 inherit this logging boundary before shipping. **Acceptance evidence:** in the profile, logs contain no field values or document text after a full signing journey, and the access review report lists every member's last access.",
       "to": "clause",
       "ids": [
@@ -1696,13 +1696,13 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 411,
+      "line": 421,
       "text": "Agents carry the agreement from request to filed record. Each clause says what the agent does, on which data, and under what human control. Agents act through the same API and authority checks as people (`ACCESS-001`, `DELEGATE-001`), every action is in the audit trail with the agent named, and no agent agrees to terms, signs, sends or spends money without the grant the clause names.",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 415,
+      "line": 425,
       "text": "**AGENT-001 — Assemble the envelope from CRM and email context.** *What the agent does:* from a request (\"send the MSA to Acme\") or a deal stage change, picks the approved template, fills roles and fields from the CRM record and the email thread with the customer, and proposes signers with their authority (title, entity). *Data:* the CRM record (Orbit, HubSpot, Salesforce), the granted mailbox thread (Gmail, Outlook), templates and contacts. *Human control:* the sender sees a draft envelope with each value's source and confidence and approves sending; the agent cannot send, and a value it could not source stays empty. **Acceptance evidence:** from a CRM-fake deal and email-fake thread, the agent drafts an envelope whose prefilled values each cite their source; the sender edits one and sends; a request with no matching template is refused with a reason.",
       "to": "clause",
       "ids": [
@@ -1711,7 +1711,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 417,
+      "line": 427,
       "text": "**AGENT-002 — Fill what is missing.** *What the agent does:* before sending, detects missing parties, fields, attachments and inconsistencies (an entity name that differs from the CRM, a missing signer title, a W-9 not attached) and asks the right person (sender, colleague or recipient) by email with one specific question, then merges the answer with its provenance. *Data:* the draft envelope, CRM record and replies. *Human control:* the sender approves who may be asked; changes to material terms are flagged for the sender and never applied by the agent. **Acceptance evidence:** a draft missing the client signer's title and the W-9; the agent asks the right people, merges both answers with sources, and flags a reply that changes the price instead of applying it. Implemented native-door semantics and remaining Gap: Adopted conservative default pending CT: received W-9 PDFs are private source custody for current editors, never automatically signer-visible supplements. Missing-party discovery, arbitrary missing fields and CRM entity inconsistency detection remain unimplemented. Native HTTP doors ship; no new operator controls or live mailbox qualification is claimed.",
       "to": "clause",
       "ids": [
@@ -1720,7 +1720,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 419,
+      "line": 429,
       "text": "**AGENT-003 — Chase stalled signers under the sender's rules.** *What the agent does:* watches each recipient's events (not opened, opened and left, bounced, out-of-office replies, repeated views), tells apart an unavailable signer, a bad address and a substantive objection, and follows up by allowed channels and times with a message suited to the cause; an objection goes to the sender (or Locket) instead of another reminder. *Data:* delivery and signing events, replies in the granted mailbox, the CRM owner. *Human control:* the sender sets channels, maximum contacts, quiet hours and the escalation owner; the agent never negotiates or changes the document. Exact semantics (ct, 22 Oct): a follow-up grant is an explicit, versioned, per-envelope authorization for Inkwell's built-in agent, given by whoever may change the envelope (ADMIN-001). It is never a credential, and no preparation token, API key or OAuth grant can create, use or read it. It sets channels (email; SMS with IDV-002), at most 1-10 contacts per recipient (default 3, counting DELIV-003 reminders sent under it), allowed days and hours in the account's US zone, and an escalation owner who can read the envelope. It authorizes only reading this envelope's delivery and signing events and its replies, sending fixed per-cause follow-ups with the current invitation link to current-turn recipients at most once per business day, and proposing actions to people. It never corrects, voids, extends, edits, answers or signs. Every action rechecks the grant, the bound member's authority, the envelope's open state and the recipient's turn and identity epoch in the same batch. Revocation takes effect for the next action and cancels scheduled follow-ups; the bound member's loss of authority suspends it permanently; a claimed send is never resent. Causes are deterministic (\"model/provider: none\"): DELIV-002 bounce = bad address; RFC 3834 auto-reply = unavailable until its explicit return date (else M business days); any other authenticated reply pauses follow-up to that recipient until a person resumes it and is routed to the sender and escalation owner; not-opened, opened-and-left and repeated-views get one follow-up each. A corrected address is only a cited proposal applied through DELIV-002. Replies arrive at a per-recipient, per-identity-epoch 256-bit Reply-To capability (purpose-separated HMAC of the random invitation identity; only its hash is stored; never archived; rotated on correction or reassignment; dead at close) through Resend's Svix-signed `email.received` webhook (5-minute window, replay refused) plus a fetch of the real message. They are accepted only with signature, capability and an exact current-recipient From; a mismatched or provider-failed sender is kept as \"unverified sender\" and never acted on; an unknown capability stores nothing. Text up to 500 kB and core headers are kept, larger bodies are labelled not kept, and attachments are listed by name, type, size and SHA-256 only. Reply text is read only by the sender, the escalation owner and those who may change the envelope, never by keys, tokens or other agents. It is absent from logs, audit and notifications, travels with export and archive, follows RECORD-005 holds, is erased by ERASE-001, and never appears on the certificate. Any model classification first meets PREP-006's enablement and disclosure terms. INTEG-004 and INTEG-005 (a connected Gmail or Outlook mailbox as a reply source), IDV-002 (SMS follow-up), INTEG-008 (objections routed to Locket), INTEG-001..003 (CRM owner as default escalation owner), ADMIN-004 and TMPL-001 (follow-up defaults), ADMIN-005 (grant events), ADMIN-007 (other inbound providers) and AGENT-009 (the account's inbound address) each carry these rules in their own text and acceptance before they ship. **Acceptance evidence:** three stalled signers (bounce, out-of-office until Monday, reply objecting to a clause); the agent proposes a corrected address, waits until Monday, and routes the objection to the sender, staying within the contact limit.",
       "to": "clause",
       "ids": [
@@ -1729,7 +1729,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 421,
+      "line": 431,
       "text": "**AGENT-004 — Verify the intended revision and parties.** *What the agent does:* before sending and at completion, compares the documents against the approved revision (Locket's approved version or the template version) page by page, checks every required party signed in the right capacity for the right entity, and checks every required field is complete and plausible. *Data:* the envelope's fingerprints and documents, the approved revision, CRM signatory data. *Human control:* a mismatch raises an exception the sender must resolve; the agent cannot alter a completed record. **Acceptance evidence:** an envelope whose second page differs from the Locket-approved revision is stopped before sending with the differing text; a completed envelope signed by a person without signing authority raises an exception and the downstream handoff waits.",
       "to": "clause",
       "ids": [
@@ -1738,7 +1738,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 423,
+      "line": 433,
       "text": "**AGENT-005 — Complete the downstream work.** *What the agent does:* after a verified completion, moves the CRM deal stage, files the record to Locket and the file store, and creates the next task (customer onboarding, invoice draft in Nectar or Pantry, HR onboarding in Willow), each once, with a receipt per effect. *Data:* the completed record and the standing grants. *Human control:* standing grants name the systems, fields and task types; the agent never creates a charge or binds a contract; failed effects stay open and visible. **Acceptance evidence:** a completion produces one deal update, one filed record and one onboarding task through fakes; a replayed webhook creates nothing new; a refused grant leaves its effect open with the reason.",
       "to": "clause",
       "ids": [
@@ -1747,7 +1747,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 425,
+      "line": 435,
       "text": "**AGENT-006 — Keep integrations correct.** *What the agent does:* reconciles webhook deliveries and connector state against Inkwell's records, detects drift (a renamed CRM field, a moved folder, an expired token), proposes the mapping repair and proves a replay causes no duplicate. *Data:* webhook logs, connector configurations and the remote API state under grant. *Human control:* the owner approves scope changes and repairs; uncertain remote effects stay unresolved until confirmed. **Acceptance evidence:** rename a CRM field in the fake; the agent detects failed write-backs, proposes the new mapping, and after approval replays them without duplicates.",
       "to": "clause",
       "ids": [
@@ -1756,7 +1756,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 427,
+      "line": 437,
       "text": "**AGENT-007 — Keep templates current.** *What the agent does:* learns from senders' repeated corrections (fields always added, recipients always changed) and outside changes (a new IRS W-9 revision, a new company address) and proposes a template revision with its reasons. *Data:* envelopes sent from the template and their corrections. *Human control:* the template owner reviews the diff and publishes a new version (`TMPL-003`); nothing changes without them. The template maker opens suggestions on Templates. Three distinct envelopes with the same correction establish repetition; a replacement PDF recorded in a corrected envelope is a source revision to review even on its own. Fields, their placement and prepared values, role count and routing, and replacement PDF fingerprints are compared against the template version the envelope came from. Names and emails supplied to fill a role are per-send inputs, not reusable role changes. Suggestions cite each supporting envelope and its correction event hash and time and show the before and after definition and original PDF. They use only envelopes the maker can already read under `ADMIN-001`; a recorded replacement or reported address is never labeled externally verified. The maker explicitly reviews and publishes through the normal template validator, preserving other template settings and producing the next version (`TMPL-003`); reviewing alone changes nothing, a stale template or withdrawn source suggestion is refused, and repeated approval with one command ID publishes once. The published template records the maker, time, proposal ID and supporting event references. **Acceptance evidence:** ten envelopes where senders added the same field; the agent proposes adding it with the ten examples cited; the owner accepts and version 2 is published.",
       "to": "clause",
       "ids": [
@@ -1765,7 +1765,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 429,
+      "line": 439,
       "text": "**AGENT-008 — Signer assistant.** *What the agent does:* answers a signer's questions about what they are being asked to fill and sign, citing the page and passage, and explains each field in plain English or Spanish. *Data:* only the envelope's documents visible to that signer. *Human control:* the assistant gives no legal advice, cannot fill or sign, and a signer's questions are private unless they choose to send them to the sender. **Acceptance evidence:** a signer asks what the termination notice period is and receives the answer with its page cited; a request to sign for them is refused; the sender sees no question unless the signer sends it.",
       "to": "clause",
       "ids": [
@@ -1774,7 +1774,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 431,
+      "line": 441,
       "text": "**AGENT-009 — Inbound agreements.** *What the agent does:* reads agreements forwarded to the account's Inkwell address or arriving from other platforms for the business to sign, identifies who internally should sign, prepares the internal signing and tracks the counterparty's request. *Data:* the forwarded email and attachments. *Human control:* the named internal signer approves and signs; the agent never signs and never replies to the counterparty without the owner's grant. The account inbound address inherits AGENT-003’s signed, fresh, replay-protected reply intake, visibility, no-text logging and envelope retention rules before shipping. **Acceptance evidence:** forward a vendor NDA; the agent identifies the internal signer by role, prepares it for them, and after they sign returns the executed copy only when the grant allows. Implemented native-door semantics and remaining Gap: Adopted conservative default pending CT: owner-maintained business-role mapping, exact approved forwarder, and a separate owner return action under the current grant. Automatic organizational-role inference and intake from other agreement platforms remain unimplemented. Native HTTP doors ship; no new operator controls or live mailbox qualification is claimed.",
       "to": "clause",
       "ids": [
@@ -1783,149 +1783,135 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 435,
+      "line": 445,
       "text": "**Payroll, work management and observability.** Payroll belongs to [Envelope](https://github.com/just-every/run-envelope); work and project management to [Pegboard](https://github.com/just-every/run-pegboard); monitoring and observability to [Porthole](https://github.com/just-every/run-porthole). These jobs remain outside Inkwell's scope.",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 436,
+      "line": 446,
       "text": "**Notarization and qualified signatures.** Inkwell does not act as a notary, a remote online notarization platform or an EU/UK qualified trust service. Buyers who need notarized signatures use a partner such as Proof (Notarize) through an integration, and qualified electronic signatures through a qualified trust service provider. Inkwell's records state the signing profile used and never claim those assurances.",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 437,
+      "line": 447,
       "text": "**Identity verification.** Inkwell orchestrates identity checks (`IDV-004`) through Persona or Stripe Identity and keeps only their references; it does not verify ID documents itself.",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 438,
+      "line": 448,
       "text": "**Payments.** Inkwell never handles card or bank data and holds no balances; Stripe processes payments at signing (`INTEG-010`) and recurring billing starts in Nectar or the buyer's billing system.",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 439,
+      "line": 449,
       "text": "**Legal validity.** Inkwell provides ESIGN and UETA consent, disclosure and audit records and states what its certificate and seal prove; it does not give legal advice or guarantee that any agreement is valid. Exceptional agreements (wills, certain family-law and court documents, some real-estate filings) go to counsel or specialist services.",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 440,
+      "line": 450,
       "text": "**Contract lifecycle.** Drafting, negotiation, clause libraries, the contract repository and renewal and obligation tracking belong to Locket (or Ironclad); proposals, quotes and content libraries belong to Platter (or PandaDoc). Inkwell signs and hands off.",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 441,
+      "line": 451,
       "text": "**Heavy document work.** Document conversion and PDF sealing run in an isolated service with streamed object storage, not inside request handlers; that is engineering work recorded in `PREP-001` and `RECORD-003`, not a cut in scope.",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 442,
+      "line": 452,
       "text": "**Providers the buyer supplies.** Mail, SMS (US 10DLC registration through Twilio), identity, payment, AI and integration accounts are the buyer's or Inkwell's registered relays; Inkwell records each provider outcome and does not guarantee carrier or inbox delivery.",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 443,
+      "line": 453,
       "text": "**US first.** USD costs, US time zones and business days, English and Spanish, and ESIGN/UETA are the defaults; other jurisdictions' signature rules are not claimed until their own profile is written.",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 447,
+      "line": 457,
       "text": "How the owner-approved scope for Inkwell (16 October 2026) maps to clauses.",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 449,
+      "line": 459,
       "text": "| Scope item | Clauses |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 451,
+      "line": 461,
       "text": "| Reusable templates with saved roles, AI field detection on uploaded PDF and DOCX, and multi-document envelopes | `TMPL-001` to `TMPL-005`, `PREP-001`, `PREP-002`, `PREP-006`, `PREP-007`, `PREP-010` to `PREP-012` |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 452,
+      "line": 462,
       "text": "| Arbitrary recipient counts with sequential, parallel, CC, approver and conditional routing | `ROUTE-001` to `ROUTE-012` |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 453,
+      "line": 463,
       "text": "| Automatic reminders, expiry, bounce handling, resend, recipient correction and decline | `DELIV-001` to `DELIV-008`, `SIGNX-004` |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 454,
+      "line": 464,
       "text": "| Bulk send and public signing web forms | `BULK-001`, `FORM-001`, with their sending authority in `SEND-001` and `ADMIN-004` |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 455,
+      "line": 465,
       "text": "| REST API, embedded signing, completion webhooks, HubSpot, Salesforce, Google Drive, OneDrive and Locket | `API-001` to `API-004`, `INTEG-001` to `INTEG-011` |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 456,
+      "line": 466,
       "text": "| SMS OTP, access code, ID verification, mobile-first signing with initials, dates, checkboxes and payments | `IDV-001` to `IDV-005`, `SIGNX-001` to `SIGNX-009`, `PREP-003`, `INTEG-010`, `MOBILE-001`, `MOBILE-002` |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 457,
+      "line": 467,
       "text": "| Import from each named incumbent and up-and-comer | `MOVE-001` to `MOVE-008` |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 458,
+      "line": 468,
       "text": "| Push further: assemble, fill, chase, verify and complete downstream work | `AGENT-001` to `AGENT-009` |",
       "to": "changelog"
     },
     {
       "file": "CONTRACT.md",
-      "line": 462,
+      "line": 472,
       "text": "Judged from the code and tests at commit `f5dab1a4491a157fdf3370f0b5d53b18af9dfd66` (27 October 2026).",
       "to": "section",
       "section": "Status"
     },
     {
       "file": "CONTRACT.md",
-      "line": 464,
-      "text": "That source and test revision proves owner-reviewed CRM mapping, moved-file, pinned-folder, legacy-folder, verified webhook projection and notification-connection repairs through network-edge fakes. Legacy Dropbox inspection and replay verify existing artifact bytes without uploading, including when the old path is recreated. Unknown or missing remote effects stay unresolved. No live-provider operation is claimed. Exact-candidate tests, mutation probes, browser proof and guarded release gates are recorded in the fleet handoff.",
-      "to": "section",
-      "section": "Status"
-    },
-    {
-      "file": "CONTRACT.md",
-      "line": 466,
-      "text": "The opening SHA is the historical main baseline, not a judgment of this candidate. Current Status rows and the inventory footer describe the candidate tree, including complete SDK result assertions and execution of the compiled TypeScript example. Exact candidate execution and release identifiers belong to the fleet handoff; no new independent CT judgment is claimed.",
-      "to": "section",
-      "section": "Status"
-    },
-    {
-      "file": "CONTRACT.md",
-      "line": 468,
+      "line": 478,
       "text": "SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing public-door proof on 25 October 2026.",
       "to": "section",
       "section": "Status"
     },
     {
       "file": "CONTRACT.md",
-      "line": 479,
+      "line": 489,
       "cell": "gap",
       "text": "Owner, admin, sender and viewer: every door checks session, current role, origin and version; senders see and act on their own envelopes and those shared with them to edit, and read view shares; only the owner manages archives, imports, erasure and agent tokens (test `ACCESS-001`); folder and group shares, profiles and API keys inherit it",
       "to": "gap",
@@ -1935,7 +1921,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 480,
+      "line": 490,
       "cell": "gap",
       "text": "All current ad hoc, template, bulk, API and public-form send doors apply the recorded policy/principal/credential and atomic live fences. MOVE-007 and INTEG-* inherit those fences before their new doors ship.",
       "to": "gap",
@@ -1945,7 +1931,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 481,
+      "line": 491,
       "cell": "gap",
       "text": "Strict-order email-code signing (test `SIGN-001`), link-only recipients and two order-1 recipients signing in parallel before order 2 (test `IDV-001 and SIGN-001`), parallel orders (`ROUTE-002`) and in-app session signing (`MANAGE-003`). With mail suppressed, the owner receives a once-visible recipient-bound link and sender-provided code, and can reissue them with the prior link and session revoked; link only is refused then",
       "to": "gap",
@@ -1955,7 +1941,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 482,
+      "line": 492,
       "cell": "gap",
       "text": "Sender, owner or admin voids with immediate link revocation and pending mail canceled; another sender is refused (test `SEND-002`); someone it is shared with to edit voids it (test `ADMIN-001`)",
       "to": "gap",
@@ -1965,7 +1951,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 488,
+      "line": 498,
       "cell": "gap",
       "text": "Native PDF slice: a real 20 MB image-bearing PDF is inspected, prepared, previewed and signed with verified fingerprints; copies and template reuse preserve its bytes independently of source erasure; holds refuse erasure. The server enforces 25 MB per source, including staged reads, and refuses encrypted, corrupt and 30 MB uploads with reasons; browser proof covers preparation, refusal and signing at 1440 and 390. Remaining: files still use D1 rows rather than object storage; complete object custody through artifact identity, templates, streamed export, multipart restore and erasure remains unbuilt. Isolated DOCX, DOC, RTF, TXT, PNG and JPEG conversion remains unbuilt; no authenticated converter endpoint or deployment provision is supplied. Converted Word template matching and text-tag journeys remain unproved. The small inline base64 transport remains bounded to 2 MiB.",
       "to": "gap",
@@ -1975,7 +1961,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 490,
+      "line": 500,
       "cell": "gap",
       "text": "Round A: initials (typed/drawn/uploaded, independently adopted, saved for members), automatic date signed in a chosen US zone, full name/email/company/title, pattern validation and masked display; business-data prefill/source/read-only, public-door API proof and 1440/390 scan/keyboard/accessibility-tree journey. Round B slice: radio/dropdown exact options, checkbox group inclusive minimum/maximum, notes and uploaded PNG/JPEG stamps, with source/prefill/read-only enforcement, executed PDF, copy/template/restore custody and 1440/390 keyboard/accessibility-tree/light-dark scans (PREP-003 in the same tests). R23 stamp slice: signing audit SHA-256/type/bytes/supplier, honest certificate lines and staged restore recomputation (`src/inkwell/stamp-evidence.mjs`, PREP-003 tests). Gap: attachments unshipped; 25 MB target awaits PREP-001 object storage and full ct-approved attachment custody/access/refusal/retention acceptance",
       "to": "gap",
@@ -1985,7 +1971,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 491,
+      "line": 501,
       "cell": "gap",
       "text": "Same-recipient acyclic visibility and independent required conditions, optional fields, checkbox and exact USD sum/difference/product; server recomputation and hidden-value removal; API and accessible keyboard journey at 1440/390 (`PREP-004`)",
       "to": "gap",
@@ -1995,7 +1981,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 492,
+      "line": 502,
       "cell": "gap",
       "text": "Place by click, drag or Enter on pages and thumbnails; drag or arrow keys to move, corner or Shift+arrows to resize; duplicate, duplicate to every page, align, reassign by recipient color and set properties in the inspector; journey at 1440 and 390 with `SIGNX-003`'s scan in both themes and a keyboard-only pass (`PREP-005`). `PREP-003`, `PREP-004` and `PREP-011` add their field properties to the inspector before they ship",
       "to": "gap",
@@ -2005,7 +1991,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 493,
+      "line": 503,
       "cell": "gap",
       "text": "No AI field or recipient detection",
       "to": "gap",
@@ -2015,7 +2001,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 494,
+      "line": 504,
       "cell": "gap",
       "text": "PDF text tags, caller anchor strings and AcroForm fields placed with no manual placement, kept by document name for API prefill (test `PREP-007`, journey `tests/journeys/document-fields.mjs` at 1440 and 390 pixels); Word text tags are carried by `PREP-001`'s conversion before Word uploads ship",
       "to": "gap",
@@ -2025,7 +2011,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 495,
+      "line": 505,
       "cell": "gap",
       "text": "Native CRM merging carried by `INTEG-001`, `INTEG-002`, `INTEG-003` before shipping",
       "to": "gap",
@@ -2035,7 +2021,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 496,
+      "line": 506,
       "cell": "gap",
       "text": "Drafts reopen with everything editable, a subject, a message and private messages each recipient alone sees, and approval that sends at a time in a US zone (test `PREP-009`); policy-based scheduled sends join with `ADMIN-004`",
       "to": "gap",
@@ -2045,7 +2031,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 498,
+      "line": 508,
       "cell": "gap",
       "text": "API-001/MOVE-007 inherit the setting/version release fence before they ship.",
       "to": "gap",
@@ -2055,7 +2041,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 499,
+      "line": 509,
       "cell": "gap",
       "text": "No DOCX templates, merge fields, repeating tables or conditional sections",
       "to": "gap",
@@ -2065,7 +2051,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 500,
+      "line": 510,
       "cell": "gap",
       "text": "—",
       "to": "gap",
@@ -2075,7 +2061,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 501,
+      "line": 511,
       "cell": "gap",
       "text": "Personal and shared folders, template and folder shares to use or to edit, tags, and search by name or tag over only the templates a person may use; a member with use access sends but cannot edit, a folder editor saves version 2, and a member without access finds nothing (test `TMPL-002`, journey `tests/journeys/templates.mjs`)",
       "to": "gap",
@@ -2085,7 +2071,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 502,
+      "line": 512,
       "cell": "gap",
       "text": "An edit makes the template's next version while envelopes sent from version 1 keep its fields and name it; a sent envelope saves as a template with its fields and roles (test `TMPL-003`, journey `tests/journeys/templates.mjs`)",
       "to": "gap",
@@ -2095,7 +2081,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 503,
+      "line": 513,
       "cell": "gap",
       "text": "AGENT-007 inherits per-source field mapping before suggestions from a composed envelope ship; current suggestions use single-source envelopes.",
       "to": "gap",
@@ -2105,7 +2091,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 504,
+      "line": 514,
       "cell": "gap",
       "text": "An upload on the prepare screen is offered the templates whose document it matches, by fingerprint (100%) or by page text on the same pages (from 80%), only to people who may use them; applying one places every template field and its roles; an unrelated agreement is offered nothing (test `TMPL-005`, journey `tests/journeys/templates.mjs`)",
       "to": "gap",
@@ -2115,7 +2101,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 505,
+      "line": 515,
       "cell": "gap",
       "text": "ROUTE-011 inherits the count, routing, own-action and visibility boundaries for its later roles.",
       "to": "gap",
@@ -2125,7 +2111,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 506,
+      "line": 516,
       "cell": "gap",
       "text": "Each recipient has a routing order from 1 to 100; equal orders are invited together and sign in parallel, and the next order is invited once all of them have signed (test `ROUTE-002`)",
       "to": "gap",
@@ -2135,7 +2121,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 507,
+      "line": 517,
       "cell": "gap",
       "text": "Roles that `ROUTE-001` and `ROUTE-011` add carry these rules before they ship",
       "to": "gap",
@@ -2145,7 +2131,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 508,
+      "line": 518,
       "cell": "gap",
       "text": "Account and template rules with a USD threshold; a waiting, locked draft; reject with reason back to the sender; the last approval sends; `ADMIN-004` policies require approvals through these rules",
       "to": "gap",
@@ -2155,7 +2141,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 509,
+      "line": 519,
       "cell": "gap",
       "text": "Owner/admin groups of 2-10 snapshotted at each draft save; one routing place with a link and verification per member; the first signer completes it and the others' links show who signed and when; a member's decline declines the envelope; reminders and resends to every member, the completed copy to the signer; the certificate names the group, the signer with their evidence and every member; template roles take a group (test `ROUTE-005`, journey `tests/journeys/signing-groups.mjs` at 1440 and 390 pixels); access codes, in-person signing and reassignment are refused for groups in v1",
       "to": "gap",
@@ -2165,7 +2151,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 510,
+      "line": 520,
       "cell": "gap",
       "text": "Per-envelope permission, reassignment by the verified recipient with a reason, new person verifies and signs, original link refused, both people in audit, timeline and certificate (test `ROUTE-006`); sender replacement through `DELIV-006`",
       "to": "gap",
@@ -2175,7 +2161,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 511,
+      "line": 521,
       "cell": "gap",
       "text": "Hosted identity attestation, isolated signer session, host sign-out, no remote invitation, honest certificate and 1440/390/768-pixel journeys (tests `ROUTE-007`)",
       "to": "gap",
@@ -2185,7 +2171,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 513,
+      "line": 523,
       "cell": "gap",
       "text": "Self-signing with no mail, the session's sign-in method on the certificate, a saved and reused signature, and the completed copy sent to more people (test `ROUTE-009`); saved initials, passkeys and store pickers arrive with `SIGNX-002`, `ADMIN-009`, `INTEG-004` and `INTEG-005`",
       "to": "gap",
@@ -2195,7 +2181,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 514,
+      "line": 524,
       "cell": "gap",
       "text": "—",
       "to": "gap",
@@ -2205,7 +2191,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 515,
+      "line": 525,
       "cell": "gap",
       "text": "ct approval pending for the adopted conservative default: signed-in owner/admin grants to existing later places only; private messages and shared-document fields only, no account/global-message/role/order/authentication/audience authority; explicit audited consent; delivery evidence is an authenticated PDF request, never asserted human reading. Until ct approves this policy, the clause stays partial.",
       "to": "gap",
@@ -2215,7 +2201,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 518,
+      "line": 528,
       "cell": "gap",
       "text": "Initials fields arrive with `PREP-003`, which carries their adoption in its text and acceptance",
       "to": "gap",
@@ -2225,7 +2211,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 519,
+      "line": 529,
       "cell": "gap",
       "text": "Later signing and preparation screens join the scan and journeys before they ship",
       "to": "gap",
@@ -2235,7 +2221,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 522,
+      "line": 532,
       "cell": "gap",
       "text": "No customer branding",
       "to": "gap",
@@ -2245,7 +2231,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 523,
+      "line": 533,
       "cell": "gap",
       "text": "English only",
       "to": "gap",
@@ -2255,7 +2241,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 524,
+      "line": 534,
       "cell": "gap",
       "text": "—",
       "to": "gap",
@@ -2265,7 +2251,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 526,
+      "line": 536,
       "cell": "gap",
       "text": "Email code or link only per recipient and template role, with or without an access code; four recipients with four methods each pass their own, the link-only recipient signs with no code, and the certificate names each method and outcome (test `IDV-001`, journey `tests/journeys/templates.mjs`); SMS, KBA/phone and ID verification join with `IDV-002`, `IDV-005` and `IDV-004`",
       "to": "gap",
@@ -2275,7 +2261,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 527,
+      "line": 537,
       "cell": "gap",
       "text": "—",
       "to": "gap",
@@ -2285,7 +2271,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 529,
+      "line": 539,
       "cell": "gap",
       "text": "CT policy ruling, 25 October 2026: APPROVED WITH RIDERS. This approves the product defaults below only. Implementation, provider operation, legal suitability and release acceptance remain separately evidenced; this clause remains partial.",
       "to": "gap",
@@ -2295,7 +2281,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 530,
+      "line": 540,
       "cell": "gap",
       "text": "CT policy ruling, 25 October 2026: APPROVED WITH RIDERS. This approves the product defaults below only. Implementation, provider operation, legal suitability and release acceptance remain separately evidenced; this clause remains partial.",
       "to": "gap",
@@ -2305,7 +2291,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 531,
+      "line": 541,
       "cell": "gap",
       "text": "Amazon SES, Postmark and SMTP sending arrive with `ADMIN-007` and inherit this clause",
       "to": "gap",
@@ -2315,7 +2301,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 533,
+      "line": 543,
       "cell": "gap",
       "text": "Per-envelope reminders after N and every M business days (Eastern time, from 09:00), current recipients only, stopping at signature, decline, void or expiry (test `DELIV-003`); template level from `TMPL-001` (test `TMPL-001`); account defaults are set by ADMIN-004 and proven by tests/send-policies.test.mjs",
       "to": "gap",
@@ -2325,7 +2311,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 535,
+      "line": 545,
       "cell": "gap",
       "text": "Email resend on the same link or a new one from the detail page, each message with its own status (test `DELIV-005`); SMS same/new-link resend is proved by the SMS recipient test in `tests/delivery.test.mjs` and `smsJourney` in `tests/journeys/sms.mjs`",
       "to": "gap",
@@ -2335,7 +2321,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 536,
+      "line": 546,
       "cell": "gap",
       "text": "Name, email, routing order and private message of recipients who have not acted, added and removed later recipients and copy recipients, subject, message, expiry and fields of recipients who have not acted (test `DELIV-006`); SMS phone correction and identity rotation are proved by the SMS recipient test in `tests/delivery.test.mjs` and `smsJourney` in `tests/journeys/sms.mjs`",
       "to": "gap",
@@ -2345,7 +2331,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 537,
+      "line": 547,
       "cell": "gap",
       "text": "Every signer and copy recipient gets the completed copy by a per-recipient secure link opened with their mailbox code, or attached when an owner or admin chose attachments (test `DELIV-007`); per-recipient document visibility arrives with `ROUTE-012`",
       "to": "gap",
@@ -2355,7 +2341,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 538,
+      "line": 548,
       "cell": "gap",
       "text": "Feed, per-member choices and email, Slack, Teams and Nook posts through the fakes (test `DELIV-008`). The Nook leg posts Nook's Slack-compatible format to a fake of `NOOK-063`'s documented answers; `NOOK-063` carries the Nook test installation (ct 19 Oct 13:27Z)",
       "to": "gap",
@@ -2365,7 +2351,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 539,
+      "line": 549,
       "cell": "gap",
       "text": "Unproved: complete bulk authority and concurrent release-fence assertions; hold notifications for remaining rows; newly required internal approval at release; permanent non-revival after principal loss; and fresh confirmation preserving the original frozen definition, approval rule and bytes after live template edits or deletion. The exact-candidate capacity execution is recorded separately in the fleet receipt.",
       "to": "gap",
@@ -2375,7 +2361,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 540,
+      "line": 550,
       "cell": "gap",
       "text": "Publication/permission management is through the documented native-session API; ADMIN-008 future profiles narrow its explicit grants and ADMIN-005 adopts its change history.",
       "to": "gap",
@@ -2385,7 +2371,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 541,
+      "line": 551,
       "cell": "gap",
       "text": "The Envelopes screen and `GET /api/inkwell/envelopes` page, search title and recipient name or email, filter by status, date and sender and count all seven statuses from one D1 search, timed at 5,000 envelopes (test `MANAGE-001`); one envelope reads through `GET /api/inkwell/envelopes/:id`; the template filter ships with `TMPL-001` (test `TMPL-001`); custom-field search arrives with `MANAGE-002`",
       "to": "gap",
@@ -2395,7 +2381,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 542,
+      "line": 552,
       "cell": "gap",
       "text": "Ct approval of the conservative folder placement and archive-restore default is pending. Group sharing remains with ADMIN-002.",
       "to": "gap",
@@ -2405,7 +2391,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 543,
+      "line": 553,
       "cell": "gap",
       "text": "Waiting-for-me list and in-app signing of one's own turn by any member, authenticated by their session with no mailbox code; the certificate names the session member (test `MANAGE-003`)",
       "to": "gap",
@@ -2415,7 +2401,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 544,
+      "line": 554,
       "cell": "gap",
       "text": "—",
       "to": "gap",
@@ -2425,7 +2411,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 545,
+      "line": 555,
       "cell": "gap",
       "text": "Resend and correct are offered here (`DELIV-005`, `DELIV-006`); several documents with `PREP-002`",
       "to": "gap",
@@ -2435,7 +2421,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 546,
+      "line": 556,
       "cell": "gap",
       "text": "Per recipient: routing order, each authentication with method, result, IP and user agent, access code, disclosure, adopted signature and method, signing with IP and user agent; every timestamp in UTC and Eastern time (test `RECORD-002`); SMS, KBA, ID verification and drawn signatures add theirs when they ship",
       "to": "gap",
@@ -2445,7 +2431,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 547,
+      "line": 557,
       "cell": "gap",
       "text": "No PDF digital seal; the certificate says it is not one",
       "to": "gap",
@@ -2455,7 +2441,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 549,
+      "line": 559,
       "cell": "gap",
       "text": "Every terminal native/imported envelope and connected DocuSeal archive, UTC calendar-year clocks, labeled import-time fallback, latest-source-envelope archive due date, 30-day warning, legal holds and sessionless fenced erasure with safe owner undo (tests `RECORD-005`); folder rules arrive with `MANAGE-002`",
       "to": "gap",
@@ -2465,7 +2451,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 550,
+      "line": 560,
       "cell": "gap",
       "text": "Owner, admin, sender and viewer roles (test `ACCESS-001`); a sender sends, corrects and voids their own envelope, a viewer cannot send, and envelope shares to view or to edit, with no re-sharing and viewers capped at reading (test `ADMIN-001`); corrections by whoever may change the envelope (test `DELIV-006`). Folder shares arrive with `MANAGE-002`'s folders, group shares with `ADMIN-002`'s groups and permission profiles with `ADMIN-008`, each under these rules before it ships",
       "to": "gap",
@@ -2475,7 +2461,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 551,
+      "line": 561,
       "cell": "gap",
       "text": "Invitations and roles from Base; no groups or transfer of a departing member's envelopes",
       "to": "gap",
@@ -2485,7 +2471,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 552,
+      "line": 562,
       "cell": "gap",
       "text": "OIDC sign-in from Base; no SAML or SCIM",
       "to": "gap",
@@ -2495,7 +2481,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 553,
+      "line": 563,
       "cell": "gap",
       "text": "Reminder/expiry/authentication/adoption/reassignment defaults inherited by new envelopes and templates with explicit override and fixed saved-record values; every send-policy save records its version and command receipt, including unchanged values (tests/send-policies.test.mjs). PREP-011 account-wide free-form default, off initially, owner/admin only, versioned with append-only flip history. Per-source account send policies (scope-review-65 A2, A3, A5, A8, A9 for the ad hoc and template sources): opt-in defaults, owner/admin only, 15-minute sign-in for autonomy and widening, immutable versions with before and after, source/principal/versions/fingerprint on the envelope, 403 `send_policy_off`/`send_policy_template`/`send_policy_deferred`, scheduled release and last internal approval held when the policy turns off or narrows, never released by turning it back on; a newly required internal approval moves a scheduled send into the ROUTE-004 wait; every hold notifies its principal and active owners/admins in Activity and by configured email (test `ADMIN-004`, `SEND-001 and ADMIN-004`). Gap: branding default is not yet inherited; ct approval of the adopted authentication/adoption snapshot and additive consumer-disclosure defaults is pending; group/profile send constraints and narrowing precedence (A4) are proven by tests/send-policies.test.mjs, while broader group/profile capabilities remain with `ADMIN-002`/`ADMIN-008`; BULK-001 now supplies the native batch door under the effective bulk policy; FORM-001 now supplies the autonomous web-form and unsigned policy-off owner-review doors; API-001 now enforces the API source policy and credential at release; the `ADMIN-005` log entry waits for that log; template lists and review reasons are editable in Settings; each group/profile source starts with the same approved person/off opt-in defaults as the account, and can never widen it.",
       "to": "gap",
@@ -2505,7 +2491,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 554,
+      "line": 564,
       "cell": "gap",
       "text": "Unified administrative log and CSV now ship; immutable history projections cover shipped policy, permission, form, filing, key, embedding and follow-up families. BLOCKED: the pinned rer 0.2.80 portability policy has no supported append-only custody merge hook; Base refresh is held. Account audit and redaction fences are explicitly excluded from archives to preserve existing PORT-001 restore. The approved audit-history restore and redaction-resurrection fence remain unproved. Broader groups, brands, OAuth and webhooks inherit audit coverage under ADMIN-002, SIGNX-006, API-001 and API-002 before their doors ship.",
       "to": "gap",
@@ -2515,7 +2501,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 555,
+      "line": 565,
       "cell": "gap",
       "text": "Cap controls: owner or admin explicitly approves an allowance per network attempt, UTC calendar months, warning at 80%, atomic reservation before dispatch, no automatic retry of blocked attempts, no automatic authentication downgrade, unpriced and uncertain attempts retain their allowance. The same tests prove in-flight reservations block another signer without authentication downgrade, cancelled invitations remain cancelled after a cap increase, and readable setting history with actor, time and before and after values. The usage journey proves retained 80% and 100% notices, owner Activity notifications with a direct cap-settings action, and readable history at both widths. The existing public tests also prove SMS verification and signing can complete after further paid attempts stop, and cap removal is audited once when its command is replayed. Provider-reported SMS USD charges and reservations are distinguished. Gap: the approved allowance is not a provider-enforced maximum charge; an unexpectedly larger provider receipt can exceed the cap after dispatch. Final provider billing reconciliation, storage and email USD measurement remain unbuilt.",
       "to": "gap",
@@ -2525,7 +2511,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 556,
+      "line": 566,
       "cell": "gap",
       "text": "API-key self-service permission foundation only: owner/admin grant, sender self binding and live role/scopes, permanent suspension on loss and archive exclusion (`tests/api-keys.test.mjs` — “API-001: explicit self-service permission lets a sender mint only self-bound keys and permission loss permanently suspends them”). Gap: named permission profiles and member/group assignment, Templates-only and Bulk sender examples, effective permission checks on every door, full permission profiles and ADMIN-005 account audit are unbuilt; explicit member-level manage-web-forms grants now ship with FORM-001 admission",
       "to": "gap",
@@ -2535,7 +2521,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 557,
+      "line": 567,
       "cell": "gap",
       "text": "Email-link and OIDC sign-in only; no passkeys, authenticator codes, recovery codes or two-factor requirement",
       "to": "gap",
@@ -2545,7 +2531,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 558,
+      "line": 568,
       "cell": "gap",
       "text": "Owner claim and first-run confirmation only; no domain, SPF, DKIM or DMARC checks, provider tests or readiness gate",
       "to": "gap",
@@ -2555,7 +2541,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 559,
+      "line": 569,
       "cell": "gap",
       "text": "Scoped live key custody, freshness, bounded rotation, immediate revoke/permanent suspension, separate read/artifact/template/prepare/send/manage scopes and OpenAPI-driven draft/create/send/read/download/correct/resend/void proof now ship. OpenAPI metadata and filtered client results are also proven by the existing template-client test. Gap: OAuth/PKCE and its consent screen, and ADMIN-005 account audit integration; no test-mode or webhook-manage scope yet. Send/manage scopes, atomic create-and-send, policy/credential release fences, rolling key/account quotas with Retry-After, and 24-hour API-only idempotency now ship, proven by tests/api-keys.test.mjs and the committed outside-Verify quota journey tests/journeys/api-capacity.mjs.",
       "to": "gap",
@@ -2565,7 +2551,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 560,
+      "line": 570,
       "cell": "gap",
       "text": "No webhooks. The approved resolved-address rule requires Base egress that validates public addresses and connects to a validated address while checking TLS against the endpoint hostname; this pinned edition has no such adapter. Base refresh is outside this candidate. Endpoint custody, event delivery, attempt history, retries and replay remain unbuilt.",
       "to": "gap",
@@ -2575,7 +2561,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 561,
+      "line": 571,
       "cell": "gap",
       "text": "ADMIN-005 inherits unified account-audit integration; API-001 inherits any future external launch-credential door. Those separate obligations are not claimed by this native member-session implementation.",
       "to": "gap",
@@ -2585,7 +2571,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 562,
+      "line": 572,
       "cell": "gap",
       "text": "Unproved: a complete full-history publication scan with NEW 0 for the candidate; main at the candidate SHA; and a green Run site run at that SHA. Production webhook exclusion is retained by API-002 in both documents.",
       "to": "gap",
@@ -2595,7 +2581,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 564,
+      "line": 574,
       "cell": "gap",
       "text": "No Salesforce connector",
       "to": "gap",
@@ -2605,7 +2591,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 565,
+      "line": 575,
       "cell": "gap",
       "text": "No Orbit connector",
       "to": "gap",
@@ -2615,27 +2601,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 566,
-      "cell": "gap",
-      "text": "No Google Workspace connector",
-      "to": "gap",
-      "ids": [
-        "INTEG-004"
-      ]
-    },
-    {
-      "file": "CONTRACT.md",
-      "line": 567,
-      "cell": "gap",
-      "text": "No Microsoft 365 connector",
-      "to": "gap",
-      "ids": [
-        "INTEG-005"
-      ]
-    },
-    {
-      "file": "CONTRACT.md",
-      "line": 568,
+      "line": 578,
       "cell": "gap",
       "text": "Network-edge fakes prove the specified acceptance. Live provider provisioning and token lifecycle remain installation responsibilities.",
       "to": "gap",
@@ -2645,7 +2611,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 569,
+      "line": 579,
       "cell": "gap",
       "text": "No Chest connector",
       "to": "gap",
@@ -2655,7 +2621,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 570,
+      "line": 580,
       "cell": "gap",
       "text": "Downloadable handoff manifest only; no delivery to Locket",
       "to": "gap",
@@ -2665,7 +2631,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 571,
+      "line": 581,
       "cell": "gap",
       "text": "No automation apps",
       "to": "gap",
@@ -2675,7 +2641,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 572,
+      "line": 582,
       "cell": "gap",
       "text": "BLOCKED sandbox dependency: a Checkout-capable Stripe test account. The held account rejects a correctly formed 500 USD card Checkout request with HTTP 400 on payment_method_types; its default test payment-method configuration reports card available and on, so no missing native foundation is claimed. Both original real-sandbox acceptance points remain unproved. CT-approved test-mode-only, explicit-consent and reference-only custody defaults are adopted. Payment Element, refunds and disputes handling, receipts, tax, recurring billing handoff to Nectar and live mode remain named Gaps; ASK INTEG-010-scope retains partial status pending their disposition.",
       "to": "gap",
@@ -2685,7 +2651,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 573,
+      "line": 583,
       "cell": "gap",
       "text": "Scoped clients can send files or templates autonomously under the shared API-source policy and read artifacts. No sibling-specific integration policy sources or completion webhooks; the Lodge-style end-to-end callback journey is unbuilt.",
       "to": "gap",
@@ -2695,7 +2661,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 574,
+      "line": 584,
       "cell": "gap",
       "text": "At 390 pixels by touch: send from a template, track the status in the list and detail page, remind and void (journey `tests/journeys/mobile-sending.mjs`), correct (`tests/journeys/correct-envelope.mjs`); the web manifest parses with no error and the browser reports no installability error",
       "to": "gap",
@@ -2705,7 +2671,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 575,
+      "line": 585,
       "cell": "gap",
       "text": "No native apps",
       "to": "gap",
@@ -2715,7 +2681,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 576,
+      "line": 586,
       "cell": "gap",
       "text": "No Docusign import",
       "to": "gap",
@@ -2725,27 +2691,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 577,
-      "cell": "gap",
-      "text": "No Adobe Acrobat Sign import",
-      "to": "gap",
-      "ids": [
-        "MOVE-003"
-      ]
-    },
-    {
-      "file": "CONTRACT.md",
-      "line": 578,
-      "cell": "gap",
-      "text": "No Dropbox Sign import",
-      "to": "gap",
-      "ids": [
-        "MOVE-004"
-      ]
-    },
-    {
-      "file": "CONTRACT.md",
-      "line": 579,
+      "line": 589,
       "cell": "gap",
       "text": "No Documenso import",
       "to": "gap",
@@ -2755,7 +2701,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 580,
+      "line": 590,
       "cell": "gap",
       "text": "No in-flight cutover",
       "to": "gap",
@@ -2765,7 +2711,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 581,
+      "line": 591,
       "cell": "gap",
       "text": "No API compatibility layer",
       "to": "gap",
@@ -2775,7 +2721,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 582,
+      "line": 592,
       "cell": "gap",
       "text": "Checkpointed, resumable apply for archive imports only; no remote API pull, rate-limit pause or duplicate-free resume of a remote import",
       "to": "gap",
@@ -2785,7 +2731,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 584,
+      "line": 594,
       "cell": "gap",
       "text": "Signing door (ct 22 Oct): each Part 11 signature requires two distinct components. The first signature in a session uses a credential the signer alone holds (password, passkey or OIDC tied to a verified Inkwell identity) plus the fresh emailed code. Later signatures in the same continuous session require at least the fresh code. A recipient with no such identity is refused in this profile with 'Part 11 signing needs a verified signer account', never downgraded. Meanings: Approval, Review, Responsibility, Authorship, plus owner-defined meanings recorded with their text. An admin verifies a signer's identity, and records the method, before that signer's first Part 11 signature. A locked-out or exhausted code notifies the owner/admin security contact within one minute and is listed. The organization's FDA certification under 11.100(c) is recorded with its date and reference. 'Validated' means only this: IQ/OQ/PQ executed on the installed version, every matrix row (11.10(a)-(k), 11.30, 11.50, 11.70, 11.100, 11.200, 11.300) citing a test that passed in that run, and a change log since the last validated version. Procedural controls (11.10(i), (j)) are the customer's and are listed in the matrix as theirs. Implemented semantics: frozen owner/admin per-draft opt-in, with no removal through edits/copies/templates; paper signing refused; a fresh recipient/link/session-bound code at each signature (10 minutes, five attempts, 60-second spacing, ten requests per link); verified printed name and exact meaning in PDF/certificate and immutable signature evidence. Independent password identity sessions grant no app access and last at most 24 hours; hosted termination revokes them. Account identity/version, current status, credential session and code are fenced in the signing transaction. Legacy signed records preserve their original proof and are never retroactively qualified. Enrollment and recovery (ct 22 Oct, approved as implemented): an owner or admin other than the signer verifies the signer's identity and records the method; this issues a one-use activation token, valid for 24 hours, shown only to that verifier for separate trusted delivery and never emailed automatically. Separate delivery is the verifier's responsibility. The signed-in, verified account holder chooses a separate 15–128 character signer password, stored salted with PBKDF2-SHA256 at 600,000 iterations. Recovery requires fresh admin reverification and a new activation token; reverification immediately revokes the old password, any unused token and every identity session. Identity sessions last at most 24 hours. The per-account password bucket counts all authentication attempts, including successful attempts, in fixed ten-minute windows aligned to Unix time. An incorrect or exhausted attempt at count five or greater records a security alert and attempts mandatory email to active owner/admin security contacts; attempts after five are refused even with the correct password. A correct fifth attempt succeeds. The bucket resets at the next fixed boundary, not ten minutes after the last failure; up to ten attempts within the two five-attempt allowances can fall around a boundary. These lifetimes, lengths, hash parameters, attempt/code limits and the one-minute alert target are Inkwell product choices, not numeric requirements set by 21 CFR Part 11. Password aging and periodic credential review under 11.300(b) remain the customer's procedure. Only the owner defines custom meanings. `docs/part11/README.md`, `docs/part11/traceability.md` and `scripts/qualify-part11.mjs` provide the qualification procedure, complete requirement inventory and exact-candidate technical receipts; a passing technical phase never labels an installation validated. Gap: Customer-installed IQ/OQ/PQ execution and reviewed passing evidence for every matrix row, customer procedural controls, installed real-provider one-minute alert receipt, OIDC composition qualification and a reviewed change log from the last validated version remain unproved. No qualification or certification is claimed.",
       "to": "gap",
@@ -2795,7 +2741,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 585,
+      "line": 595,
       "cell": "gap",
       "text": "Profile, fixed-schema operational logs, normalized provider receipts, whole-dispatcher member activity and owner/admin access review; signed evidence retained; shared-responsibility guide (tests `COMPLY-002`)",
       "to": "gap",
@@ -2805,7 +2751,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 586,
+      "line": 596,
       "cell": "gap",
       "text": "Agents prepare envelopes for human approval; no CRM or email context assembly",
       "to": "gap",
@@ -2815,7 +2761,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 587,
+      "line": 597,
       "cell": "gap",
       "text": "Adopted conservative default pending CT: received W-9 PDFs are private source custody for current editors, never automatically signer-visible supplements. Missing-party discovery, arbitrary missing fields and CRM entity inconsistency detection remain unimplemented. Native HTTP doors ship; no new operator controls or live mailbox qualification is claimed.",
       "to": "gap",
@@ -2825,7 +2771,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 588,
+      "line": 598,
       "cell": "gap",
       "text": "—",
       "to": "gap",
@@ -2835,7 +2781,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 589,
+      "line": 599,
       "cell": "gap",
       "text": "Signers sign the approved fingerprinted bytes; no comparison with an external approved revision or signer-authority check",
       "to": "gap",
@@ -2845,7 +2791,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 590,
+      "line": 600,
       "cell": "gap",
       "text": "No downstream effects",
       "to": "gap",
@@ -2855,7 +2801,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 592,
+      "line": 602,
       "cell": "gap",
       "text": "Recorded correction proposals with event citations and before/after review; explicit template-maker publication creates the next version without changing sent envelopes",
       "to": "gap",
@@ -2865,7 +2811,7 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 593,
+      "line": 603,
       "cell": "gap",
       "text": "No signer assistant",
       "to": "gap",
@@ -2875,27 +2821,13 @@
     },
     {
       "file": "CONTRACT.md",
-      "line": 594,
+      "line": 604,
       "cell": "gap",
       "text": "Adopted conservative default pending CT: owner-maintained business-role mapping, exact approved forwarder, and a separate owner return action under the current grant. Automatic organizational-role inference and intake from other agreement platforms remain unimplemented. Native HTTP doors ship; no new operator controls or live mailbox qualification is claimed.",
       "to": "gap",
       "ids": [
         "AGENT-009"
       ]
-    },
-    {
-      "file": "CONTRACT.md",
-      "line": 596,
-      "text": "Status provenance, 27 October 2026: this committed candidate has 70 done, 25 partial and 22 missing clauses, id for id with ACCEPTANCE.md. Resolve its full SHA with `git rev-parse HEAD`; the fleet handoff records that SHA, its local execution and the exact verification runs. No earlier review pin identifies this implementation proof.",
-      "to": "section",
-      "section": "Status"
-    },
-    {
-      "file": "ACCEPTANCE.md",
-      "line": 3,
-      "text": "Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed here, run through a public door: the browser at 1440 and 390 pixels wide, the HTTP API, a signing link, or a provider fake at the paid or network edge. Status labels match the raw contract inventory in this committed candidate tree, reconciled on 27 October 2026: 70 done, 25 partial and 22 missing, 117 total. Resolve its execution SHA with `git rev-parse HEAD`; the fleet records exact-SHA receipts and subsequent release checks. This inventory does not claim a new independent CT judgment. Where a first-release journey names today's narrowed case, the target clause it references governs (CONTRACT.md, \"How to read this contract\"); a build round moves a clause to done by making its journey pass, and an independent release review follows.",
-      "to": "docs",
-      "path": "docs/verify.md"
     },
     {
       "file": "ACCEPTANCE.md",
@@ -3641,274 +3573,239 @@
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 172,
-      "text": "**INTEG-004 — Google Workspace** (missing). Through a Google fake, send a Drive document and show the completed PDF and certificate in the configured folder; pick a Google Doc and show it arrives as a converted PDF whose fingerprint the envelope binds; in the Gmail add-on test harness, open a message with a PDF attachment from a client with one person on Cc, see the attachment and both participants proposed as recipients, and send; from another message, sign the attached PDF yourself with no mail sent to you. Connected Gmail reply sources inherit AGENT-003’s grant, authenticated reply intake, contact rules, reply visibility, logging and envelope custody before shipping.",
-      "to": "generated",
-      "note": "The contract generator writes this status or count."
-    },
-    {
-      "file": "ACCEPTANCE.md",
-      "line": 173,
-      "text": "**INTEG-005 — Microsoft 365** (missing). Through a Microsoft Graph fake, send a OneDrive document and show the completed record filed in the SharePoint folder; in the Outlook add-in test harness, open a message with a PDF attachment and two participants, see the attachment and both participants proposed as recipients, and send; sign another message's attachment yourself with no mail sent to you; in the Word add-in test harness, send the open document and show the envelope binds the converted PDF's fingerprint. Connected Outlook reply sources inherit AGENT-003’s grant, authenticated reply intake, contact rules, reply visibility, logging and envelope custody before shipping.",
-      "to": "generated",
-      "note": "The contract generator writes this status or count."
-    },
-    {
-      "file": "ACCEPTANCE.md",
-      "line": 174,
+      "line": 184,
       "text": "**INTEG-006 — Box and Dropbox** (done). Through Box and Dropbox fakes, a completion files the PDF and certificate once each, and a retry does not duplicate. Evidence: `tests/delivery.test.mjs`, “Box and Dropbox file the completed PDF and certificate exactly once despite interrupted responses, concurrent retries and signing replay”, compares every remote file to its public completed artifact and proves interrupted, concurrent and replayed retries do not duplicate; “Automatic filing requires administrative consent, stays within its template, refuses conflicting bytes and cancels disabled rules” proves per-template filing, authorization and consent, mismatched remote content refusal and cancellation. `tests/journeys/filing.mjs`, top-level filing journey, proves owner configuration, keyboard consent and retry, visible unconfirmed uploads and persisted success receipts at 1440 and 390 with WCAG checks. Live provider provisioning is separate from this specified network-edge fake acceptance.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 175,
+      "line": 185,
       "text": "**INTEG-007 — Chest** (missing). In a test installation of Chest, a completion appears in the configured Chest folder with its fingerprint.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 176,
+      "line": 186,
       "text": "**INTEG-008 — Locket handoff** (partial). A Locket-initiated envelope completes and Locket shows the executed record against the approved revision; a downloaded handoff manifest still verifies offline. Objections routed to Locket inherit AGENT-003’s grant, pause, reply readers and envelope custody before shipping.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 177,
+      "line": 187,
       "text": "**INTEG-009 — Zapier, Make, Power Automate, n8n and Crank** (missing). Each app's test harness triggers on a completion and sends from a template.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 178,
+      "line": 188,
       "text": "**INTEG-010 — Payment at signing through Stripe** (partial). In Stripe test mode, a signer pays a 500 USD deposit and the envelope completes with the payment reference; a declined card leaves the envelope waiting with the signature unsaved.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 180,
+      "line": 190,
       "text": "**CT policy approved with riders; no implementation acceptance or status change.** Prove every INTEG-010 approved default and rider in CONTRACT.md through public doors, faking Stripe only at the network edge for deterministic assertions. Prove signed-in owner and admin configuration, refusal of unauthorized configuration, recorded immutable requirement versions, and preservation of an envelope’s frozen requirement after template edits.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 182,
+      "line": 192,
       "text": "Prove separate consent by the assigned authenticated signer, the exact applicable wording and audit evidence, refusal without consent, and refusal of unauthorized or cross-invitation starts. Prove successful PaymentIntent confirmation for payment and deposit with matching amount, currency and buyer account; successful SetupIntent confirmation and buyer Customer attachment for saved card; and the additional active mandate requirement for ACH. Show that setup success neither establishes payment nor authorizes unspecified later charges.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 184,
+      "line": 194,
       "text": "Prove that browser return, Checkout completion alone, pending, processing, declined, canceled, unknown, mismatched and replayed results cannot satisfy the wrong requirement, save the attempted signature or complete the envelope. Preserve earlier valid signatures and all existing authentication, consent and routing gates.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 186,
+      "line": 196,
       "text": "Prove reference-only provider custody with immutable requirements, normalized outcomes and minimum authorization audit evidence; absence of forbidden payment data and usable capabilities from records, certificates, logs, traces, errors and archives; installation-local credentials and active authority; historical restore without active authority; and copies with reset outcomes and fresh consent. Exercise existing retention, legal hold, export, erasure and restore fences.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 188,
+      "line": 198,
       "text": "Every changed screen requires keyboard, accessibility and browser evidence at 1440 and 390 pixels. Deterministic provider-fake evidence and actual Stripe test-mode operation must be reported separately. Payment Element, refunds and disputes handling, receipts, tax, recurring billing handoff to Nectar, and live mode remain named Gaps. No production money operation or compliance certification follows from this acceptance journey.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 191,
+      "line": 201,
       "text": "**Implemented evidence:** `tests/payments-flow.mjs`, “paymentFlowCases”: network-edge Stripe assertions prove the 500 USD deposit completes with its reference, decline leaves waiting with no executed signature, all four requirement kinds, immutable owner and admin configuration, exact separate consent, unauthorized and cross-invitation refusal, intent binding, pending and mismatched refusal, customer attachment, active mandate, copies, archive exclusion, historical reconciliation without another charge, legal hold, retention and erasure fences. `tests/journeys/payments.mjs`, “Payment signing screens”: native template configuration and use, unchecked exact consent, declined and confirmed deposit, explicit signature completion, saved-card and ACH screens, keyboard, axe, no sideways scroll and editor tooltip at 1440 and 390. These are deterministic provider-edge proofs. `tests/payment-sandbox.mjs`: actual held-key test-mode journey attempted; Checkout creation refused by Stripe with HTTP 400, invalid_request_error, parameter payment_method_types; no successful sandbox receipt.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 193,
+      "line": 203,
       "text": "**Remaining Gap:** BLOCKED sandbox dependency: a Checkout-capable Stripe test account. The held account rejects a correctly formed 500 USD card Checkout request with HTTP 400 on payment_method_types; its default test payment-method configuration reports card available and on, so no missing native foundation is claimed. Both original real-sandbox acceptance points remain unproved. CT-approved test-mode-only, explicit-consent and reference-only custody defaults are adopted. Payment Element, refunds and disputes handling, receipts, tax, recurring billing handoff to Nectar and live mode remain named Gaps; ASK INTEG-010-scope retains partial status pending their disposition.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 195,
+      "line": 205,
       "text": "**INTEG-011 — Signing service for sibling products** (partial). A Lodge-style client sends an offer letter from a template with no approval step, the record names its key and the policy, and the client receives the completion webhook and executed PDF.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 199,
+      "line": 209,
       "text": "**MOBILE-001 — Responsive sending and tracking** (done). At 390 pixels, send from a template, remind a signer and void an envelope. Proven by `tests/journeys/mobile-sending.mjs` (a 390 by 844 touch screen at 3x: the owner sends from a template with the Resend fake, sees the envelope's status and waiting-on line on its detail page and its row in the list, taps Remind and one reminder reaches the signer, sends a second and voids it with a reason; no screen scrolls sideways; Chrome's own manifest parser reads `/manifest.webmanifest` with no error, both icons load, and Chrome reports no installability error) and `tests/journeys/correct-envelope.mjs` (correcting in flight at 390 pixels).",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 200,
+      "line": 210,
       "text": "**MOBILE-002 — Native iOS and Android apps** (missing). On iOS and Android simulators, sign a received envelope with a drawn signature using guided Next; send from a template, track its recipients and send a reminder; scan a two-page document and send it; and receive a push notification on each signature and on completion.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 204,
+      "line": 214,
       "text": "**MOVE-002 — Docusign move-in** (missing). Through a Docusign API fake with two senders, 50 envelopes, five templates in a shared folder, two signing groups and 120 contacts, preview and import; each sender sees only their own imported envelopes in the UI and API while an admin sees all; the shared folder's settings carry over, so a member with use access can send from a template but not edit it; an imported signing group sends as one recipient; contacts autocomplete; a third Docusign user with no member is on the unmapped list and their envelopes belong to the named admin; open an imported certificate and send from an imported template; the unmapped list names each skipped field type; the fake's PowerForm arrives as a web form whose page and the cutover checklist show the old PowerForm URL beside the new link, and a signed-out submission to the new link sends an envelope; the fake's brand, custom disclosure, default reminder and expiry settings and a saved bulk-send list arrive, and the next envelope and bulk batch use them. Before this door ships, assert `RECORD-005`’s imported terminal/import-time basis, warning, legal hold, erasure and restore fence through it.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 205,
-      "text": "**MOVE-003 — Adobe Acrobat Sign move-in** (missing). Through an Acrobat Sign API fake with two senders, import agreements and a library template, show each sender owns only their own agreements, and send from the template. Before this door ships, assert `RECORD-005`’s imported terminal/import-time basis, warning, legal hold, erasure and restore fence through it.",
-      "to": "generated",
-      "note": "The contract generator writes this status or count."
-    },
-    {
-      "file": "ACCEPTANCE.md",
-      "line": 206,
-      "text": "**MOVE-004 — Dropbox Sign move-in** (missing). Through a Dropbox Sign API fake with two senders, import requests and templates, show each sender owns only their own requests, and send from one. Before this door ships, assert `RECORD-005`’s imported terminal/import-time basis, warning, legal hold, erasure and restore fence through it.",
-      "to": "generated",
-      "note": "The contract generator writes this status or count."
-    },
-    {
-      "file": "ACCEPTANCE.md",
-      "line": 207,
+      "line": 217,
       "text": "**MOVE-005 — Documenso move-in** (missing). Through a Documenso fake with two senders, import documents and a template, show each sender owns only their own documents, and send from it. Before this door ships, assert `RECORD-005`’s imported terminal/import-time basis, warning, legal hold, erasure and restore fence through it.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 208,
+      "line": 218,
       "text": "**MOVE-006 — Cutover of in-flight envelopes** (missing). A fake with two in-flight envelopes; one completes after cutover and is imported under its sender, the other is voided upstream and is listed as voided; the fake's call log shows neither envelope polled twice within 15 minutes. Before this door ships, assert `RECORD-005`’s imported terminal/import-time basis, warning, legal hold, erasure and restore fence through it.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 209,
+      "line": 219,
       "text": "**MOVE-007 — API compatibility for common calls** (missing). A client written against the incumbent's documented requests runs unchanged against the compatibility layer for create, create-and-send, status, download and void; a listener written for Docusign Connect receives a Connect-shaped completion message (envelope and recipient statuses, and the documents when configured) whose HMAC signature header its existing verification accepts; a listener written for Dropbox Sign callbacks receives a callback-shaped signature-request-all-signed event and accepts it the same way.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 210,
+      "line": 220,
       "text": "**MOVE-008 — Throttled, resumable imports at account size** (partial). A Docusign fake with 18,000 envelopes and a 3,000-call hourly limit, with the clock advanced: the import returns the hourly-limit error mid-import, pauses, resumes after the window and finishes; the job is killed mid-batch and resumed, and exactly 18,000 envelopes exist with no duplicates; the fake's call log shows no hour over the limit and no resource polled twice within 15 minutes. Before this door ships, assert `RECORD-005`’s imported terminal/import-time basis, warning, legal hold, erasure and restore fence through it.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 211,
+      "line": 221,
       "text": "**PORT-002 — Self-service export at any size** (done). Export 2 GB of envelopes, interrupt and resume, and restore into an empty installation with every fingerprint verified. Evidence: `tests/supplements.test.mjs`, “Document export: all or selected stable snapshots, PDF/certificate/audit/CSV fingerprints, byte-range resume, current admin authority and erasure invalidation” and “Whole archive transfers: durable build cursor, range resume and idempotent part restore publish an empty destination only after all fingerprints pass”; `tests/api.test.mjs`, “DocuSeal dry run, explicit fingerprint, journal, downloads and undo preserve custody”; `tests/journeys/supplements.mjs` covers the built owner/admin Archive screens, interrupted build and restore with reload/resume, verified publication, keyboard and accessibility scans at 1440/390. Native document export is owner/admin; imported custody and whole-installation transfer retain owner-only access. TAR and NDJSON downloads stream with byte-range resume; restore reads bounded records and publishes only after checksum, fingerprint and erasure checks. The committed `tests/journeys/archive-capacity.mjs` runs outside push Verify on the exact candidate: 21 envelopes / 2,202,009,600 raw document bytes, interrupted/resumed TAR export, whole-installation restore into an empty destination and every stored fingerprint verified; the receipt is cited in the landing report.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 215,
+      "line": 225,
       "text": "**COMPLY-001 — 21 CFR Part 11 signing profile** (partial). With the profile on, a signer re-authenticates and picks a reason; the executed PDF shows the manifestation; the validation package for the installed version contains IQ, OQ and PQ scripts with executed results, and every traceability-matrix row cites a test that passed in that run. Signing door (ct 22 Oct): each Part 11 signature requires two distinct components. The first signature in a session uses a credential the signer alone holds (password, passkey or OIDC tied to a verified Inkwell identity) plus the fresh emailed code. Later signatures in the same continuous session require at least the fresh code. A recipient with no such identity is refused in this profile with 'Part 11 signing needs a verified signer account', never downgraded. Meanings: Approval, Review, Responsibility, Authorship, plus owner-defined meanings recorded with their text. An admin verifies a signer's identity, and records the method, before that signer's first Part 11 signature. A locked-out or exhausted code notifies the owner/admin security contact within one minute and is listed. The organization's FDA certification under 11.100(c) is recorded with its date and reference. 'Validated' means only this: IQ/OQ/PQ executed on the installed version, every matrix row (11.10(a)-(k), 11.30, 11.50, 11.70, 11.100, 11.200, 11.300) citing a test that passed in that run, and a change log since the last validated version. Procedural controls (11.10(i), (j)) are the customer's and are listed in the matrix as theirs. Implemented semantics: frozen owner/admin per-draft opt-in, with no removal through edits/copies/templates; paper signing refused; a fresh recipient/link/session-bound code at each signature (10 minutes, five attempts, 60-second spacing, ten requests per link); verified printed name and exact meaning in PDF/certificate and immutable signature evidence. Independent password identity sessions grant no app access and last at most 24 hours; hosted termination revokes them. Account identity/version, current status, credential session and code are fenced in the signing transaction. Legacy signed records preserve their original proof and are never retroactively qualified. Enrollment and recovery (ct 22 Oct, approved as implemented): an owner or admin other than the signer verifies the signer's identity and records the method; this issues a one-use activation token, valid for 24 hours, shown only to that verifier for separate trusted delivery and never emailed automatically. Separate delivery is the verifier's responsibility. The signed-in, verified account holder chooses a separate 15–128 character signer password, stored salted with PBKDF2-SHA256 at 600,000 iterations. Recovery requires fresh admin reverification and a new activation token; reverification immediately revokes the old password, any unused token and every identity session. Identity sessions last at most 24 hours. The per-account password bucket counts all authentication attempts, including successful attempts, in fixed ten-minute windows aligned to Unix time. An incorrect or exhausted attempt at count five or greater records a security alert and attempts mandatory email to active owner/admin security contacts; attempts after five are refused even with the correct password. A correct fifth attempt succeeds. The bucket resets at the next fixed boundary, not ten minutes after the last failure; up to ten attempts within the two five-attempt allowances can fall around a boundary. These lifetimes, lengths, hash parameters, attempt/code limits and the one-minute alert target are Inkwell product choices, not numeric requirements set by 21 CFR Part 11. Password aging and periodic credential review under 11.300(b) remain the customer's procedure. Only the owner defines custom meanings. `docs/part11/README.md`, `docs/part11/traceability.md` and `scripts/qualify-part11.mjs` provide the qualification procedure, complete requirement inventory and exact-candidate technical receipts; a passing technical phase never labels an installation validated. Evidence: `tests/compliance.test.mjs` — “Signature controls: explicit owner/admin consent, fresh per-signature email proof, bounded attempts and printed immutable manifestations” proves frozen opt-in, fresh/single-use code and replay/attempt limits, Responsibility/custom text in the executed PDF, archive/copy/template evidence, FDA date/reference record and fifth-failure security mail/listing; “Signature controls: signed-in, link-only, signing-group and hosted doors cannot bypass fresh recipient proof” proves all current signing modes require the additional component; “Verified signer credentials: private one-use enrollment, separate continuous sessions, immediate revocation and no mailbox-only downgrade” proves separate identity, verified name, continuous-session fresh-code requirement, no app grant, logout/reverification/deactivation refusal and no email-only downgrade; “Verified signer credentials: enrollment bounds, activation reuse and expiry, identity-session expiry and fixed-window total-attempt limits” in `tests/compliance.test.mjs` proves 14/129-character passwords refused and 15/128 accepted, consumed and superseded unused activation tokens refused, unused activation accepted just before 24 hours and refused at/after expiry, identity refused at 24 hours despite a fresh invitation and code, successful attempts counted, fifth incorrect-attempt alert/mail, correct fifth-attempt success, correct sixth-attempt refusal/alert across envelopes and fixed-boundary reset; `tests/journeys/healthcare.mjs` proves administration, enrollment and signature controls at 1440/390 with keyboard, accessibility tree and light/dark axe; “Verified OIDC signer: public provider linking and sign-in require fresh signature code; provider-off immediately refuses the next signature” in `tests/compliance.test.mjs` proves linked-provider sign-in, fresh-code signing and immediate provider-off refusal through public doors; `scripts/qualify-part11.mjs` emits private exact-SHA technical IQ/OQ/PQ receipts and change-log metadata; `docs/part11/traceability.md` maps every required row without claiming customer validation. Remaining: Customer-installed IQ/OQ/PQ execution and reviewed passing evidence for every matrix row, customer procedural controls, installed real-provider one-minute alert receipt, OIDC composition qualification and a reviewed change log from the last validated version remain unproved. No qualification or certification is claimed.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 216,
+      "line": 226,
       "text": "**COMPLY-002 — HIPAA-ready installation** (done). In the profile, logs contain no field values or document text after a full signing journey, and the access review report lists every member's last access. `tests/compliance.test.mjs` (test `COMPLY-002`) completes signing, checks real runtime logs and normalized receipts from a signed provider webhook carrying document text and field values, retains signed field evidence and verifies all artifacts. It checks owner/admin review, member and anonymous refusal, every account including one with no recorded access, authentication and import doors, refused/invalid requests, concurrent requests and tracking with the profile off. `tests/journeys/healthcare.mjs` enables the profile in the built Settings screen, reviews members and explicit no-access state, disables it and reads the shared-responsibility guide at 1440 and 390 with axe and no sideways scroll. Content and field values stay out of diagnostic logs; signed evidence remains intact. Current capabilities conform and future capabilities, including PREP-006, inherit the obligation as named in CONTRACT.md; this is not certification or provider verification.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 222,
+      "line": 232,
       "text": "**AGENT-001 — Assemble the envelope from CRM and email context** (partial). From a CRM-fake deal and email-fake thread, the agent drafts an envelope whose prefilled values each cite their source; the sender edits one and sends; a request with no matching template is refused with a reason.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 223,
+      "line": 233,
       "text": "**AGENT-002 — Fill what is missing** (partial). A draft missing the client signer's title and the W-9; the agent asks the right people, merges both answers with sources, and flags a reply that changes the price instead of applying it. Evidence: `tests/agent-workflows.test.mjs` — “Missing information: approved specific questions merge title and W-9 with authenticated sources; material terms are flagged and private custody survives restore”. Approved recipients, both sourced answers, unchanged price, private source bytes, current-editor access, document export, archive restore, hold and erasure fencing. `docs/agent-workflows.md` documents the native doors. Implemented native-door semantics and remaining Gap: Adopted conservative default pending CT: received W-9 PDFs are private source custody for current editors, never automatically signer-visible supplements. Missing-party discovery, arbitrary missing fields and CRM entity inconsistency detection remain unimplemented. Native HTTP doors ship; no new operator controls or live mailbox qualification is claimed.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 224,
+      "line": 234,
       "text": "**AGENT-003 — Chase stalled signers under the sender's rules** (done). Three stalled signers (bounce, out-of-office until Monday, reply objecting to a clause); the agent proposes a corrected address, waits until Monday, and routes the objection to the sender, staying within the contact limit. ct 22 Oct semantics, asserted through HTTP, the hourly pass with an advanced clock and Resend fakes at the network edge: a viewer, a view-share holder, a preparation token and a send-scope API key are refused when granting or reading replies; the corrected address is a cited proposal that sends nothing until a person applies it under DELIV-002, and the old link then refuses; no contact falls outside allowed hours, more than once a business day, or past the limit, which counts DELIV-003 reminders, and reaching it tells the escalation owner once; the objection pauses follow-up to that signer until Resume; an unsigned or replayed webhook, an unknown or rotated capability, and a mismatched From each store nothing or only an \"unverified sender\" record that is never acted on; after revocation the next pass sends nothing; after the bound sender becomes a viewer the grant stays suspended when restored; reply text is readable by the sender and escalation owner, not by a viewer or API key, and is absent from ADMIN-005, logs and the certificate; export carries replies without capabilities, and ERASE-001 removes them. No mailbox delivery or live provider claim. Evidence: `tests/delivery.test.mjs` — “Follow-up: stalled signers, authenticated reply custody and contact limits”, “Follow-up: human grants, authority narrowing and shared reminder limits”, “Follow-up: session causes and separate group-member replies”; `tests/journeys/envelope-detail.mjs` — AGENT-003 built controls at 1440/390. Timing is asserted by the committed hourly-pass journey, run separately on the exact landing candidate. Folder edit shares grant the same effective authority as direct edit shares. “Follow-up: human grants, authority narrowing and shared reminder limits” also proves an active folder-only grant sends, and removing or downgrading its share or moving the envelope permanently suspends it even if access is restored before another read. The AGENT-003 built-controls journey now runs as a folder-only editor at both widths. The existing SMS follow-up test also grants through folder-only edit authority and proves real dispatch at the Twilio edge.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 225,
+      "line": 235,
       "text": "**AGENT-004 — Verify the intended revision and parties** (partial). An envelope whose second page differs from the Locket-approved revision is stopped before sending with the differing text; a completed envelope signed by a person without signing authority raises an exception and the downstream handoff waits.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 226,
+      "line": 236,
       "text": "**AGENT-005 — Complete the downstream work** (missing). A completion produces one deal update, one filed record and one onboarding task through fakes; a replayed webhook creates nothing new; a refused grant leaves its effect open with the reason.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 227,
+      "line": 237,
       "text": "**AGENT-006 — Keep integrations correct** (done). Rename a CRM field in the fake; the agent detects failed write-backs, proposes the new mapping, and after approval replays them without duplicates. Evidence: `tests/hubspot-envelope.test.mjs` — “INTEG-001 MANAGE-002: completion properties, custom metadata, one timeline event and exact executed PDF reconcile uncertain provider results and durable replay” proves renamed fields, explicit proposals, owner-only mapping and moved-PDF approval, stale and ambiguous schema refusal, exact-byte checks, same-record credential renewal, separate repair approvals and duplicate-free replay. `tests/delivery.test.mjs` — “DELIV-001: through the Resend fake, a sent invitation moves to delivered and opened from signed webhooks; replays, forgeries and unknown messages change nothing; an uncertain send shows uncertain and is never sent again” and “DELIV-001: SendGrid events find their message by the signed delivery id; a forged delivery id is refused” prove owner-reviewed repair from authenticated receipts, stale and concurrent approval refusal, missing projection recovery, unchanged receipts and mail counts, and refusal to bless unsupported state. “Box and Dropbox file the completed PDF and certificate exactly once despite interrupted responses, concurrent retries and signing replay” proves a pinned Dropbox folder move, owner approval, stale proposal refusal, exact artifact validation and read-only duplicate-free recovery. `tests/journeys/hubspot.mjs` and `tests/journeys/filing.mjs` prove the repair controls in Settings at 1440 and 390 with keyboard, accessibility and tooltip checks. `tests/delivery.test.mjs` — “DELIV-008: subscribed to declines and completions in Slack, Teams, Nook and email, the sender gets each there and nothing else; after turning off completions in Teams the next completion skips only Teams; every notice is in the activity feed” additionally proves confirmed connection refusals, explicit owner approval of replacement credentials, stale and concurrent approval refusal, exactly one accepted replay, and preservation of uncertain effects for all three chat connectors. `tests/journeys/account-audit.mjs` proves the notification repair controls with keyboard operation and accessible desktop and phone screens. The same DELIV-008 public-door test proves connection changes while posts are queued, the three-attempt limit, absence of duplicate sealed capabilities and restore without connector or replay authority. The same DELIV-008 test explicitly proves older approvals beyond 102 newer unresolved posts, complete repair pagination, fencing of a stale dispatcher after approval, and exact masking and sealed capability custody. The same Box and Dropbox test proves legacy unpinned recovery after a folder move and old-path recreation, owner-only inspection, corrupted-byte refusal before inspection and approval, stale destination refusal, concurrent approval fencing, one audit receipt, and read-only recovery with exactly two existing artifacts. The filing journey additionally proves the legacy inspection and separate approval controls; the account audit journey reaches older notification repairs by keyboard..",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 228,
+      "line": 238,
       "text": "**AGENT-007 — Keep templates current** (done). Ten envelopes where senders added the same field; the agent proposes adding it with the ten examples cited; the owner accepts and version 2 is published. `tests/template-maintenance.test.mjs` (tests `AGENT-007`) sends ten independently corrected envelopes, checks each cited event and the proposed field, maker-only publication, unauthenticated/editor refusal, unchanged version before approval, idempotent publication, unchanged source envelopes, and the next envelope inheriting version 2. A corrected source PDF, company address and routing change are proposed and published; reverting or erasing source evidence refuses its stale suggestion. `tests/journeys/template-maintenance.mjs` reviews the before/after definition and all ten citations on Templates, explicitly approves with the keyboard, checks version 2 and the empty suggestion state, and sends from it without field placement at 1440 and 390; both states pass axe and have no sideways scroll.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 229,
+      "line": 239,
       "text": "**AGENT-008 — Signer assistant** (missing). A signer asks what the termination notice period is and receives the answer with its page cited; a request to sign for them is refused; the sender sees no question unless the signer sends it.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 230,
+      "line": 240,
       "text": "**AGENT-009 — Inbound agreements** (partial). Forward a vendor NDA; the agent identifies the internal signer by role, prepares it for them, and after they sign returns the executed copy only when the grant allows. The account inbound address inherits AGENT-003’s signed, fresh, replay-protected reply intake, visibility, no-text logging and envelope retention rules before shipping. Evidence: `tests/agent-workflows.test.mjs` — “Inbound agreements: authenticated forward selects the granted business-role signer; human approval and signing precede a once-only grant-bound executed return”. Signed intake, replay refusal, configured role selection, prepared fixed bytes, separate human approval and signature, denied and allowed return, concurrent once-only delivery, revocation and permanent authority suspension. `docs/agent-workflows.md` documents the native doors. Implemented native-door semantics and remaining Gap: Adopted conservative default pending CT: owner-maintained business-role mapping, exact approved forwarder, and a separate owner return action under the current grant. Automatic organizational-role inference and intake from other agreement platforms remain unimplemented. Native HTTP doors ship; no new operator controls or live mailbox qualification is claimed.",
       "to": "generated",
       "note": "The contract generator writes this status or count."
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 234,
+      "line": 244,
       "text": "Payroll belongs to [Envelope](https://github.com/just-every/run-envelope); work and project management to [Pegboard](https://github.com/just-every/run-pegboard); monitoring and observability to [Porthole](https://github.com/just-every/run-porthole). These jobs remain outside Inkwell's scope.",
       "to": "docs",
       "path": "docs/verify.md"
     },
     {
       "file": "ACCEPTANCE.md",
-      "line": 236,
+      "line": 246,
       "text": "Inkwell does not process payments (Stripe does), notarize, issue qualified signatures, verify identity documents itself (a provider does), give legal advice or claim universal validity; imported signatures keep their provider provenance. CONTRACT.md \"Honest boundaries\" says how buyers get each. Local use needs no live mail or provider calls: acceptance journeys use provider fakes, and live provider receipt is recorded separately.",
-      "to": "docs",
-      "path": "docs/verify.md"
-    },
-    {
-      "file": "ACCEPTANCE.md",
-      "line": 238,
-      "text": "Status provenance: source and test revision `071a8dd11f7c56b366717c6f596737fe8119ded2`; resolve the full candidate SHA with git rev-parse HEAD. Contract counts: 70 done, 25 partial and 22 missing. CONTRACT.md records proof scope and release boundaries.",
       "to": "docs",
       "path": "docs/verify.md"
     },
@@ -3916,12 +3813,6 @@
       "file": "docs/CLAIMS.md",
       "line": 3,
       "text": "Generated from CONTRACT.md. Acceptance journeys remain in ACCEPTANCE.md.",
-      "to": "changelog"
-    },
-    {
-      "file": "docs/CLAIMS.md",
-      "line": 5,
-      "text": "Inventory: 70 done, 25 partial, 22 missing; 117 total.",
       "to": "changelog"
     },
     {
@@ -4460,18 +4351,6 @@
     },
     {
       "file": "docs/CLAIMS.md",
-      "line": 97,
-      "text": "| `INTEG-004` | missing |  | [Contract status](../CONTRACT.md#status) |",
-      "to": "changelog"
-    },
-    {
-      "file": "docs/CLAIMS.md",
-      "line": 98,
-      "text": "| `INTEG-005` | missing |  | [Contract status](../CONTRACT.md#status) |",
-      "to": "changelog"
-    },
-    {
-      "file": "docs/CLAIMS.md",
       "line": 99,
       "text": "| `INTEG-006` | done | `tests/delivery.test.mjs`, `tests/journeys/filing.mjs` | [Contract status](../CONTRACT.md#status) |",
       "to": "changelog"
@@ -4522,18 +4401,6 @@
       "file": "docs/CLAIMS.md",
       "line": 107,
       "text": "| `MOVE-002` | missing |  | [Contract status](../CONTRACT.md#status) |",
-      "to": "changelog"
-    },
-    {
-      "file": "docs/CLAIMS.md",
-      "line": 108,
-      "text": "| `MOVE-003` | missing |  | [Contract status](../CONTRACT.md#status) |",
-      "to": "changelog"
-    },
-    {
-      "file": "docs/CLAIMS.md",
-      "line": 109,
-      "text": "| `MOVE-004` | missing |  | [Contract status](../CONTRACT.md#status) |",
       "to": "changelog"
     },
     {
@@ -4630,6 +4497,209 @@
       "file": "docs/CLAIMS.md",
       "line": 125,
       "text": "| `AGENT-009` | partial | `tests/agent-workflows.test.mjs`, `docs/agent-workflows.md` | [Contract status](../CONTRACT.md#status) |",
+      "to": "changelog"
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 339,
+      "text": "Implementation semantics: native owner and admin sessions import selected Drive PDFs, exported Google Docs and current-message Gmail attachments without sending. The contextual Apps Script add-on opens the native preparation door with a message reference and a send or self-sign choice; native review, field placement, eligibility confirmation and recipient authentication remain required. Per-template Drive filing uses explicit administrative consent, verified completed bytes and manual recovery from uncertain uploads. Configured Gmail reply intake verifies Google OIDC caller identity, the exact audience, subscription and mailbox, a fresh push and replay receipts, fetches Gmail history and messages at the network edge, and reuses AGENT-003’s current invitation capability, exact sender, grant, contact, private reply, logging, archive, hold and erasure gates. Only recipient-address metadata is fetched before a current reply capability is resolved; message bodies, other headers and attachments are fetched afterward. Credentials, push receipts and the mailbox-bound history cursor are installation state excluded from business archives; restore creates no active reply capability. Provider tokens and Google add-on deployment are installation provisioning, separately from the acceptance fake.",
+      "to": "clause",
+      "ids": [
+        "INTEG-004"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 341,
+      "text": "Evidence: `tests/google.test.mjs` — “Google Drive source completes through its template and files matching executed PDF and certificate bytes to the consented folder”; “Google Docs exports actual PDF bytes whose independent fingerprint is bound by preparation; unsafe sources and authority are refused”; “Gmail attachment proposes sender and Cc without the connected member and sends to the reviewed participants”; “Gmail self-signs a separate message attachment without sending any mail to the signer”; and “Gmail authenticated reply intake inherits current grants, contact and identity gates, private custody, holds, archive and erasure fences”. `tests/journeys/google.mjs` exercises the actual contextual add-on entry, native source switching, participant proposals, self-sign choice, filing controls, keyboard operation, accessibility and field tooltips; it asserts at 1440, with separate candidate browser proof at 1440 and 390. The existing Follow-up tests in `tests/delivery.test.mjs` retain contact-window, daily and maximum-contact, authority and custody assertions for the shared gates.",
+      "to": "clause",
+      "ids": [
+        "INTEG-004"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 345,
+      "text": "**Implemented Microsoft boundary.** The native Microsoft source door reads OneDrive and SharePoint PDFs, converts Word sources through Graph, and obtains Outlook attachment bytes and the sender, To and Cc participants from Graph. Outlook and Word host harnesses supply the open resource context. Preparation consumes an actor-bound staged source, refuses altered displayed bytes and records the converted PDF fingerprint. A selected filing template must contain that exact PDF. The Microsoft source policy starts off, and every send retains native human eligibility confirmation, current policy versions, internal approval and deferred-release fences. SharePoint filing uses the existing explicitly consented per-template queue, deterministic filenames and remote byte verification; uncertain or conflicting copies stay visible until a manual retry. Filing rules and credentials remain installation state; restoring business records starts no external transfer. Remote copies remain outside local erasure.",
+      "to": "clause",
+      "ids": [
+        "INTEG-005"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 347,
+      "text": "**Regression evidence.** The existing delivery tests additionally prove source retention after draft edits and copies, source-bound staged upload preparation with template approval and policy-off refusal, mixed-source refusal, exact-byte preparation above the legacy inline limit, and capability-free reply attachment metadata.",
+      "to": "clause",
+      "ids": [
+        "INTEG-005"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 349,
+      "text": "**Conservative default adopted pending CT approval.** Only a signed-in owner or admin may read the installation's connected Microsoft drive or mailbox. Source loading and reply intake require explicit native actions; no automatic mailbox subscription or outbound reply is enabled. Recipient self-signing remains the member's own native session. Explicit Outlook reply intake fetches Graph facts, requires a fresh current reply capability and authorized reply reader, refuses replays, and uses AGENT-003's existing grant, contact, pause, visibility, no-text audit, archive and erasure rules. This default does not widen reply readers. Signed Microsoft subscription notification intake and installed Office registration remain unproved. INTEG-005 stays partial until CT approves the connection-authority default and the remaining gaps are proved.",
+      "to": "clause",
+      "ids": [
+        "INTEG-005"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 474,
+      "text": "That source and test revision proves owner-reviewed CRM mapping, moved-file, pinned-folder, legacy-folder, verified webhook projection and notification-connection repairs through network-edge fakes. This landing candidate retains that revision's repairs and replays Google Workspace support; the historical judgment pin predates the combined tree. Resolve the landing candidate with `git rev-parse HEAD`. Legacy Dropbox inspection and replay verify existing artifact bytes without uploading, including when the old path is recreated. Unknown or missing remote effects stay unresolved. No live-provider operation is claimed. Exact-candidate tests, mutation probes, browser proof and guarded release gates are recorded in the fleet handoff.",
+      "to": "section",
+      "section": "Status"
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 476,
+      "text": "The opening SHA is the historical main baseline, not a judgment of this candidate. Current Status rows and the inventory footer describe the candidate tree, including complete SDK result assertions and execution of the compiled TypeScript example. This candidate also adds reviewed remote-import custody and recovery for MOVE-003 and MOVE-004. Exact candidate execution and release identifiers belong to the fleet handoff; no new independent CT judgment is claimed.",
+      "to": "section",
+      "section": "Status"
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 577,
+      "cell": "gap",
+      "text": "Owner and admin connection authority is a conservative default pending CT approval. Signed Graph subscription notification intake, installed Office registration, conversion download redirects and complete mutation and lifecycle rider proof remain unproved. Live Microsoft tenant provisioning is a separate operation, not claimed by Graph-fake evidence.",
+      "to": "gap",
+      "ids": [
+        "INTEG-005"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 587,
+      "cell": "gap",
+      "text": "Reviewed batches import terminal records and mapped one-PDF signature and text templates, preserve sender custody, send through native template review, and assert imported retention, hold, erasure and restore fencing. Remaining: account-wide preview and the throttled background job promised by MOVE-008, durable continuation across grant expiry, pause and cancel controls, provider limit-header accounting and scale proof. Other field types remain explicitly unmapped. Acrobat roles use documented field assignees and source owner email; Dropbox template ownership is known only when the credential account is the creator, otherwise the reviewed fallback administrator is used. Dropbox template fields without page metadata are mapped only for one-document, single-page PDFs; broader placement remains unmapped.",
+      "to": "gap",
+      "ids": [
+        "MOVE-003"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 588,
+      "cell": "gap",
+      "text": "Reviewed batches import terminal records and mapped one-PDF signature and text templates, preserve sender custody, send through native template review, and assert imported retention, hold, erasure and restore fencing. Remaining: account-wide preview and the throttled background job promised by MOVE-008, durable continuation across grant expiry, pause and cancel controls, provider limit-header accounting and scale proof. Other field types remain explicitly unmapped. Acrobat roles use documented field assignees and source owner email; Dropbox template ownership is known only when the credential account is the creator, otherwise the reviewed fallback administrator is used. Dropbox template fields without page metadata are mapped only for one-document, single-page PDFs; broader placement remains unmapped.",
+      "to": "gap",
+      "ids": [
+        "MOVE-004"
+      ]
+    },
+    {
+      "file": "CONTRACT.md",
+      "line": 606,
+      "text": "Status provenance, 27 October 2026: this committed candidate has 71 done, 28 partial and 18 missing clauses, id for id with ACCEPTANCE.md. Resolve its full SHA with `git rev-parse HEAD`; the fleet handoff records that SHA, its local execution and the exact verification runs. No earlier review pin identifies this implementation proof.",
+      "to": "section",
+      "section": "Status"
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 3,
+      "text": "Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed here, run through a public door: the browser at 1440 and 390 pixels wide, the HTTP API, a signing link, or a provider fake at the paid or network edge. Status labels match the raw contract inventory in this committed candidate tree, reconciled on 27 October 2026: 71 done, 28 partial and 18 missing, 117 total. Resolve its execution SHA with `git rev-parse HEAD`; the fleet records exact-SHA receipts and subsequent release checks. This inventory does not claim a new independent CT judgment. Where a first-release journey names today's narrowed case, the target clause it references governs (CONTRACT.md, \"How to read this contract\"); a build round moves a clause to done by making its journey pass, and an independent release review follows.",
+      "to": "docs",
+      "path": "docs/verify.md"
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 172,
+      "text": "**INTEG-004 — Google Workspace** (done). Through a Google fake, send a Drive document and show the completed PDF and certificate in the configured folder; pick a Google Doc and show it arrives as a converted PDF whose fingerprint the envelope binds; in the Gmail add-on test harness, open a message with a PDF attachment from a client with one person on Cc, see the attachment and both participants proposed as recipients, and send; from another message, sign the attached PDF yourself with no mail sent to you. Implementation semantics: native owner and admin sessions import selected Drive PDFs, exported Google Docs and current-message Gmail attachments without sending. The contextual Apps Script add-on opens the native preparation door with a message reference and a send or self-sign choice; native review, field placement, eligibility confirmation and recipient authentication remain required. Per-template Drive filing uses explicit administrative consent, verified completed bytes and manual recovery from uncertain uploads. Configured Gmail reply intake verifies Google OIDC caller identity, the exact audience, subscription and mailbox, a fresh push and replay receipts, fetches Gmail history and messages at the network edge, and reuses AGENT-003’s current invitation capability, exact sender, grant, contact, private reply, logging, archive, hold and erasure gates. Only recipient-address metadata is fetched before a current reply capability is resolved; message bodies, other headers and attachments are fetched afterward. Credentials, push receipts and the mailbox-bound history cursor are installation state excluded from business archives; restore creates no active reply capability. Provider tokens and Google add-on deployment are installation provisioning, separately from the acceptance fake. Evidence: `tests/google.test.mjs` — “Google Drive source completes through its template and files matching executed PDF and certificate bytes to the consented folder”; “Google Docs exports actual PDF bytes whose independent fingerprint is bound by preparation; unsafe sources and authority are refused”; “Gmail attachment proposes sender and Cc without the connected member and sends to the reviewed participants”; “Gmail self-signs a separate message attachment without sending any mail to the signer”; and “Gmail authenticated reply intake inherits current grants, contact and identity gates, private custody, holds, archive and erasure fences”. `tests/journeys/google.mjs` exercises the actual contextual add-on entry, native source switching, participant proposals, self-sign choice, filing controls, keyboard operation, accessibility and field tooltips; it asserts at 1440, with separate candidate browser proof at 1440 and 390. The existing Follow-up tests in `tests/delivery.test.mjs` retain contact-window, daily and maximum-contact, authority and custody assertions for the shared gates. Evidence: `tests/google.test.mjs`: “Google Drive source completes through its template and files matching executed PDF and certificate bytes to the consented folder”; “Google Docs exports actual PDF bytes whose independent fingerprint is bound by preparation; unsafe sources and authority are refused”; “Gmail attachment proposes sender and Cc without the connected member and sends to the reviewed participants”; “Gmail self-signs a separate message attachment without sending any mail to the signer”; “Gmail authenticated reply intake inherits current grants, contact and identity gates, private custody, holds, archive and erasure fences”; `tests/journeys/google.mjs`: contextual add-on, native source switching, proposals, self-sign choice, filing, keyboard, axe and field tooltips at 1440 with candidate proof at 1440 and 390; `tests/delivery.test.mjs`: “Follow-up: stalled signers, authenticated reply custody and contact limits”, “Follow-up: human grants, authority narrowing and shared reminder limits” and “Follow-up: session causes and separate group-member replies” preserve all shared contact and custody gates; the same Google tests additionally prove inline PDF selection, external reply text, failure without advancing history, mid-intake revocation and selected-document reply text and attachment-digest export; the Google journey includes populated saved rules and completed receipts at the 13px text minimum.",
+      "to": "generated",
+      "note": "The contract generator writes this status or count."
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 174,
+      "text": "Implementation semantics: native owner and admin sessions import selected Drive PDFs, exported Google Docs and current-message Gmail attachments without sending. The contextual Apps Script add-on opens the native preparation door with a message reference and a send or self-sign choice; native review, field placement, eligibility confirmation and recipient authentication remain required. Per-template Drive filing uses explicit administrative consent, verified completed bytes and manual recovery from uncertain uploads. Configured Gmail reply intake verifies Google OIDC caller identity, the exact audience, subscription and mailbox, a fresh push and replay receipts, fetches Gmail history and messages at the network edge, and reuses AGENT-003’s current invitation capability, exact sender, grant, contact, private reply, logging, archive, hold and erasure gates. Only recipient-address metadata is fetched before a current reply capability is resolved; message bodies, other headers and attachments are fetched afterward. Credentials, push receipts and the mailbox-bound history cursor are installation state excluded from business archives; restore creates no active reply capability. Provider tokens and Google add-on deployment are installation provisioning, separately from the acceptance fake.",
+      "to": "copy",
+      "of": 339
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 176,
+      "text": "Evidence: `tests/google.test.mjs` — “Google Drive source completes through its template and files matching executed PDF and certificate bytes to the consented folder”; “Google Docs exports actual PDF bytes whose independent fingerprint is bound by preparation; unsafe sources and authority are refused”; “Gmail attachment proposes sender and Cc without the connected member and sends to the reviewed participants”; “Gmail self-signs a separate message attachment without sending any mail to the signer”; and “Gmail authenticated reply intake inherits current grants, contact and identity gates, private custody, holds, archive and erasure fences”. `tests/journeys/google.mjs` exercises the actual contextual add-on entry, native source switching, participant proposals, self-sign choice, filing controls, keyboard operation, accessibility and field tooltips; it asserts at 1440, with separate candidate browser proof at 1440 and 390. The existing Follow-up tests in `tests/delivery.test.mjs` retain contact-window, daily and maximum-contact, authority and custody assertions for the shared gates.",
+      "to": "copy",
+      "of": 341
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 178,
+      "text": "All five acceptance flows have public-door assertions and mutation proof. Provider-edge fakes are the acceptance boundary; live Google provisioning is not claimed.",
+      "to": "generated",
+      "note": "The contract generator writes this status or count."
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 179,
+      "text": "**INTEG-005 — Microsoft 365** (partial). Through a Microsoft Graph fake, send a OneDrive document and show the completed record filed in the SharePoint folder; in the Outlook add-in test harness, open a message with a PDF attachment and two participants, see the attachment and both participants proposed as recipients, and send; sign another message's attachment yourself with no mail sent to you; in the Word add-in test harness, send the open document and show the envelope binds the converted PDF's fingerprint. **Implemented Microsoft boundary.** The native Microsoft source door reads OneDrive and SharePoint PDFs, converts Word sources through Graph, and obtains Outlook attachment bytes and the sender, To and Cc participants from Graph. Outlook and Word host harnesses supply the open resource context. Preparation consumes an actor-bound staged source, refuses altered displayed bytes and records the converted PDF fingerprint. A selected filing template must contain that exact PDF. The Microsoft source policy starts off, and every send retains native human eligibility confirmation, current policy versions, internal approval and deferred-release fences. SharePoint filing uses the existing explicitly consented per-template queue, deterministic filenames and remote byte verification; uncertain or conflicting copies stay visible until a manual retry. Filing rules and credentials remain installation state; restoring business records starts no external transfer. Remote copies remain outside local erasure. **Regression evidence.** The existing delivery tests additionally prove source retention after draft edits and copies, source-bound staged upload preparation with template approval and policy-off refusal, mixed-source refusal, exact-byte preparation above the legacy inline limit, and capability-free reply attachment metadata. **Conservative default adopted pending CT approval.** Only a signed-in owner or admin may read the installation's connected Microsoft drive or mailbox. Source loading and reply intake require explicit native actions; no automatic mailbox subscription or outbound reply is enabled. Recipient self-signing remains the member's own native session. Explicit Outlook reply intake fetches Graph facts, requires a fresh current reply capability and authorized reply reader, refuses replays, and uses AGENT-003's existing grant, contact, pause, visibility, no-text audit, archive and erasure rules. This default does not widen reply readers. Signed Microsoft subscription notification intake and installed Office registration remain unproved. INTEG-005 stays partial until CT approves the connection-authority default and the remaining gaps are proved. Evidence: `tests/delivery.test.mjs` — “Microsoft 365: OneDrive and SharePoint sources bind their PDF, enforce opt-in policy and file verified completed artifacts once”; “Microsoft 365: Outlook proposes exact attachment participants, sends, self-signs without mail, and Word binds converted PDF bytes”; “Microsoft 365: authenticated fresh Outlook replies inherit grants, replay refusal, private visibility, pause, archive custody and erasure”; `tests/journeys/microsoft.mjs` — open Outlook and Word host harnesses, native review, filing consent, keyboard and responsive proof. Gap: Owner and admin connection authority is a conservative default pending CT approval. Signed Graph subscription notification intake, installed Office registration, conversion download redirects and complete mutation and lifecycle rider proof remain unproved. Live Microsoft tenant provisioning is a separate operation, not claimed by Graph-fake evidence.",
+      "to": "generated",
+      "note": "The contract generator writes this status or count."
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 181,
+      "text": "**Conservative default adopted pending CT approval.** Only a signed-in owner or admin may read the installation's connected Microsoft drive or mailbox. Source loading and reply intake require explicit native actions; no automatic mailbox subscription or outbound reply is enabled. Recipient self-signing remains the member's own native session. Explicit Outlook reply intake fetches Graph facts, requires a fresh current reply capability and authorized reply reader, refuses replays, and uses AGENT-003's existing grant, contact, pause, visibility, no-text audit, archive and erasure rules. This default does not widen reply readers. Signed Microsoft subscription notification intake and installed Office registration remain unproved. INTEG-005 stays partial until CT approves the connection-authority default and the remaining gaps are proved.",
+      "to": "copy",
+      "of": 349
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 183,
+      "text": "**Remaining gaps.** Connection-authority policy approval; signed Graph subscription notification intake; installed Office registration; conversion download redirects; complete mutation and lifecycle rider proof. Graph fakes and host harnesses establish only their named native paths. Live tenant provisioning, actual Microsoft delivery and provider-side retention or deletion are not claimed.",
+      "to": "generated",
+      "note": "The contract generator writes this status or count."
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 215,
+      "text": "**MOVE-003 — Adobe Acrobat Sign move-in** (partial). Through an Acrobat Sign API fake with two senders, import agreements and a library template, show each sender owns only their own agreements, and send from the template. Evidence: `tests/remote-import.test.mjs` — “acrobat: reviewed API imports preserve sender custody, usable templates and retention through erasure and restore”; `tests/journeys/remote-import.mjs`; `src/inkwell/remote-import.ts`; `src/inkwell/remote-import-provider.ts`. Gap: Reviewed batches import terminal records and mapped one-PDF signature and text templates, preserve sender custody, send through native template review, and assert imported retention, hold, erasure and restore fencing. Remaining: account-wide preview and the throttled background job promised by MOVE-008, durable continuation across grant expiry, pause and cancel controls, provider limit-header accounting and scale proof. Other field types remain explicitly unmapped. Acrobat roles use documented field assignees and source owner email; Dropbox template ownership is known only when the credential account is the creator, otherwise the reviewed fallback administrator is used. Dropbox template fields without page metadata are mapped only for one-document, single-page PDFs; broader placement remains unmapped.",
+      "to": "generated",
+      "note": "The contract generator writes this status or count."
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 216,
+      "text": "**MOVE-004 — Dropbox Sign move-in** (partial). Through a Dropbox Sign API fake with two senders, import requests and templates, show each sender owns only their own requests, and send from one. Evidence: `tests/remote-import.test.mjs` — “dropbox: reviewed API imports preserve sender custody, usable templates and retention through erasure and restore”; `tests/journeys/remote-import.mjs`; `src/inkwell/remote-import.ts`; `src/inkwell/remote-import-provider.ts`. Gap: Reviewed batches import terminal records and mapped one-PDF signature and text templates, preserve sender custody, send through native template review, and assert imported retention, hold, erasure and restore fencing. Remaining: account-wide preview and the throttled background job promised by MOVE-008, durable continuation across grant expiry, pause and cancel controls, provider limit-header accounting and scale proof. Other field types remain explicitly unmapped. Acrobat roles use documented field assignees and source owner email; Dropbox template ownership is known only when the credential account is the creator, otherwise the reviewed fallback administrator is used. Dropbox template fields without page metadata are mapped only for one-document, single-page PDFs; broader placement remains unmapped.",
+      "to": "generated",
+      "note": "The contract generator writes this status or count."
+    },
+    {
+      "file": "ACCEPTANCE.md",
+      "line": 248,
+      "text": "Status provenance: source and test revision `071a8dd11f7c56b366717c6f596737fe8119ded2`; resolve the full candidate SHA with git rev-parse HEAD. Contract counts: 71 done, 28 partial and 18 missing. CONTRACT.md records proof scope and release boundaries.",
+      "to": "docs",
+      "path": "docs/verify.md"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 5,
+      "text": "Inventory: 71 done, 28 partial, 18 missing; 117 total.",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 97,
+      "text": "| `INTEG-004` | done | `tests/google.test.mjs`, `tests/journeys/google.mjs`, `tests/delivery.test.mjs` | [Contract status](../CONTRACT.md#status) |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 98,
+      "text": "| `INTEG-005` | partial | `tests/delivery.test.mjs`, `tests/journeys/microsoft.mjs` | [Contract status](../CONTRACT.md#status) |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 108,
+      "text": "| `MOVE-003` | partial | `tests/remote-import.test.mjs`, `tests/journeys/remote-import.mjs`, `src/inkwell/remote-import.ts`, `src/inkwell/remote-import-provider.ts` | [Contract status](../CONTRACT.md#status) |",
+      "to": "changelog"
+    },
+    {
+      "file": "docs/CLAIMS.md",
+      "line": 109,
+      "text": "| `MOVE-004` | partial | `tests/remote-import.test.mjs`, `tests/journeys/remote-import.mjs`, `src/inkwell/remote-import.ts`, `src/inkwell/remote-import-provider.ts` | [Contract status](../CONTRACT.md#status) |",
       "to": "changelog"
     }
   ]

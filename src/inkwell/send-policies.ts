@@ -8,7 +8,7 @@ import type { CommandContext } from './envelopes'
  * approval), for which templates, whether an internal approval (ROUTE-004) comes first and whether the send may be
  * deferred (PREP-009). Group/profile send policies narrow the account now; ADMIN-002/008 carry broader capabilities. Each
  * source that adds a door (BULK-001, FORM-001, API-001, the integrations) reads its policy here before it ships. */
-export const sendSources = ['ad_hoc', 'template', 'bulk', 'web_form', 'api', 'integration'] as const
+export const sendSources = ['ad_hoc', 'template', 'bulk', 'web_form', 'api', 'integration', 'microsoft'] as const
 export type SendSource = typeof sendSources[number]
 export type SendMode = 'off' | 'person' | 'autonomous'
 export interface SendPolicy { scope: 'account' | 'group' | 'profile'; scopeId?: string; source: SendSource; mode: SendMode; templates: string[] | null; requireInternalApproval: boolean; deferredRelease: boolean; version: number; actor: string | null; at: string | null; reason: string | null }
@@ -16,9 +16,9 @@ export interface SendPolicyVersion extends SendPolicy { before: Pick<SendPolicy,
 /** What an envelope records about the policy that allowed it: the source, who the send is for, and each contributing policy version. */
 export interface SendPolicyRecord { source: SendSource; mode: SendMode; principal: string; credential: { kind: 'api_key' | 'web_form' | 'hubspot'; id: string; version: number; memberVersion: number } | null; policies: { scope: 'account' | 'group' | 'profile'; scopeId?: string; version: number }[]; templates: string[] | null; requireInternalApproval: boolean; deferredRelease: boolean; fingerprint: string }
 export interface SendDecision { allowed: boolean; code?: string; reason?: string; requiresApproval: boolean; record: SendPolicyRecord; fence: Guard; versionFence: Guard }
-export const sourceLabel: Record<SendSource, string> = { ad_hoc: 'ad hoc', template: 'template', bulk: 'bulk', web_form: 'web form', api: 'API', integration: 'HubSpot integration' }
+export const sourceLabel: Record<SendSource, string> = { ad_hoc: 'ad hoc', template: 'template', bulk: 'bulk', web_form: 'web form', api: 'API', integration: 'HubSpot integration', microsoft: 'Microsoft 365' }
 /** Opt-in defaults: the person-based sources start with the person's confirmation, every other source starts off. */
-const defaultMode: Record<SendSource, SendMode> = { ad_hoc: 'person', template: 'person', bulk: 'person', web_form: 'off', api: 'off', integration: 'off' }
+const defaultMode: Record<SendSource, SendMode> = { ad_hoc: 'person', template: 'person', bulk: 'person', web_form: 'off', api: 'off', integration: 'off', microsoft: 'off' }
 const freshSeconds = 15 * 60
 
 interface Row { scope: string; source: SendSource; version: number; mode: SendMode; templates: string | null; require_internal_approval: number; deferred_release: number; actor: string; at: string; reason: string | null; before_value?: string }
@@ -86,13 +86,14 @@ export async function setSendPolicy(env: Env, context: CommandContext, input: Re
   return result
 }
 
-export const envelopeSource = (envelope: Envelope): SendSource => envelope.sendOrigin?.source ?? (envelope.bulkBatch?'bulk':undefined) ?? (envelope.template ? 'template' : 'ad_hoc')
+export const envelopeSource = (envelope: Envelope): SendSource => envelope.sendOrigin?.source ?? (envelope.microsoftSource ? 'microsoft' : undefined) ?? (envelope.bulkBatch?'bulk':undefined) ?? (envelope.template ? 'template' : 'ad_hoc')
 /** Whether `envelope` may be released now by its source's current policy, with the record it keeps and the fence that
  * keeps that verdict true in the release's own batch. `stage: 'release'` also requires an internal approval the policy
  * demands to have been given (`approved`); at the request stage it only reports that one is needed. */
 /** A credential's current custody and authority are checked without caches and fenced in the invitation batch. */
 async function sendCredential(env: Env, envelope: Envelope, principal: string) {
  const origin=envelope.sendOrigin
+ if(!origin&&envelope.microsoftSource)return {record:null,active:Boolean(env.MICROSOFT_GRAPH_ACCESS_TOKEN),guard:{sql:env.MICROSOFT_GRAPH_ACCESS_TOKEN?'1=1':'0=1',values:[]} as Guard}
  if(!origin)return {record:null,active:true,guard:{sql:'1=1',values:[]} as Guard}
  if(origin.credential.kind==='hubspot'){const {hubspotSendCredential}=await import('./hubspot-envelope-authority');return hubspotSendCredential(env,origin.credential.id,principal)}
  if(origin.credential.kind==='web_form'){const {formCredential}=await import('./web-forms');return formCredential(env,origin.credential.id,principal)}

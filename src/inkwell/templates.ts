@@ -31,7 +31,7 @@ import { supplementDefinition, supplementsFromEnvelope, supplementsFromTemplate,
 
 /** A role is a place in the routing order with no person yet; `accessCode` says the sender gives that person a code. */
 export interface Role { payment?: PaymentRequirement; paymentAuthority?: import('./payment-requirement').PaymentAuthority; providerAuth?: 'identity' | 'voice' | 'knowledge'; sms?: boolean; action?: Exclude<import('./model').Signer['role'],'witness'>;delegates?:number[];unresolvedIdentity?:true; witnesses?: import('./model').WitnessRule; includeWhen?: import('./model').RoutingRule; role: string; order: number; accessCode?: boolean; linkOnly?: boolean; message?: string }
-export interface Template { customFields?: import('./envelope-metadata').CustomEnvelopeField[]; consumerDisclosure?: Envelope['consumerDisclosure']; adoptionMethods?: import('./model').AdoptionMethod[]; part11?: Envelope['part11']; documents?: EnvelopeDocument[]; supplements?: Supplement[]; maintenance?: { proposalId: string; by: string; at: string; examples: { id: string; eventHash: string }[] }; approval?: import('./model').ApprovalRule; id: string; title: string; filename: string; originalSha256: string; pageSizes: { width: number; height: number }[]; roles: Role[]; fields: Field[]; expiryDays: number; reminders?: { afterDays: number; everyDays: number }; allowPaper?: boolean; allowReassign?: boolean; subject?: string; message?: string; createdBy: string; createdAt: string; version?: number; updatedAt?: string; tags?: string[] }
+export interface Template { source?: {provider:string;account:string;id:string;ownerEmail:string;importedAt:string}; customFields?: import('./envelope-metadata').CustomEnvelopeField[]; consumerDisclosure?: Envelope['consumerDisclosure']; adoptionMethods?: import('./model').AdoptionMethod[]; part11?: Envelope['part11']; documents?: EnvelopeDocument[]; supplements?: Supplement[]; maintenance?: { proposalId: string; by: string; at: string; examples: { id: string; eventHash: string }[] }; approval?: import('./model').ApprovalRule; id: string; title: string; filename: string; originalSha256: string; pageSizes: { width: number; height: number }[]; roles: Role[]; fields: Field[]; expiryDays: number; reminders?: { afterDays: number; everyDays: number }; allowPaper?: boolean; allowReassign?: boolean; subject?: string; message?: string; createdBy: string; createdAt: string; version?: number; updatedAt?: string; tags?: string[] }
 /** TMPL-003: a template stored before versions is version 1. */
 const versionOf = (template: Template) => template.version ?? 1
 const day = 86_400_000
@@ -223,3 +223,6 @@ export async function useTemplate(env: Env, context: CommandContext, input: Reco
   await readBlob(env.DB, envelope.id, 'original', envelope.originalSha256)
   return result
 }
+
+/** Validate provider-mapped roles and fields with the native template rules before custody. */
+export const importedTemplateDefinition = readTemplate

@@ -4,6 +4,10 @@ import { prepareHubspotEnvelope } from './hubspot-envelope'
 import { getHubspotWriteback, retryHubspotWriteback } from './hubspot-writeback'
 import { hubspotSyncConfig, hubspotSyncProgress, hubspotSyncOperation } from './hubspot-sync'
 import { configureInbound, informationView, requestInformation, returnInbound, informationArtifact } from './agent-workflows'
+import { microsoftSource, microsoftReply } from './microsoft'
+import { previewRemoteImport, applyRemoteImport } from './remote-import'
+import { receiveGoogleReplies } from './google-replies'
+import { googleDrive, googleMessage, googleAttachment } from './google'
 import { matchedRoutes } from 'hono/route'
 import { withAuditDatabase } from './account-audit-db'
 import { listAccountAudit, auditCsv } from './account-audit'
@@ -159,6 +163,18 @@ api.get('/api/inkwell/hubspot/writebacks',async c=>{
 api.get('/api/inkwell/hubspot/config',async c=>c.json(await hubspotSyncConfig(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))
 api.get('/api/inkwell/hubspot/progress',async c=>c.json(await hubspotSyncProgress(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))
 api.post('/api/inkwell/hubspot/sync',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await hubspotSyncOperation(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),await readJson(c.req.raw,1200000)))})
+api.post('/api/inkwell/microsoft/source',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await microsoftSource(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),await readJson(c.req.raw,8192)))})
+api.post('/api/inkwell/microsoft/replies',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await microsoftReply(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),await readJson(c.req.raw,4096)))})
+api.post('/api/inkwell/google/replies',async c=>await receiveGoogleReplies(c.env,c.req.raw))
+// Google import uses the native administrator session; it never sends or changes a message.
+api.post('/api/inkwell/google',async c=>{
+ sameOrigin(c.req.raw,c.env)
+ const actor=await requireActor(c.req.raw,c.env,['owner','admin']),body=await readJson(c.req.raw,4096)
+ if(body.kind==='drive')return c.json(await googleDrive(c.env,body.id))
+ if(body.kind==='message')return c.json(await googleMessage(c.env,body.id,actor.email))
+ insist(body.kind==='attachment','Choose a Google source.')
+ return c.json(await googleAttachment(c.env,body.id,body.attachmentId,actor.email))
+})
 api.get('/api/inkwell/filing',async c=>c.json(await filingView(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))
 api.post('/api/inkwell/filing',async c=>{
  sameOrigin(c.req.raw,c.env)
@@ -212,6 +228,7 @@ api.get('/api/inkwell/notices/settings',async c=>{const actor=await requireActor
 api.post('/api/inkwell/notices/settings',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env);return c.json({ok:true,result:await saveNoticeSettings(c.env,actor,await readJson(c.req.raw,8192))})})
 // ROUTE-008: the shared contact book and the member's recent recipients, for owners, admins and senders.
 const contactRoles=['owner','admin','sender'] as const
+api.post('/api/inkwell/remote-import/:action',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,['owner']),input=await readJson(c.req.raw,12000),action=c.req.param('action');insist(['preview','apply'].includes(action),'Import route not found.',404);return c.json(action==='preview'?await previewRemoteImport(c.env,actor,input):await applyRemoteImport(c.env,actor,input))})
 api.get('/api/inkwell/contacts',async c=>{const actor=await requireActor(c.req.raw,c.env,contactRoles);return c.json({...await searchContacts(c.env,new URL(c.req.url).searchParams),recent:await recentRecipients(c.env,actor)})})
 api.post('/api/inkwell/contacts',async c=>{sameOrigin(c.req.raw,c.env);const actor=await requireActor(c.req.raw,c.env,contactRoles);return c.json({ok:true,result:await saveContact(c.env,actor,await readJson(c.req.raw,8192))})})
 api.post('/api/inkwell/contacts/remove',async c=>{sameOrigin(c.req.raw,c.env);await requireActor(c.req.raw,c.env,contactRoles);return c.json({ok:true,result:await removeContact(c.env,await readJson(c.req.raw,4096))})})

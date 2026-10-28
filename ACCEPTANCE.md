@@ -8,10 +8,10 @@ The primary journey: Exercise the capabilities and acceptance journeys below.
 
 | Tier | Done | Partial | Missing | Total |
 | --- | ---: | ---: | ---: | ---: |
-| Core | 70 | 25 | 22 | 117 |
+| Core | 71 | 28 | 18 | 117 |
 | Agent surface | 0 | 0 | 0 | 0 |
 | Later | 0 | 0 | 0 | 0 |
-| Full target | 70 | 25 | 22 | 117 |
+| Full target | 71 | 28 | 18 | 117 |
 
 Judged from the code and tests at commit `f5dab1a4491a157fdf3370f0b5d53b18af9dfd66` (27 October 2026). Field proof register: 0 rows; 0 passed, 0 failed, 0 not run.
 
@@ -1272,27 +1272,41 @@ Core · target · **missing**
 
 #### INTEG-004 — Google Workspace
 
-Core · target · **missing**
+Core · target · **done**
 
 **Requirement.** Pick sources from Google Drive and Google Docs (a Google Doc is exported to PDF and converted and fingerprinted as in `PREP-001`), file completed envelopes to a chosen Drive folder per template, and use the Gmail add-on: from an open message with an attachment, see the attachment and the message's participants (sender, To and Cc) proposed as recipients, then send it for signature or sign it yourself (`ROUTE-009`). Connected Gmail reply sources inherit AGENT-003’s grant, authenticated reply intake, contact rules, reply visibility, logging and envelope custody before shipping.
 
 **Acceptance.**
 1. through a Google fake, send a Drive document and show the completed PDF and certificate in the configured folder; pick a Google Doc and show it arrives as a converted PDF whose fingerprint the envelope binds; in the Gmail add-on test harness, open a message with a PDF attachment from a client with one person on Cc, see the attachment and both participants proposed as recipients, and send; from another message, sign the attached PDF yourself with no mail sent to you.
+2. Implementation semantics: native owner and admin sessions import selected Drive PDFs, exported Google Docs and current-message Gmail attachments without sending.
+3. The contextual Apps Script add-on opens the native preparation door with a message reference and a send or self-sign choice; native review, field placement, eligibility confirmation and recipient authentication remain required.
+4. Per-template Drive filing uses explicit administrative consent, verified completed bytes and manual recovery from uncertain uploads.
+5. Configured Gmail reply intake verifies Google OIDC caller identity, the exact audience, subscription and mailbox, a fresh push and replay receipts, fetches Gmail history and messages at the network edge, and reuses AGENT-003’s current invitation capability, exact sender, grant, contact, private reply, logging, archive, hold and erasure gates.
+6. Only recipient-address metadata is fetched before a current reply capability is resolved; message bodies, other headers and attachments are fetched afterward.
+7. Credentials, push receipts and the mailbox-bound history cursor are installation state excluded from business archives; restore creates no active reply capability.
+8. Provider tokens and Google add-on deployment are installation provisioning, separately from the acceptance fake. Evidence: `tests/google.test.mjs` — “Google Drive source completes through its template and files matching executed PDF and certificate bytes to the consented folder”; “Google Docs exports actual PDF bytes whose independent fingerprint is bound by preparation; unsafe sources and authority are refused”; “Gmail attachment proposes sender and Cc without the connected member and sends to the reviewed participants”; “Gmail self-signs a separate message attachment without sending any mail to the signer”; and “Gmail authenticated reply intake inherits current grants, contact and identity gates, private custody, holds, archive and erasure fences”. `tests/journeys/google.mjs` exercises the actual contextual add-on entry, native source switching, participant proposals, self-sign choice, filing controls, keyboard operation, accessibility and field tooltips; it asserts at 1440, with separate candidate browser proof at 1440 and 390. The existing Follow-up tests in `tests/delivery.test.mjs` retain contact-window, daily and maximum-contact, authority and custody assertions for the shared gates.
 
-**Evidence.** None.
-**Gap.** No Google Workspace connector
+**Evidence.** `tests/google.test.mjs`: “Google Drive source completes through its template and files matching executed PDF and certificate bytes to the consented folder”; “Google Docs exports actual PDF bytes whose independent fingerprint is bound by preparation; unsafe sources and authority are refused”; “Gmail attachment proposes sender and Cc without the connected member and sends to the reviewed participants”; “Gmail self-signs a separate message attachment without sending any mail to the signer”; “Gmail authenticated reply intake inherits current grants, contact and identity gates, private custody, holds, archive and erasure fences”; `tests/journeys/google.mjs`: contextual add-on, native source switching, proposals, self-sign choice, filing, keyboard, axe and field tooltips at 1440 with candidate proof at 1440 and 390; `tests/delivery.test.mjs`: “Follow-up: stalled signers, authenticated reply custody and contact limits”, “Follow-up: human grants, authority narrowing and shared reminder limits” and “Follow-up: session causes and separate group-member replies” preserve all shared contact and custody gates; the same Google tests additionally prove inline PDF selection, external reply text, failure without advancing history, mid-intake revocation and selected-document reply text and attachment-digest export; the Google journey includes populated saved rules and completed receipts at the 13px text minimum
+**Gap.** None.
 
 #### INTEG-005 — Microsoft 365
 
-Core · target · **missing**
+Core · target · **partial**
 
 **Requirement.** Pick sources from OneDrive and SharePoint and file completed envelopes there; use the Outlook add-in, which from an open message with an attachment shows the attachment and the message's participants (sender, To and Cc) proposed as recipients, then sends it for signature or lets you sign it yourself (`ROUTE-009`); and use the Word add-in, which sends the open document (converted as in `PREP-001`) for signature. Connected Outlook reply sources inherit AGENT-003’s grant, authenticated reply intake, contact rules, reply visibility, logging and envelope custody before shipping.
 
 **Acceptance.**
 1. through a Microsoft Graph fake, send a OneDrive document and show the completed record filed in the SharePoint folder; in the Outlook add-in test harness, open a message with a PDF attachment and two participants, see the attachment and both participants proposed as recipients, and send; sign another message's attachment yourself with no mail sent to you; in the Word add-in test harness, send the open document and show the envelope binds the converted PDF's fingerprint.
+2. **Implemented Microsoft boundary.** The native Microsoft source door reads OneDrive and SharePoint PDFs, converts Word sources through Graph, and obtains Outlook attachment bytes and the sender, To and Cc participants from Graph.
+3. Outlook and Word host harnesses supply the open resource context.
+4. Preparation consumes an actor-bound staged source, refuses altered displayed bytes and records the converted PDF fingerprint.
+5. A selected filing template must contain that exact PDF.
+6. The Microsoft source policy starts off, and every send retains native human eligibility confirmation, current policy versions, internal approval and deferred-release fences.
+7. SharePoint filing uses the existing explicitly consented per-template queue, deterministic filenames and remote byte verification; uncertain or conflicting copies stay visible until a manual retry.
+8. Filing rules and credentials remain installation state; restoring business records starts no external transfer. Remote copies remain outside local erasure. **Regression evidence.** The existing delivery tests additionally prove source retention after draft edits and copies, source-bound staged upload preparation with template approval and policy-off refusal, mixed-source refusal, exact-byte preparation above the legacy inline limit, and capability-free reply attachment metadata. **Conservative default adopted pending CT approval.** Only a signed-in owner or admin may read the installation's connected Microsoft drive or mailbox. Source loading and reply intake require explicit native actions; no automatic mailbox subscription or outbound reply is enabled. Recipient self-signing remains the member's own native session. Explicit Outlook reply intake fetches Graph facts, requires a fresh current reply capability and authorized reply reader, refuses replays, and uses AGENT-003's existing grant, contact, pause, visibility, no-text audit, archive and erasure rules. This default does not widen reply readers. Signed Microsoft subscription notification intake and installed Office registration remain unproved. INTEG-005 stays partial until CT approves the connection-authority default and the remaining gaps are proved.
 
-**Evidence.** None.
-**Gap.** No Microsoft 365 connector
+**Evidence.** `tests/delivery.test.mjs` — “Microsoft 365: OneDrive and SharePoint sources bind their PDF, enforce opt-in policy and file verified completed artifacts once”; “Microsoft 365: Outlook proposes exact attachment participants, sends, self-signs without mail, and Word binds converted PDF bytes”; “Microsoft 365: authenticated fresh Outlook replies inherit grants, replay refusal, private visibility, pause, archive custody and erasure”; `tests/journeys/microsoft.mjs` — open Outlook and Word host harnesses, native review, filing consent, keyboard and responsive proof
+**Gap.** Owner and admin connection authority is a conservative default pending CT approval. Signed Graph subscription notification intake, installed Office registration, conversion download redirects and complete mutation and lifecycle rider proof remain unproved. Live Microsoft tenant provisioning is a separate operation, not claimed by Graph-fake evidence.
 
 #### INTEG-006 — Box and Dropbox
 
@@ -1432,27 +1446,27 @@ Core · target · **missing**
 
 #### MOVE-003 — Adobe Acrobat Sign move-in
 
-Core · target · **missing**
+Core · target · **partial**
 
 **Requirement.** Agreements with their audit reports and library templates import through the Acrobat Sign API with the same preview, unmapped list, ownership mapping by email as `MOVE-002`, and the throttled, resumable job of `MOVE-008`. Before this door ships, imported envelopes preserve the source terminal instant or a durable import instant labeled “terminal time not in the source”, and meet `RECORD-005`’s warning, legal-hold, erasure and restore-fence rules.
 
 **Acceptance.**
 1. through an Acrobat Sign API fake with two senders, import agreements and a library template, show each sender owns only their own agreements, and send from the template.
 
-**Evidence.** None.
-**Gap.** No Adobe Acrobat Sign import
+**Evidence.** `tests/remote-import.test.mjs` — “acrobat: reviewed API imports preserve sender custody, usable templates and retention through erasure and restore”; `tests/journeys/remote-import.mjs`; `src/inkwell/remote-import.ts`; `src/inkwell/remote-import-provider.ts`
+**Gap.** Reviewed batches import terminal records and mapped one-PDF signature and text templates, preserve sender custody, send through native template review, and assert imported retention, hold, erasure and restore fencing. Remaining: account-wide preview and the throttled background job promised by MOVE-008, durable continuation across grant expiry, pause and cancel controls, provider limit-header accounting and scale proof. Other field types remain explicitly unmapped. Acrobat roles use documented field assignees and source owner email; Dropbox template ownership is known only when the credential account is the creator, otherwise the reviewed fallback administrator is used. Dropbox template fields without page metadata are mapped only for one-document, single-page PDFs; broader placement remains unmapped.
 
 #### MOVE-004 — Dropbox Sign move-in
 
-Core · target · **missing**
+Core · target · **partial**
 
 **Requirement.** Signature requests with their files and audit trails and templates import through the Dropbox Sign API, with the preview, unmapped list and ownership mapping of `MOVE-002` and the job of `MOVE-008`. Before this door ships, imported envelopes preserve the source terminal instant or a durable import instant labeled “terminal time not in the source”, and meet `RECORD-005`’s warning, legal-hold, erasure and restore-fence rules.
 
 **Acceptance.**
 1. through a Dropbox Sign API fake with two senders, import requests and templates, show each sender owns only their own requests, and send from one.
 
-**Evidence.** None.
-**Gap.** No Dropbox Sign import
+**Evidence.** `tests/remote-import.test.mjs` — “dropbox: reviewed API imports preserve sender custody, usable templates and retention through erasure and restore”; `tests/journeys/remote-import.mjs`; `src/inkwell/remote-import.ts`; `src/inkwell/remote-import-provider.ts`
+**Gap.** Reviewed batches import terminal records and mapped one-PDF signature and text templates, preserve sender custody, send through native template review, and assert imported retention, hold, erasure and restore fencing. Remaining: account-wide preview and the throttled background job promised by MOVE-008, durable continuation across grant expiry, pause and cancel controls, provider limit-header accounting and scale proof. Other field types remain explicitly unmapped. Acrobat roles use documented field assignees and source owner email; Dropbox template ownership is known only when the credential account is the creator, otherwise the reviewed fallback administrator is used. Dropbox template fields without page metadata are mapped only for one-document, single-page PDFs; broader placement remains unmapped.
 
 #### MOVE-005 — Documenso move-in
 
