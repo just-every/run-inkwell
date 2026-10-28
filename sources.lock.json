@@ -620,10 +620,6 @@
       "sha256": "bf783c802deae1b59b45a254367ac9f2c5261b17f07d242c53249be9b94e06df",
       "executable": false
     },
-    "migrations/core/0075_microsoft.sql": {
-      "sha256": "6d0cc13cda6c9f265fbf103eda98fed533571748f5493c0de639e8e260ed1d39",
-      "executable": false
-    },
     "migrations/core/0076_hubspot_envelopes.sql": {
       "sha256": "d75cd255fa974ed4a211b39764d7e2c0379b8de09d5fd07d718c6409fd799fa3",
       "executable": false
@@ -642,6 +638,10 @@
     },
     "migrations/core/0080_notice_reconciliation.sql": {
       "sha256": "75689fb65744b87f60ec70376f24f031e71fc62facc1e3895fb102260de449e4",
+      "executable": false
+    },
+    "migrations/core/0081_microsoft.sql": {
+      "sha256": "e44b9f034c00f0a3ebf9d28dce5146b681bbc6838d1244a1032944b2f700f56b",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -4590,6 +4590,10 @@
     },
     "tests/microsoft-edge.mjs": {
       "sha256": "453a6c4499d579d11d7f7980576b8b2d8220664258026217fc4adf38186bab5b",
+      "executable": false
+    },
+    "tests/microsoft-migration.test.mjs": {
+      "sha256": "845dda8c85be2a3f280865ccb3ffe5d1f4bd2a5929510fcec7f6df4dfefe4a15",
       "executable": false
     },
     "tests/own-signing.test.mjs": {
