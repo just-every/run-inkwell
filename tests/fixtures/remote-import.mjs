@@ -1,20 +1,21 @@
 import { readFile } from 'node:fs/promises'
 export async function remoteImportFake(provider) {
  const archive=JSON.parse(await readFile('tests/fixtures/docuseal/archive.json','utf8')),pdf=Buffer.from(archive.files[0].base64,'base64'),auditPdf=Buffer.from(archive.files[1].base64,'base64'),calls=[]
- let fail=false,unknown=false,unsupported=false,shared=false,paginated=false,expired=false,other=false,exhausted=0
+ let fail=false,unknown=false,unsupported=false,shared=false,paginated=false,expired=false,other=false,exhausted=0,limitAfter=0
  const owners=['first@example.test','second@example.test']
  const edge=async request=>{
   const url=new URL(request.url),adobe=provider==='acrobat'
   if(url.hostname!==(adobe?'api.na1.adobesign.com':'api.hellosign.com'))return
   calls.push(url.pathname+url.search)
+  if(limitAfter>0&&!--limitAfter)return new Response('synthetic-inkwell-limit',{status:429,headers:{'retry-after':'60'}})
   if(fail){fail=false;return new Response('synthetic-inkwell-provider-failure',{status:429,headers:{'retry-after':'120'}})}
   if(expired){expired=false;return new Response('synthetic-inkwell-expired',{status:401})}
-  const path=url.pathname.replace(adobe?'/api/rest/v6':'/v3',''),json=value=>{const headers=exhausted?{'x-ratelimit-remaining':'0','x-ratelimit-reset':String(exhausted)}:{};exhausted=0;return Response.json(value,{headers})}
+  const path=url.pathname.replace(adobe?'/api/rest/v6':'/v3',''),json=value=>{const headers=exhausted?{'x-ratelimit-limit-remaining':'0','x-ratelimit-reset':String(exhausted)}:{};exhausted=0;return Response.json(value,{headers})}
   if(path==='/users/me')return json({accountId:'synthetic-inkwell-1'})
   if(path==='/account')return json({account:{account_id:other?'synthetic-inkwell-2':'synthetic-inkwell-1',email_address:owners[0]}})
   if(path==='/agreements')return json({userAgreementList:[{id:'first'},{id:'second'},{id:'open'}],page:{}})
   if(path==='/libraryDocuments')return json({libraryDocumentList:[{id:'template'}],page:{}})
-  if(path==='/signature_request/list')return json({signature_requests:url.searchParams.get('page')==='2'?[{signature_request_id:'third'}]:[{signature_request_id:'first'},{signature_request_id:'second'},{signature_request_id:'open'}],list_info:{num_pages:paginated?2:1}})
+  if(path==='/signature_request/list')return json({signature_requests:url.searchParams.get('account_id')!=='all'?[{signature_request_id:'first'}]:url.searchParams.get('page')==='2'?[{signature_request_id:'third'}]:[{signature_request_id:'first'},{signature_request_id:'second'},{signature_request_id:'open'}],list_info:{num_pages:paginated?2:1}})
   if(path==='/template/list')return json({templates:url.searchParams.get('page')==='2'?[]:[{template_id:'template'}],list_info:{num_pages:1}})
   const resource=path.split('/')[2],index=resource==='first'?0:1,owner=unknown?'unmapped@example.test':owners[index]
   if(adobe&&/^\/agreements\/[^/]+$/.test(path))return json({id:resource,name:`${provider} ${resource} agreement`,senderEmail:owner,status:resource==='open'?'OUT_FOR_SIGNATURE':'SIGNED'})
@@ -29,5 +30,5 @@ export async function remoteImportFake(provider) {
   if(path.endsWith('/combinedDocument')||path.endsWith('/auditTrail')||path.endsWith('/documents/pdf')||path.includes('/files/'))return new Response(pdf,{headers:{'content-type':'application/pdf'}})
   throw new Error('Unexpected import fake request: '+path)
  }
- return {unsupported:value=>{unsupported=value},shared:value=>{shared=value},paginate:()=>{paginated=true},expireOnce:()=>{expired=true},otherAccount:value=>{other=value},exhaustOnce:reset=>{exhausted=reset},edge,pdf,audit:provider==='acrobat'?auditPdf:pdf,calls,failOnce:()=>{fail=true},unmapped:()=>{unknown=true},mapped:()=>{unknown=false}}
+ return {limitAfter:value=>{limitAfter=value},unsupported:value=>{unsupported=value},shared:value=>{shared=value},paginate:()=>{paginated=true},expireOnce:()=>{expired=true},otherAccount:value=>{other=value},exhaustOnce:reset=>{exhausted=reset},edge,pdf,audit:provider==='acrobat'?auditPdf:pdf,calls,failOnce:()=>{fail=true},unmapped:()=>{unknown=true},mapped:()=>{unknown=false}}
 }

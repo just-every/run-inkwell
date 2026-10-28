@@ -23,3 +23,5 @@ export async function scheduledPass(env: Env, at: number) {
   for (const pass of [cleanupRemotePreviews, advanceRemoteImports, runHubspotSyncSchedule, dispatchHubspotWritebacks, sendScheduled, dispatchPendingFiling, purgeFormAttempts, warnApiKeys, warnExpiring, alertBounces, chaseStalled, sendReminders, dispatchNotices, applyRetention]) try { await pass(env, at) } catch (error) { failures.push(error) }
   if (failures.length) throw new AggregateError(failures, 'The scheduled pass failed.')
 }
+
+export async function scheduledRemoteImports(env:Env) { await advanceRemoteImports({...env,DB:withAuditDatabase(env.DB,{kind:'system',id:'system:remote-import'})}) }

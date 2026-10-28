@@ -10,6 +10,7 @@ export async function remoteImportJourney() {
  // Assertions use one desktop viewport. The phone run records the same changed states once.
  for(const width of [1440,390]) {
   const acrobat=await remoteImportFake('acrobat'),dropbox=await remoteImportFake('dropbox')
+  dropbox.paginate()
   const app=await startInkwellWithMail({networkEdge:async request=>await acrobat.edge(request)??await dropbox.edge(request)})
   try {
    const senders=[]
@@ -34,9 +35,9 @@ export async function remoteImportJourney() {
    await screen.getByRole('status').filter({hasText:'Account review: reviewing.'}).waitFor()
    await capture('account-reviewing')
    await screen.getByLabel('Dropbox Sign API key',{exact:true}).fill('synthetic-inkwell-99')
-   await screen.getByRole('button',{name:'Review next account page',exact:true}).click()
+   await screen.getByRole('button',{name:'Review account pages',exact:true}).click()
    await screen.getByRole('status').filter({hasText:'Account review: ready.'}).waitFor()
-   if(width===1440){assert.match(await screen.getByRole('status').innerText(),/1 pages reviewed.*2 agreements.*1 templates/);assert.equal(await screen.getByRole('button',{name:'Approve account import',exact:true}).isDisabled(),true)}
+   if(width===1440){assert.match(await screen.getByRole('status').innerText(),/2 pages reviewed.*3 agreements.*1 templates/);assert.equal(await screen.getByRole('button',{name:'Approve account import',exact:true}).isDisabled(),true)}
    await capture('account-ready')
    await screen.getByRole('button',{name:'Pause account job',exact:true}).focus();await page.keyboard.press('Enter')
    await screen.getByRole('status').filter({hasText:'Account review: paused.'}).waitFor();await capture('account-paused')
@@ -68,12 +69,13 @@ export async function remoteImportJourney() {
    }
    await screen.getByRole('button',{name:'Start account review',exact:true}).click()
    await screen.getByLabel('Dropbox Sign API key',{exact:true}).fill('synthetic-inkwell-99')
-   await screen.getByRole('button',{name:'Review next account page',exact:true}).click()
+   await screen.getByRole('button',{name:'Review account pages',exact:true}).click()
    await screen.getByRole('status').filter({hasText:'Account review: ready.'}).waitFor()
    await screen.getByRole('checkbox',{name:'I reviewed all account counts, owners and skipped items.'}).focus();await page.keyboard.press('Space')
    await screen.getByRole('button',{name:'Approve account import',exact:true}).focus();await page.keyboard.press('Enter')
    await screen.getByRole('status').filter({hasText:'Account review: importing.'}).waitFor();await capture('account-importing')
-   await app.scheduled(Date.now())
+   await app.scheduled(Date.now(),'* * * * *')
+   await app.scheduled(Date.now(),'* * * * *')
    await screen.getByRole('button',{name:'Refresh account progress',exact:true}).click()
    await screen.getByRole('status').filter({hasText:'Account review: complete.'}).waitFor();await capture('account-complete')
    await context.close()

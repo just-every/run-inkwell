@@ -9,7 +9,7 @@ const base64=(bytes:Uint8Array)=>{let result='';for(let at=0;at<bytes.length;at+
 const email=(value:unknown)=>typeof value==='string'?value.trim().toLowerCase():''
 const instant=(value:unknown)=>typeof value==='number'&&value>0?new Date(value*1000).toISOString():typeof value==='string'&&Number.isFinite(Date.parse(value))?new Date(value).toISOString():undefined
 /** Only fixed provider hosts are reachable; credentials and raw errors never enter a receipt. */
-export interface RemoteReadControl { account?:string; before?:()=>Promise<void>; response?:(response:Response)=>Promise<void> }
+export interface RemoteReadControl { account?:string; before?:()=>Promise<void>; response?:(response:Response)=>Promise<void>; identified?:(account:string)=>Promise<void>; cached?:(path:string)=>Promise<Uint8Array|undefined>; cache?:(path:string,bytes:Uint8Array)=>Promise<void> }
 export async function readRemoteBatch(input:Record<string,unknown>,control:RemoteReadControl={}) {
  const provider=input.provider as Provider;insist(['acrobat','dropbox'].includes(provider),'Choose an import provider.')
  const credential=text(input.credential,'the provider credential',4096);insist(!/[\r\n]/.test(credential),'Invalid credential.')
@@ -17,6 +17,8 @@ export async function readRemoteBatch(input:Record<string,unknown>,control:Remot
  const origin=provider==='acrobat'?`https://api.${region}.adobesign.com/api/rest/v6`:'https://api.hellosign.com/v3'
  const headers={authorization:provider==='acrobat'?`Bearer ${credential}`:`Basic ${btoa(credential+':')}`}
  async function get(path:string,pdf=false) {
+  const cached=await control.cached?.(path)
+  if(cached)return pdf?base64(cached):object(JSON.parse(new TextDecoder().decode(cached)))
   await control.before?.()
   const response=await fetch(origin+path,{headers,redirect:'manual',signal:AbortSignal.timeout(20000)})
   await control.response?.(response)
@@ -24,6 +26,7 @@ export async function readRemoteBatch(input:Record<string,unknown>,control:Remot
   if(response.status===429){const header=response.headers.get('retry-after'),seconds=Number(header),date=Date.parse(header??'');throw new ApiRateLimit(header&&Number.isFinite(seconds)&&seconds>0?Math.ceil(seconds):Number.isFinite(date)&&date>Date.now()?Math.ceil((date-Date.now())/1000):3600)}
   insist(response.ok,'The provider refused this batch. Check the grant and retry; no success was recorded.',502)
   const bytes=await readBytes(new Request('https://import.invalid',{method:'POST',body:response.body,duplex:'half'} as RequestInit),pdf?2*1024*1024:1024*1024)
+  await control.cache?.(path,bytes)
   if(pdf)return base64(bytes)
   try{return object(JSON.parse(new TextDecoder().decode(bytes)))}catch{throw new Refusal('The provider returned an invalid response.',502)}
  }
@@ -32,6 +35,7 @@ export async function readRemoteBatch(input:Record<string,unknown>,control:Remot
  if(provider==='acrobat') {
   const identity=await get('/users/me') as any,account=text(identity.accountId??identity.userId,'the source account ID')
   insist(!control.account||control.account===account,'The replacement grant belongs to another source account.',409)
+ await control.identified?.(account)
   const cursor=input.cursor===undefined||input.cursor===null?'':text(input.cursor,'the source cursor',1000)
   const list=input.continuation&&input.cursor===null?{userAgreementList:[],page:{}}:await get('/agreements?pageSize=20'+(cursor?'&cursor='+encode(cursor):'')) as any
   const templates=input.continuation&&input.templateCursor===null?{libraryDocumentList:[],page:{}}:await get('/libraryDocuments?pageSize=20'+(input.templateCursor?'&cursor='+encode(text(input.templateCursor,'a template cursor',1000)):'')) as any
@@ -55,18 +59,19 @@ export async function readRemoteBatch(input:Record<string,unknown>,control:Remot
    const assignees=[...new Set<string>((form.fields??[]).map((f:any)=>f.assignee??'1'))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}))
    const roles=assignees.map((_,i)=>({role:`Signer ${i+1}`,order:i+1}))
    const fields=(form.fields??[]).map((f:any)=>{const p=f.locations?.[0];return {id:String(f.name),label:String(f.name),type:f.inputType==='SIGNATURE'?'signature':f.inputType==='TEXT_FIELD'?'text':'unsupported',signer:assignees.indexOf(f.assignee??'1'),page:Number(p?.pageNumber)-1,x:p?.left,y:p?.top,width:p?.width,height:p?.height,absolute:true,fromBottom:true,required:f.required!==false}})
-   if(!roles.length||assignees.some(a=>['PREFILL','NOBODY','EVERYONE'].includes(a))||fields.some((f:any)=>f.type==='unsupported')){unmapped.push({sourceId,reason:'Template role or field type could not be mapped; template was skipped.'});continue}
+   if(!roles.length||assignees.some(a=>['PREFILL','NOBODY','EVERYONE'].includes(a))||fields.some((f:any)=>f.type==='unsupported')){unmapped.push({sourceId,reason:`Template "${detail.title??detail.name??sourceId}" has an unmapped role or field type; template was skipped. Source types: ${(form.fields??[]).map((f:any)=>f.type??f.inputType).join(', ')}.`});continue}
    items.push({kind:'template',sourceId,title:text(detail.name,'a template name'),ownerEmail:email(detail.ownerEmail??detail.creatorEmail),status:'template',signers:[],roles,fields,pdf:await get(path+'/documents/'+encode(documents.documents[0].id),true) as string,audit:''})
   }
   return {provider,account,items,unmapped,next:{cursor:list.page?.nextCursor??null,templateCursor:templates.page?.nextCursor??null}}
  }
  const identity=await get('/account') as any,account=text(identity.account?.account_id,'the source account ID')
  insist(!control.account||control.account===account,'The replacement grant belongs to another source account.',409)
- const list=await get(`/signature_request/list?page=${page}&page_size=20`) as any,templates=await get(`/template/list?page=${page}&page_size=20`) as any
+ await control.identified?.(account)
+ const list=await get(`/signature_request/list?page=${page}&page_size=20&account_id=all`) as any,templates=await get(`/template/list?page=${page}&page_size=20&account_id=all`) as any
  insist(Array.isArray(list.signature_requests)&&list.signature_requests.length<=20&&Array.isArray(templates.templates)&&templates.templates.length<=20,'Invalid provider batch.',502)
  for(const entry of list.signature_requests) {
   const sourceId=text(entry.signature_request_id,'a request ID'),detail=(await get('/signature_request/'+encode(sourceId)) as any).signature_request
-  if(!detail?.is_complete&&!detail?.is_declined){unmapped.push({sourceId,reason:'Request is not terminal; no invitation was sent.'});continue}
+  if(!detail?.is_complete&&!detail?.is_declined){unmapped.push({sourceId,reason:`Request "${detail?.title??sourceId}" is not terminal; no invitation was sent.`});continue}
   const pdf=await get('/signature_request/files/'+encode(sourceId)+'?file_type=pdf',true) as string
   items.push({kind:'envelope',sourceId,title:text(detail.title,'a request title'),ownerEmail:email(detail.requester_email_address),status:detail.is_complete?'completed':'declined',terminalAt:instant(detail.is_complete?Math.max(0,...(detail.signatures??[]).map((s:any)=>Number(s.signed_at??0))):detail.last_declined_at),signers:(detail.signatures??[]).map((s:any)=>({name:String(s.signer_name??s.signer_email_address),email:email(s.signer_email_address)})),pdf,audit:pdf})
  }
@@ -76,7 +81,7 @@ export async function readRemoteBatch(input:Record<string,unknown>,control:Remot
   const roles=(detail.signer_roles??[]).map((r:any,i:number)=>({role:String(r.name),order:Number(r.order??i)+1}))
   if(detail.documents?.length!==1){unmapped.push({sourceId,reason:'Template needs exactly one PDF; review its document mapping.'});continue}
   const fields=(detail.documents[0].form_fields??[]).map((f:any)=>({id:String(f.api_id??f.name),label:String(f.name??f.api_id),type:f.type==='signature'?'signature':f.type==='text'?'text':'unsupported',signer:/^\d+$/.test(String(f.signer))?Number(f.signer)-1:roles.findIndex((r:any)=>r.role===f.signer),page:0,x:f.x,y:f.y,width:f.width,height:f.height,absolute:true,required:f.required!==false}))
-  if(!roles.length||fields.some((f:any)=>f.type==='unsupported')){unmapped.push({sourceId,reason:'Template role or field type could not be mapped; template was skipped.'});continue}
+  if(!roles.length||fields.some((f:any)=>f.type==='unsupported')){unmapped.push({sourceId,reason:`Template "${detail.title??detail.name??sourceId}" has an unmapped role or field type; template was skipped. Source types: ${(detail.documents?.[0]?.form_fields??[]).map((f:any)=>f.type??f.inputType).join(', ')}.`});continue}
   items.push({kind:'template',sourceId,title:text(detail.title,'a template title'),ownerEmail:detail.is_creator===true?email(identity.account?.email_address):'',status:'template',signers:[],roles,fields,pdf:await get('/template/files/'+encode(sourceId)+'?file_type=pdf',true) as string,audit:''})
  }
  return {provider,account,items,unmapped,next:{page:(Number(list.list_info?.num_pages??1)>page||Number(templates.list_info?.num_pages??1)>page)?page+1:null}}

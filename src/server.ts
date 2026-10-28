@@ -14,7 +14,7 @@ import { identity } from './identity'
 import { api } from './inkwell/api'
 import { importResponse } from './inkwell/imports'
 import { archiveResponse } from './inkwell/archive'
-import { scheduledPass } from './inkwell/scheduled'
+import { scheduledPass, scheduledRemoteImports } from './inkwell/scheduled'
 
 // Start documents keep their own cache policy and add no-transform, so no proxy
 // rewrites the HTML React hydrates (Cloudflare's email address obfuscation
@@ -50,5 +50,5 @@ export default withDemo({
     })
   },
   // The hourly pass: DELIV-004 expiry warnings and DELIV-003 reminders.
-  async scheduled(controller, env) { await scheduledPass(runtimeBindings(env), controller.scheduledTime) },
+  async scheduled(controller, env) { if(controller.cron==='* * * * *')await scheduledRemoteImports(runtimeBindings(env));else await scheduledPass(runtimeBindings(env), controller.scheduledTime) },
 } satisfies ExportedHandler<Bindings>, { seed: seedDemo })

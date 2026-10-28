@@ -53,7 +53,7 @@ export async function harness({ mailProvider = 'resend', bindings = {}, networkE
   // SIGNX-005: a verified signer agrees to the current disclosure before opening or signing the document.
   const agree=async(path,cookie)=>(await post(path+'/disclosure',{version:(await send(path,undefined,cookie)).value.disclosure.version,agree:true},cookie)).value.result
   // The worker's scheduled handler, run as if the cron fired at `at` (DELIV-004 expiry warnings).
-  const scheduled=async at=>{const result=await (await mf.getWorker()).scheduled({scheduledTime:new Date(at),cron:'17 * * * *'});assert.equal(result.outcome,'ok','the scheduled pass succeeds')}
+  const scheduled=async(at,cron='17 * * * *')=>{const result=await (await mf.getWorker()).scheduled({scheduledTime:new Date(at),cron});assert.equal(result.outcome,'ok','the scheduled pass succeeds')}
   // How many messages the mail edge has received so far.
   const sent=()=>capturedMail.length
   // DELIV-001: every request the mail edge received, including ones it failed, and failing the next n.

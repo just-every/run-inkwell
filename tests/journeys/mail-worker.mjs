@@ -57,7 +57,7 @@ export async function startInkwellWithMail({ inbound = false, sms = false, smsPr
       return { path, cookie }
     }
     const ownerCookie = () => ({ name: owner.slice(0, owner.indexOf('=')), value: owner.slice(owner.indexOf('=') + 1), url: origin })
-    const scheduled = async at => { const result = await (await mf.getWorker()).scheduled({ scheduledTime: new Date(at), cron: '17 * * * *' }); assert.equal(result.outcome, 'ok') }
+    const scheduled = async (at, cron = '17 * * * *') => { const result = await (await mf.getWorker()).scheduled({ scheduledTime: new Date(at), cron }); assert.equal(result.outcome, 'ok') }
     const reply = async (invitation, from, text, autoSubmitted = '') => {
       const messageId = crypto.randomUUID(), eventId = crypto.randomUUID(), timestamp = String(Math.floor(Date.now() / 1000))
       inboundMessages.set(messageId, { id: messageId, from, to: [invitation.reply_to], subject: 'Re: Signing request', text, headers: { 'Auto-Submitted': autoSubmitted }, attachments: [], message_id: '<' + messageId + '@clients.example>' })
