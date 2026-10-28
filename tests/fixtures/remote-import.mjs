@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 export async function remoteImportFake(provider) {
- const archive=JSON.parse(await readFile('tests/fixtures/docuseal/archive.json','utf8')),pdf=Buffer.from(archive.files[0].base64,'base64'),calls=[]
+ const archive=JSON.parse(await readFile('tests/fixtures/docuseal/archive.json','utf8')),pdf=Buffer.from(archive.files[0].base64,'base64'),auditPdf=Buffer.from(archive.files[1].base64,'base64'),calls=[]
  let fail=false,unknown=false
  const owners=['first@example.test','second@example.test']
  const edge=async request=>{
@@ -24,8 +24,9 @@ export async function remoteImportFake(provider) {
   if(path.endsWith('/formFields'))return json({fields:[{name:'signature',inputType:'SIGNATURE',recipientIndex:1,required:true,locations:[{pageNumber:1,left:60,top:80,width:160,height:40}]}]})
   if(!adobe&&/^\/signature_request\/[^/]+$/.test(path))return json({signature_request:{signature_request_id:resource,title:`${provider} ${resource} agreement`,requester_email_address:owner,is_complete:resource!=='open',signatures:[{signer_name:'Client signer',signer_email_address:'client@example.test',signed_at:resource==='first'?1767225600:undefined}]}})
   if(!adobe&&path==='/template/template')return json({template:{title:`${provider} service template`,creator_email_address:owners[0],signer_roles:[{name:'Client',order:0}],form_fields:[[{api_id:'signature',name:'Signature',type:'signature',signer:0,page:1,x:60,y:80,width:160,height:40,required:true}]]}})
+  if(path.endsWith('/auditTrail'))return new Response(auditPdf)
   if(path.endsWith('/combinedDocument')||path.endsWith('/auditTrail')||path.endsWith('/documents/pdf')||path.includes('/files/'))return new Response(pdf,{headers:{'content-type':'application/pdf'}})
   throw new Error('Unexpected import fake request: '+path)
  }
- return {edge,pdf,calls,failOnce:()=>{fail=true},unmapped:()=>{unknown=true},mapped:()=>{unknown=false}}
+ return {edge,pdf,audit:provider==='acrobat'?auditPdf:pdf,calls,failOnce:()=>{fail=true},unmapped:()=>{unknown=true},mapped:()=>{unknown=false}}
 }
