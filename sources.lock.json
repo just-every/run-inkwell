@@ -157,7 +157,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "b860e9bbee4163da9ca4d5b50fcd7b10dc94a57d91dff5c34fa5107afaf63995",
+      "sha256": "0bfa78e4ffd40d33eec391172506c9eb1a01cfb3ef541a248e66e587a9f5e504",
       "executable": false
     },
     ".gitignore": {
@@ -1693,7 +1693,7 @@
       "executable": false
     },
     "src/inkwell/notices.ts": {
-      "sha256": "9fb365f90700e21b09832625c0cd085dc75ef3563245ff7e2d37265df817da51",
+      "sha256": "0fd2f8442a833c3700b48664f0ae94e8e8884b467025156e929d32094ba075ce",
       "executable": false
     },
     "src/inkwell/own-signing.ts": {
@@ -1741,7 +1741,7 @@
       "executable": false
     },
     "src/inkwell/pdf-layout.ts": {
-      "sha256": "0f1576afb6cc5def466a90dab93ce8e584af05f99876036a03768b7c5074acfd",
+      "sha256": "c94ede7a9c05be9bed9dcc1b438acf211428e892fd1f960993b34b43c4d099d1",
       "executable": false
     },
     "src/inkwell/pdf-text.ts": {
@@ -1877,7 +1877,7 @@
       "executable": false
     },
     "src/inkwell/salesforce.ts": {
-      "sha256": "b417e9d956e747af4fc0737a1dc0f186764e0b350dcc4420d2a84d95a02c8d06",
+      "sha256": "6ed38e6d70cfb337a4683da3b8f1fcc28f08e24e2537cd956666164c97d13e67",
       "executable": false
     },
     "src/inkwell/saved-marks.ts": {
@@ -4401,7 +4401,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "70d78be124032def0d93752cddda0752502d85dc417a0bf4f94c0668403466dc",
+      "sha256": "20830871e7a1f3413e6662b09cf09bfcaaad2c8612ca3b3abed66aed6a67e603",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
@@ -4773,7 +4773,7 @@
       "executable": false
     },
     "tests/salesforce.mjs": {
-      "sha256": "dc79338f7e57322a359b7ded44d93b25862998d575612a3f56a66997b9e9ca77",
+      "sha256": "74201e1582187ee13eb2a63e0ac4c00f53863c8af452c7c6d0005f5f695a6c80",
       "executable": false
     },
     "tests/send-policies.test.mjs": {

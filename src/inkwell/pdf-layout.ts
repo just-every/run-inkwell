@@ -63,12 +63,12 @@ async function readFont(document: PDFDocument, dict: PDFDict): Promise<Font> {
   }
   const differences = new Map<number, string>(), encoding = get('Encoding')
   const list = encoding instanceof PDFDict ? document.context.lookup(encoding.get(PDFName.of('Differences'))) : undefined
-  if (list instanceof PDFArray) { let code = 0; for (const item of list.asArray().map(value => document.context.lookup(value))) { if (item instanceof PDFNumber) code = item.asNumber(); else if (item instanceof PDFName) { const name = item.decodeText(), uni = /^uni([0-9A-F]{4})$/.exec(name); differences.set(code++, name.length === 1 ? name : glyphNames[name] ?? (uni ? String.fromCharCode(parseInt(uni[1], 16)) : '�')) } } }
+  if (list instanceof PDFArray) { let code = 0; for (const item of list.asArray().map(value => document.context.lookup(value))) { if (item instanceof PDFNumber) code = item.asNumber(); else if (item instanceof PDFName) { const name = item.decodeText(), uni = /^uni([0-9A-F]{4})$/.exec(name); differences.set(code++, name.length === 1 ? name : (Object.hasOwn(glyphNames, name) ? glyphNames[name] : undefined) ?? (uni ? String.fromCharCode(parseInt(uni[1], 16)) : '�')) } } }
   const decode = (code: number) => unicode?.map.get(code) ?? differences.get(code) ?? String.fromCharCode(code)
   const widths = get('Widths'), firstChar = number(get('FirstChar')), descriptor = get('FontDescriptor'), missing = descriptor instanceof PDFDict ? number(document.context.lookup(descriptor.get(PDFName.of('MissingWidth')))) : 0
   const scale = subtype === '/Type3' ? number((get('FontMatrix') as PDFArray | undefined)?.lookup(0), .001) * 1000 : 1
   if (widths instanceof PDFArray) return { codeBytes: 1, decode, width: code => (code >= firstChar && code - firstChar < widths.size() ? number(widths.lookup(code - firstChar)) : missing) * scale }
-  const base = get('BaseFont') instanceof PDFName ? (get('BaseFont') as PDFName).decodeText().replace(/^[A-Z]{6}\+/, '') : '', name = (Object.values(StandardFonts) as string[]).includes(base) ? base as StandardFonts : standardAliases[base]
+  const base = get('BaseFont') instanceof PDFName ? (get('BaseFont') as PDFName).decodeText().replace(/^[A-Z]{6}\+/, '') : '', name = (Object.values(StandardFonts) as string[]).includes(base) ? base as StandardFonts : Object.hasOwn(standardAliases, base) ? standardAliases[base] : undefined
   const standard = name ? await standardMetrics(name) : undefined
   return { codeBytes: 1, decode, width: code => { if (!standard) return missing; try { return standard.widthOfTextAtSize(decode(code), 1000) } catch { return missing } } }
 }

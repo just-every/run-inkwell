@@ -146,7 +146,7 @@ export async function saveNoticeSettings(env: Env, actor: Actor, value: unknown)
   }
   if (input.connect !== undefined) {
     const connect = object(input.connect), channel = connect.channel as Hook
-    insist(channel in hookRules, 'Connect slack, teams or nook.')
+    insist(typeof channel === 'string' && Object.hasOwn(hookRules, channel), 'Connect slack, teams or nook.')
     if (connect.url === null) writes.push(env.DB.prepare('DELETE FROM iw_notice_channels WHERE operator_id=? AND channel=?').bind(actor.id, channel))
     else {
       let url: URL | undefined
