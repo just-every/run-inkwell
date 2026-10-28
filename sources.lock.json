@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "1da53224c2d0b23e7f8582bcc47a9d850d18af4a2d0cebe9dffc9a1bc4167904",
+      "sha256": "aae1dde743ee2fe027bd3eaa9f1a77a3903c106509f62fe37ae75a76d6edc922",
       "executable": false
     },
     "AGENTS.md": {
@@ -189,7 +189,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "c4cb4b82807f0452a80b78ca4a5838562b60da1173a4a4a0a1a0797b9b807691",
+      "sha256": "dee4ce4c85e72e3a3ccbd7da47825529e4f896349aed51b3ff3652205c43ef33",
       "executable": false
     },
     "DEMO.md": {
@@ -1457,7 +1457,7 @@
       "executable": false
     },
     "src/inkwell/filing.ts": {
-      "sha256": "e0ae2f23367d978d7b380e96530c21536521b5e489abced781d44421c3538635",
+      "sha256": "3a7f7b9ec076de13a1f7bea5ba581862078ebd96e9ac7ac4f98dc7d0bbf52cd7",
       "executable": false
     },
     "src/inkwell/followup-engine.ts": {
@@ -1529,7 +1529,7 @@
       "executable": false
     },
     "src/inkwell/hubspot-writeback-provider.ts": {
-      "sha256": "9c4a1ec498ce96f883b4ca28fe8a0287986cff458f99372eb96c58103e36bb0e",
+      "sha256": "cca0492766873011064d9c35bc77fb288b12f2b0f2898412c4b52bba0d09e23c",
       "executable": false
     },
     "src/inkwell/hubspot-writeback.ts": {
@@ -4309,7 +4309,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "7082b956e07c0054b89bbd1b4c38aee42364c30b2d9d7257d64ec619874d47ee",
+      "sha256": "efb6b0e1d654f8f3820b82469320b9aa75597d6149919d0a1881ebecb98e1fcc",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
@@ -4377,11 +4377,11 @@
       "executable": false
     },
     "tests/hubspot-edge.mjs": {
-      "sha256": "56400e8983af8e999130a656a82249fe50f306e7078ae6f958c73efbaf6a1e03",
+      "sha256": "23d4b47df32e9c0eaf1ae5325b23d1f8fe2af7915a9f0c368a322edf4539f811",
       "executable": false
     },
     "tests/hubspot-envelope.test.mjs": {
-      "sha256": "f0455c9d5779d8249672b83b6e2f52a296e6b2c51bb55d0e5f5d547029064786",
+      "sha256": "aa4870f7e6b09828f3fe36b217266d0bb52a4beed5b7b9b6474b09552d45618d",
       "executable": false
     },
     "tests/hubspot-sync.test.mjs": {

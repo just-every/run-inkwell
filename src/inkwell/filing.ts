@@ -60,7 +60,7 @@ export async function dispatchFiling(env: Env, envelopeId: string, retry = false
  if (envelope.testMode || envelope.status !== 'completed' || envelope.imported) return
  const jobs = (await env.DB.prepare("SELECT * FROM iw_filing_jobs WHERE envelope_id=? AND (state='pending' OR (?=1 AND (state='uncertain' OR state='sending' AND started_at<?)))").bind(envelopeId,retry?1:0,Date.now()-120_000).all<Job>()).results
  for (const job of jobs) {
-  const allowed = await env.DB.prepare("SELECT 1 FROM iw_filing_rules WHERE provider=? AND folder=? AND enabled=1 AND (folder_ref IS ? OR folder_ref=? OR (? IS NOT NULL AND folder_ref IS NULL)) AND template_id IN (SELECT json_extract(value,'$.id') FROM json_each(?))").bind(job.provider,job.folder,job.folder_ref,job.folder_ref,job.resolved_folder,JSON.stringify(envelope.templates??(envelope.template?[envelope.template]:[]))).first()
+  const allowed = await env.DB.prepare("SELECT 1 FROM iw_filing_rules WHERE provider=? AND folder=? AND enabled=1 AND (? IS NULL OR folder_ref IS ? OR folder_ref=? OR (? IS NOT NULL AND folder_ref IS NULL)) AND template_id IN (SELECT json_extract(value,'$.id') FROM json_each(?))").bind(job.provider,job.folder,job.folder_ref,job.folder_ref,job.folder_ref,job.resolved_folder,JSON.stringify(envelope.templates??(envelope.template?[envelope.template]:[]))).first()
   if (!allowed) { await env.DB.prepare("UPDATE iw_filing_jobs SET state='cancelled' WHERE envelope_id=? AND provider=? AND folder=? AND kind=? AND state<>'filed'").bind(envelopeId,job.provider,job.folder,job.kind).run(); continue }
 
   const claim = id(), token = credential(env,job.provider)
