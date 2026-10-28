@@ -1897,7 +1897,7 @@ Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BAS
 1. from a CRM-fake deal and email-fake thread, the agent drafts an envelope whose prefilled values each cite their source; the sender edits one and sends; a request with no matching template is refused with a reason.
 
 **Evidence.** `src/inkwell/agents.ts`, `tests/api.test.mjs`
-**Gap.** Agents prepare envelopes for human approval; no CRM or email context assembly
+**Gap.** Scoped preparation credentials are delivered. CRM and email context assembly, per-value confidence and provenance, and company-policy decisions for agent release are not delivered.
 
 #### AGENT-002 — Fill what is missing
 
@@ -1909,7 +1909,7 @@ Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BAS
 1. Under the held company policy, a draft missing the client signer’s title and W-9 produces questions to the correct people, merges both answers with their sources, and flags a reply changing the price for the policy’s commitment decision.
 
 **Evidence.** `tests/agent-workflows.test.mjs`, `docs/agent-workflows.md`
-**Gap.** Adopted conservative default awaiting an unprovided ruling: received W-9 PDFs are private source custody for current editors, never automatically signer-visible supplements. Missing-party discovery, arbitrary missing fields and CRM entity inconsistency detection remain unimplemented. Native HTTP doors ship; no new operator controls or live mailbox qualification is claimed.
+**Gap.** W-9 PDFs are retained as private source custody for current editors under the carried conservative boundary, awaiting an unprovided ct ruling. A company-policy path for publishing them as signer-visible supplements is not delivered. Missing-party discovery, arbitrary missing fields and CRM entity inconsistency detection remain unimplemented; native HTTP doors exist, with operator controls and live mailbox qualification unproved.
 
 #### AGENT-003 — Chase stalled signers under the sender's rules
 
@@ -1993,7 +1993,7 @@ Core · push-further · **partial** · Cites BASE-AGENT-002, BASE-AGENT-005, BAS
 1. Forward a vendor NDA; the specialist identifies the internal signer by role and prepares it. After the signer signs, return the executed copy within the grant and the company’s external-class policy.
 
 **Evidence.** `tests/agent-workflows.test.mjs`, `docs/agent-workflows.md`
-**Gap.** Adopted conservative default awaiting an unprovided ruling: owner-maintained business-role mapping, exact approved forwarder, and a separate owner return action under the current grant. Automatic organizational-role inference and intake from other agreement platforms remain unimplemented. Native HTTP doors ship; no new operator controls or live mailbox qualification is claimed.
+**Gap.** Native intake uses owner-maintained business-role mapping, the exact authorized forwarder and an owner return action within the current grant; that conservative boundary awaits an unprovided ct ruling. Automatic organizational-role inference, other agreement-platform intake and a company-policy external-return path are not delivered. Operator controls and live mailbox qualification are unproved.
 
 ## Agent surface
 
