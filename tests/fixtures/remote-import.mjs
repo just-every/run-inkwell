@@ -7,7 +7,7 @@ export async function remoteImportFake(provider) {
   const url=new URL(request.url),adobe=provider==='acrobat'
   if(url.hostname!==(adobe?'api.na1.adobesign.com':'api.hellosign.com'))return
   calls.push(url.pathname+url.search)
-  if(fail){fail=false;return new Response('synthetic-inkwell-provider-failure',{status:429})}
+  if(fail){fail=false;return new Response('synthetic-inkwell-provider-failure',{status:429,headers:{'retry-after':'120'}})}
   const path=url.pathname.replace(adobe?'/api/rest/v6':'/v3',''),json=value=>Response.json(value)
   if(path==='/users/me')return json({accountId:'synthetic-inkwell-1'})
   if(path==='/account')return json({account:{account_id:'synthetic-inkwell-1'}})
@@ -27,5 +27,5 @@ export async function remoteImportFake(provider) {
   if(path.endsWith('/combinedDocument')||path.endsWith('/auditTrail')||path.endsWith('/documents/pdf')||path.includes('/files/'))return new Response(pdf,{headers:{'content-type':'application/pdf'}})
   throw new Error('Unexpected import fake request: '+path)
  }
- return {edge,pdf,calls,failOnce:()=>{fail=true},unmapped:()=>{unknown=true}}
+ return {edge,pdf,calls,failOnce:()=>{fail=true},unmapped:()=>{unknown=true},mapped:()=>{unknown=false}}
 }
