@@ -35,7 +35,7 @@ export async function readSalesforceContactsPage(env: SalesforceEnv, credential:
     const selected=definition.scope.kind==='selected'?` WHERE Id IN (${definition.scope.recordIds!.map(id=>"'"+id+"'").join(',')})`:''
     path='/services/data/v64.0/query?'+new URLSearchParams({q:`SELECT Id,${definition.properties.join(',')} FROM Contact${selected} ORDER BY Id`})
   }
-  const data=await salesforceRequest(env,credential,path)
+  const data=await salesforceRequest(env,credential,path,{headers:{'Sforce-Query-Options':'batchSize=200'}})
   insist(Array.isArray(data.records)&&data.records.length<=200&&typeof data.done==='boolean','Salesforce returned an invalid contact page.',502)
   const next=data.done?null:text(data.nextRecordsUrl,'a Salesforce continuation',200)
   insist(next===null||/^\/services\/data\/v64\.0\/query\/[A-Za-z0-9_-]+$/.test(next)&&next!==cursor,'Salesforce returned an invalid continuation.',502)
