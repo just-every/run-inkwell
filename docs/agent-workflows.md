@@ -25,3 +25,10 @@ After completion the owner may call `POST /api/inkwell/inbound-return` with `id`
 Private replies and source PDFs travel in the administrative document export and whole-installation archive, follow envelope retention and legal holds, and are removed with envelope erasure. Active addresses, grants, replay state and credentials are excluded from archives. Restoring custody grants no inbound or return authority. Account audit projections contain opaque references and outcomes, never reply text or source capabilities. Member or share authority loss permanently suspends the affected standing authority.
 
 Adopted conservative defaults pending CT review: W-9 source PDFs are private to current envelope editors; inbound authority uses an owner-maintained business-role mapping and an exact approved forwarder; returning the executed copy requires a separate owner action under the live grant. Both agent clauses remain partial while these defaults and the named implementation gaps await review. This is no legal, identity or provider-delivery certification.
+
+## Company-agent boundary
+
+These native workflows do not yet constitute an adopted company-agent MCP
+surface. The [shared-door status and consent boundary](agent-door.md) explains
+the native people mapping and the missing verified consent context for deferred
+effects. Existing preparation credentials keep their narrow purpose.
