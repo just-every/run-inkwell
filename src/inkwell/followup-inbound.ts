@@ -86,12 +86,24 @@ export async function receiveFollowupReply(env: Env, request: Request): Promise<
     const message = await providerJson(env, `/emails/receiving/${emailId}?html_format=cid`, messageLimit)
     insist(message.id === emailId, providerFailure, 503)
     if(await receiveAgentMessage(env,eventId,emailId,message))return Response.json({ok:true,received:true})
+    await keepFetchedReply(env,message,emailId,eventId,'resend',async()=>await normalizeInbound({provider:'resend',signedEmailId:emailId,email:message,fetchAttachment:createResendAttachmentFetcher({apiKey:env.MAIL_INBOUND_API_KEY!,maxAttachmentBytes:attachmentLimit})},{maxRawBytes:messageLimit,maxBodyBytes:messageLimit,maxAttachments:100,maxAttachmentBytes:attachmentLimit,maxTotalAttachmentBytes:attachmentLimit}))
+    return Response.json({ ok: true, received: true }, { headers: { 'cache-control': 'no-store' } })
+  } catch (error) {
+    // Never return provider bodies or errors, addresses, headers, capabilities or reply text.
+    const refusal = error instanceof Refusal ? error : new Refusal('The inbound reply could not be processed completely.', 503)
+    return Response.json({ ok: false, error: refusal.message }, { status: refusal.status, headers: { 'cache-control': 'no-store' } })
+  }
+}
+
+/** All connected email providers pass through the same capability, sender and atomic custody gates. */
+export async function keepFetchedReply(env:Env,message:Json,emailId:string,eventId:string,provider:'resend'|'gmail',normalize:(checkCurrent:()=>Promise<void>)=>Promise<{text?:string|null;html?:string|null;attachments:{filename:string;contentType:string;content:Uint8Array}[]}>) {
+    insist(env.MAIL_INBOUND_DOMAIN,'Inbound replies are not configured.',503)
     const to = strings(message.to), domain = env.MAIL_INBOUND_DOMAIN.toLowerCase()
     const tokens = [...new Set(to.filter(address => mailbox(address)?.endsWith(`@${domain}`)).map(address => address.match(/reply\+([A-Za-z0-9_-]{43})@/i)?.[1]).filter((token): token is string => Boolean(token)))]
     insist(tokens.length === 1, 'This message has no unique current reply address.', 403)
     const token = tokens[0], capability = await resolveReplyCapability(env, token)
     insist(capability, 'This reply address is unknown or no longer current.', 403)
-    const normalized=await normalizeInbound({provider:'resend',signedEmailId:emailId,email:message,fetchAttachment:createResendAttachmentFetcher({apiKey:env.MAIL_INBOUND_API_KEY,maxAttachmentBytes:attachmentLimit})},{maxRawBytes:messageLimit,maxBodyBytes:messageLimit,maxAttachments:100,maxAttachmentBytes:attachmentLimit,maxTotalAttachmentBytes:attachmentLimit})
+    const normalized=await normalize(async()=>{insist(await resolveReplyCapability(env,token),'This reply address is no longer current.',409)})
     const sourceHeaders = record(message.headers), headers = new Map(Object.entries(sourceHeaders).map(([name, value]) => [name.toLowerCase(), field(value, 64 * 1024)]))
     const from = field(message.from), normalizedFrom = mailbox(from)
     const verified = Boolean(normalizedFrom && normalizedFrom === mailbox(followupRecipient(capability.envelope,capability.signer).email) &&
@@ -102,7 +114,7 @@ export async function receiveFollowupReply(env: Env, request: Request): Promise<
     const scrub = (value: string) => value.replace(/reply\+[A-Za-z0-9_-]{43}@[^\s<>"']+/gi, 'reply+[capability omitted]').replace(new RegExp(token, 'gi'), '[capability omitted]')
     const reply: FollowupReply = {
       automatic: /^(?:auto-replied|auto-generated)$/i.test(headers.get('auto-submitted')??'') || /^(?:yes|true|auto-replied)$/i.test(headers.get('x-autoreply')??headers.get('x-autorespond')??'') || headers.has('x-ms-exchange-inbox-rules-loop'),
-      id: crypto.randomUUID(), receivedAt: new Date().toISOString(), provider: 'resend', providerMessageId: emailId, verified,
+      id: crypto.randomUUID(), receivedAt: new Date().toISOString(), provider, providerMessageId: emailId, verified,
       senderLabel: verified ? 'provider-reported sender' : 'unverified sender, provider-reported',
       headers: { from: scrub(headers.get('from') ?? from), to: to.map(scrub), date: scrub(headers.get('date') ?? ''), subject: scrub(field(message.subject, 64 * 1024)),
         messageId: scrub(field(message.message_id)), inReplyTo: scrub(headers.get('in-reply-to') ?? ''), autoSubmitted: scrub(headers.get('auto-submitted') ?? '') },
@@ -110,10 +122,4 @@ export async function receiveFollowupReply(env: Env, request: Request): Promise<
       attachments: await Promise.all(normalized.attachments.map(async attachment=>({name:scrub(attachment.filename),type:scrub(attachment.contentType),size:attachment.content.byteLength,sha256:Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',attachment.content as BufferSource)),byte=>byte.toString(16).padStart(2,'0')).join(''),status:'not kept by Inkwell' as const}))),
     }
     await storeReply(env, capability.envelope, capability.signer, reply, eventId)
-    return Response.json({ ok: true, received: true }, { headers: { 'cache-control': 'no-store' } })
-  } catch (error) {
-    // Never return provider bodies/errors, addresses, headers, capabilities or reply text.
-    const refusal = error instanceof Refusal ? error : new Refusal('The inbound reply could not be processed completely.', 503)
-    return Response.json({ ok: false, error: refusal.message }, { status: refusal.status, headers: { 'cache-control': 'no-store' } })
-  }
 }

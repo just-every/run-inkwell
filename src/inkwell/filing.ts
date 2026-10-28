@@ -2,31 +2,32 @@ import { appendEvent, canonical, insist, now, text, id, type Env, type Envelope,
 import { atomic, commandWrite, roleGuard, getEnvelope } from './storage'
 import { loadTemplate } from './templates'
 import { readBlob } from './blobs'
+import { fileGoogle } from './google'
 import { dropboxFolder, fileArtifact, reconcileMovedDropboxArtifact, type FilingProvider } from './filing-provider'
 import type { CommandContext } from './envelopes'
 
 export const filingConsent = 'I authorize automatic transfer of completed PDFs and certificates from this template to the selected provider folder.'
 interface Rule { template_id: string; provider: FilingProvider; folder: string; enabled: number; version: number; actor: string; at: string; folder_ref?:string|null }
 interface Job { envelope_id: string; provider: FilingProvider; folder: string; kind: 'signed' | 'certificate'; sha256: string; state: string; remote_id: string | null; filed_at: string | null; folder_ref:string|null;resolved_folder:string|null;folder_repair_json:string|null }
-const credential = (env: Env, provider: FilingProvider) => provider === 'sharepoint' ? env.MICROSOFT_GRAPH_ACCESS_TOKEN : provider === 'box' ? env.BOX_ACCESS_TOKEN : env.DROPBOX_ACCESS_TOKEN
+const credential = (env: Env, provider: FilingProvider) => provider === 'google' ? env.GOOGLE_ACCESS_TOKEN : provider === 'sharepoint' ? env.MICROSOFT_GRAPH_ACCESS_TOKEN : provider === 'box' ? env.BOX_ACCESS_TOKEN : env.DROPBOX_ACCESS_TOKEN
 function administrator(actor: Actor) { insist(['owner','admin'].includes(actor.role) && actor.sessionId && !actor.apiKeyId && !actor.agentId, 'Only a signed-in owner or admin can manage automatic filing.', 403) }
 export async function filingView(env: Env, actor: Actor) {
  administrator(actor)
  const rules = (await env.DB.prepare('SELECT * FROM iw_filing_rules ORDER BY template_id,provider').all<Rule>()).results
  const jobs = (await env.DB.prepare('SELECT j.*,json_extract(e.data,\'$.title\') AS title FROM iw_filing_jobs j JOIN iw_envelopes e ON e.id=j.envelope_id ORDER BY j.rowid DESC LIMIT 40').all<Job & {title:string}>()).results
- return { owner:actor.role==='owner', providers: { sharepoint: Boolean(env.MICROSOFT_GRAPH_ACCESS_TOKEN), box: Boolean(env.BOX_ACCESS_TOKEN), dropbox: Boolean(env.DROPBOX_ACCESS_TOKEN) }, rules, jobs, consent: filingConsent }
+ return { owner:actor.role==='owner', providers: { google: Boolean(env.GOOGLE_ACCESS_TOKEN), sharepoint: Boolean(env.MICROSOFT_GRAPH_ACCESS_TOKEN), box: Boolean(env.BOX_ACCESS_TOKEN), dropbox: Boolean(env.DROPBOX_ACCESS_TOKEN) }, rules, jobs, consent: filingConsent }
 }
 export async function saveFiling(env: Env, context: CommandContext, input: Record<string,unknown>) {
  administrator(context.actor)
  const templateId = text(input.templateId,'a template ID',100), provider = input.provider
- insist(provider === 'box' || provider === 'dropbox' || provider === 'sharepoint', 'Choose Box, Dropbox or SharePoint.')
+ insist(provider === 'box' || provider === 'dropbox' || provider === 'google' || provider === 'sharepoint', 'Choose Box, Dropbox, Google Drive or SharePoint.')
  await loadTemplate(env,context.actor,templateId,'manage')
  insist(typeof input.enabled === 'boolean', 'Choose whether automatic filing is enabled.')
  insist(!input.enabled || input.consent === true, 'Explicitly authorize automatic transfer before enabling filing.')
  insist(!input.enabled || credential(env,provider), 'Configure the provider credential in this installation first.', 409)
  const folder = typeof input.folder === 'string' ? input.folder.trim() : ''
  insist(folder.length <= 1000 && !/[\\\x00-\x1f\x7f]/.test(folder), 'Provide a valid provider folder.')
- insist(provider === 'sharepoint' ? /^[A-Za-z0-9!_-]+:[A-Za-z0-9!_-]+$/.test(folder) : provider === 'box' ? /^\d+$/.test(folder) : folder === '' || folder.startsWith('/') && !folder.endsWith('/') && !folder.includes('//') && !folder.split('/').some(p=>p==='.'||p==='..'), 'Use a Box folder ID, an absolute Dropbox path, or SharePoint drive ID followed by a colon and folder ID.')
+ insist(provider === 'google' ? /^[A-Za-z0-9_-]+$/.test(folder) : provider === 'sharepoint' ? /^[A-Za-z0-9!_-]+:[A-Za-z0-9!_-]+$/.test(folder) : provider === 'box' ? /^\d+$/.test(folder) : folder === '' || folder.startsWith('/') && !folder.endsWith('/') && !folder.includes('//') && !folder.split('/').some(p=>p==='.'||p==='..'), 'Use a Box folder ID, an absolute Dropbox path, a Google Drive folder ID, or SharePoint drive ID followed by a colon and folder ID.')
  const folderRef=input.enabled&&provider==='dropbox'&&folder!==''&&folder!=='/'?(await dropboxFolder(credential(env,provider)!,folder)).id:null
  const before = await env.DB.prepare('SELECT * FROM iw_filing_rules WHERE template_id=? AND provider=?').bind(templateId,provider).first<Rule>()
  insist(input.expectedVersion === (before?.version ?? 0), 'Filing settings changed. Refresh and try again.',409)
@@ -82,7 +83,7 @@ export async function dispatchFiling(env: Env, envelopeId: string, retry = false
    // An old unpinned job may already exist in a moved folder. Recovery never uploads again.
    const legacy=job.provider==='dropbox'&&!job.folder_ref&&job.folder!==''&&job.folder!=='/'
    const legacyFolder=legacy?await dropboxFolder(token,target):null
-   const receipt = legacyFolder?await reconcileMovedDropboxArtifact(token,legacyFolder.id,legacyFolder.path,filename,bytes):job.provider==='dropbox'&&job.resolved_folder&&job.folder_ref?await reconcileMovedDropboxArtifact(token,job.folder_ref,target,filename,bytes):await fileArtifact(job.provider,token,target,filename,bytes)
+   const receipt = job.provider==='google'?await fileGoogle(env,target,filename,bytes):legacyFolder?await reconcileMovedDropboxArtifact(token,legacyFolder.id,legacyFolder.path,filename,bytes):job.provider==='dropbox'&&job.resolved_folder&&job.folder_ref?await reconcileMovedDropboxArtifact(token,job.folder_ref,target,filename,bytes):await fileArtifact(job.provider,token,target,filename,bytes)
    await env.DB.prepare("UPDATE iw_filing_jobs SET state='filed',remote_id=?,filed_at=?,claim=NULL WHERE envelope_id=? AND provider=? AND folder=? AND kind=? AND claim=?").bind(receipt.id,now(),envelopeId,job.provider,job.folder,job.kind,claim).run()
   } catch {
    await env.DB.prepare("UPDATE iw_filing_jobs SET state='uncertain',claim=NULL WHERE envelope_id=? AND provider=? AND folder=? AND kind=? AND claim=?").bind(envelopeId,job.provider,job.folder,job.kind,claim).run()
