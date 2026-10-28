@@ -47,9 +47,9 @@ export async function reconcileFile(env:Env,c:HubspotCredential,e:Envelope):Prom
   return file.id
 }
 export async function findMovedFile(env:Env,c:HubspotCredential,e:Envelope) {
-  const name=completedFilename(e),result=await hubspotRequest(env,c,`/files/v3/files/search?name=${encodeURIComponent(name)}&limit=2`)
+  const filename=completedFilename(e),name=filename.slice(0,-4),result=await hubspotRequest(env,c,`/files/v3/files/search?name=${encodeURIComponent(name)}&limit=2`)
   insist(Array.isArray(result.results)&&!result.paging,'HubSpot moved-file reconciliation is incomplete.',502)
-  const matches=result.results.map(object).filter(file=>file.name===name&&file.path!==`/inkwell/${name}`)
+  const matches=result.results.map(object).filter(file=>file.name===name&&file.extension==='pdf'&&typeof file.path==='string'&&file.path.endsWith('/'+filename)&&file.path!==`/inkwell/${filename}`)
   insist(matches.length<=1,'More than one moved executed PDF matches. Resolve the provider conflict first.',409)
   if(!matches.length)return undefined
   const file=matches[0]
