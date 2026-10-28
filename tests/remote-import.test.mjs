@@ -24,6 +24,18 @@ for(const provider of ['acrobat','dropbox'])test(`${provider}: reviewed API impo
   assert.deepEqual(unmapped.items.filter(v=>v.kind==='envelope').map(v=>v.owner),['owner@harbour.example','owner@harbour.example'])
   assert.deepEqual(unmapped.unmapped.filter(v=>v.reason.includes('assigned to')).map(v=>v.sourceId),['first','second'])
   fake.mapped()
+  fake.unsupported(true)
+  const unsupported=(await h.post('/api/inkwell/remote-import/preview',input)).value
+  assert.deepEqual(unsupported.counts,{agreements:2,templates:0})
+  assert.ok(unsupported.unmapped.some(v=>v.sourceId==='template'&&v.reason.includes('skipped')))
+  fake.unsupported(false)
+  if(provider==='dropbox'){
+   fake.shared(true)
+   const shared=(await h.post('/api/inkwell/remote-import/preview',input)).value
+   assert.equal(shared.items.find(v=>v.kind==='template').owner,'owner@harbour.example','shared access does not identify a template creator')
+   assert.ok(shared.unmapped.some(v=>v.sourceId==='template'&&v.reason.includes('assigned to')))
+   fake.shared(false)
+  }
   const preview=(await h.post('/api/inkwell/remote-import/preview',input)).value
   assert.deepEqual(preview.counts,{agreements:2,templates:1})
   assert.deepEqual(preview.items.map(v=>[v.kind,v.owner]),[['envelope','first@example.test'],['envelope','second@example.test'],['template','first@example.test']])
@@ -50,9 +62,12 @@ for(const provider of ['acrobat','dropbox'])test(`${provider}: reviewed API impo
   assert.deepEqual((await h.send(`/api/inkwell/envelopes/${known.id}/artifacts/certificate`,undefined,a)).bytes,new Uint8Array(fake.audit))
   assert.deepEqual((await h.send('/api/inkwell/templates',undefined,a)).value.templates.map(t=>t.id),[template.id])
   assert.deepEqual((await h.send('/api/inkwell/templates',undefined,b)).value.templates,[])
-  await h.command('template.use',{id:template.id,recipients:[{name:'New client',email:'new.client@example.test'}]},b,404)
-  const sent=await h.command('template.use',{id:template.id,recipients:[{name:'New client',email:'new.client@example.test'}]},a)
-  assert.equal((await h.send(`/api/inkwell/envelopes/${sent.result.id}`,undefined,a)).value.envelope.status,'prepared')
+  await h.command('template.use',{id:template.id,recipients:[{name:'New client',email:'new.client@example.test'},{name:'Reviewer',email:'reviewer@example.test'}]},b,404)
+  const sent=await h.command('template.use',{id:template.id,recipients:[{name:'New client',email:'new.client@example.test'},{name:'Reviewer',email:'reviewer@example.test'}]},a)
+  const prepared=(await h.send(`/api/inkwell/envelopes/${sent.result.id}`,undefined,a)).value.envelope
+  assert.equal(prepared.status,'prepared')
+  assert.deepEqual(prepared.fields.map(f=>[f.id,f.type,f.signer,f.page]),[['signature','signature',0,0],['reference','text',0,0],['review','signature',1,0]],'documented provider fields survive template use with the correct recipient')
+  assert.equal(prepared.fields[0].y,provider==='acrobat'?(prepared.pageSizes[0].height-80-40)/prepared.pageSizes[0].height:80/prepared.pageSizes[0].height,'provider coordinate origin is preserved')
   await h.command('envelope.approve',{id:sent.result.id,eligible:true},a)
   assert.match((await h.mail('new.client@example.test','Please sign:')).text,/sign/)
   const read=async id=>(await h.send(`/api/inkwell/envelopes/${id}`,undefined,h.owner)).value.envelope
