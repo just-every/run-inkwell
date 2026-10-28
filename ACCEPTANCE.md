@@ -1698,7 +1698,7 @@ Core · target · **missing** · Cites BASE-DATA-004, BASE-OPS-003 · Rules D-2 
 
 Core · target · **partial** · Cites BASE-DATA-004, BASE-OPS-003 · Rules D-2 · Register R-9
 
-**Requirement.** A template can require a payment, deposit, saved card or ACH mandate when the signer signs, collected through the buyer’s Stripe account using Payment Element or Checkout. The envelope completes only after Stripe confirms the required outcome. The [detailed record rules](docs/contract/record-rules.md#integ-010) apply.
+**Requirement.** A template can require a payment, deposit, saved card or ACH mandate when the signer signs, collected through the buyer’s Stripe account using Payment Element or Checkout. The envelope completes only after Stripe confirms the required outcome. The [detailed record rules](docs/contract/record-rules.md#integ-010) apply. The interim Stripe route follows RL-8: test-mode hosted Checkout, separate consent by the assigned authenticated signer, frozen requirements and reference-only custody; restored references carry no active collection authority. The complete Payment Element, refund, dispute, receipt, tax, recurring and live-mode target remains required.
 
 **Acceptance.**
 1. in Stripe test mode, a signer pays a 500 USD deposit and the envelope completes with the payment reference; a declined card leaves the envelope waiting with the signature unsaved.

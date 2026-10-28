@@ -1,6 +1,6 @@
 Agreement record rules
 
-These detailed definitions govern preparation, routing, signing and custody. The contract links each capability to its corresponding definition. An implementation note records a boundary without reducing the target.
+These detailed definitions govern preparation, routing, signing and custody. The contract links each capability to its corresponding definition. An implementation note records a boundary without reducing the target. Current company-policy decisions supersede legacy agent disposition and business-limit presets in these protocols; record identity, scope, validation and custody remain required.
 
 ## HTTP-001
 
@@ -1562,7 +1562,7 @@ Assemble the envelope from CRM and email context
 
 *What the agent does:* from a request ("send the MSA to Acme") or a deal stage change, picks the approved template, fills roles and fields from the CRM record and the email thread with the customer, and proposes signers with their authority (title, entity).
 *Data:* the CRM record (Orbit, HubSpot, Salesforce), the granted mailbox thread (Gmail, Outlook), templates and contacts.
-*Human control:* the sender sees a draft envelope with each value's source and confidence and approves sending; the agent cannot send, and a value it could not source stays empty.
+The current contract’s risk classes and company policy replace the former control presets.
 
 ## AGENT-002
 
@@ -1570,7 +1570,7 @@ Fill what is missing
 
 *What the agent does:* before sending, detects missing parties, fields, attachments and inconsistencies (an entity name that differs from the CRM, a missing signer title, a W-9 not attached) and asks the right person (sender, colleague or recipient) by email with one specific question, then merges the answer with its provenance.
 *Data:* the draft envelope, CRM record and replies.
-*Human control:* the sender approves who may be asked; changes to material terms are flagged for the sender and never applied by the agent.
+The current contract’s risk classes and company policy replace the former control presets.
 Implemented native-door semantics and remaining Gap: Adopted conservative default pending CT: received W-9 PDFs are private source custody for current editors, never automatically signer-visible supplements.
 
 ## AGENT-003
@@ -1579,7 +1579,7 @@ Chase stalled signers under the sender's rules
 
 *What the agent does:* watches each recipient's events (not opened, opened and left, bounced, out-of-office replies, repeated views), tells apart an unavailable signer, a bad address and a substantive objection, and follows up by allowed channels and times with a message suited to the cause; an objection goes to the sender (or Locket) instead of another reminder.
 *Data:* delivery and signing events, replies in the granted mailbox, the CRM owner.
-*Human control:* the sender sets channels, maximum contacts, quiet hours and the escalation owner; the agent never negotiates or changes the document.
+The current contract’s risk classes and company policy replace the former control presets.
 Exact semantics (ct, 22 Oct): a follow-up grant is an explicit, versioned, per-envelope authorization for Inkwell's built-in agent, given by whoever may change the envelope (ADMIN-001).
 It is never a credential, and no preparation token, API key or OAuth grant can create, use or read it.
 It sets channels (email; SMS with IDV-002), at most 1-10 contacts per recipient (default 3, counting DELIV-003 reminders sent under it), allowed days and hours in the account's US zone, and an escalation owner who can read the envelope.
@@ -1603,7 +1603,7 @@ Verify the intended revision and parties
 
 *What the agent does:* before sending and at completion, compares the documents against the approved revision (Locket's approved version or the template version) page by page, checks every required party signed in the right capacity for the right entity, and checks every required field is complete and plausible.
 *Data:* the envelope's fingerprints and documents, the approved revision, CRM signatory data.
-*Human control:* a mismatch raises an exception the sender must resolve; the agent cannot alter a completed record.
+The current contract’s risk classes and company policy replace the former control presets.
 
 ## AGENT-005
 
@@ -1611,7 +1611,7 @@ Complete the downstream work
 
 *What the agent does:* after a verified completion, moves the CRM deal stage, files the record to Locket and the file store, and creates the next task (customer onboarding, invoice draft in Nectar or Pantry, HR onboarding in Willow), each once, with a receipt per effect.
 *Data:* the completed record and the standing grants.
-*Human control:* standing grants name the systems, fields and task types; the agent never creates a charge or binds a contract; failed effects stay open and visible.
+The current contract’s risk classes and company policy replace the former control presets.
 
 ## AGENT-006
 
@@ -1619,7 +1619,7 @@ Keep integrations correct
 
 *What the agent does:* reconciles webhook deliveries and connector state against Inkwell's records, detects drift (a renamed CRM field, a moved folder, an expired token), proposes the mapping repair and proves a replay causes no duplicate.
 *Data:* webhook logs, connector configurations and the remote API state under grant.
-*Human control:* the owner approves scope changes and repairs; uncertain remote effects stay unresolved until confirmed.
+The current contract’s risk classes and company policy replace the former control presets.
 
 ## AGENT-007
 
@@ -1627,7 +1627,7 @@ Keep templates current
 
 *What the agent does:* learns from senders' repeated corrections (fields always added, recipients always changed) and outside changes (a new IRS W-9 revision, a new company address) and proposes a template revision with its reasons.
 *Data:* envelopes sent from the template and their corrections.
-*Human control:* the template owner reviews the diff and publishes a new version (`TMPL-003`); nothing changes without them.
+The current contract’s risk classes and company policy replace the former control presets.
 The template maker opens suggestions on Templates.
 Three distinct envelopes with the same correction establish repetition; a replacement PDF recorded in a corrected envelope is a source revision to review even on its own.
 Fields, their placement and prepared values, role count and routing, and replacement PDF fingerprints are compared against the template version the envelope came from.
@@ -1643,7 +1643,7 @@ Signer assistant
 
 *What the agent does:* answers a signer's questions about what they are being asked to fill and sign, citing the page and passage, and explains each field in plain English or Spanish.
 *Data:* only the envelope's documents visible to that signer.
-*Human control:* the assistant gives no legal advice, cannot fill or sign, and a signer's questions are private unless they choose to send them to the sender.
+The current contract’s risk classes and company policy replace the former control presets.
 
 ## AGENT-009
 
@@ -1651,8 +1651,7 @@ Inbound agreements
 
 *What the agent does:* reads agreements forwarded to the account's Inkwell address or arriving from other platforms for the business to sign, identifies who internally should sign, prepares the internal signing and tracks the counterparty's request.
 *Data:* the forwarded email and attachments.
-*Human control:* the named internal signer approves and signs; the agent never signs and never replies to the counterparty without the owner's grant.
-The account inbound address inherits AGENT-003’s signed, fresh, replay-protected reply intake, visibility, no-text logging and envelope retention rules before shipping.
+The current contract’s risk classes and company policy replace the former control presets.
 Implemented native-door semantics and remaining Gap: Adopted conservative default pending CT: owner-maintained business-role mapping, exact approved forwarder, and a separate owner return action under the current grant.
 
 ## HubSpot contact sync

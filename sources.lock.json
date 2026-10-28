@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "1cc14608a674b520cf48abd81f66510431456b9c99d3d2ed47bc666b774c12e1",
+      "sha256": "984b2e1887071b557f32e0f7c5d20bf486e5e895a00f5030bdfd5346c0a85fdf",
       "executable": false
     },
     "AGENTS.md": {
@@ -185,7 +185,7 @@
       "executable": false
     },
     "CHANGELOG.md": {
-      "sha256": "2da5851a111567225cc4abe344efa9cf11ddb43e4330c1c605e690177ecbc656",
+      "sha256": "8a4a35f241893ff667ad8b678a92d636c5b4d8bba2e0d145e2d1cb571b771c28",
       "executable": false
     },
     "composition.lock.json": {
@@ -193,7 +193,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "5207a51881fbd25a0202ad1dd9f54b9065773a44152eec65e79f914d278855b4",
+      "sha256": "f1e356c761b79c9662069f8f8223dc44d7cc2e31199c65bcf2c728cd8e7cf5bc",
       "executable": false
     },
     "DEMO.md": {
@@ -249,7 +249,7 @@
       "executable": false
     },
     "docs/contract/record-rules.md": {
-      "sha256": "9f1f54fa9af437a2259b140df79ff844e04546a49f79c3634693b015f154eab0",
+      "sha256": "c0f172ac0f9435b57cda7de430a6e2f11bbc7623ab11c9f3a942cacf7e3f34a5",
       "executable": false
     },
     "docs/deploy.md": {
