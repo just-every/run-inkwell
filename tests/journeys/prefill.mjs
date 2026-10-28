@@ -39,7 +39,9 @@ try {
   await page.getByLabel('Source (reported by sender or API)',{exact:true}).fill('Sender correction')
   await axe(page,`PREP-008 draft inspector ${width}`);await address.scrollIntoViewIfNeeded();await capture('draft-inspector')
   await page.getByRole('button',{name:'Save draft',exact:true}).click();await page.getByRole('button',{name:'Edit draft',exact:true}).waitFor()
-  const invitation=(await app.command('envelope.approve',{id,eligible:true})).invitations[0]
+  await app.command('envelope.approve',{id,eligible:true})
+  // Explicitly reissue the invitation so a lost approval response needs no recovered secret.
+  const invitation=(await app.command('envelope.invite',{id})).invitations[0]
   const signer=await context.newPage();signer.setDefaultTimeout(20000);await signer.goto(invitation.url)
   await signer.getByLabel('Verification code',{exact:true}).fill(invitation.code);await signer.getByRole('button',{name:'Verify code',exact:true}).click();await signer.getByRole('checkbox',{name:/I have read the electronic record/}).check();await signer.getByRole('button',{name:'Agree and continue',exact:true}).click()
   const form=signer.locator('.iw-sign-fields'),company=form.getByRole('textbox',{name:/^Company/}),amount=form.getByRole('textbox',{name:/^Amount USD/})

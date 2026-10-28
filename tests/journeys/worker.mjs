@@ -33,7 +33,7 @@ export async function startInkwell() {
     let output = ''
     worker.stdout.on('data', chunk => { output += chunk })
     worker.stderr.on('data', chunk => { output += chunk })
-    browser = await chromium.launch({ headless: true, args: ['--use-mock-keychain', '--password-store=basic'] })
+    browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH, args: [...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? ['--no-sandbox'] : []), '--use-mock-keychain', '--password-store=basic'] })
     for (let attempt = 0; attempt < 120; attempt++) {
       if (worker.exitCode !== null) throw new Error(output)
       try { if ((await fetch(`${origin}/health`)).ok) break } catch {}
@@ -46,8 +46,23 @@ export async function startInkwell() {
     const setup = await fetch(`${origin}/setup`, { method: 'POST', redirect: 'manual', headers: { origin, cookie: owner, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ displayName: 'Harbour Owner', confirm: 'yes' }) })
     assert.ok([200, 303].includes(setup.status), `setup: ${setup.status}`)
     const command = async (name, input) => {
-      const response = await fetch(`${origin}/api/inkwell/commands`, { method: 'POST', headers: { origin, cookie: owner, 'content-type': 'application/json' }, body: JSON.stringify({ command: name, input, commandId: crypto.randomUUID() }) })
-      const value = await response.json(); assert.equal(response.status, 200, JSON.stringify(value)); return value.result
+      // A local workerd connection can close after commit. Reuse the command receipt
+      // on one transport retry; a new ID could duplicate a preparation or invitation.
+      const body = JSON.stringify({ command: name, input, commandId: crypto.randomUUID() })
+      for (let attempt = 0; attempt < 2; attempt++) {
+        let response
+        try {
+          response = await fetch(`${origin}/api/inkwell/commands`, { method: 'POST', headers: { origin, cookie: owner, 'content-type': 'application/json' }, body })
+        } catch (error) {
+          if (attempt === 0 && ['UND_ERR_SOCKET', 'ECONNRESET'].includes(error.cause?.code)) continue
+          throw error
+        }
+        const text = await response.text()
+        if (attempt === 0 && response.status === 500 && text.trim() === 'Error: Network connection lost.') continue
+        assert.equal(response.status, 200, `command ${name}: HTTP ${response.status}`)
+        const value = JSON.parse(text)
+        return value.result
+      }
     }
     // A browser context signed in as the owner, for operator screens.
     const ownerCookie = () => ({ name: owner.slice(0, owner.indexOf('=')), value: owner.slice(owner.indexOf('=') + 1), url: origin })
