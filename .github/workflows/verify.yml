@@ -2,7 +2,7 @@ name: Verify
 
 on:
   push:
-    branches: [main, cloud/sx-inkwell-c-f2, cloud/sx-inkwell-c-i953, cloud/sx-inkwell-u1, cloud/sx-inkwell-x-move-004]
+    branches: [main, cloud/sx-inkwell-c-pk2, cloud/sx-inkwell-c-f2, cloud/sx-inkwell-c-i953, cloud/sx-inkwell-u1, cloud/sx-inkwell-x-move-004]
   workflow_dispatch:
 
 permissions:

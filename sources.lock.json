@@ -157,7 +157,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "4ea5dae7dae3926ddea2980fa2a36d6e01ec79740c980629cd016cae529fd4f9",
+      "sha256": "2dac73f48b0cbe09fff809b15fb38549b3420539904907ebbe335af334fd60ef",
       "executable": false
     },
     ".gitignore": {
@@ -1685,7 +1685,7 @@
       "executable": false
     },
     "src/inkwell/notices.ts": {
-      "sha256": "9fb365f90700e21b09832625c0cd085dc75ef3563245ff7e2d37265df817da51",
+      "sha256": "0fd2f8442a833c3700b48664f0ae94e8e8884b467025156e929d32094ba075ce",
       "executable": false
     },
     "src/inkwell/own-signing.ts": {
@@ -1733,7 +1733,7 @@
       "executable": false
     },
     "src/inkwell/pdf-layout.ts": {
-      "sha256": "0f1576afb6cc5def466a90dab93ce8e584af05f99876036a03768b7c5074acfd",
+      "sha256": "c94ede7a9c05be9bed9dcc1b438acf211428e892fd1f960993b34b43c4d099d1",
       "executable": false
     },
     "src/inkwell/pdf-text.ts": {
@@ -4365,7 +4365,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "70d78be124032def0d93752cddda0752502d85dc417a0bf4f94c0668403466dc",
+      "sha256": "20830871e7a1f3413e6662b09cf09bfcaaad2c8612ca3b3abed66aed6a67e603",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
