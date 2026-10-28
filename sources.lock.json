@@ -4777,7 +4777,7 @@
       "executable": false
     },
     "tests/send-policies.test.mjs": {
-      "sha256": "004fa023979fb0321a3d041a7d391a8e0294437a2487cca95c776e0714de4741",
+      "sha256": "cf2ea20139e0fac0ea9b1816749f63d2127d549f6fe503063c28a87fbff2a3cf",
       "executable": false
     },
     "tests/supplements.test.mjs": {
