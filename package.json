@@ -18,7 +18,7 @@
     "test:journey": "rer queue test:journey -- node tests/journeys/run.mjs",
     "onboard": "node scripts/install.mjs",
     "build:app": "rer queue build:app -- sh -c \"vite build\"",
-    "verify:app": "rer queue verify:app -- sh -c \"node scripts/edition-authoring/cli.mjs check && pnpm run build && pnpm run typecheck && pnpm run test:api && pnpm run test:runtime && pnpm run test:journey\"",
+    "verify:app": "rer queue verify:app -- node scripts/verify-app.mjs",
     "reset": "rer reset",
     "export": "rer export",
     "import": "rer import",

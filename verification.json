@@ -1,0 +1,71 @@
+{
+  "push": [
+    {
+      "name": "partition-1",
+      "browser": true,
+      "hosted": true,
+      "commands": [
+        "pnpm exec rer check --profile first-party",
+        "node scripts/edition-authoring/cli.mjs check",
+        "pnpm run build",
+        "pnpm run typecheck",
+        "INKWELL_JOURNEY_SHARD=1/4 pnpm run test:api",
+        "pnpm run test:runtime",
+        "INKWELL_JOURNEY_SHARD=1/4 pnpm run test:journey"
+      ]
+    },
+    {
+      "name": "partition-2",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "pnpm exec rer check --profile first-party",
+        "node scripts/edition-authoring/cli.mjs check",
+        "pnpm run build",
+        "pnpm run typecheck",
+        "INKWELL_JOURNEY_SHARD=2/4 pnpm run test:api",
+        "pnpm run test:runtime",
+        "INKWELL_JOURNEY_SHARD=2/4 pnpm run test:journey"
+      ]
+    },
+    {
+      "name": "partition-3",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "pnpm exec rer check --profile first-party",
+        "node scripts/edition-authoring/cli.mjs check",
+        "pnpm run build",
+        "pnpm run typecheck",
+        "INKWELL_JOURNEY_SHARD=3/4 pnpm run test:api",
+        "pnpm run test:runtime",
+        "INKWELL_JOURNEY_SHARD=3/4 pnpm run test:journey"
+      ]
+    },
+    {
+      "name": "partition-4",
+      "browser": true,
+      "hosted": false,
+      "commands": [
+        "pnpm exec rer check --profile first-party",
+        "node scripts/edition-authoring/cli.mjs check",
+        "pnpm run build",
+        "pnpm run typecheck",
+        "INKWELL_JOURNEY_SHARD=4/4 pnpm run test:api",
+        "pnpm run test:runtime",
+        "INKWELL_JOURNEY_SHARD=4/4 pnpm run test:journey"
+      ]
+    }
+  ],
+  "nightly": [
+    {
+      "name": "recipient-capacity",
+      "browser": false,
+      "hosted": false,
+      "commands": [
+        "node tests/journeys/recipient-capacity.mjs"
+      ]
+    }
+  ],
+  "readers": {}
+}
