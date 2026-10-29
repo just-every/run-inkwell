@@ -477,6 +477,8 @@ That source and test revision proves owner-reviewed CRM mapping, moved-file, pin
 
 The opening SHA is the historical main baseline, not a judgment of this candidate. Current Status rows and the inventory footer describe the candidate tree, including complete SDK result assertions and execution of the compiled TypeScript example. This candidate also adds reviewed remote-import custody and recovery for MOVE-003 and MOVE-004. Exact candidate execution and release identifiers belong to the fleet handoff; no new independent CT judgment is claimed.
 
+Main's current AGENT-006 judgment and complete evidence are retained. This replay retains normal HubSpot moved-file metadata validation and preserves outstanding legacy Dropbox jobs when a rule is re-saved; current main already contains those runtime fixes and the complete four-artifact recovery assertion. Legacy recovery retains main's read-only artifact verification and owner-approved moved-folder controls; missing remote artifacts remain unresolved. No new independent CT judgment or live-provider operation is claimed. Exact-candidate tests and release gates are recorded in the fleet handoff.
+
 SIGNX-008, AGENT-003, MANAGE-004 and TMPL-001 reconciled to the cited passing public-door proof on 25 October 2026.
 
 | Clauses | Done | Partial | Missing | Total |
