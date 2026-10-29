@@ -80,7 +80,7 @@ export async function applyTemplateProposal(env: Env, context: CommandContext, i
   const proposal = proposals.find(p => p.id === text(input.proposalId, 'a suggestion ID', 64))
   insist(proposal, 'This suggestion changed or no longer has its evidence. Review again.', 409)
   const { source, changes, examples } = proposal
-  const bytes = changes.after.originalSha256 === template.originalSha256 ? await templateBytes(env, template) : await readBlob(env.DB, source.id, 'original', source.originalSha256)
+  const bytes = changes.after.originalSha256 === template.originalSha256 ? await templateBytes(env, template) : await readBlob(env, source.id, 'original', source.originalSha256)
   let binary = ''; for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
   return updateTemplate(env, context, {
     id: template.id, title: template.title, filename: changes.after.originalSha256 === template.originalSha256 ? template.filename : source.filename,

@@ -158,6 +158,7 @@ export function PrepareEnvelope({ draft, correcting, asTemplate, template, folde
     setFields(current=>[...(index<0?[]:current.filter(f=>f.page<start||f.page>=end)),...matchedFields.map(field=>({...field,id:index<0?field.id:`d${index}-${field.id}`,page:field.page+start,document:undefined,documentPage:undefined}))]);setSigner(0);setMatches([])
   }
   async function changeDocuments(next:DocumentFile[]) {
+    if(next.some(d=>d.file.size>25_000_000))throw new Error('A document must be no larger than 25 MB.')
     if(next.length>20||next.reduce((n,d)=>n+d.file.size,0)>100*1024*1024)throw new Error('Use at most 20 PDFs and 100 MiB in total.')
     const {PDFDocument}=await import('pdf-lib'),combined=await PDFDocument.create()
     const old=documents.length?documents:file?[{key:'primary',file,mode:'sign' as const,pages:(await PDFDocument.load(pdf!)).getPageCount()}]:[]

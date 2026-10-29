@@ -4,10 +4,11 @@ import type { EnvelopeDocument } from '../inkwell/documents'
 import { request } from './types'
 export type DocumentFile={key:string;file:File;mode:EnvelopeDocument['mode'];pages:number;visibleTo?:EnvelopeDocument['visibleTo']}
 export async function uploadDocument(file:File) {
+ if(file.size>25_000_000)throw new Error('A document must be no larger than 25 MB.')
  const upload=await request<{id:string;chunkBytes:number}>('/api/inkwell/documents/uploads',{filename:file.name,bytes:file.size})
  for(let offset=0,part=0;offset<file.size;offset+=upload.chunkBytes,part++){
   const response=await embedFetch(`/api/inkwell/documents/uploads/${upload.id}/parts/${part}`,{method:'PUT',credentials:'same-origin',headers:{'content-type':'application/octet-stream'},body:file.slice(offset,offset+upload.chunkBytes)})
-  if(!response.ok)throw new Error('Document upload interrupted. Save again to retry.')
+  if(!response.ok){const body=await response.json().catch(()=>null) as {error?:string}|null;throw new Error(body?.error??'Document upload interrupted. Save again to retry.')}
  }
  return upload.id
 }

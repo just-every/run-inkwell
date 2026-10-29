@@ -139,10 +139,10 @@ export async function updateDraft(env: Env, context: CommandContext, input: Reco
   const result = { id: after.id }
   await commitEnvelope(env, before, after, context.actor, [
     ...(draft.originalSha256 === before.originalSha256 ? [] : [env.DB.prepare("DELETE FROM iw_blobs WHERE envelope_id=? AND kind='original'").bind(after.id), ...await stagedBlobWrites(env, after.id, 'original', bytes)]),
-    env.DB.prepare("DELETE FROM iw_blobs WHERE envelope_id=? AND kind GLOB 'document-[0-9]*'").bind(after.id), ...await documentWrites(env,after.id,originals),...consumedUploadWrites(env,input),
+    env.DB.prepare("DELETE FROM iw_object_artifacts WHERE owner_type='envelope' AND owner_id=? AND kind GLOB 'document-[0-9]*'").bind(after.id), env.DB.prepare("DELETE FROM iw_blobs WHERE envelope_id=? AND kind GLOB 'document-[0-9]*'").bind(after.id), ...await documentWrites(env,after.id,originals),...consumedUploadWrites(env,input),
     env.DB.prepare(`DELETE FROM iw_access_codes WHERE envelope_id=?${accessCodes.some(code => code === 'keep') ? ` AND signer NOT IN (${accessCodes.flatMap((code, i) => code === 'keep' ? [i] : []).join(',')})` : ''}`).bind(after.id),
     ...await accessCodeWrites(env, after.id, accessCodes),
     commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
-  await readBlob(env.DB, after.id, 'original', after.originalSha256)
+  await readBlob(env, after.id, 'original', after.originalSha256)
   return result
 }

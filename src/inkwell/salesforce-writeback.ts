@@ -34,7 +34,7 @@ async function deliver(env:Env,r:Link,e:Envelope){
    await save(env,r,c,{properties_done:1,uncertain:null})
   }
   if(!r.file_id){let file=await reconcileFile(env,c,r,e)
-   if(!file){insist(r.uncertain!=='file','An uncertain Salesforce upload must be reconciled; no duplicate upload was attempted.',409);const bytes=await readBlob(env.DB,e.id,'signed',e.signedSha256!);await save(env,r,c,{uncertain:'file'});await current(env,r,c)
+   if(!file){insist(r.uncertain!=='file','An uncertain Salesforce upload must be reconciled; no duplicate upload was attempted.',409);const bytes=await readBlob(env,e.id,'signed',e.signedSha256!);await save(env,r,c,{uncertain:'file'});await current(env,r,c)
     const result=await salesforceRequest(env,c,'/services/data/v64.0/sobjects/ContentVersion',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({Title:e.id+'-'+e.signedSha256,PathOnClient:e.id+'.pdf',VersionData:btoa(Array.from(bytes,byte=>String.fromCharCode(byte)).join('')),FirstPublishLocationId:r.record_id,SharingPrivacy:'P',SharingOption:'R'})});insist(result.success===true&&typeof result.id==='string','Salesforce did not confirm the executed PDF.',502)
     file=await reconcileFile(env,c,r,e);insist(file===result.id,'Salesforce has not confirmed the uploaded file.',502)
    }

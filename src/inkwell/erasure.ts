@@ -6,9 +6,13 @@ type Portability = Awaited<ReturnType<typeof createPortability>>
 /** The writes that permanently erase one envelope: its documents, events, recipients, mail and their provider delivery
  * events, codes, copy links, shares, activity-feed notices (DELIV-008) and command results, with Base's erasure record so
  * an earlier archive's restore is refused naming the erasure. The owner's erase and RECORD-005's purge both use it. */
-export async function erasureWrites(db: D1Database, service: Portability, envelopeId: string) {
+export async function erasureWrites(db: D1Database, service: Portability, envelopeId: string, objectKeys: string[] = []) {
  const deleted = ['iw_salesforce_envelopes','iw_agent_work_caps','iw_agent_attachments','iw_agent_requests','iw_agent_inbound','iw_payments','iw_embed_launches','iw_embed_audit','iw_filing_jobs','iw_provider_auth','iw_sms','iw_part11_security_alerts','iw_part11_challenges','iw_comment_threads','iw_followup_grants','iw_followup_states','iw_followup_replies','iw_followup_capabilities','iw_blobs','iw_events','iw_signers','iw_mail','iw_access_codes','iw_copy_links','iw_shares'].map(table => db.prepare(`DELETE FROM ${table} WHERE envelope_id=?`).bind(envelopeId))
  return [
+  db.prepare("INSERT OR IGNORE INTO iw_object_erasure_fences(owner_type,owner_id) VALUES('envelope',?)").bind(envelopeId),
+  db.prepare("UPDATE iw_object_pending SET cancelled=1 WHERE owner_type='envelope' AND owner_id=?").bind(envelopeId),
+  ...objectKeys.map(key=>db.prepare('INSERT OR IGNORE INTO iw_object_deletions(object_key) VALUES(?)').bind(key)),
+
   db.prepare('INSERT OR IGNORE INTO iw_salesforce_replay_fences(request_key) SELECT request_key FROM iw_salesforce_envelopes WHERE envelope_id=? AND request_key IS NOT NULL').bind(envelopeId),
   db.prepare("DELETE FROM iw_salesforce_send_bindings WHERE id IN (SELECT json_extract(data,'$.sendOrigin.credential.id') FROM iw_envelopes WHERE id=?)").bind(envelopeId),
   db.prepare('DELETE FROM iw_remote_read_cache'),
@@ -27,6 +31,7 @@ export async function erasureWrites(db: D1Database, service: Portability, envelo
   db.prepare("DELETE FROM rer_mail_event_receipts WHERE EXISTS(SELECT 1 FROM iw_mail m WHERE m.envelope_id=? AND rer_mail_event_receipts.provider=m.provider AND (json_extract(rer_mail_event_receipts.event_json,'$.providerMessageId')=m.provider_message_id OR json_extract(rer_mail_event_receipts.event_json,'$.deliveryId')=m.id))").bind(envelopeId),
   // DELIV-008: feed notices name the envelope and a recipient.
   db.prepare('DELETE FROM iw_notice_posts WHERE notice_id IN (SELECT id FROM iw_notices WHERE envelope_id=?)').bind(envelopeId), db.prepare('DELETE FROM iw_notices WHERE envelope_id=?').bind(envelopeId),
+  db.prepare("DELETE FROM iw_object_artifacts WHERE owner_type='envelope' AND owner_id=?").bind(envelopeId),
   ...deleted, db.prepare('DELETE FROM iw_envelopes WHERE id=?').bind(envelopeId),
   // Command results and local mail can retain identity/link fragments. Delete
   // this envelope's command results and messages, never another document's rows.

@@ -1,3 +1,4 @@
+import { archiveBuckets, ownedObjectKeys, removeUnreferencedObjects } from './object-artifacts'
 import { createPortability, createPortabilityHandler, canonicalJson, type Manifest, type Closing } from '@runeditrun/rer/modules/portability'
 import type { Bindings } from '../auth.server'
 import type { Actor } from './model'
@@ -9,7 +10,7 @@ export async function archiveTransfers(request:Request,env:Bindings,actor:Actor,
  const basePath='/api/inkwell/archive/transfers',url=new URL(request.url),route=url.pathname.slice(basePath.length).split('/').filter(Boolean)
  if(route[0]==='exports'&&route[1]&&(route[2]==='download'||route[2]==='records')) {
   insist(request.method==='GET','Use GET to download archive records.',405)
-  const service=await createPortability({db,policy}),job=route[1]
+  const service=await createPortability({buckets:archiveBuckets(env),db,policy}),job=route[1]
   insist(await service.actor(job)===actor.id,'Archive job not found.',404)
   const status=await service.exports.status(job);insist(status.phase==='complete','Finish building this archive before downloading.',409)
   const row=await env.DB.prepare('SELECT metadata FROM rer_portability_jobs WHERE id=?').bind(job).first<{metadata:string}>(),metadata=JSON.parse(row!.metadata)
@@ -46,7 +47,7 @@ export async function archiveTransfers(request:Request,env:Bindings,actor:Actor,
   const iterator=chunks()[Symbol.asyncIterator](),stream=new ReadableStream<Uint8Array>({async pull(c){try{const r=await iterator.next();if(r.done)c.close();else c.enqueue(r.value)}catch(error){c.error(error)}},async cancel(){await iterator.return?.()}})
   return new Response(stream,{status:range?206:200,headers:{'content-type':'application/x-ndjson','content-disposition':`attachment; filename="inkwell-${job}.ndjson"`,'content-length':String(end-start+1),'accept-ranges':'bytes','etag':`"${metadata.archiveHash}"`,'cache-control':'no-store',...(range?{'content-range':`bytes ${start}-${end}/${total}`}:{})}})
  }
- const response=await(await createPortabilityHandler({db,policy,appOrigin:env.AUTH_ORIGIN,basePath,authorize:async()=>actor.id}))(request)
+ const response=await(await createPortabilityHandler({buckets:archiveBuckets(env),db,policy,appOrigin:env.AUTH_ORIGIN,basePath,authorize:async()=>actor.id}))(request)
  if(response?.ok&&request.method==='POST'&&route[0]==='exports'&&route[2]==='advance') {
   const row=await db.prepare('SELECT metadata FROM rer_portability_jobs WHERE id=? AND actor=?').bind(route[1],actor.id).first<{metadata:string}>()
   if(row){const metadata=JSON.parse(row.metadata),table=metadata.manifest.tables[metadata.cursor?.table]?.name,copy=metadata.copies[table]

@@ -38,6 +38,13 @@
     "MAIL_WEBHOOK_KEY": "",
     "TURNSTILE_SITE_KEY": "",
     "TWILIO_ACCOUNT_SID": "",
-    "TWILIO_FROM": ""
-  }
+    "TWILIO_FROM": "",
+    "OWNER_EMAIL": ""
+  },
+  "r2_buckets": [
+    {
+      "binding": "ARTIFACTS",
+      "bucket_name": "inkwell-artifacts"
+    }
+  ]
 }

@@ -22,6 +22,7 @@ export interface Bindings {
  RER_OWNER_CLAIM_INSTALLATION_ID?: string
  RER_OWNER_CLAIM_PUBLIC_KEYS?: string
  RER_DEMO?: string
+ ARTIFACTS: R2Bucket
  DB: D1Database
  /** Built browser files; hosted deploys run the Worker first (staticAssetResponse). */
  ASSETS?: Fetcher

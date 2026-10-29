@@ -13,6 +13,7 @@ import { microsoftSource, microsoftReply } from './microsoft'
 import { previewRemoteImport, applyRemoteImport } from './remote-import'
 import { receiveGoogleReplies } from './google-replies'
 import { googleDrive, googleMessage, googleAttachment } from './google'
+import { cleanupUploads, cleanupSupersededObjects } from './object-artifacts'
 import { matchedRoutes } from 'hono/route'
 import { withAuditDatabase } from './account-audit-db'
 import { listAccountAudit, auditCsv } from './account-audit'
@@ -113,7 +114,7 @@ api.use('*',async(c,next)=>{
   const session=memberRoute?await operatorAuth(native).getSession(c.req.raw):null
   c.env={...native,DB:withAuditDatabase(native.DB,session?.operator.id??{kind:'system',id:'authentication'})}
  }
- await next();c.header('cache-control','no-store');c.header('referrer-policy','no-referrer');c.header('x-content-type-options','nosniff')
+ await next();if(c.req.path==='/api/inkwell/commands'&&c.res.ok){await cleanupUploads(c.env);await cleanupSupersededObjects(c.env)};c.header('cache-control','no-store');c.header('referrer-policy','no-referrer');c.header('x-content-type-options','nosniff')
 })
 // COMPLY-002: a successful API-key request counts for its bound member; failed requests do not.
 // The outer compliance dispatcher retains fixed-schema logs without credentials, URLs or document content.
