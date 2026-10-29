@@ -2,7 +2,7 @@
 
 Generated from CONTRACT.md. Acceptance journeys remain in ACCEPTANCE.md.
 
-Inventory: 72 done, 28 partial, 17 missing; 117 total.
+Inventory: 72 done, 28 partial, 30 missing; 130 total.
 
 | Clause | Status | Evidence | Details |
 | --- | --- | --- | --- |
@@ -123,3 +123,16 @@ Inventory: 72 done, 28 partial, 17 missing; 117 total.
 | `AGENT-007` | done | `src/inkwell/template-maintenance.ts`, `src/ui/template-maintenance.tsx`, `tests/template-maintenance.test.mjs`, `tests/journeys/template-maintenance.mjs` | [Contract status](../CONTRACT.md#status) |
 | `AGENT-008` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `AGENT-009` | partial | `tests/agent-workflows.test.mjs`, `docs/agent-workflows.md` | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-001` | missing |  | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-002` | missing |  | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-003` | missing |  | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-004` | missing |  | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-005` | missing |  | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-006` | missing |  | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-007` | missing |  | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-008` | missing |  | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-009` | missing |  | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-010` | missing |  | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-011` | missing |  | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-012` | missing |  | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-013` | missing |  | [Contract status](../CONTRACT.md#status) |
