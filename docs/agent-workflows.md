@@ -30,5 +30,5 @@ Adopted conservative defaults pending CT review: W-9 source PDFs are private to 
 
 These native workflows do not yet constitute an adopted company-agent MCP
 surface. The [shared-door status and consent boundary](agent-door.md) explains
-the native people mapping and the missing verified consent context for deferred
-effects. Existing preparation credentials keep their narrow purpose.
+the native people mapping and remaining consent custody and execution-time
+admission work for deferred effects. Existing preparation credentials keep their narrow purpose.
