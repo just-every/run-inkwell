@@ -1,6 +1,6 @@
 # Acceptance
 
-Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed here, run through a public door: the browser at 1440 and 390 pixels wide, the HTTP API, a signing link, or a provider fake at the paid or network edge. Status labels match the raw contract inventory in this committed candidate tree, reconciled on 27 October 2026: 72 done, 28 partial and 17 missing, 117 total. Resolve its execution SHA with `git rev-parse HEAD`; the fleet records exact-SHA receipts and subsequent release checks. This inventory does not claim a new independent CT judgment. Where a first-release journey names today's narrowed case, the target clause it references governs (CONTRACT.md, "How to read this contract"); a build round moves a clause to done by making its journey pass, and an independent release review follows.
+Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed here, run through a public door: the browser at 1440 and 390 pixels wide, the HTTP API, a signing link, or a provider fake at the paid or network edge. Status labels match the raw contract inventory in this committed candidate tree, reconciled on 27 October 2026: 72 done, 28 partial and 30 missing, 117 total. Resolve its execution SHA with `git rev-parse HEAD`; the fleet records exact-SHA receipts and subsequent release checks. This inventory does not claim a new independent CT judgment. Where a first-release journey names today's narrowed case, the target clause it references governs (CONTRACT.md, "How to read this contract"); a build round moves a clause to done by making its journey pass, and an independent release review follows.
 
 ## First release
 
@@ -245,4 +245,4 @@ Payroll belongs to [Envelope](https://github.com/just-every/run-envelope); work 
 
 Inkwell does not process payments (Stripe does), notarize, issue qualified signatures, verify identity documents itself (a provider does), give legal advice or claim universal validity; imported signatures keep their provider provenance. CONTRACT.md "Honest boundaries" says how buyers get each. Local use needs no live mail or provider calls: acceptance journeys use provider fakes, and live provider receipt is recorded separately.
 
-Status provenance: source and test revision `071a8dd11f7c56b366717c6f596737fe8119ded2`; resolve the full candidate SHA with git rev-parse HEAD. Contract counts: 72 done, 28 partial and 17 missing. CONTRACT.md records proof scope and release boundaries.
+Status provenance: source and test revision `071a8dd11f7c56b366717c6f596737fe8119ded2`; resolve the full candidate SHA with git rev-parse HEAD. Contract counts: 72 done, 28 partial and 30 missing. CONTRACT.md records proof scope and release boundaries.

@@ -70,3 +70,10 @@ native UI calls `POST /api/inkwell/commands` with `envelope.approve` and
 `{id,eligible:true}`. Approval and the approver are recorded in the audit trail.
 The signer, independently verified by email code, supplies their own consent.
 A revoked agent token cannot prepare new documents.
+
+## Company policy and MCP
+
+Preparation credentials also enter the shared agent door. An owner must answer
+the policy at `/agents` (or adopt signed Business policy) before preparation.
+The legacy preparation endpoint uses the same policy, Pause, approval and audit
+checks. See [the supported registry and limits](/docs/company-agents).

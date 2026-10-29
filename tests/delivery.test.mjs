@@ -1130,7 +1130,10 @@ test('Voice-call provider code admits only its bound recipient and records the r
   assert.match(certificateText,/Twilio voice-call code/);assert.ok(certificateText.includes('synthetic-inkwell-80'))
   const record=(await h.send('/api/inkwell/envelopes/'+id,undefined,h.owner)).value.envelope
   assert.equal(record.events.find(e=>e.action==='signer.provider_verified').detail.outcome,'passed')
-  const archived=JSON.stringify((await h.send('/api/inkwell/archive',undefined,h.owner)).value)
+  const archive=(await h.send('/api/inkwell/archive',undefined,h.owner)).value
+  // Complete schema evidence contains SQL such as the 1000000.0 money unit.
+  // Secret-code custody is a property of archived data, not schema literals.
+  const archived=JSON.stringify(archive.ndjson.split('\n').filter(Boolean).map(JSON.parse).filter(record=>record.kind==='part'))
   assert.ok(!archived.includes('123456')&&!archived.includes('000000'))
  } finally {await h.close()}
 })
