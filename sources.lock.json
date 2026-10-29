@@ -157,7 +157,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "6d245331cfda997de5f3187f9f6fcce408292672f7937bf1726f453b4d170bce",
+      "sha256": "90a694230e9f7c892a9a520488618dff4b27943d0b9551ad00bb4863e6d51247",
       "executable": false
     },
     ".gitignore": {
@@ -237,7 +237,7 @@
       "executable": false
     },
     "docs/getting-started.md": {
-      "sha256": "a72637c44284295954481ae9c467957eef367f9c71a558e24f01196852d6efc7",
+      "sha256": "014467228b89e6202f8039e770017f4179f7b84b980545fc07e9f5a9b2390751",
       "executable": false
     },
     "docs/healthcare.md": {
@@ -4461,7 +4461,7 @@
       "executable": false
     },
     "src/site/docs/build/site.ts": {
-      "sha256": "c8036a0bc48dc9dbcaf58eeb14cb4f2cbd291f7ac69266fc4edb0e39347d4ac9",
+      "sha256": "053cd6cc7b1f4a2857fbbbbdb1d8a80ee1ccc7a64a96f911379392d47299fa0d",
       "executable": false
     },
     "src/site/docs/build/slug.ts": {
@@ -4592,6 +4592,10 @@
       "sha256": "fd2ea10489d7dd1f6d52ed7dd92f20b74e6997ce2b619e004f0e8529c81e93f7",
       "executable": false
     },
+    "src/site/run.ts": {
+      "sha256": "109af7c25f4227a6ff9ed61402de6009e9199d39aa975693e8a6d94143fe639f",
+      "executable": false
+    },
     "src/site/shell/Actions.tsx": {
       "sha256": "3ba8dbbae4e75ca5e94481f0e016fb03be37016fd05c591a5b0851914e4ec985",
       "executable": false
@@ -4617,7 +4621,7 @@
       "executable": false
     },
     "src/site/styles/docs.css": {
-      "sha256": "976c775ce5d54d1112559690be27afb0379d0b4dedd88976a1f93d44a2f6798e",
+      "sha256": "5d094cb03ccb3cf8a2c69931c845618224b0ac611190eff5bd8e402f30edc3df",
       "executable": false
     },
     "src/site/styles/landing-sections.css": {
