@@ -1,0 +1,242 @@
+{
+  "schema": "rer-agent-surface/1",
+  "seed": "inkwell",
+  "specialist": "agreement operations",
+  "capabilities": [
+    "tools",
+    "policy",
+    "pause",
+    "audit",
+    "idempotency"
+  ],
+  "tools": [
+    {
+      "name": "inkwell.drafts.prepare.prep_001",
+      "scope": "agreements:prepare",
+      "readOnly": false,
+      "classes": [
+        "standard",
+        "sensitive"
+      ],
+      "clauses": [
+        "PREP-001",
+        "PREP-003",
+        "DELEGATE-001",
+        "AGENT-001"
+      ]
+    },
+    {
+      "name": "inkwell.workspace.snapshot",
+      "scope": "agreements:read",
+      "readOnly": true,
+      "classes": [
+        "standard"
+      ],
+      "clauses": [
+        "ACCESS-001",
+        "MANAGE-001"
+      ]
+    },
+    {
+      "name": "inkwell.envelopes.manage.manage_005",
+      "scope": "agreements:read",
+      "readOnly": true,
+      "classes": [
+        "sensitive"
+      ],
+      "clauses": [
+        "ACCESS-001",
+        "MANAGE-005",
+        "RECORD-002"
+      ]
+    },
+    {
+      "name": "inkwell.records.verify.record_001",
+      "scope": "agreements:read",
+      "readOnly": true,
+      "classes": [
+        "standard"
+      ],
+      "clauses": [
+        "RECORD-001",
+        "RECORD-002"
+      ]
+    }
+  ],
+  "notTools": [
+    {
+      "clauses": [
+        "HTTP-001",
+        "ADMIN-007",
+        "PORT-001"
+      ],
+      "reason": "installation"
+    },
+    {
+      "clauses": [
+        "MOVE-001"
+      ],
+      "reason": "import-door"
+    },
+    {
+      "clauses": [
+        "MOBILE-001"
+      ],
+      "reason": "device"
+    },
+    {
+      "clauses": [
+        "SIGN-001",
+        "SIGNX-001"
+      ],
+      "reason": "screen"
+    }
+  ],
+  "resources": [],
+  "witness": {
+    "tool": "inkwell.workspace.snapshot",
+    "args": {}
+  },
+  "escalations": [],
+  "verification": {
+    "fixtures": {
+      "module": "tests/agent-door-fixtures.mjs"
+    },
+    "journey": "tests/agent-door-journey.mjs",
+    "replayAdmission": {
+      "prepare": [
+        "prepare"
+      ]
+    }
+  },
+  "journey": [
+    {
+      "id": "snapshot",
+      "tool": "inkwell.workspace.snapshot",
+      "args": {},
+      "expect": [
+        {
+          "class": "standard",
+          "facts": {
+            "measure": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "prepare",
+      "tool": "inkwell.drafts.prepare.prep_001",
+      "args": {
+        "$fixture": "preparation",
+        "pointer": ""
+      },
+      "expect": [
+        {
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
+        },
+        {
+          "class": "sensitive",
+          "facts": {
+            "measure": 1,
+            "kind": "agreement"
+          }
+        }
+      ],
+      "inject": {
+        "internal": true,
+        "classes": [
+          "standard"
+        ],
+        "confirmExternal": true
+      }
+    },
+    {
+      "id": "read",
+      "tool": "inkwell.envelopes.manage.manage_005",
+      "args": {
+        "id": {
+          "$from": "prepare",
+          "pointer": "/id"
+        }
+      },
+      "target": {
+        "kind": "envelope",
+        "id": {
+          "$from": "prepare",
+          "pointer": "/id"
+        }
+      },
+      "expect": [
+        {
+          "class": "sensitive",
+          "facts": {
+            "measure": 1,
+            "kind": "agreement"
+          }
+        }
+      ]
+    },
+    {
+      "id": "verify",
+      "tool": "inkwell.records.verify.record_001",
+      "args": {
+        "id": {
+          "$from": "prepare",
+          "pointer": "/id"
+        }
+      },
+      "target": {
+        "kind": "envelope",
+        "id": {
+          "$from": "prepare",
+          "pointer": "/id"
+        }
+      },
+      "expect": [
+        {
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "local-prepare",
+      "tool": "inkwell.drafts.prepare.prep_001",
+      "client": "local",
+      "args": {
+        "$fixture": "preparation",
+        "pointer": ""
+      },
+      "expect": [
+        {
+          "class": "standard",
+          "facts": {
+            "measure": 1
+          }
+        },
+        {
+          "class": "sensitive",
+          "facts": {
+            "measure": 1,
+            "kind": "agreement"
+          }
+        }
+      ],
+      "inject": {
+        "internal": true,
+        "classes": [
+          "standard"
+        ],
+        "confirmExternal": true
+      }
+    }
+  ],
+  "spend": {
+    "none": true
+  }
+}

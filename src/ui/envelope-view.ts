@@ -14,7 +14,7 @@ export function currentSigners(envelope: Envelope) {
 export const signedCount = (envelope: Envelope) => envelope.signers.filter(signer => signer.signedAt || signer.completedAt).length
 /** DELIV-006: the recipients still on the envelope (a correction may have removed some). */
 export const liveSigners = (envelope: Envelope) => envelope.signers.filter(signer => !signer.removedAt && signer.routeResult?.state !== 'skipped').length
-export const preparedByAgent = (envelope: Envelope) => envelope.events.some(event => event.action === 'envelope.prepared' && event.actor?.startsWith('agent:'))
+export const preparedByAgent = (envelope: Envelope) => envelope.events.some(event => event.action === 'envelope.prepared' && (event.actor?.startsWith('agent:') || Boolean(event.detail?.preparedBy)))
 const myTurn = (envelope: Envelope, actor: Actor) => envelope.status === 'awaiting_signature' && currentSigners(envelope).some(index => envelope.signers[index].email.toLowerCase() === actor.email.toLowerCase())
 
 export function pill(envelope: Envelope, actor: Actor): { label: string; tone: Tone } {
