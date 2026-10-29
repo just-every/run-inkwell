@@ -156,6 +156,10 @@
       "sha256": "0bd7545cc89e204809afc4ba3eedae5f66768f763f93cd1bbd01e753fb67d20a",
       "executable": false
     },
+    ".github/workflows/verify-nightly.yml": {
+      "sha256": "84df54f781dffabe9ab1dd026ee933746c4a21b570cc23ca5ebceaa7dfefc842",
+      "executable": false
+    },
     ".github/workflows/verify.yml": {
       "sha256": "90a694230e9f7c892a9a520488618dff4b27943d0b9551ad00bb4863e6d51247",
       "executable": false
@@ -1548,6 +1552,10 @@
       "sha256": "d0e747277142e54d86acd1c01549ee8b76bf15c060366387bd074c57f77f7d2d",
       "executable": false
     },
+    "scripts/install-chromium-deps.py": {
+      "sha256": "d3027108ad8e08ceeddb0ed477d967b1207e40bb6bf5ae941854c534c2cf4004",
+      "executable": false
+    },
     "scripts/install.mjs": {
       "sha256": "ce9c6eb4f127e88b32d538655a3fb3a2dc9fc3e83e48782fd56ffd3377da16fd",
       "executable": false
@@ -1574,6 +1582,26 @@
     },
     "scripts/qualify-part11.mjs": {
       "sha256": "8f3af3b124d55d379c9ed1dd319ce8bcf6060b29907a18e1c6ef78210bf05ff9",
+      "executable": false
+    },
+    "scripts/verify-app.mjs": {
+      "sha256": "4c3a87c809e2b671a555dc36171b60675f87be96362de7d2269d9f5e1c3100b6",
+      "executable": false
+    },
+    "scripts/verify-ci.mjs": {
+      "sha256": "cf1ceb8773ed276f82245fb8fb4c4bdc95bff40ecc0e8ca8ac9e776978b17340",
+      "executable": false
+    },
+    "scripts/verify-evidence.mjs": {
+      "sha256": "9224f772d6a17f043448694eca3c149df83070417b995a2840497e36a9ad0100",
+      "executable": false
+    },
+    "scripts/verify-light.mjs": {
+      "sha256": "f9b126130837144e43a65d10d370d602b63daad2be7ff66c93178d461a7521d9",
+      "executable": false
+    },
+    "scripts/verify-plan.mjs": {
+      "sha256": "45fe2ab9c5cbc72d0186bf77fab32c985605caae6ecee50676dd618612c3e78f",
       "executable": false
     },
     "sdk/javascript/index.d.mts": {
@@ -4585,7 +4613,7 @@
       "executable": false
     },
     "src/site/pages.tsx": {
-      "sha256": "db433ecb5357bf32e50d18bb14039f013aceb40d29468a6f7b0a4aec6c145817",
+      "sha256": "cc78bde5ea59dc90b52e4883738bc2138c59bfd5fe97d3530ac9472bb4073347",
       "executable": false
     },
     "src/site/run.json": {
@@ -5414,6 +5442,10 @@
     },
     "tsconfig.json": {
       "sha256": "bcf6ec9be5a6f3d07aed17c8dd5a30c69d225623e263418fd4d291ae32d00d69",
+      "executable": false
+    },
+    "verification.json": {
+      "sha256": "bc855c9c8ffa454070755fcd752b26bdb0bdebd56986cbf94353b6bbcc60185d",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {

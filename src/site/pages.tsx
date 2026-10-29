@@ -26,7 +26,7 @@ const baseLook = (html: string) => html
   .replace(/<link rel="icon" href="\/brand\/mark\.svg">/, ICONS)
   .replace('</head>', '<link rel="stylesheet" href="/site/base-pages.css"></head>')
 
-export function sitePages({ styles, contract, hosting }: SiteContext): SiteBuild {
+export function sitePages({ styles, contract, hosting = null }: SiteContext): SiteBuild {
   const data: RunData = run
   const document = (title: string, description: string, body: ReactElement, script = '') => '<!doctype html>' + renderToStaticMarkup(
     <html lang="en">
