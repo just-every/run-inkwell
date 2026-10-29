@@ -173,7 +173,7 @@
       "executable": false
     },
     "ACCEPTANCE.md": {
-      "sha256": "9da4a0bf20ce439ba9b8482f5f5df701428ca71dd9806337b2e5c79c7bb53579",
+      "sha256": "fcc651959ee9cc00365827f9dde7b309a3d940cb941c92a823ba32658debe7b4",
       "executable": false
     },
     "agent-surface.json": {
@@ -193,7 +193,7 @@
       "executable": false
     },
     "CONTRACT.md": {
-      "sha256": "61e457be359d2c41e1b8ca7701f0ff04ebfa5902829d2a63203b779698eb9d3d",
+      "sha256": "96e567233f2f72411ff5ea86f068e7d7fb5bea3c1041f1ddbda1b13b5f875284",
       "executable": false
     },
     "DEMO.md": {
@@ -217,7 +217,7 @@
       "executable": false
     },
     "docs/agent-door.md": {
-      "sha256": "b238341141775475491474391582c1442d6110b002464aa1f3f2964a2a2a60ad",
+      "sha256": "527baa21c9cabdc15aca4300a8f51ca5c170cd7ebaa21fda80842373945197d4",
       "executable": false
     },
     "docs/agent-workflows.md": {
@@ -237,7 +237,7 @@
       "executable": false
     },
     "docs/CLAIMS.md": {
-      "sha256": "eebee649928a74fa484ae75a54808ab5272d93f9e5eea2dbbcce3445e33b6b85",
+      "sha256": "c6a223763d25319a4b74a789a198a76decff872b5fbda036509dc6c30644a43b",
       "executable": false
     },
     "docs/deploy.md": {
@@ -1312,6 +1312,10 @@
       "sha256": "1d7fb5732a17c06845a6dd8a67fe6ced3959f3cb650c26a4eef147e1b32f72c7",
       "executable": false
     },
+    "src/inkwell/archive-ordering.ts": {
+      "sha256": "cf149c7bf30036b8c07de27ca2090b40d4a92844bec2ed66c001857026cda482",
+      "executable": false
+    },
     "src/inkwell/archive-policy.d.mts": {
       "sha256": "9b9d84f649fc52fe899f4d11c7468b78e0d5671994d08c736fb5b737bc7c1c48",
       "executable": false
@@ -1321,11 +1325,11 @@
       "executable": false
     },
     "src/inkwell/archive-transfers.ts": {
-      "sha256": "a14708bd399969a06e4fbd716c46d6c4cc46305b24260996dc0f63c4bf0fc147",
+      "sha256": "e9d15732b8d6f06de59b07a13d1c6caa6df5fd36afd29b12d048df23b001d5f3",
       "executable": false
     },
     "src/inkwell/archive.ts": {
-      "sha256": "8ce65385314f4923d56edc46ce7aebeec512c475422a1aec86107919ada2d48c",
+      "sha256": "58d308a09e5c7f06e44d525817309b57178dc4a7a7e9eda996306b0699e46380",
       "executable": false
     },
     "src/inkwell/blobs.ts": {
