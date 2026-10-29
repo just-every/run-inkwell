@@ -114,7 +114,7 @@ export async function returnInbound(env:Env,actor:Actor,input:Data) {
  const record:Data=JSON.parse(row.data);insist(record.allowReturn===true,'The grant does not allow returning an executed copy.',403);insist(!record.returned,'The return was already claimed; inspect delivery before taking further action.',409)
  const cap=await env.DB.prepare("SELECT data FROM iw_agent_work_caps WHERE id=? AND state='active'").bind(record.grant).first<{data:string}>();insist(cap,'The return grant is revoked or was not restored.',403)
  const grant=JSON.parse(cap.data),after=structuredClone(before);insist(grant.allowReturn===true&&grant.returnTo===record.returnTo,'The return grant changed.',403)
- const signed=await readBlob(env.DB,before.id,'signed',before.signedSha256),certificate=await readBlob(env.DB,before.id,'certificate',before.certificateSha256),deliveryId=id()
+ const signed=await readBlob(env,before.id,'signed',before.signedSha256),certificate=await readBlob(env,before.id,'certificate',before.certificateSha256),deliveryId=id()
  await appendEvent(after,'agent.inbound_return_claimed',actor.id,{grant:record.grant,delivery:deliveryId,agent:'deterministic v1'})
  await commitEnvelope(env,before,after,actor,[env.DB.prepare('UPDATE iw_agent_inbound SET data=? WHERE envelope_id=?').bind(JSON.stringify({...record,returned:'sending',deliveryId}),before.id)],[roleGuard(grant.actor,['owner']),{sql:"EXISTS(SELECT 1 FROM iw_agent_work_caps WHERE id=? AND state='active')",values:[record.grant]}])
  let outcome='uncertain';try{const result=await operatorMail(env)!.send({deliveryId,from:env.MAIL_FROM!,to:[record.returnTo],subject:'Executed agreement: '+before.title,text:'The executed agreement and certificate are attached.',html:'<p>The executed agreement and certificate are attached.</p>',headers:{},...{attachments:[{filename:'executed-agreement.pdf',contentType:'application/pdf',content:signed},{filename:'certificate.pdf',contentType:'application/pdf',content:certificate}]}});if(['accepted','development'].includes(result.status))outcome='sent'}catch{}
@@ -125,5 +125,5 @@ export async function returnInbound(env:Env,actor:Actor,input:Data) {
 export async function informationArtifact(env:Env,actor:Actor,envelopeId:string,attachmentId:string) {
  person(actor);const e=await getEnvelope(env.DB,envelopeId);await insistAccess(env,actor,e,'edit')
  const attachment=(await attachmentRows(env,e.id)).find(a=>a.id===attachmentId);insist(attachment,'Private source attachment not found.',404)
- return download(await readBlob(env.DB,e.id,`agent-${attachment.id}`,attachment.sha256),attachment.filename)
+ return download(await readBlob(env,e.id,`agent-${attachment.id}`,attachment.sha256),attachment.filename)
 }

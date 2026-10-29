@@ -99,7 +99,7 @@ export async function sendCompletedCopy(env: Env, context: CommandContext, input
     }
   }
   if(JSON.stringify(before.documents)!==JSON.stringify(after.documents))await appendEvent(after,'document.audience_updated',context.actor.id,{before:before.documents,after:after.documents})
-  const bytes = (await readBlob(env.DB, after.id, 'signed', after.signedSha256!)).length + (await readBlob(env.DB, after.id, 'certificate', after.certificateSha256!)).length
+  const bytes = (await readBlob(env, after.id, 'signed', after.signedSha256!)).length + (await readBlob(env, after.id, 'certificate', after.certificateSha256!)).length
   const writes = await copyWrites(env, after, bytes, added.map((_, i) => start + i), 'envelope.copy_sent', context.actor.id)
   const result = { id: after.id, sent: added.map(c => c.email) }
   await commitEnvelope(env, before, after, context.actor, [...writes, commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])

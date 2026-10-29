@@ -39,5 +39,11 @@
     "TURNSTILE_SITE_KEY": "",
     "TWILIO_ACCOUNT_SID": "",
     "TWILIO_FROM": ""
-  }
+  },
+  "r2_buckets": [
+    {
+      "binding": "ARTIFACTS",
+      "bucket_name": "inkwell-artifacts"
+    }
+  ]
 }

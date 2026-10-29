@@ -60,7 +60,8 @@
     "0055_last_signin.sql",
     "0056_scheduled_policy.sql",
     "0057_dependency_keys_sealed.sql",
-    "0058_followup_folder_authority.sql"
+    "0058_followup_folder_authority.sql",
+    "0085_object_artifacts.sql"
   ],
   "breaking": false,
   "agentUpdateInstructions": "Use the declared setup manifest and packaging operations. Preserve the signatures project identity and applied migration bytes. This metadata prepares a future release; no release tag has been published."

@@ -49,3 +49,5 @@ with `--journal`) so the erased envelope is not restored:
 ```sh
 rer import --input exports/older.rer --journal exports/newer.rer --yes
 ```
+
+New PDF artifacts use private R2 storage; whole-installation archives include their referenced object bytes and validate their fingerprints before restore. Existing D1 artifacts retain their original custody. Command-line export refuses unfinished objects and superseded objects retained by an active document-export snapshot. Discard that snapshot and allow queued cleanup before retrying.

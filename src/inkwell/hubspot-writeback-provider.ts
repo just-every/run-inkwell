@@ -62,7 +62,7 @@ async function verifyFile(env:Env,c:HubspotCredential,e:Envelope,fileId:string) 
   insist(typeof signed.url==='string','HubSpot did not return a private file download.',502)
   const url=new URL(signed.url)
   insist(url.protocol==='https:'&&!url.username&&!url.password&&!url.port&&!url.hash&&(url.hostname==='api.hubapi.com'||/^(?:[a-z0-9-]+\.)+hubspotusercontent(?:-[a-z0-9]+|[0-9]+)?\.net$/.test(url.hostname)),'HubSpot returned an unsupported file host.',502)
-  const {readBlob}=await import('./blobs'),expected=await readBlob(env.DB,e.id,'signed',e.signedSha256!)
+  const {readBlob}=await import('./blobs'),expected=await readBlob(env,e.id,'signed',e.signedSha256!)
   await assertHubspotCredential(env,c)
   let response:Response
   try{response=await fetch(url,{redirect:'manual',signal:AbortSignal.timeout(30_000)})}catch{insist(false,'The executed file could not be verified.',502)}

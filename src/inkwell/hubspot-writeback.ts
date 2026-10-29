@@ -57,7 +57,7 @@ async function deliver(env:Env,row:Link,e:Envelope) {
           }
         }
         insist(row.uncertain!=='file','The executed file result is uncertain. Reconcile again after HubSpot makes it visible; no second upload was attempted.',409)
-        const bytes=await readBlob(env.DB,e.id,'signed',e.signedSha256!)
+        const bytes=await readBlob(env,e.id,'signed',e.signedSha256!)
         await save(env,row,credential,{uncertain:'file'});await current(env,row,credential)
         file=await uploadFile(env,credential,e,bytes)
       }

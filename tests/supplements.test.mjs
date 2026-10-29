@@ -1,4 +1,5 @@
 import test from 'node:test'
+import { readFile } from 'node:fs/promises'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { PDFDocument } from 'pdf-lib'
@@ -388,8 +389,18 @@ test('Document uploads: business-size PDFs preserve fingerprints through inspect
   const changed=first.slice();changed[changed.length-1]^=1;await put(h.owner,changed,409)
   for(let offset=u.chunkBytes,part=1;offset<bytes.length;offset+=u.chunkBytes,part++){const response=await h.mf.dispatchFetch(h.origin+`/api/inkwell/documents/uploads/${u.id}/parts/${part}`,{method:'PUT',headers:{origin:h.origin,cookie:h.owner,'content-type':'application/octet-stream'},body:bytes.slice(offset,offset+u.chunkBytes)});assert.equal(response.status,200)}
   const inspected=(await h.post('/api/inkwell/documents/fields',{uploadId:u.id})).value;assert.deepEqual(inspected.fields.map(f=>[f.type,f.signer,f.name]),[['signature',0,'{{signature:1}}']])
+  assert.deepEqual((await h.post('/api/inkwell/templates/match',{uploadId:u.id})).value.matches,[])
   const id=(await h.command('envelope.prepare',input)).result.id
   const storedSource=await h.post(`/api/inkwell/envelopes/${id}/artifacts/document-0`,undefined);assert.ok(storedSource.bytes.length===bytes.length&&storedSource.bytes.every((b,i)=>b===bytes[i]),'the source artifact preserves every uploaded byte')
+  assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM iw_blobs WHERE envelope_id=?').bind(id).first()).n,0,'PDF bytes never enter D1 rows')
+  const bucket=await h.mf.getR2Bucket('ARTIFACTS'),refs=(await h.db.prepare('SELECT * FROM iw_object_artifacts WHERE owner_id=? ORDER BY kind').bind(id).all()).results
+  assert.deepEqual(refs.map(r=>r.kind),['document-0','original']);assert.ok(refs.every(r=>r.bytes===bytes.length&&r.sha256===digest(bytes)))
+  for(const ref of refs)assert.equal(digest(new Uint8Array(await (await bucket.get(ref.object_key)).arrayBuffer())),digest(bytes))
+  const corrupted=bytes.slice();corrupted[corrupted.length-1]^=1;await bucket.put(refs[0].object_key,corrupted)
+  assert.equal((await h.send(`/api/inkwell/envelopes/${id}/verify`,undefined,h.owner)).value.ok,false)
+  assert.equal((await h.send(`/api/inkwell/envelopes/${id}/artifacts/document-0`,undefined,h.owner)).status,503)
+  await bucket.put(refs[0].object_key,bytes)
+  assert.equal((await bucket.list({prefix:`staging/${u.id}/`})).objects.length,0,'successful preparation removes transient object parts')
   assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM iw_pdf_upload_parts WHERE upload_id=?').bind(u.id).first()).n,0,'successful preparation consumes transient upload bytes')
   const prepared=await envelope(h,id),original=(await h.post(`/api/inkwell/envelopes/${id}/artifacts/original`,undefined)).bytes
   assert.equal(prepared.documents[0].sha256,digest(bytes));assert.equal(prepared.originalSha256,digest(original));assert.ok(original.length>=20_000_000,'preparation retains the large image')
@@ -409,6 +420,9 @@ test('Document uploads: business-size PDFs preserve fingerprints through inspect
   await h.command('envelope.lift_hold',{id});await h.post('/api/inkwell/erase',{id,confirmation:'ERASE'})
   assert.equal((await h.send(`/api/inkwell/envelopes/${id}/artifacts/original`,undefined,h.owner)).status,404)
   for(const fresh of [copy,reused])assert.equal(digest((await h.post(`/api/inkwell/envelopes/${fresh}/artifacts/document-0`,undefined)).bytes),digest(bytes),'erasing the source preserves independent copy and template custody')
+  await h.command('template.remove',{id:template})
+  for(const fresh of [copy,reused])await h.post('/api/inkwell/erase',{id:fresh,confirmation:'ERASE'})
+  for(const ref of refs)assert.equal(await bucket.get(ref.object_key),null,'final custody erasure removes the object bytes')
 
  }finally{await h.close()}
 })
@@ -453,7 +467,7 @@ test('Document export: all or selected stable snapshots, PDF/certificate/audit/C
 test('Whole archive transfers: durable build cursor, range resume and idempotent part restore publish an empty destination only after all fingerprints pass',async()=>{
  const h=await harness({mailProvider:null}),destination=await harness({mailProvider:null})
  try{
-  const original=await pdf('Resumable whole-installation record'),id=await prepare(h,original,people.slice(0,1))
+  const original=new Uint8Array(20*1024*1024).fill(32);original.set(await pdf('synthetic-inkwell-3 resumable business-size record'));const upload=(await h.post('/api/inkwell/documents/uploads',{filename:'archive.pdf',bytes:original.length})).value;for(let offset=0,part=0;offset<original.length;offset+=upload.chunkBytes,part++){const response=await h.mf.dispatchFetch(h.origin+`/api/inkwell/documents/uploads/${upload.id}/parts/${part}`,{method:'PUT',headers:{origin:h.origin,cookie:h.owner,'content-type':'application/octet-stream'},body:original.slice(offset,offset+upload.chunkBytes)});assert.equal(response.status,200)}const id=(await h.command('envelope.prepare',{title:'Business-size archive',documents:[{uploadId:upload.id,mode:'sign'}],signers:people.slice(0,1),fields:[field(0)]})).result.id
   const base='/api/inkwell/archive/transfers',job=(await h.post(base+'/exports',{} ,h.owner,201)).value.id
   let state=(await h.post(`${base}/exports/${job}/advance`,{maxParts:1})).value
   const checkpoint=state.completed;assert.ok(checkpoint>0)
@@ -464,7 +478,7 @@ test('Whole archive transfers: durable build cursor, range resume and idempotent
   const first=await h.send(`${base}/exports/${job}/download`,undefined,h.owner,{range:`bytes=0-${cut-1}`}),rest=await h.send(`${base}/exports/${job}/download`,undefined,h.owner,{range:`bytes=${cut}-`})
   assert.equal(rest.status,206);assert.deepEqual(Buffer.concat([first.bytes,rest.bytes]),Buffer.from(download.bytes))
   const manifest=(await h.send(`${base}/exports/${job}/records/manifest`,undefined,h.owner)).value,closing=(await h.send(`${base}/exports/${job}/records/closing`,undefined,h.owner)).value
-  assert.ok(!manifest.tables.some(t=>t.name.startsWith('iw_exit_')),'export working copies never enter installation custody')
+  assert.ok(manifest.objects.some(o=>o.bucket==='ARTIFACTS'&&o.size===original.length));assert.ok(state.bytes>24*1024*1024);assert.ok(!manifest.tables.some(t=>t.name.startsWith('iw_exit_')),'export working copies never enter installation custody')
   const restore=(await destination.post(base+'/imports',{manifest,confirmed:true},destination.owner,201)).value.id
   await destination.post(`${base}/imports/${restore}/finalize`,{contentHash:closing.contentHash,archiveHash:closing.archiveHash},destination.owner,400)
   assert.equal((await destination.send(`/api/inkwell/envelopes/${id}`,undefined,destination.owner)).status,404,'incomplete restore publishes no product record')

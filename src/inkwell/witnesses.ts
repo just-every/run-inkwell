@@ -115,9 +115,9 @@ export async function witnessDocument(env: Env, e: Envelope, signer: number, com
   const partial = { ...e, fields: e.fields.filter(f => Boolean(e.signers[f.signer].signedAt)) }, marks = new Map<string, Uint8Array>()
   for (const [i,s] of e.signers.entries()) for (const initials of [false,true]) {
     const adoption = initials ? s.initialsAdoption : s.adoption
-    if (s.signedAt && adoption?.sha256) marks.set(markKind(i,initials), await readBlob(env.DB,e.id,markKind(i,initials),adoption.sha256))
+    if (s.signedAt && adoption?.sha256) marks.set(markKind(i,initials), await readBlob(env,e.id,markKind(i,initials),adoption.sha256))
   }
-  const scans = await Promise.all(e.signers.flatMap((s,i) => s.paper?.status === 'accepted' ? [readBlob(env.DB,e.id,`paper-${i}`,s.paper.sha256).then(bytes => ({bytes,mediaType:s.paper!.mediaType}))] : []))
-  const bytes = new Uint8Array(await signedPdf(await readBlob(env.DB,e.id,'original',e.originalSha256),partial,scans,marks))
+  const scans = await Promise.all(e.signers.flatMap((s,i) => s.paper?.status === 'accepted' ? [readBlob(env,e.id,`paper-${i}`,s.paper.sha256).then(bytes => ({bytes,mediaType:s.paper!.mediaType}))] : []))
+  const bytes = new Uint8Array(await signedPdf(await readBlob(env,e.id,'original',e.originalSha256),partial,scans,marks))
   return recipientPdf(env,e,signer,false,{bytes,component,withScans:true})
 }

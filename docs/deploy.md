@@ -23,9 +23,11 @@ rer deploy
 ```
 
 The dry run builds and checks everything without contacting Cloudflare. The real deploy
-creates the Worker and its D1 database, applies the database migrations and checks that the
+creates the Worker, its D1 database and the ARTIFACTS R2 bucket, applies the database migrations and checks that the
 new installation answers. It prints the installation's address and how to claim it as the
 owner.
+
+Migration `0085_object_artifacts.sql` adds private object custody for new PDF artifacts and upload parts. Existing D1 artifacts remain readable and are not migrated automatically. Preserve both the database and object bucket in installation backups.
 
 ## After deploying
 

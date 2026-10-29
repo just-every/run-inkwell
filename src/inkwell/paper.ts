@@ -38,7 +38,7 @@ export async function uploadPaper(env: Env, context: SigningContext, request: Re
     ...blobWrites(env.DB, after.id, paperKind(index), bytes),
     ...(sender && !mailSuppressed(env) ? [noticeWrite(env.DB, after, index, sender.email, `Paper signature to review: ${after.title}`, `${sender.display_name},\n\n${signer.name} signed ${after.title} on paper and uploaded ${pages} page(s).\nOpen the envelope in Inkwell to accept or reject the upload.`)] : []),
   ], [{ sql: 'EXISTS(SELECT 1 FROM iw_signers WHERE envelope_id=? AND signer=? AND session_hash=? AND session_expires>?)', values: [after.id, context.recipient.row, context.recipient.session_hash, Date.now()] }])
-  await readBlob(env.DB, after.id, paperKind(index), fingerprint)
+  await readBlob(env, after.id, paperKind(index), fingerprint)
   await dispatchMail(env, after.id)
   return { id: after.id, status: 'pending', sha256: fingerprint, pages }
 }
@@ -69,7 +69,7 @@ export async function reviewPaper(env: Env, context: CommandContext, input: Reco
   const writes = await advanceAfterSigning(env, after, index)
   const result = { id: after.id, status: after.status, paper: 'accepted' }
   await commitEnvelope(env, before, after, context.actor, [...writes, commandWrite(env.DB, context.actor.id, context.commandId, context.fingerprint, result)])
-  if (after.status === 'completed') { await readBlob(env.DB, after.id, 'signed', after.signedSha256); await readBlob(env.DB, after.id, 'certificate', after.certificateSha256) }
+  if (after.status === 'completed') { await readBlob(env, after.id, 'signed', after.signedSha256); await readBlob(env, after.id, 'certificate', after.certificateSha256) }
   await dispatchMail(env, after.id)
   return result
 }

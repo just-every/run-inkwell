@@ -1261,8 +1261,8 @@ test('Composition preparation refuses inaccessible sources and a source definiti
  const recipients=[{name:'Synthetic guarded client',email:'synthetic-guarded-client@clients.example'}]
  await h.command('template.combine',{ids,recipients},outsider.cookie,404)
  const before=(await h.db.prepare('SELECT COUNT(*) AS n FROM iw_envelopes').first()).n
- // A real D1 trigger schedules the competing definition change during the command's staging writes, before its insert batch.
- await h.db.exec(`CREATE TRIGGER synthetic_composition_race AFTER INSERT ON iw_blob_staging BEGIN UPDATE iw_templates SET data=json_set(data,'$.title','Synthetic changed during preparation') WHERE id='${first}'; END`)
+ // A real D1 trigger schedules the competing definition change during the command's object staging, before its insert batch.
+ await h.db.exec(`CREATE TRIGGER synthetic_composition_race AFTER INSERT ON iw_object_pending BEGIN UPDATE iw_templates SET data=json_set(data,'$.title','Synthetic changed during preparation') WHERE id='${first}'; END`)
  try{await h.command('template.combine',{ids,recipients},h.owner,409)}finally{await h.db.exec('DROP TRIGGER synthetic_composition_race')}
  assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM iw_envelopes').first()).n,before,'a stale source cannot leave a partially prepared envelope')
  assert.equal(JSON.parse((await h.db.prepare('SELECT data FROM iw_templates WHERE id=?').bind(first).first()).data).title,'Synthetic changed during preparation','the competing source change happened')
