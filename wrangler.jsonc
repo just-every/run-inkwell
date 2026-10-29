@@ -38,7 +38,6 @@
     "MAIL_WEBHOOK_KEY": "",
     "TURNSTILE_SITE_KEY": "",
     "TWILIO_ACCOUNT_SID": "",
-    "TWILIO_FROM": "",
-    "OWNER_EMAIL": ""
+    "TWILIO_FROM": ""
   }
 }

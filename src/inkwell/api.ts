@@ -1,3 +1,7 @@
+import { prepareSalesforceEnvelope } from './salesforce'
+import { getSalesforceWriteback, retrySalesforceWriteback } from './salesforce-writeback'
+import { salesforceSyncConfig, salesforceSyncProgress, salesforceSyncOperation } from './salesforce-sync'
+import { salesforceNativeAdministrator } from './salesforce-envelope-authority'
 import { noticeReconciliation, repairNoticeConnection } from './notice-reconciliation'
 import { deliveryReconciliation, repairDeliveryRecords } from './delivery-reconciliation'
 import { prepareHubspotEnvelope } from './hubspot-envelope'
@@ -136,6 +140,24 @@ api.get('/api/inkwell/audit.csv',async c=>{await requireActor(c.req.raw,c.env,['
 api.get('/health',c=>c.json({status:'ok',product:'Inkwell',...deploymentHealth(c.env)}))
 // MANAGE-001: the workspace is who is signed in, their agent tokens and people; envelopes are read a page or one at a time.
 api.get('/api/inkwell',async c=>{const actor=await requireActor(c.req.raw,c.env);return c.json({actor:{id:actor.id,name:actor.name,email:actor.email,role:actor.role},agents:actor.role==='owner'?await listAgents(c.env):[],people:['owner','admin'].includes(actor.role)?await listPeople(c.env):[],...(['owner','admin'].includes(actor.role)?{settings:{envelopeDefaults:await envelopeDefaults(c.env),freeForm:await freeFormPolicy(c.env),freeFormHistory:await freeFormHistory(c.env),completedCopies:await completedCopyDelivery(c.env),retention:await retentionView(c.env),healthcare:await healthcareProfile(c.env),internalApproval:await approvalView(c.env),sendPolicies:await sendPolicies(c.env),sendPolicyHistory:await sendPolicyHistory(c.env)}}:{}),...(actor.role==='viewer'?{}:{signingGroups:await listGroups(c.env)})})})
+api.post('/api/inkwell/salesforce/prepare',async c=>{
+ sameOrigin(c.req.raw,c.env)
+ const actor=await requireActor(c.req.raw,c.env,['owner','admin']);salesforceNativeAdministrator(actor)
+ const input=await readJson(c.req.raw,32768),commandId=text(input.commandId,'a command ID',100),fingerprint=await sha256(canonical({salesforce:input}))
+ const result=await previousCommand(c.env.DB,actor.id,commandId,fingerprint)??await prepareSalesforceEnvelope(c.env,{actor,commandId,fingerprint,client:clientEvidence(c.req.raw)},input)
+ if(input.send===true){await dispatchMail(c.env,(result as {id:string}).id);await dispatchSms(c.env,(result as {id:string}).id)}
+ return c.json(result)
+})
+api.get('/api/inkwell/salesforce/config',async c=>c.json(await salesforceSyncConfig(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))
+api.get('/api/inkwell/salesforce/progress',async c=>c.json(await salesforceSyncProgress(c.env,await requireActor(c.req.raw,c.env,['owner','admin']))))
+api.post('/api/inkwell/salesforce/sync',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await salesforceSyncOperation(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),await readJson(c.req.raw,1200000)))})
+api.get('/api/inkwell/salesforce/envelopes/:id/writeback',async c=>c.json(await getSalesforceWriteback(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),c.req.param('id'))))
+api.post('/api/inkwell/salesforce/envelopes/:id/writeback',async c=>{sameOrigin(c.req.raw,c.env);return c.json(await retrySalesforceWriteback(c.env,await requireActor(c.req.raw,c.env,['owner','admin']),c.req.param('id')))})
+api.get('/api/inkwell/salesforce/writebacks',async c=>{
+ const actor=await requireActor(c.req.raw,c.env,['owner','admin']);salesforceNativeAdministrator(actor)
+ const rows=(await c.env.DB.prepare("SELECT s.envelope_id AS id,json_extract(e.data,'$.title') AS title FROM iw_salesforce_envelopes s JOIN iw_envelopes e ON e.id=s.envelope_id ORDER BY s.authorized_at DESC LIMIT 50").all<{id:string;title:string}>()).results
+ return c.json({owner:actor.role==='owner',jobs:await Promise.all(rows.map(async row=>({...await getSalesforceWriteback(c.env,actor,row.id),title:row.title})))})
+})
 api.post('/api/inkwell/hubspot/prepare',async c=>{
  sameOrigin(c.req.raw,c.env)
  const actor=await requireActor(c.req.raw,c.env,['owner','admin']),input=await readJson(c.req.raw,32768),commandId=text(input.commandId,'a command ID',100),fingerprint=await sha256(canonical({hubspot:input}))

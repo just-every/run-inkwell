@@ -340,6 +340,31 @@ test('DELIV-005: the sender resends the invitation by email on the same link, th
  } finally { await h.close() }
 })
 
+test('DELIV-008: inherited notice channels are unknown names for a signed-in member', async () => {
+ const privateBinding = randomBytes(32).toString('hex')
+ const h = await harness({ bindings: { MAIL_API_KEY: privateBinding, INSTALLATION_KEY: privateBinding, SESSION_SECRET: privateBinding } })
+ try {
+  const member = await h.invite('notice-member@example.test', 'member')
+  const path = '/api/inkwell/notices/settings', url = 'https://hooks.slack.com/services/notice/member/registered'
+  const registered = await h.send(path, { connect: { channel: 'slack', url } }, member)
+  assert.equal(registered.status, 200, 'a registered channel still connects for a member')
+  assert.equal(registered.value.result.connected.slack === 'https://hooks.slack.com/…ered', true, 'the registered connection is masked')
+  const answers = []
+  for (const channel of ['unknown-channel', 'constructor', '__proto__', 'hasOwnProperty']) {
+   for (const candidateUrl of [url, 'not a URL', null]) {
+    const response = await h.send(path, { connect: { channel, url: candidateUrl } }, member)
+    answers.push({ channel, status: response.status, body: JSON.stringify(response.value) })
+   }
+  }
+  console.log('Notice channel public-door statuses: ' + answers.map(({ channel, status }) => `${channel}=${status}`).join(', '))
+  for (const { channel, status, body } of answers) {
+   assert.equal(status, 400, `${channel} receives the unknown-channel refusal`)
+   assert.equal(body === JSON.stringify({ error: 'Connect slack, teams or nook.' }), true, 'only the fixed unknown-channel answer is returned')
+   assert.equal(body.includes(privateBinding) || body.includes(h.origin) || body.includes('owner@harbour.example'), false, 'the refusal contains no private binding or environment content')
+  }
+ } finally { await h.close() }
+})
+
 test('DELIV-008: subscribed to declines and completions in Slack, Teams, Nook and email, the sender gets each there and nothing else; after turning off completions in Teams the next completion skips only Teams; every notice is in the activity feed', async () => {
  const refusals=new Map(),edgeCalls=[]
  let pauseHook

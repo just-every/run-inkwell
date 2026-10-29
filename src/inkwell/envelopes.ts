@@ -34,7 +34,7 @@ import { accessCodeWrites, draftDetail, readDraft } from './drafts'
 import { chooseSchedule, type Schedule } from './schedule'
 import { sealLink } from './links'
 import { memberLinkWrites } from './signing-groups'
-export interface CommandContext { preparedWrites?: (envelope:Envelope)=>Promise<D1PreparedStatement[]>; actor: Actor; commandId: string; fingerprint: string; client?: Client; guards?: Guard[]; hubspot?: { origin?: import('./model').PolicySendOrigin; prepare:(envelope:Envelope)=>Promise<void>; writes:(envelope:Envelope)=>Promise<D1PreparedStatement[]> }; bulk?: {id:string;name:string;row:number;approvedAt:string;writes:(e:Envelope)=>D1PreparedStatement[]}; form?: { submission:import('./model').FormSubmission; origin?:import('./model').PolicySendOrigin; writes:(envelope:Envelope)=>Promise<D1PreparedStatement[]> } }
+export interface CommandContext { preparedWrites?: (envelope:Envelope)=>Promise<D1PreparedStatement[]>; actor: Actor; commandId: string; fingerprint: string; client?: Client; guards?: Guard[]; crm?: { origin?: import('./model').PolicySendOrigin; prepare:(envelope:Envelope)=>Promise<void>; writes:(envelope:Envelope)=>Promise<D1PreparedStatement[]> }; bulk?: {id:string;name:string;row:number;approvedAt:string;writes:(e:Envelope)=>D1PreparedStatement[]}; form?: { submission:import('./model').FormSubmission; origin?:import('./model').PolicySendOrigin; writes:(envelope:Envelope)=>Promise<D1PreparedStatement[]> } }
 export async function prepareEnvelope(env: Env, context: CommandContext, input: Record<string, unknown>, release=false) {
  // A Microsoft upload keeps its source authority through either preparation door.
  let microsoftUploadId=input.microsoftUploadId
@@ -63,7 +63,7 @@ export async function approveEnvelope(env: Env, context: CommandContext, input: 
 export async function approvePreparedEnvelope(env:Env,context:CommandContext,input:Record<string,unknown>,before:Envelope,creating?:D1PreparedStatement[]) {
  if(before.testMode)insist(!input.sendAt,'Test mode does not schedule production deliveries.',409)
  if(before.formSubmission&&!context.form){const {formReviewGuard}=await import('./web-forms');context={...context,guards:[...(context.guards??[]),await formReviewGuard(env,before.formSubmission,context.actor)]}}
- if(context.hubspot?.origin){before.sendOrigin=context.hubspot.origin;insist(!mailSuppressed(env),'Autonomous HubSpot sending requires configured email delivery.',409)}
+ if(context.crm?.origin){before.sendOrigin=context.crm.origin;insist(!mailSuppressed(env),'Autonomous integration sending requires configured email delivery.',409)}
  else if(context.form?.origin){before.sendOrigin=context.form.origin;insist(!mailSuppressed(env),'Autonomous forms require configured email delivery.',409)}
  else if(context.actor.apiKeyId){insist(context.actor.apiKeyScope==='envelopes:send','This API key needs the envelopes:send scope.',403);insist(!mailSuppressed(env),'Autonomous sending requires configured email delivery.',409);before.sendOrigin={source:'api',principal:context.actor.id,credential:{kind:'api_key',id:context.actor.apiKeyId}}}
  else {insist(input.eligible===true,'Confirm this document is eligible and that you consent to sending it for electronic signature.');delete before.sendOrigin}

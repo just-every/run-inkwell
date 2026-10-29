@@ -44,7 +44,7 @@ export async function prepareHubspotEnvelope(env:Env,context:CommandContext,inpu
   const scope={version:1,accountId:credential.accountId,recordType:type,recordId:record,...(contactId?{contactId}:{}),templateId,mappings,writeback:{properties:['inkwell_status','inkwell_envelope_id','inkwell_completed_at','inkwell_signed_sha256','inkwell_key_fields','inkwell_custom_fields'],timelineNote:true,executedPdf:true}}
   const guards:Guard[]=[...(context.guards??[]),roleGuard(actor,['owner','admin']),await hubspotPreparationGuard(env,credential)]
   if(input.send)await atomic(env.DB,guards,[env.DB.prepare('INSERT INTO iw_hubspot_send_bindings(id,credential_version,account_id,principal,member_version,member_role) VALUES(?,?,?,?,?,?)').bind(binding,credential.version,credential.accountId,actor.id,actor.version,actor.role)])
-  return useTemplate(env,{...context,guards,hubspot:{
+  return useTemplate(env,{...context,guards,crm:{
     ...(input.send?{origin:{source:'integration' as const,principal:actor.id,credential:{kind:'hubspot' as const,id:binding}}}:{}),
     prepare:async e=>{
       if(ownerId){const provisional={action:'hubspot.record_prepared',detail:{escalationOwner:ownerId}};const probe={...e,events:[...e.events,provisional]} as Envelope;ownerId=await hubspotEscalationOwner(env,probe)}

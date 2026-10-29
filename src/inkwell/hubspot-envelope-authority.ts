@@ -21,7 +21,7 @@ export async function hubspotPreparationGuard(env:Env, credential:HubspotCredent
   return hubspotCredentialGuard(credential)
 }
 export async function hubspotEscalationOwner(env:Env,e:Envelope):Promise<string|undefined> {
-  const native=e.events.find(event=>event.action==='hubspot.record_prepared')
+  const native=e.events.find(event=>['hubspot.record_prepared','salesforce.record_prepared'].includes(event.action))
   const candidate=native?.detail.escalationOwner
   if(typeof candidate!=='string')return undefined
   const actor=await env.DB.prepare(`SELECT id,version,email,display_name AS name,CASE WHEN role='member' THEN ${memberRoleSql('oa_operators.id')} ELSE role END AS role FROM oa_operators WHERE id=? AND status='active'`).bind(candidate).first<Actor>()
