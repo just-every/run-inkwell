@@ -6,7 +6,7 @@
       "hosted": true,
       "commands": [
         "pnpm exec rer check --profile first-party",
-        "node scripts/edition-authoring/cli.mjs check",
+        "node node_modules/@runeditrun/rer/edition-authoring/cli.mjs check",
         "pnpm run build",
         "pnpm run typecheck",
         "INKWELL_JOURNEY_SHARD=1/4 pnpm run test:api",
@@ -20,7 +20,7 @@
       "hosted": false,
       "commands": [
         "pnpm exec rer check --profile first-party",
-        "node scripts/edition-authoring/cli.mjs check",
+        "node node_modules/@runeditrun/rer/edition-authoring/cli.mjs check",
         "pnpm run build",
         "pnpm run typecheck",
         "INKWELL_JOURNEY_SHARD=2/4 pnpm run test:api",
@@ -34,7 +34,7 @@
       "hosted": false,
       "commands": [
         "pnpm exec rer check --profile first-party",
-        "node scripts/edition-authoring/cli.mjs check",
+        "node node_modules/@runeditrun/rer/edition-authoring/cli.mjs check",
         "pnpm run build",
         "pnpm run typecheck",
         "INKWELL_JOURNEY_SHARD=3/4 pnpm run test:api",
@@ -48,7 +48,7 @@
       "hosted": false,
       "commands": [
         "pnpm exec rer check --profile first-party",
-        "node scripts/edition-authoring/cli.mjs check",
+        "node node_modules/@runeditrun/rer/edition-authoring/cli.mjs check",
         "pnpm run build",
         "pnpm run typecheck",
         "INKWELL_JOURNEY_SHARD=4/4 pnpm run test:api",

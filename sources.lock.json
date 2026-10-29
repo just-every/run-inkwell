@@ -161,7 +161,7 @@
       "executable": false
     },
     ".github/workflows/verify.yml": {
-      "sha256": "90a694230e9f7c892a9a520488618dff4b27943d0b9551ad00bb4863e6d51247",
+      "sha256": "21a88ebba6a90fcc885a037c54c03fef369e56895771167da1264112d38dba07",
       "executable": false
     },
     ".gitignore": {
@@ -185,7 +185,7 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "d74eb99682fc48f8a901a8e13dd278a78075f8325a04ff22bf6f7fd8e0c32e05",
+      "sha256": "1dcea8cde369fa1969beff8ab200a92c537e5dc7ad826a05effb9ebeaf233bf4",
       "executable": false
     },
     "composition.lock.json": {
@@ -1589,7 +1589,7 @@
       "executable": false
     },
     "scripts/verify-ci.mjs": {
-      "sha256": "cf1ceb8773ed276f82245fb8fb4c4bdc95bff40ecc0e8ca8ac9e776978b17340",
+      "sha256": "059b3b1b5608fe2b718b22c45a76d74fcbc0014ff747153612ac1a0bdf70155b",
       "executable": false
     },
     "scripts/verify-evidence.mjs": {
@@ -5445,7 +5445,7 @@
       "executable": false
     },
     "verification.json": {
-      "sha256": "bc855c9c8ffa454070755fcd752b26bdb0bdebd56986cbf94353b6bbcc60185d",
+      "sha256": "51d4ddfe83d93e2946c29671a3e5f427d48afee4982da62ce05e0d1729fa2819",
       "executable": false
     },
     "VERIFY-WORKFLOW.md": {
