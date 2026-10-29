@@ -12,6 +12,9 @@ h1 { padding-block: .08em .12em; margin-block: -.08em -.12em; font-weight: 900; 
 .sub { color: #434a58; }
 .btn { border-radius: 18px; background: #12161f; }
 .art { opacity: .95; }
+/* Keep the optional terminal recipes fully visible when the disclosure is open on a phone. */
+.chooser .self .other-ways pre { overflow-x: visible; white-space: pre-wrap; }
+.chooser .self .other-ways pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 760px) {
   .bar { padding: 16px 16px 0; }
   .brand { font-size: 28px; gap: 9px; }
