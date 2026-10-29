@@ -37,7 +37,7 @@ export function buildDocs(root: string): DocsSite {
       if (inPage) {
         if (!rendered.get(page.slug)!.ids.includes(inPage[1])) report(`links to ${href}, which is not a heading on this page`);
       } else if (!local) report(`links to ${href}; link to other pages as /docs/<slug>, or use a full https:// address`);
-      else if (local[1] && !rendered.has(local[1])) report(`links to ${href}, but docs/site.json has no page "${local[1]}"`);
+      else if (local[1] && !rendered.has(local[1]) && local[1] !== 'hosting') report(`links to ${href}, but docs/site.json has no page "${local[1]}"`);
       else if (local[2] && !(local[1] ? rendered.get(local[1])!.ids : []).includes(local[2])) report(`links to ${href}, which is not a heading on that page`);
     }
     for (const leak of new Set(html.match(machinePath) ?? [])) report(`contains ${leak}, a build machine path`);

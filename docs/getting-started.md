@@ -47,4 +47,4 @@ rer dev --stop
 Run `rer dev` again in the same folder to start where you left off. Your envelopes and
 settings stay in the checkout's local data.
 
-Next: [Send an agreement](/docs/send-an-agreement).
+Next: [Send an agreement](/docs/send-an-agreement), or [put Inkwell online](/docs/hosting).

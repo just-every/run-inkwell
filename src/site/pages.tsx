@@ -5,6 +5,7 @@ import type { ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { fontLinks } from '../base/font-head'
 import { contractPageHtml } from '../base/contract-page'
+import { hostingPageHtml } from '../base/hosting-page'
 import { runPageHtml, siteNotFoundHtml, type RunData, type SiteBuild, type SiteContext } from '../base/run-site'
 import { identity } from '../identity'
 import { DocsArticle } from './docs/DocsArticle'
@@ -25,7 +26,7 @@ const baseLook = (html: string) => html
   .replace(/<link rel="icon" href="\/brand\/mark\.svg">/, ICONS)
   .replace('</head>', '<link rel="stylesheet" href="/site/base-pages.css"></head>')
 
-export function sitePages({ styles, contract }: SiteContext): SiteBuild {
+export function sitePages({ styles, contract, hosting }: SiteContext): SiteBuild {
   const data: RunData = run
   const document = (title: string, description: string, body: ReactElement, script = '') => '<!doctype html>' + renderToStaticMarkup(
     <html lang="en">
@@ -59,6 +60,7 @@ export function sitePages({ styles, contract }: SiteContext): SiteBuild {
       { path: '/run', html: baseLook(runPageHtml(identity, data, contract)) },
       ...(contract ? [{ path: '/contract', html: baseLook(contractPageHtml(identity, data, contract)) }] : []),
       { path: '/docs', html: document(...docsHead(), <DocsIndex />) },
+      { path: '/docs/hosting', html: baseLook(hostingPageHtml(identity, data, hosting, contract)) },
       ...docsPages.map(page => ({ path: `/docs/${page.slug}`, html: document(...docsHead(page.slug), <DocsArticle slug={page.slug} />, COPY) })),
       { path: '/404', html: baseLook(siteNotFoundHtml(identity, data, contract)) },
     ],

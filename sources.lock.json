@@ -237,7 +237,7 @@
       "executable": false
     },
     "docs/getting-started.md": {
-      "sha256": "014467228b89e6202f8039e770017f4179f7b84b980545fc07e9f5a9b2390751",
+      "sha256": "59eec2dd88e2a376492d4aaba3b4b2c6a7570b31d63c36e57bc025cb3d804ba0",
       "executable": false
     },
     "docs/healthcare.md": {
@@ -4461,7 +4461,7 @@
       "executable": false
     },
     "src/site/docs/build/site.ts": {
-      "sha256": "053cd6cc7b1f4a2857fbbbbdb1d8a80ee1ccc7a64a96f911379392d47299fa0d",
+      "sha256": "a3a22e690ed2201d228d1076bdc3fcd5584d5e8924501b4b85f63564c2422775",
       "executable": false
     },
     "src/site/docs/build/slug.ts": {
@@ -4477,7 +4477,7 @@
       "executable": false
     },
     "src/site/docs/DocsIndex.tsx": {
-      "sha256": "33440b923a1d5b5d0725fd9e6844c0dc92810e7fc5557cfec82e30b7a207efcd",
+      "sha256": "f400294fa1b4f82efdb055b9ada8561bdccbe61615ad7a8414291065c994b9b4",
       "executable": false
     },
     "src/site/docs/DocsNav.tsx": {
@@ -4585,7 +4585,7 @@
       "executable": false
     },
     "src/site/pages.tsx": {
-      "sha256": "7c74dae361b92581d8138a4d7344475ca22d058f1649b4ed9a166347f0259a7f",
+      "sha256": "db433ecb5357bf32e50d18bb14039f013aceb40d29468a6f7b0a4aec6c145817",
       "executable": false
     },
     "src/site/run.json": {

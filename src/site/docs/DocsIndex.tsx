@@ -13,6 +13,7 @@ export function DocsIndex() {
           <p className="ik-eyebrow">Inkwell docs</p>
           <h1 className="docs-title">Docs</h1>
           <p className="docs-lead">{docsLead}</p>
+          <p className="docs-lead"><a href="/docs/hosting">Put Inkwell online</a> with the hosting guide.</p>
         </header>
         {docsSections.map((section, index) => (
           <section className="docs-index-section" key={section.title} aria-labelledby={`docs-section-${index}`}>
