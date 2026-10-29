@@ -20,11 +20,14 @@ for(const id of selected){
  if(!clause)throw new Error(`Unknown clause ${id}`)
  const cells=lines[clause.row-1].trim().slice(1,-1).split(/(?<!\\)\|/).map(cell=>cell.trim())
  const point=clause.text.split('**Acceptance evidence:**')[1]?.trim()
+  ?? (id.startsWith('BASE-AGENT-') ? clause.text.split('**Acceptance.**')[1]?.trim().replace(/\s*\n\s*/g,' ') : undefined)
  if(!point)throw new Error(`The acceptance journey for ${id} must be in CONTRACT.md before regeneration.`)
  const prefix=`- **${id} — `,current=acceptance.split('\n').find(line=>line.startsWith(prefix))
- if(!current)throw new Error(`No legacy acceptance entry for ${id}`)
+ if(!current&&!id.startsWith('BASE-AGENT-'))throw new Error(`No legacy acceptance entry for ${id}`)
  const replacement=`- **${id} — ${clause.title}** (${clause.status}). ${point[0].toUpperCase()+point.slice(1)} Evidence: ${cells[4]}.`+(cells[5]?` Gap: ${cells[5]}`:'')
- acceptance=acceptance.replace(current,replacement)
+ if(current)acceptance=acceptance.replace(current,replacement)
+ else acceptance=acceptance.replace(/^Status provenance,/m,replacement+'\n\nStatus provenance,')
+ if(!acceptance.includes(replacement))acceptance=acceptance.trimEnd()+'\n\n'+replacement+'\n'
 }
 acceptance=acceptance.replace(/^Status provenance,.*$/m,`Status provenance: source and test revision \`${contract.commit}\`; resolve the full candidate SHA with git rev-parse HEAD. Contract counts: ${contract.counts.done} done, ${contract.counts.partial} partial and ${contract.counts.missing} missing. CONTRACT.md records proof scope and release boundaries.`)
 const claims=['# Clause claims','','Generated from CONTRACT.md. Acceptance journeys remain in ACCEPTANCE.md.','',`Inventory: ${contract.counts.done} done, ${contract.counts.partial} partial, ${contract.counts.missing} missing; ${contract.counts.total} total.`,'','| Clause | Status | Evidence | Details |','| --- | --- | --- | --- |',...contract.clauses.map(clause=>{const cells=lines[clause.row-1].trim().slice(1,-1).split(/(?<!\\)\|/).map(cell=>cell.trim());return `| ${cells[0]} | ${cells[3]} | ${clause.evidence.map(path=>'`'+path+'`').join(', ')} | [Contract status](../CONTRACT.md#status) |`})].join('\n')+'\n'

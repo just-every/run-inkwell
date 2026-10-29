@@ -1,8 +1,8 @@
 Inkwell uses Base’s shared door through its production Worker at `/mcp`,
 `/api/rer/agent-policy`, `/agents` and the native person approval and audit doors.
 MCP versions 2026-07-28 and 2025-11-25 use one registry. The runtime source is
-pinned to Base `114ef7a61f080da053af783c5fbe06f625d692cc` (rer 0.2.88);
-the CLI dependency is separately pinned to released `@runeditrun/rer@0.2.88`.
+pinned to Base `2135c394939f4a737adabdc8003b0e667b31ac5a` (rer 0.2.91);
+the CLI dependency is separately pinned to released `@runeditrun/rer@0.2.91`.
 
 The declared subset is tools, policy, pause, audit and idempotency. Events,
 resource templates/reads, prompts and subscriptions are absent from the public
@@ -53,7 +53,7 @@ Signed Business `owner_id` binds to the installation’s original native setup
 owner; signed team `id` binds through `bs_team.operator_id`. Sponsor admission
 never selects a person by token email. Business owner maps to policy owner,
 Business team admin to editor, member to no policy role. Local promotion cannot
-change that Business mapping. Unknown or inactive subjects are refused.
+change that Business mapping. Unknown or inactive subjects and a token email differing from the bound native person’s current email are refused.
 
 An owner-issued native preparation token works at MCP with only
 `agreements:prepare`. Its existing `/api/inkwell/agent/prepare` endpoint now
@@ -86,3 +86,7 @@ are excluded from document archives and require fresh admission after restore.
 Client erasure across retained shared-door evidence and multi-sponsor isolation
 need separate integrated proof. The target contract’s unavailable jobs remain
 gaps; they are not registered as placeholder tools or relabeled as device work.
+
+## Verification coverage
+
+The released 0.2.91 verifier exercises all four tools against a disposable production build and the real migrations. The native journey checks preparation attribution, changed-argument replay refusal, real artifact integrity, narrow local credentials, revocation and indistinguishable missing records. The standalone production-installation harness passes 686 points. Unknown Business subjects and changed token email are explicit refusal probes; independent inactive/excluded sponsors, client erasure and cross-sponsor isolation remain separate gaps.
