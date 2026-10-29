@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
 import { latestLocalAgent } from './agent-door-fixtures.mjs'
 
-export async function afterStep({ step, result, tool, phase }) {
+export async function afterStep({ step, args, result, tool, phase }) {
   if (step.id === 'prepare' && phase === 'autonomous') {
+    const conflict = await tool(step.tool, { ...args, title: 'Changed agreement on the same operation key' })
+    assert.equal(conflict.result?._meta?.['com.runeditrun/error']?.code, 'idempotency_conflict')
     const read = await tool('inkwell.envelopes.manage.manage_005', { id: result.id })
     const envelope = read.result?.structuredContent
     assert.equal(envelope?.status, 'prepared')
