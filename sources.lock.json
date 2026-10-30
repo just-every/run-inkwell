@@ -217,11 +217,11 @@
       "executable": false
     },
     "docs/agent-door.md": {
-      "sha256": "bde2cc9395d96eb08bc5502e8b44984116648277c1192c5800d7db4d5090a336",
+      "sha256": "76c10c22a5df2b61fcfc29080350aec467c751c8234a79d88ecc47d96c6a4d13",
       "executable": false
     },
     "docs/agent-workflows.md": {
-      "sha256": "ec8729fc94f08e9398de94622e13f27440f38b4a533f25d2e301880ec7a7e675",
+      "sha256": "70ede5d34072e0e3abdd6affaec234fcd67ea7fd3e8daa6c7434a72ad167e95e",
       "executable": false
     },
     "docs/api.md": {
@@ -353,7 +353,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "c86026f44dbc1cc50c4ca00b6f95d4737c482cc5143cb1f6418626f1eb50d9e3",
+      "sha256": "7736471268bbeba0ccf68c6974741dcc0b1d49a0978cd28d1c91f211f3dcecff",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -702,6 +702,10 @@
     },
     "migrations/core/0087_agent_door.sql": {
       "sha256": "016d8a98b964385f5c4a13447361c3c783910a76aaf4606b0e0081482bc819cc",
+      "executable": false
+    },
+    "migrations/core/0088_exit_snapshots.sql": {
+      "sha256": "f2d54af65066619905aec643cb3039ff83b74ad66ede310fa4c8413567173ed6",
       "executable": false
     },
     "ONBOARDING.md": {
@@ -1313,7 +1317,7 @@
       "executable": false
     },
     "src/inkwell/archive-policy.mjs": {
-      "sha256": "fea428cf309506d3f2844cee57d65dd6e08e0ab68dcf8359fa65d64a6b7498da",
+      "sha256": "40f10c21984757e8f685083b8dc511340cc9cbf3da58dadf31449497f55fdbee",
       "executable": false
     },
     "src/inkwell/archive-transfers.ts": {
@@ -1321,7 +1325,7 @@
       "executable": false
     },
     "src/inkwell/archive.ts": {
-      "sha256": "e1350ff1290b6def63acef623f418768916c1d75d57db76d3fd433484f740e51",
+      "sha256": "8ce65385314f4923d56edc46ce7aebeec512c475422a1aec86107919ada2d48c",
       "executable": false
     },
     "src/inkwell/blobs.ts": {
@@ -1465,7 +1469,7 @@
       "executable": false
     },
     "src/inkwell/door/index.ts": {
-      "sha256": "469eb6ef5ea1c2081592dd2309486b168745929f51f9566444f81a03fd9a4804",
+      "sha256": "4ddd0f9f0e53d9cd39895f224e094b473fde868ab924f3333c74be2e64eeea1f",
       "executable": false
     },
     "src/inkwell/door/inspection.ts": {
@@ -1525,7 +1529,11 @@
       "executable": false
     },
     "src/inkwell/exit-export.ts": {
-      "sha256": "a5cd09cc0242d3deb84fdc935669f3518c6c17342dc8ba009af3fd51e16c2673",
+      "sha256": "773c6cce9c9bf7a6cb93fb9ad0b4d7684b6c47eeef14527650f0834bc1ca2c4c",
+      "executable": false
+    },
+    "src/inkwell/exit-snapshots.ts": {
+      "sha256": "f99edf22b333c97ebf9392a42ae711db13cf523e377ec0f5dca25b56bc38b0df",
       "executable": false
     },
     "src/inkwell/expiry.ts": {
@@ -5205,7 +5213,7 @@
       "executable": false
     },
     "tests/agent-door-journey.mjs": {
-      "sha256": "541a8e3f46c71402a1dcca3221e2ffc4e0e40ae0d5ac3dc7cdb2d46cd0513057",
+      "sha256": "c3106c1167e8b7191c19037dbe1e23a249bf8db3625e012743b74dd03e60da50",
       "executable": false
     },
     "tests/agent-workflows.test.mjs": {
@@ -5233,7 +5241,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "20830871e7a1f3413e6662b09cf09bfcaaad2c8612ca3b3abed66aed6a67e603",
+      "sha256": "606efe5d2b81c7617bcb3bd38480086212be0a497b997159b7e2ebbf5ef66964",
       "executable": false
     },
     "tests/document-fields.test.mjs": {

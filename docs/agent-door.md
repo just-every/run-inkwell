@@ -81,6 +81,8 @@ subset does not claim those native queues are integrated.
 No provider cost, spend reservation or spend-cap enforcement is claimed;
 `spend: {none: true}` describes this journey. Discovery request capacity and
 native PDF/recipient validation are capacity bounds, not company policy limits.
+Installation-bound Business mappings, policies, pending approvals and credentials
+are excluded from document archives and require fresh admission after restore.
 Client erasure across retained shared-door evidence and multi-sponsor isolation
 need separate integrated proof. The target contract’s unavailable jobs remain
 gaps; they are not registered as placeholder tools or relabeled as device work.

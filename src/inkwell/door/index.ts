@@ -1,6 +1,7 @@
 import { createAgentDoor, operatorAuthPeople, type Capability, type Trust } from '../../modules/agent-door/index.ts'
 import { createBusinessSettings } from '../../modules/business-settings/index.ts'
 import { operatorAuth, type Bindings } from '../../auth.server'
+import { withAuditDatabase } from '../account-audit-db'
 import { authenticateAgent } from '../agents'
 import { Refusal } from '../model'
 import { inspectionTools } from './inspection.ts'
@@ -36,8 +37,9 @@ export function inkwellAgentDoor(env: Bindings) {
 export async function agentResponse(request: Request, env: Bindings): Promise<Response | null> {
   const path = new URL(request.url).pathname
   if (path === '/api/rer/business-settings' || path === '/rer-business-logo' || path === '/rer-business.css') {
-    const auth = operatorAuth(env)
-    const settings = createBusinessSettings({ db: env.DB, trust: env.RER_BUSINESS_TRUST, business: { settings: 1, values: ['display_name'], team: { roles: { admin: 'admin', member: 'member' } } }, team: auth.businessTeam })
+    const scoped = { ...env, DB: withAuditDatabase(env.DB, { kind: 'system', id: 'business-settings' }) }
+    const auth = operatorAuth(scoped)
+    const settings = createBusinessSettings({ db: scoped.DB, trust: env.RER_BUSINESS_TRUST, business: { settings: 1, values: ['display_name'], team: { roles: { admin: 'admin', member: 'member' } } }, team: auth.businessTeam })
     const response = await settings.handle(request)
     if (response) return response
   }

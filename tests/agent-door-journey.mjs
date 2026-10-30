@@ -18,7 +18,7 @@ export async function afterStep({ step, args, result, tool, phase }) {
 export default async function ({ tool, request, origin, cookie }) {
   const scoped = await tool('inkwell.envelopes.manage.manage_005', { id: crypto.randomUUID() }, { client: 'local' })
   assert.equal(scoped.status, 403)
-  assert.equal(scoped.result?._meta?.['com.runeditrun/error']?.code, 'insufficient_scope')
+  assert.equal(scoped.body.error.data.code, 'insufficient_scope')
   const revoked = await request(origin + '/api/inkwell/commands', { method: 'POST', headers: { Origin: origin, Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ command: 'agent.revoke', commandId: crypto.randomUUID(), input: { id: latestLocalAgent } }) })
   assert.equal(revoked.status, 200)
   const stopped = await tool('inkwell.drafts.prepare.prep_001', {}, { client: 'local' })
