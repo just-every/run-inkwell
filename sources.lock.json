@@ -5073,7 +5073,7 @@
       "executable": false
     },
     "tests/delivery.test.mjs": {
-      "sha256": "20830871e7a1f3413e6662b09cf09bfcaaad2c8612ca3b3abed66aed6a67e603",
+      "sha256": "0267d657796a1bf5d3fb82c6cb40f69c5299890e148aa4d3fb4ad1dbd427d663",
       "executable": false
     },
     "tests/document-fields.test.mjs": {
