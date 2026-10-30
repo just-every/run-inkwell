@@ -212,8 +212,12 @@
       "sha256": "91392cac80f3b31f2cb1ae1e2bff876340e9680132a96725cecc4ef7a06b6eac",
       "executable": false
     },
+    "docs/agent-door.md": {
+      "sha256": "1b3011c46fa3326207c314b28ff25956c6f4f1a9fb5d830582869c7fb21c6558",
+      "executable": false
+    },
     "docs/agent-workflows.md": {
-      "sha256": "cd662c1afeacd806c97c443320855eb9706133230b462394176c8c7bcdf9b017",
+      "sha256": "916fc74c06a62f69090eb566f832005471b6c0a098ebe88a553628e81ab4a649",
       "executable": false
     },
     "docs/api.md": {
