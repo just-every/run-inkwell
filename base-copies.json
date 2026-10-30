@@ -2785,7 +2785,7 @@
       "originPath": "export/verify-ci.mjs",
       "revision": "2f77cdb6d8dfaa82903c2839600e23b76631a537",
       "files": {
-        "scripts/verify-ci.mjs": "cf1ceb8773ed276f82245fb8fb4c4bdc95bff40ecc0e8ca8ac9e776978b17340"
+        "scripts/verify-ci.mjs": "70c11f74ba4bf98771115dc86c990a273a5fa5b5949ac325dfa8320611921de9"
       },
       "modes": {
         "scripts/verify-ci.mjs": "100644"
@@ -2794,11 +2794,11 @@
         "export/verify-ci.mjs"
       ],
       "adapted": {
-        "scripts/verify-ci.mjs": "f96363bf919ea3e7ed1837daba6894810a50e4a6"
+        "scripts/verify-ci.mjs": "2f77cdb6d8dfaa82903c2839600e23b76631a537"
       },
       "acknowledged": {
         "scripts/verify-ci.mjs": {
-          "sha256": "059b3b1b5608fe2b718b22c45a76d74fcbc0014ff747153612ac1a0bdf70155b",
+          "sha256": "d0f9d1721074fc78033ac7e9a351819bc8867181c1e3ee06e0c185e27b5f179f",
           "mode": "100644"
         }
       }
@@ -5123,23 +5123,23 @@
       "originPath": "export/VERIFY-WORKFLOW.md",
       "revision": "2f77cdb6d8dfaa82903c2839600e23b76631a537",
       "files": {
-        "VERIFY-WORKFLOW.md": "7d9e29a787387ce643e96f74e4b1764332b94733ceea1541c84e4633be1cf85e"
+        "VERIFY-WORKFLOW.md": "bf8a42042d5e795dae58476298e0aa531c7ad0e9c69551c5c881c3a1b0044be7"
       },
       "modes": {
         "VERIFY-WORKFLOW.md": "100644"
       },
+      "originFiles": [
+        "export/VERIFY-WORKFLOW.md"
+      ],
       "adapted": {
-        "VERIFY-WORKFLOW.md": "11f94fec479228d71ba6d7dd6ea7796c0d42c544"
+        "VERIFY-WORKFLOW.md": "2f77cdb6d8dfaa82903c2839600e23b76631a537"
       },
       "acknowledged": {
         "VERIFY-WORKFLOW.md": {
-          "sha256": "53d15791dce6446dacb3cc872d79ca2ee676aeb5d4c3761c28f623495ef20bcf",
+          "sha256": "16a0454d3122c67e5d96e8aec3324e11f889ac1dd649647226b0a4e4de81c878",
           "mode": "100644"
         }
-      },
-      "originFiles": [
-        "export/VERIFY-WORKFLOW.md"
-      ]
+      }
     }
   ]
 }

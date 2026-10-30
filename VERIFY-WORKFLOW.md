@@ -1,21 +1,40 @@
 # Inkwell verification
 
-This edition owns `.github/workflows/verify.yml`. It runs on a push to main
-or a manual workflow dispatch. Candidate branches use one manual dispatch
-when their push has not already started Verify. Do not dispatch a second run
-for the same SHA.
+This edition owns `.github/workflows/verify.yml` and
+`.github/workflows/verify-nightly.yml`. They merge Base's seed Verify
+lifecycle with Inkwell's four partitions, their assertions and a 15-minute
+shard deadline. Verify runs on every branch push, pull requests and manual
+dispatch. Do not dispatch or re-run Verify for a SHA that already has a run.
 
-Four parallel jobs run on Ubuntu 24.04 with Node 22.20.0 and pnpm 10.12.4.
-Each installs the frozen dependency lock, runs `rer check --profile first-party`,
-installs Chromium and runs `pnpm run verify`. The final `verify` job requires
-all four jobs to succeed. Each shard job has a 15-minute deadline.
+A plan job checks reusable workflow permissions and shared artifact names with
+`node scripts/verify-ci.mjs --check-workflows`, then plans coverage from
+`verification.json` with `node scripts/verify-ci.mjs --plan`:
 
-The pinned installer adapter invokes the edition's `verify:app` command. It
-checks the edition source lock, builds the application, checks TypeScript,
-then runs the API tests, runtime tests and browser journeys. The
-`INKWELL_JOURNEY_SHARD` selector partitions the API suite and the committed
-browser journey list across the four jobs. Without the selector, the local
-commands run their complete respective suites.
+| Coverage | When | What runs |
+| --- | --- | --- |
+| Full | Any other change | The four push partitions |
+| Reuse | A full push proof already covers an identical Git tree | Nothing more; that proof stands |
+| Light | A branch push on a push-verified parent changes only contract documents, `sources.lock.json` or evidence | The source lock check, `pnpm run check`, the light helper's reviewed readers and the site build |
+
+The final `verify` job is the required check. It passes only when planning and
+the selected coverage succeed; failed or cancelled work cannot pass it.
+
+Each partition runs on Ubuntu 24.04 with Node 22.20.0 and pnpm 10.12.4. It
+installs the frozen dependency lock, checks the edition source lock with the
+installed authoring package and runs `pnpm run deps`. It installs Chromium and
+adds Chromium's system libraries only after a failed launch probe. The pnpm
+store, Chromium and apt package caches live in the runner's temporary
+directory. The partition then runs `rer check --profile first-party`, the
+source lock check, the build, TypeScript, its quarter of the API suite, the
+runtime tests and its quarter of the browser journeys. The
+`INKWELL_JOURNEY_SHARD=N/4` selector makes the partitions. Partition 1 runs
+them through `pnpm run verify`, which keeps rer's hosted-output and hydration
+checks; the other partitions use `pnpm run verify:app`. Without the selector,
+the local commands run their complete respective suites.
+
+Nightly journeys runs the nightly shard, the 100-recipient capacity journey,
+on Monday and Thursday at 05:57 UTC. Release tags beginning with `v` and a
+manual Nightly journeys dispatch run every push and nightly shard.
 
 `tests/run-api.mjs` discovers every file ending in `.test.mjs` in `tests/`.
 `tests/journeys/run.mjs` lists every ordinary browser journey explicitly,
@@ -27,9 +46,10 @@ from these deterministic tests.
 
 During a clause round, run the touched tests and TypeScript locally. Run the
 edition source lock check after the last source, test or documentation change
-and after incorporating main. Regenerate it with
-`node scripts/edition-authoring/cli.mjs lock`; never edit its hashes directly.
-CI supplies the complete verification before landing.
+and after incorporating main. Regenerate the lock with the installed package,
+`node node_modules/@runeditrun/rer/edition-authoring/cli.mjs lock`, then run
+the same entry's `check`, which is the check CI runs. Never edit its hashes
+directly. CI supplies the complete verification before landing.
 
 A normal remote-host landing also requires the complete full-history
 publication scan on the exact committed candidate, green branch Verify on
@@ -37,7 +57,3 @@ that exact SHA, and a guarded fast-forward preserving newer main work.
 The main push starts Run site separately. The fleet handoff records the exact
 SHA and run identifiers; an earlier green run is never evidence for a newer
 candidate.
-
-The retained Base pin and release workflow remain unchanged. This document
-records the actual edition workflow, rather than the newer Base template's
-optional workflow layout.
