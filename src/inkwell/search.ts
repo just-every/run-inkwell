@@ -19,7 +19,7 @@ const pendingMine = `json_extract(e.data,'$.internalApproval.state')='pending' A
 const namedMe = `EXISTS(SELECT 1 FROM json_each(e.data,'$.events') ev, json_each(ev.value,'$.detail.steps') a WHERE json_extract(ev.value,'$.action')='envelope.internal_approval_requested' AND json_extract(a.value,'$.approver')=?3)`
 const bucket = `CASE WHEN json_extract(e.data,'$.status') IN ('prepared','awaiting_signature') AND json_extract(e.data,'$.expiresAt')<=?1 THEN 'expired' WHEN json_extract(e.data,'$.status')='prepared' THEN CASE WHEN ${pendingMine} THEN 'waiting_for_me' ELSE 'draft' END WHEN json_extract(e.data,'$.status')='awaiting_signature' THEN CASE WHEN ${myTurn} THEN 'waiting_for_me' ELSE 'waiting_for_others' END ELSE json_extract(e.data,'$.status') END`
 // Envelopes an agent's preparation token prepared (DELEGATE-001), for the dashboard's agent strip.
-const byAgent = `EXISTS(SELECT 1 FROM json_each(e.data,'$.events') ev WHERE json_extract(ev.value,'$.action')='envelope.prepared' AND json_extract(ev.value,'$.actor') LIKE 'agent:%')`
+const byAgent = `EXISTS(SELECT 1 FROM json_each(e.data,'$.events') ev WHERE json_extract(ev.value,'$.action')='envelope.prepared' AND (json_extract(ev.value,'$.actor') LIKE 'agent:%' OR json_extract(ev.value,'$.detail.preparedBy.agent.id') IS NOT NULL))`
 const like = (value: string) => '%' + value.replace(/[\\%_]/g, c => '\\' + c) + '%'
 
 export async function searchEnvelopes(env: Env, actor: Actor, params: URLSearchParams) {

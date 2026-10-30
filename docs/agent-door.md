@@ -1,60 +1,82 @@
-# Company agents and the shared door
+Inkwell uses Base’s shared door through its production Worker at `/mcp`,
+`/api/rer/agent-policy`, `/agents` and the native person approval and audit doors.
+MCP versions 2026-07-28 and 2025-11-25 use one registry. The runtime source is
+pinned to Base `114ef7a61f080da053af783c5fbe06f625d692cc` (rer 0.2.88);
+the CLI dependency is separately pinned to released `@runeditrun/rer@0.2.88`.
 
-Inkwell's existing agent credential is a preparation credential. Its owner can
-issue and revoke it, and it can prepare a PDF envelope for a person's later
-approval. It cannot send, sign, manage members, read private replies or borrow a
-browser session. API keys and provider, signing, import and installation
-credentials retain their separate purposes. See [agent workflows](agent-workflows.md)
-for the existing native agreement workflows and their limits.
+The declared subset is tools, policy, pause, audit and idempotency. Events,
+resource templates/reads, prompts and subscriptions are absent from the public
+surface and return `capability_not_declared`. This is a partial adoption of the
+larger agreement-operations target in the ct contract. It does not complete its
+seeded week, integrations, autonomous release, signature or filing journeys.
 
-The shared Base agent-door runtime is copied into `src/modules/agent-door` at
-Base commit `d555e789cffb744a9f83d76ebe42a2e3bdd7a055`. Its Business settings
-and operator-account dependencies are recorded at that same revision in
-`base-copies.json`. The Business settings, Business person mappings and door
-tables have new additive migrations. Copying these sources does not expose an
-Inkwell MCP endpoint or enable company-agent execution: the production Worker
-does not yet construct the shared door.
+## Supported agreement work
+
+| Tool | Scope | Classes | Native clauses |
+| --- | --- | --- | --- |
+| `inkwell.drafts.prepare.prep_001` | agreements:prepare | standard, sensitive | PREP-001, PREP-003, DELEGATE-001, AGENT-001 |
+| `inkwell.envelopes.manage.manage_005` | agreements:read | sensitive | ACCESS-001, MANAGE-005, RECORD-002 |
+| `inkwell.records.verify.record_001` | agreements:read | standard | RECORD-001, RECORD-002 |
+| `inkwell.workspace.snapshot` | agreements:read | standard | ACCESS-001, MANAGE-001 |
+
+Preparation calls the same `prepareEnvelope` and `readDraft` path as the UI:
+fixed PDF bytes, document custody, native recipient and field validation, current
+roles and atomic persistence remain authoritative. It creates an internal draft.
+A person must still review the exact bytes and authorize sending through Inkwell’s
+native confirmation. Company approval of preparation does not authorize release.
+The exact proposed input digest, filename, title and recipients form the held
+approval summary. Native preparation records `<agent> for <person>` and retains
+both native identities and the actual named company approvers.
+
+Inspection exposes a bounded projection of the visible envelope’s identity,
+revision, title, state, original fingerprint and timeline attribution. It returns
+no signing capability, bearer credential, private follow-up reply or PDF body.
+Verification reads the real stored artifacts and checks their hashes and native
+chain. Imported records do not become verified native records. Supplied document
+and agreement text is untrusted. Reads use the same policy and audit pipeline.
+No mutation of an existing envelope or native reversal is registered, so there
+is no stale-record mutation or Undo claim in this subset.
 
 ## Native identity and authority
 
-The authoritative people store is `oa_operators`. Inkwell keeps Base's owner and
-admin roles; a native member is a sender or viewer according to
-`iw_member_roles`, with viewer as the default. Current envelope and template
-shares further constrain a sender. A company-agent adapter must re-read those
-native facts for every action, resource and approval execution.
+The authoritative people store is `oa_operators`. A native member’s sender or
+viewer role comes from `iw_member_roles`, defaulting to viewer. Envelope ownership,
+current shares and named native approver access remain authoritative. Business
+policy never creates a native grant. Preparation rechecks current roles inside
+the native atomic write, including native preparation-token revocation.
 
-Business identity must use the signed Business document's `owner_id` and team
-`id`, through `bs_settings` and `bs_team`, to bind to native operator IDs. Email
-alone cannot establish sponsorship. Business owner maps to policy owner,
-Business team admin to policy editor, and Business member to no policy role.
-Promoting a person locally does not promote their Business policy role.
+Signed Business `owner_id` binds to the installation’s original native setup
+owner; signed team `id` binds through `bs_team.operator_id`. Sponsor admission
+never selects a person by token email. Business owner maps to policy owner,
+Business team admin to editor, member to no policy role. Local promotion cannot
+change that Business mapping. Unknown or inactive subjects are refused.
 
-The production owner-claim handler supports a signed claim when the owner-claim
-trust is configured. The current setup manifest declares setup-token mode.
-Verification must reconcile that declaration with the actual production owner
-lifecycle before claiming successful signed bootstrap; a raw setup token must
-never be sent to the signed claim endpoint.
+An owner-issued native preparation token works at MCP with only
+`agreements:prepare`. Its existing `/api/inkwell/agent/prepare` endpoint now
+invokes that same registered tool and policy pipeline. Unanswered policy refuses
+with `policy_unset`; Pause and revocation stop the next effect. Approval returns
+a named-person URL; an agent cannot decide it. Token issuance/revocation remain
+the native signed-in owner’s commands. API keys and provider, signing, import
+and installation credentials keep their separate purposes.
 
-## Deferred effects require their original consent
+## Bootstrap, providers and limits
 
-Invitations, SMS, scheduled releases, reminders, notifications and connected
-filing have durable native execution paths. An agent effect queued through any
-of those paths needs its original verified sponsor, agent and consent binding.
-The dispatcher must recheck current authority, Business and local Pause, agent
-revocation and that exact consent before the next effect. An uncertain provider
-outcome must retain its receipt and must not be blindly resent.
+The setup manifest retains setup-token mode: normal verification posts the native
+`/auth/bootstrap` lifecycle. A paired installation’s `/auth/owner-claim` keeps its
+signed claim validation; no raw setup token is sent to that signed endpoint.
+Business settings and policy use the installation’s existing trust ring.
 
-At the copied Base revision, `Principal` has `consent`, but the public
-`ToolContext` passed to native `run` does not. Its context constructor drops
-that field, and `door.invoke` accepts only a person and agent. There is no
-public execution handle carrying the original consent into a native queue.
-Consequently Inkwell cannot yet connect these deferred effects to the shared
-door while preserving consent-specific revocation. Looking up the latest call
-for an agent, treating an agent ID as a consent, or passing caller-supplied
-consent would not establish the original verified binding.
+These registered actions have no outbound provider effect. Consequently no seed
+network edge is declared; the verifier keeps undeclared outbound hosts closed.
+Sending, SMS, reminders, scheduled release, private follow-up, connected filing,
+CRM intake and inbound return retain their existing native doors. They need
+original consent custody and execution-time admission before broader shared-door
+exposure. Although Base now supplies a consent-bearing execution context, this
+subset does not claim those native queues are integrated.
 
-The shared runtime needs a public verified execution/consent context suitable
-for native durable custody and revalidation. Until that is available and the
-native adapters and conformance journey are complete, Inkwell makes no shared
-MCP, company-policy, agent approval or agent spend-enforcement claim. Provider
-cost registration is unsupported at this Base revision.
+No provider cost, spend reservation or spend-cap enforcement is claimed;
+`spend: {none: true}` describes this journey. Discovery request capacity and
+native PDF/recipient validation are capacity bounds, not company policy limits.
+Client erasure across retained shared-door evidence and multi-sponsor isolation
+need separate integrated proof. The target contract’s unavailable jobs remain
+gaps; they are not registered as placeholder tools or relabeled as device work.

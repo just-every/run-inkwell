@@ -1,3 +1,4 @@
+import { agentResponse } from './inkwell/door/index.ts'
 import { embedResponse } from './inkwell/embed-response'
 import { complianceRequest } from './inkwell/compliance/requests'
 import { hostedResponse } from './inkwell/in-person'
@@ -32,6 +33,8 @@ export default withDemo({
     return complianceRequest(request, env, async () => {
     const asset = await staticAssetResponse(request, env)
     if (asset) return asset
+    const agent = await agentResponse(request, runtimeBindings(env))
+    if (agent) return noTransform(agent, request)
     const hosted = await hostedResponse(request, runtimeBindings(env))
     if (hosted) return noTransform(hosted, request)
     const embedded = await embedResponse(request, runtimeBindings(env), async (req,scope) => new URL(req.url).pathname.startsWith('/api/') ? api.fetch(req, scope, execution) : noTransform(await start.fetch(req), req))
