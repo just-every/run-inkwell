@@ -217,7 +217,7 @@
       "executable": false
     },
     "docs/agent-door.md": {
-      "sha256": "eb391ee5b1da27d2277953fedbe119f0d62921964e9b72511e0ed59e3ea75947",
+      "sha256": "bde2cc9395d96eb08bc5502e8b44984116648277c1192c5800d7db4d5090a336",
       "executable": false
     },
     "docs/agent-workflows.md": {
@@ -4937,7 +4937,7 @@
       "executable": false
     },
     "src/ui/envelope-view.ts": {
-      "sha256": "27e16ba74b1485d184e745c8bc77850827d6d7788fceabefca82b9ee0a597ee1",
+      "sha256": "6426a0d68190c34905f742e65270d27d83aa19d12159bd9846811d537ff58a3b",
       "executable": false
     },
     "src/ui/feedback.tsx": {
@@ -5205,7 +5205,7 @@
       "executable": false
     },
     "tests/agent-door-journey.mjs": {
-      "sha256": "e3bf0ac62d336a60d37bb953b530ec7188d40338a44b9f82e0ab74a21485f0f2",
+      "sha256": "541a8e3f46c71402a1dcca3221e2ffc4e0e40ae0d5ac3dc7cdb2d46cd0513057",
       "executable": false
     },
     "tests/agent-workflows.test.mjs": {

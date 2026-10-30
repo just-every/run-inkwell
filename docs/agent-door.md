@@ -12,12 +12,16 @@ seeded week, integrations, autonomous release, signature or filing journeys.
 
 ## Supported agreement work
 
-| Tool | Scope | Classes | Native clauses |
-| --- | --- | --- | --- |
-| `inkwell.drafts.prepare.prep_001` | agreements:prepare | standard, sensitive | PREP-001, PREP-003, DELEGATE-001, AGENT-001 |
-| `inkwell.envelopes.manage.manage_005` | agreements:read | sensitive | ACCESS-001, MANAGE-005, RECORD-002 |
-| `inkwell.records.verify.record_001` | agreements:read | standard | RECORD-001, RECORD-002 |
-| `inkwell.workspace.snapshot` | agreements:read | standard | ACCESS-001, MANAGE-001 |
+- `inkwell.drafts.prepare.prep_001` prepares an internal agreement. Scope:
+  `agreements:prepare`. Classes: standard, sensitive. Clauses: PREP-001,
+  PREP-003, DELEGATE-001, AGENT-001.
+- `inkwell.envelopes.manage.manage_005` inspects an agreement summary. Scope:
+  `agreements:read`. Class: sensitive. Clauses: ACCESS-001, MANAGE-005,
+  RECORD-002.
+- `inkwell.records.verify.record_001` checks real artifact integrity. Scope:
+  `agreements:read`. Class: standard. Clauses: RECORD-001, RECORD-002.
+- `inkwell.workspace.snapshot` lists visible native record revisions. Scope:
+  `agreements:read`. Class: standard. Clauses: ACCESS-001, MANAGE-001.
 
 Preparation calls the same `prepareEnvelope` and `readDraft` path as the UI:
 fixed PDF bytes, document custody, native recipient and field validation, current
