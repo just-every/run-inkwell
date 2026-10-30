@@ -6,7 +6,7 @@
   "toolchain": {
     "id": "runeditrun/edition-authoring",
     "version": "1.1.0",
-    "sha256": "3f7b56f3ae1e70588fb35c49e75b639c2360ceed550182b9caf8adc33021abb8"
+    "sha256": "b546ef04830f935ee2493a5bc08ef43a0f7d5905aeb8549fb75670c19890af99"
   },
   "components": [
     {
@@ -185,7 +185,7 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "bf5d7ac26b747f49a5172f61e677a8789165e78b9d3dc5be8d7cfd8dcc65dfd5",
+      "sha256": "2bb8a167eb3d3b1a7d8e4a40ec4eaf22af02f29f0f2a2cdcef2946da677b05ff",
       "executable": false
     },
     "composition.lock.json": {
@@ -701,7 +701,7 @@
       "executable": false
     },
     "package.json": {
-      "sha256": "ef33e355e93073d56572e734f6074309a4bcb7981e2dfc88c6ab13ca8e5c1387",
+      "sha256": "933a4679b0f39ceb6a1cf2fd7b4db7750b4a7caf13fc36b54c7675497066a2e2",
       "executable": false
     },
     "packaging.json": {
@@ -709,7 +709,7 @@
       "executable": false
     },
     "pnpm-lock.yaml": {
-      "sha256": "a3998f70ca03bdfe41d8c28ef881f0294eca3cdb6db05820fc9bb874b41e347c",
+      "sha256": "0223ab8ec9aec1ba67d8946a90f4b37fa87a25c20e8eb18582e2644b28ee38c1",
       "executable": false
     },
     "public/app/controls.css": {
@@ -1005,7 +1005,7 @@
       "executable": false
     },
     "scripts/edition-authoring/base-copies.mjs": {
-      "sha256": "d1b005d4dd096488e7d4ddf94ada571957b29e7d2cb2859ed4e77ba4ec2882fa",
+      "sha256": "4cac17e531310ab14df07139156c2b4fae5f7ab03097c7f8374c09a3d050dc8b",
       "executable": false
     },
     "scripts/edition-authoring/cli.mjs": {
@@ -1037,11 +1037,15 @@
       "executable": false
     },
     "scripts/edition-authoring/module-closure.mjs": {
-      "sha256": "fb9cf1caa9760948e256464054647671c6800937cb20e43ef5ca180ad90c4e38",
+      "sha256": "9b097df912e489d19756e15615ab5b05f4fa3405a6ec3eaf07d1b31c6d2a4ae8",
       "executable": false
     },
     "scripts/edition-authoring/module-edges.mjs": {
       "sha256": "78961972b44c158e75416629ae1149c419b0cafe2b2cb1336130bbeba2f6620a",
+      "executable": false
+    },
+    "scripts/edition-authoring/module-packages.mjs": {
+      "sha256": "cca255ac3a7538916169af5bf53f99704f79fc3fc9c11fbdddb60cb4bec8afbd",
       "executable": false
     },
     "scripts/edition-authoring/module-resolution.mjs": {
@@ -1573,11 +1577,11 @@
       "executable": false
     },
     "scripts/edition-authoring/workflow-copies.mjs": {
-      "sha256": "be15199b125ca10e19991469f65efe49e441d8e518df234b4f47ebb1d3727ec7",
+      "sha256": "72d7190040f2e0169cf5e6149e88c999aa3aef3c6c93051a1c5720b5ec681281",
       "executable": false
     },
     "scripts/edition-authoring/workflow-scripts.mjs": {
-      "sha256": "d0e747277142e54d86acd1c01549ee8b76bf15c060366387bd074c57f77f7d2d",
+      "sha256": "d2a65622a919fb630c9759eb937edb2e06ab1ad7c18212389f6d509fb06db7f3",
       "executable": false
     },
     "scripts/install-chromium-deps.py": {
@@ -1749,7 +1753,7 @@
       "executable": false
     },
     "src/base/run-site.ts": {
-      "sha256": "427d81ff57333a16768ebc28920e41db0814e59956e002e2e8a66d92c43683ca",
+      "sha256": "9ad80b8a5b57bb195564d03cf95dfbf945f1499d7ff168f4f735c2d062b2ed2a",
       "executable": false
     },
     "src/base/seed-contract.d.mts": {
@@ -4301,7 +4305,7 @@
       "executable": false
     },
     "src/modules/operator-auth/identity/oidc/README.md": {
-      "sha256": "5e03d2ef26aee1b96ef658c3dda90fe2b4781417ff1c9f32dff0d56105f7472b",
+      "sha256": "df87b1fdc24eb020436f93c5d3e17d7823d7fc1ebcf9471368dac53d585b6a09",
       "executable": false
     },
     "src/modules/operator-auth/identity/oidc/schema/oidc.sql": {
