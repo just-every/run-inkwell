@@ -189,7 +189,7 @@
       "executable": false
     },
     "base-copies.json": {
-      "sha256": "e8f71c5dc739a6e44d6bb3865e75845b49dc55ae830ee146c4f6343070ff199e",
+      "sha256": "8ec5a8b25687d27a244051affe019bc6fcb9e0cd74c17c8b8e407011ebe9ed7f",
       "executable": false
     },
     "composition.lock.json": {
@@ -2945,7 +2945,7 @@
       "executable": false
     },
     "src/modules/agent-door/policy-store.ts": {
-      "sha256": "79caa78b1afd31e960aafe7a3eaf848ab17ca7c18116a3deea253d8c022304c9",
+      "sha256": "0f48c0ee2b1908185d739a9f79612227864c7868e465ed87d15ffa5c17b3e70e",
       "executable": false
     },
     "src/modules/agent-door/policy/catalogue.ts": {
