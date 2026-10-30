@@ -90,3 +90,5 @@ gaps; they are not registered as placeholder tools or relabeled as device work.
 ## Verification coverage
 
 The released 0.2.91 verifier exercises all four tools against a disposable production build and the real migrations. The native journey checks preparation attribution, changed-argument replay refusal, real artifact integrity, narrow local credentials, revocation and indistinguishable missing records. The standalone production-installation harness passes 686 points. Unknown Business subjects and changed token email are explicit refusal probes; independent inactive/excluded sponsors, client erasure and cross-sponsor isolation remain separate gaps.
+
+Archive exports keep snapshot ordering in an integer primary key rather than a named private index. Existing export jobs are repaired before the next archive is catalogued; retained downloads and erasure fences remain intact. Repeated exports therefore retain the product schema identity. The native Archive browser journey covers interrupted build and restore at desktop and phone widths.
