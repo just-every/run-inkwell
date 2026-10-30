@@ -26,6 +26,7 @@
     {
       "title": "Reference",
       "pages": [
+        { "slug": "company-agents", "title": "Company agents", "file": "agent-door.md", "summary": "Supported agreement tools, native authority, company policy, approvals and limits." },
         { "slug": "agent-preparation", "title": "Agent preparation", "file": "agent-commands.md", "summary": "The preparation token and the request an agent sends to prepare an envelope for your approval." },
         { "slug": "import-format", "title": "DocuSeal import format", "file": "import-docuseal.md", "summary": "The archive file Move in reads, and the HTTP flow behind preview, apply, resume and undo." },
         { "slug": "healthcare", "title": "Healthcare shared responsibility", "file": "healthcare.md", "summary": "Enable the healthcare profile, review member access and configure your providers." },

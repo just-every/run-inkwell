@@ -145,4 +145,6 @@ Native-session/runtime evidence: https://github.com/runeditrun/base/tree/fc0e104
 
 ## Lander-Regenerate
 
+Lander-Regenerate: node scripts/contract-docs.mjs write AGENT-006
+
 For the clauses changed in a contract round, run `node scripts/contract-docs.mjs write AGENT-006` and then the same command with `check`. Pass each changed clause ID after the mode. This incrementally reconciles legacy acceptance journeys from CONTRACT.md and generates the complete claims register without replacing other clauses' recorded journeys. Regenerate the edition source lock last with `node scripts/edition-authoring/cli.mjs lock`, then run its `check`.

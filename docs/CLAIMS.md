@@ -2,7 +2,7 @@
 
 Generated from CONTRACT.md. Acceptance journeys remain in ACCEPTANCE.md.
 
-Inventory: 72 done, 28 partial, 17 missing; 117 total.
+Inventory: 72 done, 39 partial, 19 missing; 130 total.
 
 | Clause | Status | Evidence | Details |
 | --- | --- | --- | --- |
@@ -111,7 +111,7 @@ Inventory: 72 done, 28 partial, 17 missing; 117 total.
 | `MOVE-006` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `MOVE-007` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `MOVE-008` | partial | `src/inkwell/imports/index.ts`, `src/modules/import-kit/src/d1/index.ts` | [Contract status](../CONTRACT.md#status) |
-| `PORT-002` | done | `tests/supplements.test.mjs`, `tests/api.test.mjs`, `tests/journeys/supplements.mjs`, `tests/journeys/archive-capacity.mjs` | [Contract status](../CONTRACT.md#status) |
+| `PORT-002` | done | `tests/supplements.test.mjs`, `tests/api.test.mjs`, `tests/journeys/supplements.mjs`, `tests/journeys/archive-capacity.mjs`, `src/inkwell/archive-ordering.ts`, `tests/journeys/supplements.mjs` | [Contract status](../CONTRACT.md#status) |
 | `COMPLY-001` | partial | `tests/compliance.test.mjs`, `tests/compliance.test.mjs`, `tests/journeys/healthcare.mjs`, `tests/compliance.test.mjs`, `scripts/qualify-part11.mjs`, `docs/part11/traceability.md` | [Contract status](../CONTRACT.md#status) |
 | `COMPLY-002` | done | `tests/compliance.test.mjs`, `tests/journeys/healthcare.mjs`, `src/inkwell/compliance/profile.ts`, `src/inkwell/compliance/requests.ts`, `src/ui/healthcare.tsx`, `docs/healthcare.md` | [Contract status](../CONTRACT.md#status) |
 | `AGENT-001` | partial | `src/inkwell/agents.ts`, `tests/api.test.mjs` | [Contract status](../CONTRACT.md#status) |
@@ -123,3 +123,16 @@ Inventory: 72 done, 28 partial, 17 missing; 117 total.
 | `AGENT-007` | done | `src/inkwell/template-maintenance.ts`, `src/ui/template-maintenance.tsx`, `tests/template-maintenance.test.mjs`, `tests/journeys/template-maintenance.mjs` | [Contract status](../CONTRACT.md#status) |
 | `AGENT-008` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `AGENT-009` | partial | `tests/agent-workflows.test.mjs`, `docs/agent-workflows.md` | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-001` | partial | `agent-surface.json`, `tests/agent-door-fixtures.mjs`, `tests/agent-door-journey.mjs` | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-002` | partial | `agent-surface.json`, `tests/agent-door-fixtures.mjs`, `tests/agent-door-journey.mjs` | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-003` | missing |  | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-004` | partial | `agent-surface.json`, `tests/agent-door-fixtures.mjs`, `tests/agent-door-journey.mjs` | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-005` | partial | `agent-surface.json`, `tests/agent-door-fixtures.mjs`, `tests/agent-door-journey.mjs` | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-006` | partial | `agent-surface.json`, `tests/agent-door-fixtures.mjs`, `tests/agent-door-journey.mjs` | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-007` | partial | `agent-surface.json`, `tests/agent-door-fixtures.mjs`, `tests/agent-door-journey.mjs` | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-008` | partial | `agent-surface.json`, `tests/agent-door-fixtures.mjs`, `tests/agent-door-journey.mjs` | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-009` | partial | `agent-surface.json`, `tests/agent-door-fixtures.mjs`, `tests/agent-door-journey.mjs` | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-010` | missing |  | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-011` | partial | `agent-surface.json`, `tests/agent-door-fixtures.mjs`, `tests/agent-door-journey.mjs` | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-012` | partial | `agent-surface.json`, `tests/agent-door-fixtures.mjs`, `tests/agent-door-journey.mjs` | [Contract status](../CONTRACT.md#status) |
+| `BASE-AGENT-013` | partial | `agent-surface.json`, `tests/agent-door-fixtures.mjs`, `tests/agent-door-journey.mjs` | [Contract status](../CONTRACT.md#status) |

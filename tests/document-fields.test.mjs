@@ -59,6 +59,8 @@ test('PREP-007: text tags, anchor strings and AcroForm fields become placed fiel
   // 2. The fillable W-9 through the agent API: AcroForm fields keep their full names, which the prefill map uses.
   const w9=(await readFile('tests/fixtures/fw9.pdf')).toString('base64'),headers={authorization:'Bearer '+(await h.command('agent.issue')).result.token}
   const anchors=[{text:'Signature of',type:'signature',recipient:1,x:62,y:-14,width:240,height:30},{text:'Signature of',type:'date_signed',recipient:1,x:329,y:-14,width:150,height:30}]
+ const policy=await h.mf.dispatchFetch(h.origin+'/agents/api/policy',{method:'PUT',headers:{origin:h.origin,cookie:h.owner,'content-type':'application/json'},body:JSON.stringify({document:{schema:'rer-agent-policy/1',catalogue:'rer-agent-classes/1',rules:[{id:'owner-choice',class:'*',do:'autonomous'}],spend:{none:true}}})})
+ assert.equal(policy.status,200,'the owner explicitly authorizes agent preparation')
   const source='Vendor portal record 77 (reported by the API caller)'
   const prefill={[w9Name('f1_01')]:{value:'Acme Workshops LLC',source},[`topmostSubform[0].Page1[0].Address_ReadOrder[0].f1_07[0]`]:{value:'48 River Street',source,readOnly:true},[`topmostSubform[0].Page1[0].Boxes3a-b_ReadOrder[0].c1_1[0]`]:{value:'true',source}}
   const w9Input={title:'Vendor W-9',filename:'fw9.pdf',pdfBase64:w9,signers:[{name:'Mara Quinn',email:'mara@clients.example'}],anchors,prefill}
@@ -75,7 +77,8 @@ test('PREP-007: text tags, anchor strings and AcroForm fields become placed fiel
   assert.deepEqual(named(w9Name('f1_01')).prefill,{value:'Acme Workshops LLC',source},'a W-9 named field prefills with its reported source')
   assert.ok(named('topmostSubform[0].Page1[0].Address_ReadOrder[0].f1_07[0]').readOnly)
   assert.deepEqual(e.fields.filter(f=>f.origin==='anchor').map(f=>[f.type,f.name]),[['signature','Signature of'],['date_signed','Signature of']],'the anchored signature and date, from the caller\'s anchor string')
-  assert.equal(e.events[0].actor.startsWith('agent:'),true)
+  assert.equal(e.events[0].actor,`${e.events[0].detail.preparedBy.agent.name} for ${e.events[0].detail.preparedBy.for.name}`)
+  assert.ok(e.events[0].detail.preparedBy.agent.id,'the preparation retains its native agent identity')
   await h.command('envelope.approve',{id:w9Id,eligible:true})
   const signature=e.fields.find(f=>f.type==='signature').id,address=named('topmostSubform[0].Page1[0].Address_ReadOrder[0].f1_07[0]').id
   const view=await sign('mara@clients.example',{[signature]:'Mara Quinn',[named(w9Name('f1_11')).id]:'123'})

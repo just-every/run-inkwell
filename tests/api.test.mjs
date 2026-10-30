@@ -172,6 +172,10 @@ test('PREP-010: copying a completed envelope makes an unsigned draft that names 
 test('agent credentials can prepare but cannot approve, sign or retain authority after revocation',async()=>{
  const issued=(await h.command('agent.issue')).result
  const headers={authorization:'Bearer '+issued.token}
+ const unanswered=await h.send('/api/inkwell/agent/prepare',{...preparation(),commandId:crypto.randomUUID()},'',headers)
+ assert.equal(unanswered.status,403);assert.equal(unanswered.value.code,'policy_unset')
+ const policy=await h.mf.dispatchFetch(h.origin+'/agents/api/policy',{method:'PUT',headers:{origin:h.origin,cookie:h.owner,'content-type':'application/json'},body:JSON.stringify({document:{schema:'rer-agent-policy/1',catalogue:'rer-agent-classes/1',rules:[{id:'owner-choice',class:'*',do:'autonomous'}],spend:{none:true}}})})
+ assert.equal(policy.status,200,'the owner explicitly authorizes agent preparation')
  const created=await h.post('/api/inkwell/agent/prepare',{...preparation(),commandId:crypto.randomUUID()},'',200,headers)
  const id=created.value.result.id
  const attempt=await h.send('/api/inkwell/commands',{command:'envelope.approve',commandId:crypto.randomUUID(),input:{id,eligible:true}},'',headers)
