@@ -11,7 +11,7 @@ Every clause in [CONTRACT.md](CONTRACT.md) is accepted by the journey listed her
 - **SEND-002 — Void an unfinished envelope** (done). A sender-role member voids their own envelope after sending and is refused on another sender's unshared envelope; the voided envelope's invitation link refuses and the pending message is canceled.
 - **DELEGATE-001 — Preparation agents never send** (done). An agent token prepares an envelope but cannot approve, sign or read archives, and fails after revocation; the audit trail names the agent and the approving person.
 - **RECORD-001 — Executed PDF, certificate and verifiable audit trail** (done). Complete an envelope, download every artifact, and show recomputed document and audit fingerprints agree with the stored values and the handoff manifest.
-- **MOVE-001 — DocuSeal archive move-in** (done). Dry run, fingerprint approval, import, journal, downloads and undo of the DocuSeal fixture, with custody preserved at every step. Evidence: `tests/api.test.mjs`; `src/inkwell/imports/index.ts`; `tests/fixtures/docuseal/archive.json`.
+- **MOVE-001 — DocuSeal archive move-in** (done). Dry run, fingerprint approval, import, journal, downloads and undo of the DocuSeal fixture, with custody preserved at every step.
 - **PORT-001 — Whole-installation export and restore** (done). Export validates its contents, a populated installation refuses restore, and a fresh installation restores the executed file, certificate and full import journal.
 - **ERASE-001 — Erasure with a restore fence** (done). Erase an envelope, show its files and identity custody are gone, and show a fresh-store restore with the later journal refuses resurrection while restoring everything else.
 
