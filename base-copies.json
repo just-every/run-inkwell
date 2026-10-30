@@ -1003,15 +1003,11 @@
         "src/modules/agent-door/schema/agent-door.sql": "016d8a98b964385f5c4a13447361c3c783910a76aaf4606b0e0081482bc819cc",
         "src/modules/agent-door/subscriptions.ts": "c837a9ade38b349969458c022ce7ea2ff06045ac2dab2804a1b60ef0ebc50c16",
         "src/modules/agent-door/target.ts": "4a0de4958e58b45fc0f5069df9b3cfd43e5fb519472cac64eca182621e7823b5",
-        "src/modules/agent-door/tests/door.test.ts": "6c429e5409282db4046e2f8ea24fe47a5d91dd9579f83dfb04a1e7787db1baf0",
+        "src/modules/agent-door/tests/door.test.ts": "c7adea4c58f726b403b822d16945d6bdab41d2426dfc643c298d71f3269c04e8",
         "src/modules/agent-door/tests/execution.test.ts": "91268d1f7446cd95ac117823b0e73bdc97b8bace9ba47ce77a54c11c06211450",
-        "src/modules/agent-door/tests/identity.test.ts": "62680421ec3a37382e73ce61c54b4801bb0af85786b45a9d0da2efc1c0454998",
-        "src/modules/agent-door/tests/mutation-replay.test.ts": "8c73ec40b3eaa5e3d9c4f7229e6178365f042930bf938170c2d2faec29aee204",
-        "src/modules/agent-door/tests/mutation-tools.ts": "5996c199ab31dd7bb657cffc6e4bdf4c21e17670b5654888452d5483544a80c5",
-        "src/modules/agent-door/tests/read-replay.test.ts": "82cc86e0d5fc2e69d4c1e94d9661c4d719926ee5324e375ac92389159379d258",
-        "src/modules/agent-door/tests/resource-snapshot.test.ts": "0aa19ba5199e87c0e0de7f266b7d01fc38658bd7214fa45ed84f2f2b52cb8b28",
-        "src/modules/agent-door/tests/runtime.mjs": "b2651541158bc28bf6c5f33a75ed7839c90e600d4082f55d0bc8cf5f275021cd",
-        "src/modules/agent-door/tests/seed.ts": "9b7bc81796964182d0654fd92f4a9283b47d1c48fbdf961becd75ef3396e98cf",
+        "src/modules/agent-door/tests/identity.test.ts": "29d41eef3eced85a70c92ba697b8ebd14ddebc3ec303e3b8dd0aaf6afb1f77dc",
+        "src/modules/agent-door/tests/runtime.mjs": "a92d41d6b8d5f3255098fedc4fbc964c68cfcedf83f549e9d5f4e5af1b64d946",
+        "src/modules/agent-door/tests/seed.ts": "7d9e5260d7025d8de130be4738b523989dd533c1b77d9ed5805670c5cdde6960",
         "src/modules/agent-door/transport.ts": "03ff14a4a24406d40428cec0cb38e9b12674cba73852d5599a1c9437052092f7",
         "src/modules/agent-door/types.ts": "4fec6765ad72c5ec287b07518d11cf911f03668659eaf5efea780b65d5363878",
         "src/modules/agent-door/wire.ts": "29b000c60300a20e5feb3c90d6bd0dde7af562b43c99b4aa27260c983997163f"
@@ -1090,10 +1086,6 @@
         "src/modules/agent-door/tests/door.test.ts": "100644",
         "src/modules/agent-door/tests/execution.test.ts": "100644",
         "src/modules/agent-door/tests/identity.test.ts": "100644",
-        "src/modules/agent-door/tests/mutation-replay.test.ts": "100644",
-        "src/modules/agent-door/tests/mutation-tools.ts": "100644",
-        "src/modules/agent-door/tests/read-replay.test.ts": "100644",
-        "src/modules/agent-door/tests/resource-snapshot.test.ts": "100644",
         "src/modules/agent-door/tests/runtime.mjs": "100644",
         "src/modules/agent-door/tests/seed.ts": "100644",
         "src/modules/agent-door/transport.ts": "100644",
@@ -1196,11 +1188,11 @@
         "modules/agent-door/wire.ts"
       ],
       "adapted": {
-        "src/modules/agent-door/tests/door.test.ts": "114ef7a61f080da053af783c5fbe06f625d692cc",
-        "src/modules/agent-door/tests/execution.test.ts": "114ef7a61f080da053af783c5fbe06f625d692cc",
-        "src/modules/agent-door/tests/identity.test.ts": "114ef7a61f080da053af783c5fbe06f625d692cc",
-        "src/modules/agent-door/tests/runtime.mjs": "114ef7a61f080da053af783c5fbe06f625d692cc",
-        "src/modules/agent-door/tests/seed.ts": "114ef7a61f080da053af783c5fbe06f625d692cc"
+        "src/modules/agent-door/tests/door.test.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/tests/execution.test.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/tests/identity.test.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/tests/runtime.mjs": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/tests/seed.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a"
       },
       "acknowledged": {
         "src/modules/agent-door/tests/door.test.ts": {
