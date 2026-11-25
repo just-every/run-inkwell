@@ -135,13 +135,13 @@ rer deploy
 
 The dry run builds and validates configuration without provider requests. A real
 deploy needs `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` for your intended
-account, plus `OWNER_EMAIL`, `SESSION_SECRET`, `SETUP_TOKEN`, `MAIL_API_KEY` and a
-verified mail sender. Supply private deployment values through your shell's
-secret store or a mode-0600 environment file accepted by `rer deploy --env-file`;
-never commit them. `deploy.json` declares the Worker and D1 migration plan. Set
-its public `MAIL_FROM` to your verified sender before deploying; the default
-`auth@example.invalid` is deliberately not deliverable. Default mail is Resend.
-Do not change project, edition, Worker, package or D1 identities.
+account and an `OWNER_EMAIL`. For outbound email, supply `MAIL_API_KEY` and set the
+public `MAIL_FROM` in `deploy.json` to your verified sender. The default provider
+is Resend. For a Business without mail, set `MAIL_PROVIDER=none` and use `rer signin`
+after deployment. The [deployment guide](docs/deploy.md) describes both paths.
+Supply private values through your shell's secret store or a mode-0600 environment
+file accepted by `rer deploy --env-file`. Keep project, edition, Worker, package
+and D1 identities unchanged.
 
 The deploy command provisions the declared resources, applies migrations and
 checks health. It prints the installation URL and owner-claim instructions.

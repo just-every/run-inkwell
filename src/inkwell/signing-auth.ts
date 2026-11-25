@@ -1,5 +1,5 @@
 import { admitSmsUsage } from './usage'
-import { appendEvent, insist, randomCode, secret, sha256, text, type Env } from './model'
+import { appendEvent, insist, randomCode, Refusal, secret, sha256, text, type Env } from './model'
 import { commitEnvelope } from './storage'
 import { dispatchMail, mailWrite } from './mail'
 import { mailSuppressed } from './manual-invitations'
@@ -10,6 +10,7 @@ export async function requestCode(env: Env, context: SigningContext) {
   const person = recipientOf(context), sms = person.sms === true
   insist(!person.providerAuth, 'Complete the required provider verification.', 403)
   insist(!person.inPerson, 'The host must open in-person signing.', 403)
+  if (!sms && env.MAIL_PROVIDER === 'none') throw new Refusal('Outbound email is off. Ask the sender for a new signing link and verification code.', 409, 'mail_off')
   insist(sms ? smsReady(env) : !mailSuppressed(env), sms ? 'SMS delivery is not configured.' : 'Mail is not set up. Ask the sender for a new signing link and verification code.', 409)
   turn(context, !sms); accessGate(context)
   const r = context.recipient, at = Date.now()

@@ -9,7 +9,7 @@ import { dispatchSms, smsInvitation, smsReady } from './sms'
 // that cannot be reopened (issued before links were sealed, or sealed under another installation key, links.ts) is
 // rotated and the result says so; a resend does not move the automatic reminder schedule (DELIV-003). SMS resend
 // arrives with IDV-002's numbers.
-import { active, appendEvent, currentSigners, insist, memberRow, secret, sha256, text, type Env } from './model'
+import { active, appendEvent, currentSigners, insist, memberRow, Refusal, secret, sha256, text, type Env } from './model'
 import { commandWrite, commitEnvelope, getEnvelope } from './storage'
 import { dispatchMail, invitationWrite } from './mail'
 import { mailSuppressed } from './manual-invitations'
@@ -23,6 +23,7 @@ export async function resendInvitation(env: Env, context: CommandContext, input:
   active(before)
   const sms = input.channel === 'sms'
   insist(input.channel === undefined || input.channel === 'email' || sms, 'Choose email or SMS for this resend.')
+  if (!sms && env.MAIL_PROVIDER === 'none') throw new Refusal('Outbound email is off. Create a new signing link instead.', 409, 'mail_off')
   insist(sms ? smsReady(env) : !mailSuppressed(env), 'Mail is not set up, so no invitation can be emailed. Create a new signing link instead.', 409)
   const signer = input.signer as number, current = currentSigners(before)
   insist(Number.isInteger(signer) && current.includes(signer), 'Choose a recipient whose turn it is to sign.', 409)

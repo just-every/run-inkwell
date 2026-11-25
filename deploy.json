@@ -14,9 +14,10 @@
   "vars": {
     "AUTH_LOCAL": "false",
     "MAIL_PROVIDER": "resend",
-    "MAIL_FROM": "auth@example.invalid",
+    "MAIL_FROM": "",
     "MAIL_RELAY_URL": ""
   },
+  "publicSettings": ["MAIL_PROVIDER"],
   "secrets": [
     {
       "binding": "OWNER_EMAIL",
@@ -31,8 +32,15 @@
       "environment": "SETUP_TOKEN"
     },
     {
+      "binding": "MAIL_PROVIDER",
+      "environment": "MAIL_PROVIDER",
+      "optional": true,
+      "verifyStandIn": "none"
+    },
+    {
       "binding": "MAIL_API_KEY",
-      "environment": "MAIL_API_KEY"
+      "environment": "MAIL_API_KEY",
+      "optional": true
     },
     {
       "binding": "INSTALLATION_KEY",

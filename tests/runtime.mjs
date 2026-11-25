@@ -1,5 +1,3 @@
-import {queuedEntrypoint} from '@runeditrun/rer/queued-entry';
-const queued=await queuedEntrypoint(import.meta.url,'verify:runtime');if(queued!==null)process.exit(queued);
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
 import { reserveWorkerPort } from './worker-port.mjs'
@@ -14,7 +12,7 @@ const persist = await mkdtemp(join(tmpdir(), 'foundation-runtime-'))
 let worker
 try {
   execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'd1', 'migrations', 'apply', 'foundation', '--local', '--persist-to', persist, '--config', 'dist/server/wrangler.json'], { stdio: 'inherit', env: { ...process.env, CI: '1', WRANGLER_SEND_METRICS: 'false' } })
-  worker = spawn(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'dev', '--inspector-port', '0', '--local', '--persist-to', persist, '--ip', '127.0.0.1', '--config', 'dist/server/wrangler.json', '--port', String(port)], { stdio: ['ignore', 'pipe', 'pipe'] })
+  worker = spawn(process.execPath, ['node_modules/wrangler/bin/wrangler.js', 'dev', '--inspector-port', '0', '--local', '--persist-to', persist, '--ip', '127.0.0.1', '--config', 'dist/server/wrangler.json', '--port', String(port), '--var', 'MAIL_PROVIDER:none'], { stdio: ['ignore', 'pipe', 'pipe'] })
   let output = ''
   worker.stdout.on('data', chunk => { output += chunk })
   worker.stderr.on('data', chunk => { output += chunk })

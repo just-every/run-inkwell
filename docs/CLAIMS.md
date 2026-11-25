@@ -18,29 +18,29 @@ Inventory: 72 done, 39 partial, 19 missing; 130 total.
 | `ERASE-001` | done | `tests/api.test.mjs`, `src/inkwell/archive.ts` | [Contract status](../CONTRACT.md#status) |
 | `PREP-001` | partial | `src/inkwell/documents.ts`, `src/inkwell/pdf.ts`, `tests/supplements.test.mjs`, `tests/journeys/document-fields.mjs` | [Contract status](../CONTRACT.md#status) |
 | `PREP-002` | done | `tests/supplements.test.mjs`, `tests/journeys/supplements.mjs`, `tests/journeys/document-capacity.mjs` | [Contract status](../CONTRACT.md#status) |
-| `PREP-003` | partial | `src/inkwell/business-fields.ts`, `src/inkwell/field-rules.ts`, `src/inkwell/pdf.ts`, `src/ui/field-choices-editor.tsx`, `src/ui/signing-field-input.tsx`, `tests/prefill.test.mjs`, `tests/journeys/field-types.mjs`, `tests/journeys/template-maintenance.mjs` | [Contract status](../CONTRACT.md#status) |
-| `PREP-004` | done | `src/inkwell/field-rules.ts`, `src/inkwell/pdf.ts`, `src/inkwell/signing.ts`, `src/ui/field-rules-editor.tsx`, `src/ui/signing-field-input.tsx`, `tests/api.test.mjs`, `tests/journeys/conditional-fields.mjs` | [Contract status](../CONTRACT.md#status) |
+| `PREP-003` | partial | `src/inkwell/business-fields.ts`, `src/inkwell/field-rules.ts`, `src/inkwell/pdf.ts`, `src/ui/field-choices-editor.tsx`, `src/ui/signing-field-input.tsx`, `tests/prefill.test.mjs` | [Contract status](../CONTRACT.md#status) |
+| `PREP-004` | done | `src/inkwell/field-rules.ts`, `src/inkwell/pdf.ts`, `src/inkwell/signing.ts`, `src/ui/field-rules-editor.tsx`, `src/ui/signing-field-input.tsx`, `tests/api.test.mjs` | [Contract status](../CONTRACT.md#status) |
 | `PREP-005` | done | `tests/journeys/field-placement.mjs`, `tests/journeys/a11y.mjs`, `src/ui/field-editor.tsx`, `src/ui/editable-field.tsx`, `src/ui/field-inspector.tsx`, `src/ui/field-layout.ts`, `src/ui/page-thumbnails.tsx`, `src/ui/pdf-viewer.tsx` | [Contract status](../CONTRACT.md#status) |
 | `PREP-006` | missing |  | [Contract status](../CONTRACT.md#status) |
-| `PREP-007` | done | `src/inkwell/document-fields.ts`, `src/inkwell/pdf-layout.ts`, `src/inkwell/drafts.ts`, `src/inkwell/pdf.ts`, `src/ui/prepare-envelope.tsx`, `tests/document-fields.test.mjs`, `tests/journeys/document-fields.mjs`, `tests/fixtures/fw9.pdf` | [Contract status](../CONTRACT.md#status) |
-| `PREP-008` | done | `tests/prefill.test.mjs`, `tests/journeys/prefill.mjs`, `src/inkwell/prefill.ts`, `src/ui/field-prefill-editor.tsx` | [Contract status](../CONTRACT.md#status) |
+| `PREP-007` | done | `src/inkwell/document-fields.ts`, `src/inkwell/pdf-layout.ts`, `src/inkwell/drafts.ts`, `src/inkwell/pdf.ts`, `src/ui/prepare-envelope.tsx`, `tests/document-fields.test.mjs`, `tests/fixtures/fw9.pdf` | [Contract status](../CONTRACT.md#status) |
+| `PREP-008` | done | `tests/prefill.test.mjs`, `src/inkwell/prefill.ts`, `src/ui/field-prefill-editor.tsx` | [Contract status](../CONTRACT.md#status) |
 | `PREP-009` | done | `tests/api.test.mjs`, `src/inkwell/drafts.ts`, `src/inkwell/schedule.ts`, `src/inkwell/mail.ts`, `src/ui/prepare-envelope.tsx` | [Contract status](../CONTRACT.md#status) |
 | `PREP-010` | done | `tests/api.test.mjs`, `src/inkwell/envelopes.ts`, `src/ui/envelope-detail.tsx` | [Contract status](../CONTRACT.md#status) |
 | `PREP-011` | done | `tests/freeform-fields.test.mjs`, `tests/freeform-policy.test.mjs`, `tests/journeys/freeform-settings.mjs`, `tests/journeys/freeform.mjs` | [Contract status](../CONTRACT.md#status) |
 | `PREP-012` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `TMPL-001` | done | `tests/api.test.mjs`, `tests/journeys/templates.mjs`, `tests/prefill.test.mjs` | [Contract status](../CONTRACT.md#status) |
-| `TMPL-002` | done | `src/inkwell/template-shares.ts`, `src/inkwell/templates.ts`, `src/ui/templates.tsx`, `src/ui/template-sharing.tsx`, `migrations/core/0029_template_shares.sql`, `tests/api.test.mjs`, `tests/journeys/templates.mjs` | [Contract status](../CONTRACT.md#status) |
-| `TMPL-003` | done | `src/inkwell/templates.ts`, `src/ui/templates.tsx`, `src/ui/prepare-envelope.tsx`, `src/ui/envelope-detail.tsx`, `tests/api.test.mjs`, `tests/journeys/templates.mjs` | [Contract status](../CONTRACT.md#status) |
+| `TMPL-002` | done | `src/inkwell/template-shares.ts`, `src/inkwell/templates.ts`, `src/ui/templates.tsx`, `src/ui/template-sharing.tsx`, `migrations/core/0029_template_shares.sql`, `tests/api.test.mjs` | [Contract status](../CONTRACT.md#status) |
+| `TMPL-003` | done | `src/inkwell/templates.ts`, `src/ui/templates.tsx`, `src/ui/prepare-envelope.tsx`, `src/ui/envelope-detail.tsx`, `tests/api.test.mjs` | [Contract status](../CONTRACT.md#status) |
 | `TMPL-004` | done | `tests/api.test.mjs`, `tests/send-policies.test.mjs`, `tests/journeys/template-composition.mjs` | [Contract status](../CONTRACT.md#status) |
-| `TMPL-005` | done | `src/inkwell/template-match.ts`, `src/inkwell/pdf-text.ts`, `src/ui/template-offer.tsx`, `src/ui/prepare-envelope.tsx`, `tests/api.test.mjs`, `tests/journeys/templates.mjs` | [Contract status](../CONTRACT.md#status) |
+| `TMPL-005` | done | `src/inkwell/template-match.ts`, `src/inkwell/pdf-text.ts`, `src/ui/template-offer.tsx`, `src/ui/prepare-envelope.tsx`, `tests/api.test.mjs` | [Contract status](../CONTRACT.md#status) |
 | `ROUTE-001` | done | `tests/routing.test.mjs`, `tests/journeys/recipient-roles.mjs`, `tests/journeys/routing.mjs`, `tests/journeys/recipient-capacity.mjs` | [Contract status](../CONTRACT.md#status) |
 | `ROUTE-002` | done | `src/inkwell/model.ts`, `src/inkwell/signing.ts`, `src/ui/prepare-envelope.tsx`, `tests/api.test.mjs` | [Contract status](../CONTRACT.md#status) |
 | `ROUTE-003` | done | `tests/routing.test.mjs`, `tests/journeys/routing.mjs`, `src/inkwell/routing.ts`, `src/ui/routing-rules.tsx` | [Contract status](../CONTRACT.md#status) |
-| `ROUTE-004` | done | `tests/routing.test.mjs`, `tests/journeys/internal-approval.mjs`, `src/inkwell/internal-approval.ts`, `src/ui/internal-approval.tsx` | [Contract status](../CONTRACT.md#status) |
-| `ROUTE-005` | done | `src/inkwell/signing-groups.ts`, `src/inkwell/signing.ts`, `src/inkwell/certificate.ts`, `src/ui/signing-groups.tsx`, `tests/routing.test.mjs`, `tests/journeys/signing-groups.mjs` | [Contract status](../CONTRACT.md#status) |
+| `ROUTE-004` | done | `tests/routing.test.mjs`, `src/inkwell/internal-approval.ts`, `src/ui/internal-approval.tsx` | [Contract status](../CONTRACT.md#status) |
+| `ROUTE-005` | done | `src/inkwell/signing-groups.ts`, `src/inkwell/signing.ts`, `src/inkwell/certificate.ts`, `src/ui/signing-groups.tsx`, `tests/routing.test.mjs` | [Contract status](../CONTRACT.md#status) |
 | `ROUTE-006` | done | `src/inkwell/reassign.ts`, `src/ui/signer-app.tsx`, `src/ui/prepare-envelope.tsx`, `tests/delivery.test.mjs` | [Contract status](../CONTRACT.md#status) |
 | `ROUTE-007` | done | `tests/in-person.test.mjs`, `tests/journeys/in-person.mjs`, `src/inkwell/in-person.ts`, `src/ui/host-signing.tsx` | [Contract status](../CONTRACT.md#status) |
-| `ROUTE-008` | done | `src/inkwell/contacts.ts`, `src/ui/contacts.tsx`, `tests/api.test.mjs`, `tests/journeys/contacts.mjs` | [Contract status](../CONTRACT.md#status) |
+| `ROUTE-008` | done | `src/inkwell/contacts.ts`, `src/ui/contacts.tsx`, `tests/api.test.mjs` | [Contract status](../CONTRACT.md#status) |
 | `ROUTE-009` | done | `tests/api.test.mjs`, `src/inkwell/envelopes.ts`, `src/inkwell/own-signing.ts`, `src/inkwell/saved-marks.ts`, `src/inkwell/completed-copies.ts` | [Contract status](../CONTRACT.md#status) |
 | `ROUTE-010` | done | `tests/routing.test.mjs`, `tests/journeys/recipient-roles.mjs` | [Contract status](../CONTRACT.md#status) |
 | `ROUTE-011` | partial | `tests/routing.test.mjs`, `tests/journeys/recipient-actions.mjs`, `tests/journeys/recipient-template-actions.mjs`, `tests/freeform-fields.test.mjs`, `tests/journeys/recipient-freeform-actions.mjs` | [Contract status](../CONTRACT.md#status) |
@@ -54,7 +54,7 @@ Inventory: 72 done, 39 partial, 19 missing; 130 total.
 | `SIGNX-007` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `SIGNX-008` | done | `tests/api.test.mjs`, `tests/journeys/envelope-detail.mjs` | [Contract status](../CONTRACT.md#status) |
 | `SIGNX-009` | done | `tests/supplements.test.mjs`, `tests/journeys/supplements.mjs` | [Contract status](../CONTRACT.md#status) |
-| `IDV-001` | done | `src/inkwell/signing.ts`, `src/inkwell/drafts.ts`, `src/inkwell/corrections.ts`, `src/inkwell/templates.ts`, `src/inkwell/certificate.ts`, `src/ui/prepare-envelope.tsx`, `src/ui/signer-app.tsx`, `tests/api.test.mjs`, `tests/journeys/templates.mjs` | [Contract status](../CONTRACT.md#status) |
+| `IDV-001` | done | `src/inkwell/signing.ts`, `src/inkwell/drafts.ts`, `src/inkwell/corrections.ts`, `src/inkwell/templates.ts`, `src/inkwell/certificate.ts`, `src/ui/prepare-envelope.tsx`, `src/ui/signer-app.tsx`, `tests/api.test.mjs` | [Contract status](../CONTRACT.md#status) |
 | `IDV-002` | done | `tests/delivery.test.mjs`, `tests/journeys/sms.mjs` | [Contract status](../CONTRACT.md#status) |
 | `IDV-003` | done | `tests/api.test.mjs`, `src/inkwell/signing.ts`, `src/inkwell/envelopes.ts`, `src/ui/signer-app.tsx`, `src/ui/prepare-envelope.tsx` | [Contract status](../CONTRACT.md#status) |
 | `IDV-004` | partial | `tests/delivery.test.mjs`, `tests/journeys/provider-auth.mjs` | [Contract status](../CONTRACT.md#status) |
@@ -81,7 +81,7 @@ Inventory: 72 done, 39 partial, 19 missing; 130 total.
 | `ADMIN-001` | done | `src/inkwell/members.ts`, `src/inkwell/shares.ts`, `src/inkwell/api.ts`, `tests/api.test.mjs` | [Contract status](../CONTRACT.md#status) |
 | `ADMIN-002` | partial | `src/modules/operator-auth/accounts/admin.mjs` | [Contract status](../CONTRACT.md#status) |
 | `ADMIN-003` | partial | `src/modules/operator-auth/identity/oidc/index.mjs` | [Contract status](../CONTRACT.md#status) |
-| `ADMIN-004` | partial | `src/inkwell/envelope-defaults.ts`, `src/inkwell/send-policy-scopes.ts`, `migrations/core/0048_send_policy_scopes.sql`, `docs/send-policies.md`, `src/ui/account-defaults.tsx`, `src/inkwell/drafts.ts`, `src/inkwell/templates.ts`, `src/inkwell/freeform-policy.ts`, `migrations/core/0035_freeform_policy.sql`, `src/ui/freeform-settings.tsx`, `tests/freeform-policy.test.mjs`, `tests/journeys/freeform-settings.mjs`, `src/inkwell/send-policies.ts`, `migrations/core/0036_send_policies.sql`, `src/ui/send-policies.tsx`, `tests/send-policies.test.mjs`, `tests/journeys/send-policies.mjs`, `src/inkwell/scheduled-approval.ts`, `src/inkwell/send-hold-notices.ts`, `tests/journeys/internal-approval.mjs` | [Contract status](../CONTRACT.md#status) |
+| `ADMIN-004` | partial | `src/inkwell/envelope-defaults.ts`, `src/inkwell/send-policy-scopes.ts`, `migrations/core/0048_send_policy_scopes.sql`, `docs/send-policies.md`, `src/ui/account-defaults.tsx`, `src/inkwell/drafts.ts`, `src/inkwell/templates.ts`, `src/inkwell/freeform-policy.ts`, `migrations/core/0035_freeform_policy.sql`, `src/ui/freeform-settings.tsx`, `tests/freeform-policy.test.mjs`, `src/inkwell/send-policies.ts`, `migrations/core/0036_send_policies.sql`, `src/ui/send-policies.tsx`, `tests/send-policies.test.mjs`, `src/inkwell/scheduled-approval.ts`, `src/inkwell/send-hold-notices.ts` | [Contract status](../CONTRACT.md#status) |
 | `ADMIN-005` | partial | `tests/account-audit.test.mjs`, `tests/delivery.test.mjs`, `tests/web-forms.test.mjs`, `tests/api-keys.test.mjs`, `tests/send-policies.test.mjs`, `tests/web-forms.test.mjs`, `tests/embedding-cases.mjs`, `tests/journeys/account-audit.mjs` | [Contract status](../CONTRACT.md#status) |
 | `ADMIN-006` | partial | `tests/delivery.test.mjs`, `tests/journeys/sms.mjs` | [Contract status](../CONTRACT.md#status) |
 | `ADMIN-008` | partial | `src/inkwell/api-key-permissions.ts`, `migrations/core/0051_api_key_permissions.sql`, `tests/api-keys.test.mjs` | [Contract status](../CONTRACT.md#status) |
@@ -120,7 +120,7 @@ Inventory: 72 done, 39 partial, 19 missing; 130 total.
 | `AGENT-004` | partial | `src/inkwell/envelopes.ts` | [Contract status](../CONTRACT.md#status) |
 | `AGENT-005` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `AGENT-006` | done | `tests/hubspot-envelope.test.mjs`, `tests/delivery.test.mjs`, `tests/journeys/hubspot.mjs`, `tests/journeys/filing.mjs`, `tests/delivery.test.mjs`, `tests/journeys/account-audit.mjs` | [Contract status](../CONTRACT.md#status) |
-| `AGENT-007` | done | `src/inkwell/template-maintenance.ts`, `src/ui/template-maintenance.tsx`, `tests/template-maintenance.test.mjs`, `tests/journeys/template-maintenance.mjs` | [Contract status](../CONTRACT.md#status) |
+| `AGENT-007` | done | `src/inkwell/template-maintenance.ts`, `src/ui/template-maintenance.tsx`, `tests/template-maintenance.test.mjs` | [Contract status](../CONTRACT.md#status) |
 | `AGENT-008` | missing |  | [Contract status](../CONTRACT.md#status) |
 | `AGENT-009` | partial | `tests/agent-workflows.test.mjs`, `docs/agent-workflows.md` | [Contract status](../CONTRACT.md#status) |
 | `BASE-AGENT-001` | partial | `agent-surface.json`, `tests/agent-door-fixtures.mjs`, `tests/agent-door-journey.mjs` | [Contract status](../CONTRACT.md#status) |

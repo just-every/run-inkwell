@@ -92,13 +92,17 @@
           "label": "Cloudflare Email Sending"
         },
         {
+          "value": "none",
+          "label": "Outbound email off"
+        },
+        {
           "value": "development",
           "label": "Local development outbox only"
         }
       ],
       "group": "mail",
       "localDefault": "development",
-      "help": "Choose a configured provider for hosting. The local outbox is available only during local development."
+      "help": "Choose a configured provider for hosting, or turn email off and use rer signin for owner access. The local outbox is available only during local development."
     },
     {
       "name": "MAIL_FROM",

@@ -5,11 +5,10 @@ domain is optional: a `workers.dev` address works.
 
 You need:
 
-- a Cloudflare account, with `CLOUDFLARE_ACCOUNT_ID` and an API token in
-  `CLOUDFLARE_API_TOKEN`;
-- a mail provider for invitations and codes (Resend by default) and its API key;
-- a verified sender address. Set `MAIL_FROM` in `deploy.json` to it; the default
-  `auth@example.invalid` deliberately cannot deliver.
+- A Cloudflare account, with `CLOUDFLARE_ACCOUNT_ID` and an API token in
+  `CLOUDFLARE_API_TOKEN`.
+- For email delivery, configure a provider (Resend by default), supply its `MAIL_API_KEY`,
+  and set `vars.MAIL_FROM` in `deploy.json` to a verified sender address.
 
 Keep private values out of the repository. Pass them through your shell's secret store or a
 private environment file with `rer deploy --env-file`.
@@ -26,6 +25,12 @@ The dry run builds and checks everything without contacting Cloudflare. The real
 creates the Worker and its D1 database, applies the database migrations and checks that the
 new installation answers. It prints the installation's address and how to claim it as the
 owner.
+
+For a Business without email delivery, set `MAIL_PROVIDER=none` for the dry run and the real
+deploy. Leave the sender and mail API key unset. After deployment, run `rer signin` from the
+same checkout with the deployment's Cloudflare credentials. Open the one-time link it prints
+and finish setup. Owners can prepare envelopes and share private signing links with verification
+codes separately. Email sign-in, invitations, reminders and completed copies require mail.
 
 ## After deploying
 

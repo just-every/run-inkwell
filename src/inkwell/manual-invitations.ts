@@ -2,7 +2,7 @@ import { active, appendEvent, currentSigners, insist, randomCode, secret, sha256
 import { commandWrite, commitEnvelope, getEnvelope } from './storage'
 import type { CommandContext } from './envelopes'
 
-export const mailSuppressed = (env: Env) => !env.MAIL_PROVIDER || env.MAIL_PROVIDER === 'development'
+export const mailSuppressed = (env: Env) => !env.MAIL_PROVIDER || env.MAIL_PROVIDER === 'development' || env.MAIL_PROVIDER === 'none'
 
 /** Secrets leave only in this response, never in the command journal or mail queue. */
 export async function manualInvitation(env: Env, envelope: Envelope, signer: number, token: string, generation: number, actor: string) {

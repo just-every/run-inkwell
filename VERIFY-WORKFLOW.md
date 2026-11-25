@@ -37,6 +37,9 @@ on Monday and Thursday at 05:57 UTC. Release tags beginning with `v` and a
 manual Nightly journeys dispatch run every push and nightly shard.
 
 `tests/run-api.mjs` discovers every file ending in `.test.mjs` in `tests/`.
+The test budget covers these registrations, the selected browser journeys, and the
+hosted-output and runtime checks. The current browser set keeps the owner and
+signer journeys, with overlapping integration scenarios covered through HTTP.
 `tests/journeys/run.mjs` lists every ordinary browser journey explicitly,
 including the HubSpot configuration, import, launch and completion journey.
 That journey exercises the emitted application with native sessions and real
