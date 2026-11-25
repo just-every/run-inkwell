@@ -712,6 +712,10 @@
       "sha256": "f2d54af65066619905aec643cb3039ff83b74ad66ede310fa4c8413567173ed6",
       "executable": false
     },
+    "migrations/core/0089_read_budget.sql": {
+      "sha256": "a4fbe538eb43da913860a882e6aa621b32612f1e03bb22af52321121f7c40748",
+      "executable": false
+    },
     "ONBOARDING.md": {
       "sha256": "5d20f1bd0c24def0cd6c1165d1a58d0472ad0f02f2b60047014bda962eaf4274",
       "executable": false
@@ -6246,6 +6250,14 @@
     },
     "tests/provider-edge.mjs": {
       "sha256": "31eed5804b7e772d4591dcce5d4ff3bac2f67297e0b79857fa2b8a149389717a",
+      "executable": false
+    },
+    "tests/read-budget.test.mjs": {
+      "sha256": "0f0219deba1a399adfb3da618652e0052c402ea2c99fd311c36b7184b8f60b21",
+      "executable": false
+    },
+    "tests/read-meter.ts": {
+      "sha256": "67e686a9dee16f3652e223059a41a26e07d8cf0bf2e70c7d3091ff36b239587a",
       "executable": false
     },
     "tests/remote-import.test.mjs": {
