@@ -20,9 +20,11 @@ export function bouncedRecipients(envelope: Envelope, messages: Message[]) {
 }
 
 /** Alert each envelope's sender once per bounced invitation. Runs after every delivery webhook and on the hourly pass,
- * so an alert interrupted after the event was stored still goes out; the audit event keyed by the message makes it once. */
-export async function alertBounces(env: Env) {
-  const rows = (await env.DB.prepare("SELECT DISTINCT m.envelope_id FROM iw_envelopes e CROSS JOIN iw_mail m ON m.envelope_id=e.id WHERE json_extract(e.data,'$.status')='awaiting_signature' AND m.kind='invitation' AND (m.state='rejected' OR EXISTS(SELECT 1 FROM rer_mail_event_receipts r WHERE r.provider=m.provider AND json_extract(r.event_json,'$.providerMessageId')=+m.provider_message_id AND json_extract(r.event_json,'$.status') IN ('bounced','failed','rejected')) OR EXISTS(SELECT 1 FROM rer_mail_event_receipts r WHERE r.provider=m.provider AND json_extract(r.event_json,'$.deliveryId')=+m.id AND json_extract(r.event_json,'$.status') IN ('bounced','failed','rejected')))").all<{ envelope_id: string }>()).results
+ * so an alert interrupted after the event was stored still goes out; the audit event keyed by the message makes it once.
+ * Only envelopes still open for signing are read (an expired one cannot be corrected, and unsigned expired envelopes keep the
+ * awaiting_signature status), so the read follows what is in flight, not what is kept. */
+export async function alertBounces(env: Env, at = Date.now()) {
+  const rows = (await env.DB.prepare("SELECT DISTINCT m.envelope_id FROM iw_envelopes e CROSS JOIN iw_mail m ON m.envelope_id=e.id WHERE json_extract(e.data,'$.status')='awaiting_signature' AND json_extract(e.data,'$.expiresAt')>? AND m.kind='invitation' AND (m.state='rejected' OR EXISTS(SELECT 1 FROM rer_mail_event_receipts r WHERE r.provider=m.provider AND json_extract(r.event_json,'$.providerMessageId')=+m.provider_message_id AND json_extract(r.event_json,'$.status') IN ('bounced','failed','rejected')) OR EXISTS(SELECT 1 FROM rer_mail_event_receipts r WHERE r.provider=m.provider AND json_extract(r.event_json,'$.deliveryId')=+m.id AND json_extract(r.event_json,'$.status') IN ('bounced','failed','rejected')))").bind(new Date(at).toISOString()).all<{ envelope_id: string }>()).results
   for (const { envelope_id } of rows) {
     const before = await getEnvelope(env.DB, envelope_id)
     const fresh = bouncedRecipients(before, await envelopeMessages(env, before.id)).filter(({ message }) => !before.events.some(e => e.action === 'signer.bounced' && e.detail.message === message.id))
