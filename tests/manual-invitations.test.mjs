@@ -75,7 +75,9 @@ for (const mailProvider of ['development', 'none']) {
    const persisted = JSON.stringify(await h.db.prepare('SELECT * FROM iw_signers').all()) + JSON.stringify(await h.db.prepare('SELECT * FROM iw_commands').all()) + JSON.stringify(envelope)
    for (const invitation of [first,renewed,next]) {
     assert.ok(!persisted.includes(new URL(invitation.url).pathname.split('/').at(-1)),'raw signing tokens are never persisted')
-    assert.ok(!persisted.includes(invitation.code),'raw codes are never persisted')
+    // Six digits can occur by chance inside a timestamp, digest or ID.
+    const plainCode = new RegExp(`(?<![0-9a-z])${invitation.code}(?![0-9a-z])`, 'i')
+    assert.ok(!plainCode.test(persisted),'raw codes are never persisted')
    }
    assert.equal((await h.db.prepare('SELECT COUNT(*) AS n FROM iw_mail').first()).n,0,'suppressed mail is never captured')
    assert.equal(h.sent(), 0)

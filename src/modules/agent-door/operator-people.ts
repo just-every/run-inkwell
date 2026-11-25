@@ -11,11 +11,13 @@ export function operatorAuthPeople(options: { db: D1Database; allowList?: string
   }
   const owner = () => options.db.prepare(`SELECT o.id FROM oa_operators o LEFT JOIN oa_bootstrap b ON b.claim_id=o.id
     WHERE o.role='owner' ORDER BY b.claim_id IS NULL,o.created_at,o.id LIMIT 1`).first<{ id: string }>()
+  const businessOwner = async () => (await options.db.prepare('SELECT owner_id FROM bs_settings WHERE singleton=1').first<{ owner_id: string | null }>())?.owner_id ?? null
   return {
     person: read,
+    async businessStopped() { return Boolean(await options.db.prepare('SELECT 1 FROM bs_settings WHERE singleton=1 AND stopped=1').first()) },
     async sponsor({ sub }) {
-      const settings = await options.db.prepare('SELECT owner_id FROM bs_settings WHERE singleton=1 AND stopped=0').first<{ owner_id: string | null }>()
-      if (settings?.owner_id === sub) {
+      // Keep subject mapping for signed policy adoption after the door stops admitting Business calls.
+      if (await businessOwner() === sub) {
         const installationOwner = await owner()
         return installationOwner ? read(installationOwner.id) : null
       }
@@ -23,8 +25,8 @@ export function operatorAuthPeople(options: { db: D1Database; allowList?: string
       return row?.operator_id ? read(row.operator_id) : null
     },
     async businessMember(person) {
-      const settings = await options.db.prepare('SELECT owner_id FROM bs_settings WHERE singleton=1 AND stopped=0').first<{ owner_id: string | null }>()
-      if (settings?.owner_id && (await owner())?.id === person.id) return { id: settings.owner_id, role: 'owner' }
+      const id = await businessOwner()
+      if (id && (await owner())?.id === person.id) return { id, role: 'owner' }
       const row = await options.db.prepare("SELECT business_id,business_role FROM bs_team WHERE operator_id=? AND state<>'conflict' AND business_id IS NOT NULL").bind(person.id).first<{ business_id: string; business_role: string }>()
       return row ? { id: row.business_id, role: row.business_role === 'admin' ? 'editor' : null } : null
     },

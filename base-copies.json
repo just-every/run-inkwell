@@ -3303,6 +3303,7 @@
         "src/modules/agent-door/approval-execution.ts": "184b7fd7f016fb58121746873f4bf8fab621c4d09a1a00e61cf53eedad2fc3b3",
         "src/modules/agent-door/approvals.ts": "45757936fac519de054ca754fd45ea3e6def75f18f1e71cb6a651e6451bf767c",
         "src/modules/agent-door/audit.ts": "cb45fb29821cfa9fd544198154dde76efb0d3c2800e264a318282fdb622e7725",
+        "src/modules/agent-door/business-state.ts": "fdce33b3b16e60856bde4089a9924d6df6c8ce864d48227c04b695764041a18a",
         "src/modules/agent-door/capabilities.d.mts": "af9a1d9f81a15df8caef2ab257c24b031dab60690984df557b9b82022888f339",
         "src/modules/agent-door/capabilities.mjs": "91b2e22470c325bf5ecf0aa8ef9c4e36f05069407101207ca0e5f0c2fa083695",
         "src/modules/agent-door/CLAUSES.md": "0568321ca8cc6c5ff5056d3e12868795aadfedd17c51aa693dd4517450a9e867",
@@ -3363,6 +3364,7 @@
         "src/modules/agent-door/principal.ts": "5c08991834a175c8dcf68b8a41f7a2fc278e0708ff65216db0e95836e9b4d41a",
         "src/modules/agent-door/README.md": "3e75f0b4df0d76821cae6528718eb7d7f39f5da67db824f711db012a3905d642",
         "src/modules/agent-door/registry.ts": "2759ba22b30528c322a5d4605ed41c690fc0bf33f86c3e0a57c252bff20cef24",
+        "src/modules/agent-door/relay.ts": "9d794eb6c245e7cb3f7d744cef8245c5620f0f3e6a25ab47ff705ef0549bf3de",
         "src/modules/agent-door/resource-tool.ts": "6d70880fc5d58cfdb1c3ad10a5085eac684ed85639bbbf4a7ee4be307e538e5d",
         "src/modules/agent-door/reviews.ts": "9884027e619179eba540fc8d9ffce871facc898c77d78479e0e16a9c37922f9b",
         "src/modules/agent-door/schema/agent-door.sql": "016d8a98b964385f5c4a13447361c3c783910a76aaf4606b0e0081482bc819cc",
@@ -3383,6 +3385,7 @@
         "src/modules/agent-door/approval-execution.ts": "100644",
         "src/modules/agent-door/approvals.ts": "100644",
         "src/modules/agent-door/audit.ts": "100644",
+        "src/modules/agent-door/business-state.ts": "100644",
         "src/modules/agent-door/capabilities.d.mts": "100644",
         "src/modules/agent-door/capabilities.mjs": "100644",
         "src/modules/agent-door/CLAUSES.md": "100644",
@@ -3443,6 +3446,7 @@
         "src/modules/agent-door/principal.ts": "100644",
         "src/modules/agent-door/README.md": "100644",
         "src/modules/agent-door/registry.ts": "100644",
+        "src/modules/agent-door/relay.ts": "100644",
         "src/modules/agent-door/resource-tool.ts": "100644",
         "src/modules/agent-door/reviews.ts": "100644",
         "src/modules/agent-door/schema/agent-door.sql": "100644",
@@ -3553,12 +3557,23 @@
         "modules/agent-door/wire.ts"
       ],
       "adapted": {
+        "src/modules/agent-door/business-state.ts": "e3e4d8af972f951a5afe38cb72f6de447ff83398",
+        "src/modules/agent-door/policy-store.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/relay.ts": "e3e4d8af972f951a5afe38cb72f6de447ff83398",
         "src/modules/agent-door/tests/door.test.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
         "src/modules/agent-door/tests/execution.test.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
         "src/modules/agent-door/tests/identity.test.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
         "src/modules/agent-door/tests/runtime.mjs": "2135c394939f4a737adabdc8003b0e667b31ac5a",
         "src/modules/agent-door/tests/seed.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
-        "src/modules/agent-door/policy-store.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a"
+        "src/modules/agent-door/approval-execution.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/credentials.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/execution.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/index.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/operator-people.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/people.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/transport.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/types.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a",
+        "src/modules/agent-door/wire.ts": "2135c394939f4a737adabdc8003b0e667b31ac5a"
       },
       "acknowledged": {
         "src/modules/agent-door/tests/door.test.ts": {
@@ -3583,6 +3598,50 @@
         },
         "src/modules/agent-door/policy-store.ts": {
           "sha256": "0f48c0ee2b1908185d739a9f79612227864c7868e465ed87d15ffa5c17b3e70e",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/approval-execution.ts": {
+          "sha256": "820bc31c8e7f4ebe862317fe016e8fc9139cff369402f72ce945bbc9b875158d",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/business-state.ts": {
+          "sha256": "fdce33b3b16e60856bde4089a9924d6df6c8ce864d48227c04b695764041a18a",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/credentials.ts": {
+          "sha256": "3ba1d15f58c9ccbe69825a24abd1bfb82efffb299e0204109b4f8a1c68066500",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/execution.ts": {
+          "sha256": "8e3907e2598ce92ed33edd9451a218c95b73d514e73f28cfb4782dfb834755f4",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/index.ts": {
+          "sha256": "28ed6d351f478957baae3d36e7e95ba2f4faa311a4d59f822e918ce538155cac",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/operator-people.ts": {
+          "sha256": "00a1f112553c9a3ea27d0067044c277cf8dd465a78e26edd924746a9b5d977f1",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/people.ts": {
+          "sha256": "8896b5efe0f094ea94cbbff9d6b140fa262cf5ec00b0982bf8da8e3a2cac5b45",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/relay.ts": {
+          "sha256": "ad9ad254da20f4835aab6bff26f1f661b1b255e553f87b4f6ed425ff320f6549",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/transport.ts": {
+          "sha256": "77a220c9671e8d7d1990e4b0a47b466d734b7921b204f22cc66919dcf0333c5a",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/types.ts": {
+          "sha256": "4c92c28a36c7a2a658b440ba25b1000801f3840e4c7a283582f9adc240d4e1f3",
+          "mode": "100644"
+        },
+        "src/modules/agent-door/wire.ts": {
+          "sha256": "3f708ef30806e3c6f6115f2be8421ca5add1b8ff7b1690b99a073e268998ba37",
           "mode": "100644"
         }
       }
@@ -5708,7 +5767,7 @@
       },
       "acknowledged": {
         "VERIFY-WORKFLOW.md": {
-          "sha256": "16a0454d3122c67e5d96e8aec3324e11f889ac1dd649647226b0a4e4de81c878",
+          "sha256": "43a1d4f93154b5f4804f5ea4cca35c4332952bae08635529fadb23873d77e35d",
           "mode": "100644"
         }
       }

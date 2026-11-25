@@ -6,11 +6,12 @@ export type JsonSchema = boolean | { [key: string]: unknown }
 export interface JsonSchemaObject { type: 'object'; properties?: Record<string, JsonSchema>; required?: string[]; [key: string]: unknown }
 export interface Person { id: string; email: string; name: string; role: string; active: boolean }
 export interface Agent { id: string; name: string; specialist?: string | null }
-export interface Principal { person: Person; agent: Agent; scopes: string[]; clientId?: string; consent?: string; nativeProof?: { kind: string; reference: string }; operationId?: string; idempotencyKey?: string | null; continuationItemId?: string }
+export interface Principal { person: Person; agent: Agent; scopes: string[]; source?: 'business' | 'local' | 'embedded'; clientId?: string; consent?: string; nativeProof?: { kind: string; reference: string }; operationId?: string; idempotencyKey?: string | null; continuationItemId?: string }
 export interface PeopleAdapter {
   sponsor(claims: { sub: string }): Promise<Person | null>
   person(id: string): Promise<Person | null>
   session(request: Request): Promise<Person | null>
+  businessStopped?(): Promise<boolean>
   businessRole?(person: Person): 'owner' | 'editor' | null
   businessMember?(person: Person): Promise<{ id: string; role: 'owner' | 'editor' | null } | null>
 }

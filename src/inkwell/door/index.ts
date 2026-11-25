@@ -43,6 +43,6 @@ export async function agentResponse(request: Request, env: Bindings): Promise<Re
     const response = await settings.handle(request)
     if (response) return response
   }
-  if (path === '/mcp' || path === '/api/rer/agent-policy' || path === '/agents' || path.startsWith('/agents/') || path.startsWith('/.well-known/oauth-protected-resource')) return inkwellAgentDoor(env).handle(request)
+  if (path === '/mcp' || path === '/api/rer/agent-policy' || path === '/api/rer/agent-decisions' || path === '/agents' || path.startsWith('/agents/') || path.startsWith('/.well-known/oauth-protected-resource')) return inkwellAgentDoor(env).handle(request)
   return null
 }

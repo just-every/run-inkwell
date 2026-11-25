@@ -23,7 +23,8 @@ export async function executeApproval(rt: Runtime, id: string, saved: SavedAppro
   const by = [...new Set(approvals.map(mark => mark.person))]
   const approvers: Array<{ id: string; name: string }> = []
   try {
-    const principal = await livePrincipal(rt, { ...saved.principal, operationId: saved.principal.operationId ?? saved.decision_id, idempotencyKey: saved.key }), state = await policyState(rt), tool = savedTool(rt, saved.tool, saved.args)
+    const source = saved.principal.source ?? (saved.door === 'mcp' && saved.principal.consent ? 'business' : undefined)
+    const principal = await livePrincipal(rt, { ...saved.principal, source, operationId: saved.principal.operationId ?? saved.decision_id, idempotencyKey: saved.key }), state = await policyState(rt), tool = savedTool(rt, saved.tool, saved.args)
     if (tool?.authority === 'none') row.authority = 'none'
     const refusal = policyRefusal(rt, state, tool?.classes)
     if (saved.principal.consent && state.revoked.consents.includes(saved.principal.consent)) result = { ...result, outcome: 'refused', code: 'consent_revoked' }
