@@ -30,10 +30,11 @@ export function chooseSchedule(value: unknown, expiresAt: string): Schedule | un
   return { at: new Date(at).toISOString(), local, timeZone }
 }
 
-/** The hourly pass: send every approved envelope whose time has come. Approvers who sign at the first order still sign
+/** The hourly pass: send every approved envelope whose time has come (read by the scheduled-send index, so envelopes that
+ * expired unsigned and stay awaiting_signature are never read). Approvers who sign at the first order still sign
  * in the app (ROUTE-009) and are not emailed. */
 export async function sendScheduled(env: Env, at: number) {
-  const rows = (await env.DB.prepare("SELECT data FROM iw_envelopes WHERE json_extract(data,'$.status')='awaiting_signature' AND json_extract(data,'$.scheduled.at')<=?").bind(new Date(at).toISOString()).all<{ data: string }>()).results
+  const rows = (await env.DB.prepare("SELECT data FROM iw_envelopes INDEXED BY iw_envelopes_scheduled WHERE json_extract(data,'$.status')='awaiting_signature' AND json_extract(data,'$.scheduled.at')<=?").bind(new Date(at).toISOString()).all<{ data: string }>()).results
   const failures: unknown[] = []
   for (const row of rows) try { await send(env, JSON.parse(row.data), at) } catch (error) { failures.push(error) }
   if (failures.length) throw new AggregateError(failures, `${failures.length} scheduled send(s) failed.`)

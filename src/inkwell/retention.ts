@@ -97,8 +97,7 @@ function standingWarning(envelope: Envelope, due: string) {
 /** The hourly pass at `at`: warn for envelopes within 30 days of falling due, purge those whose warning has run out. */
 export async function applyRetention(env: Env, at: number) {
   const rule = await retentionRule(env)
-
-  const rows = (await env.DB.prepare("SELECT data FROM iw_envelopes WHERE json_extract(data,'$.legalHold') IS NULL AND (json_extract(data,'$.status') IN ('completed','declined','voided','imported') OR json_extract(data,'$.imported')=1 OR (json_extract(data,'$.status') IN ('prepared','awaiting_signature','expired') AND json_extract(data,'$.expiresAt')<=?))").bind(new Date(at).toISOString()).all<{ data: string }>()).results
+  const rows = await retentionCandidates(env, rule, at)
   const failures: unknown[] = []
   for (const row of rows) {
     const envelope: Envelope = JSON.parse(row.data), end = ending(envelope, at)
@@ -114,6 +113,25 @@ export async function applyRetention(env: Env, at: number) {
   try { if(rule) await applyArchiveRetention(env, rule, at, retentionDue) } catch (error) { failures.push(error) }
   if (failures.length) throw new AggregateError(failures, `${failures.length} retention step(s) failed.`)
   return { checked: rows.length }
+}
+
+/** Envelopes that could be warned or purged at `at`, read by index so the hourly pass costs what falls due, not what is
+ * kept. An envelope ends no earlier than it was created, so with the shortest rule in force (the account's or any
+ * folder's) nothing created after `at` + the warning period - that many years can be due; two days of slack cover leap
+ * years, and `ending` and the envelope's own rule still decide exactly. Imported records carry their own source dates,
+ * so they are always read. With no rule anywhere nothing is ever due. Unsigned envelopes past their expiry keep the
+ * status awaiting_signature, so the open leg is bounded by creation date through the status index, not by expiry. */
+async function retentionCandidates(env: Env, rule: Awaited<ReturnType<typeof retentionRule>>, at: number) {
+  const folder = await env.DB.prepare('SELECT MIN(retention_years) AS years FROM iw_envelope_folders WHERE retention_years>0').first<{ years: number | null }>()
+  const rules = [rule?.years, folder?.years].filter((years): years is number => typeof years === 'number' && years > 0)
+  if (!rules.length) return []
+  const floor = new Date(at + (retentionWarningDays + 2) * day)
+  floor.setUTCFullYear(floor.getUTCFullYear() - Math.min(...rules))
+  return (await env.DB.prepare(`SELECT data FROM iw_envelopes WHERE json_extract(data,'$.legalHold') IS NULL AND id IN (
+    SELECT id FROM iw_envelopes WHERE json_extract(data,'$.status') IN ('completed','declined','voided') AND json_extract(data,'$.createdAt')<=?1
+    UNION SELECT id FROM iw_envelopes INDEXED BY iw_envelopes_status WHERE json_extract(data,'$.status') IN ('prepared','awaiting_signature','expired') AND json_extract(data,'$.createdAt')<=?1 AND json_extract(data,'$.expiresAt')<=?2
+    UNION SELECT id FROM iw_envelopes WHERE json_extract(data,'$.status')='imported'
+    UNION SELECT id FROM iw_envelopes WHERE json_extract(data,'$.imported')=1)`).bind(floor.toISOString(), new Date(at).toISOString()).all<{ data: string }>()).results
 }
 
 async function warn(env: Env, before: Envelope, rule: EnvelopeRetention, end: { ended: string; at: string; basis?: string }, due: string, at: number) {

@@ -357,7 +357,7 @@
       "executable": false
     },
     "management/integration/deployment-spec.json": {
-      "sha256": "7736471268bbeba0ccf68c6974741dcc0b1d49a0978cd28d1c91f211f3dcecff",
+      "sha256": "758bd09faf42d23334e4c6c84cd79056b87cc6df6ec75aa5f5356f1f17d37c6a",
       "executable": false
     },
     "migrations/core/0001_owner.sql": {
@@ -1925,7 +1925,7 @@
       "executable": false
     },
     "src/inkwell/bounces.ts": {
-      "sha256": "e05c7d706e7a0afebba222667b2f1327ef0488b93c0c9372ddd091d1640cf9ba",
+      "sha256": "8a7367eff31823661592234980e0ce3b8e976b55a147bd6e019c4505edcfb576",
       "executable": false
     },
     "src/inkwell/bulk-sheet.ts": {
@@ -2029,7 +2029,7 @@
       "executable": false
     },
     "src/inkwell/delivery.ts": {
-      "sha256": "d67203cd9f05b58c91f9a85875e960f11ec295b8328422589ec21377044ee719",
+      "sha256": "794987335eb12f619da0041bd3d0893a39604a68b1db2e3418a96f3d3b97b0ec",
       "executable": false
     },
     "src/inkwell/disclosure.ts": {
@@ -2221,7 +2221,7 @@
       "executable": false
     },
     "src/inkwell/hubspot-writeback.ts": {
-      "sha256": "dc5ac36eabde8d5077318eac39288e6aa9f5952566b111cc074432aa8a1d8791",
+      "sha256": "6491be5287e9a22140471c9d6594259a512519072f37609e33bad3c668e0420e",
       "executable": false
     },
     "src/inkwell/identity-provider.ts": {
@@ -2489,7 +2489,7 @@
       "executable": false
     },
     "src/inkwell/retention.ts": {
-      "sha256": "eca1fa8e16a22cd7c28343db61a1f779c41be757687401303c057031019e91a4",
+      "sha256": "bc7e73be59adbb91e0a57790f3d91c2f29a346104a70863641aca3e7884148e9",
       "executable": false
     },
     "src/inkwell/routing.ts": {
@@ -2517,7 +2517,7 @@
       "executable": false
     },
     "src/inkwell/salesforce-writeback.ts": {
-      "sha256": "3eaf52d16cca48c36aca62a22c9b36289827014d2a5539179c21b5fd27234a67",
+      "sha256": "e117696483bc8f33a671d94ed88949a6774fe8a1475d8752c457200faaaa932a",
       "executable": false
     },
     "src/inkwell/salesforce.ts": {
@@ -2529,7 +2529,7 @@
       "executable": false
     },
     "src/inkwell/schedule.ts": {
-      "sha256": "0178914a4a16c44acb8b57fab93f91843f3ddee336cb292c24ab61cefb8b5ae6",
+      "sha256": "4570d0168cb8e443c21581dfb7901276924978aad50414bce718c17241a23367",
       "executable": false
     },
     "src/inkwell/scheduled-approval.ts": {
@@ -2545,7 +2545,7 @@
       "executable": false
     },
     "src/inkwell/search.ts": {
-      "sha256": "5e80fa9bab21923350e1313f652b2ce3e9cf7deefd471b8b4355e08e524f26f4",
+      "sha256": "091ff476b6600ede0c8a02290423d318a59fa4b0560a0e274db0a0cbfba47fe2",
       "executable": false
     },
     "src/inkwell/send-authority.ts": {
@@ -5881,7 +5881,7 @@
       "executable": false
     },
     "tests/api-worker.ts": {
-      "sha256": "50dbde2bfebf714b44f5802eb047c09c5687d4212d61a4f0215a7da93326f5a0",
+      "sha256": "ddf3b817bd8fc4e43a6aefb1bdb197970eadb5252541b17e87ff97c259f925cd",
       "executable": false
     },
     "tests/api.test.mjs": {

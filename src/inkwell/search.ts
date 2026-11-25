@@ -16,7 +16,13 @@ const myTurn = `EXISTS(SELECT 1 FROM json_each(e.data,'$.signers') s WHERE ${ope
 // ROUTE-004 / MANAGE-003: a draft waiting for my internal approval is waiting for me.
 // A sender finds every envelope a request named them on (internal-approval.ts namedApprover).
 const pendingMine = `json_extract(e.data,'$.internalApproval.state')='pending' AND EXISTS(SELECT 1 FROM json_each(e.data,'$.internalApproval.steps') a WHERE json_extract(a.value,'$.approver')=?3 AND json_extract(a.value,'$.decision') IS NULL)`
-const namedMe = `EXISTS(SELECT 1 FROM json_each(e.data,'$.events') ev, json_each(ev.value,'$.detail.steps') a WHERE json_extract(ev.value,'$.action')='envelope.internal_approval_requested' AND json_extract(a.value,'$.approver')=?3)`
+const namedMe = `(instr(e.data,'envelope.internal_approval_requested')>0 AND EXISTS(SELECT 1 FROM json_each(e.data,'$.events') ev, json_each(ev.value,'$.detail.steps') a WHERE json_extract(ev.value,'$.action')='envelope.internal_approval_requested' AND json_extract(a.value,'$.approver')=?3))`
+// The person's access to an envelope through its own shares, its folder's shares or its folder's owner: the same facts as
+// iw_effective_shares, read per envelope (that view groups every envelope's shares, so using it here read them all).
+const shareAccess = `(SELECT CASE WHEN max(edit)=1 THEN 'edit' ELSE 'view' END FROM (
+  SELECT access='edit' AS edit FROM iw_shares WHERE envelope_id=e.id AND operator_id=?3
+  UNION ALL SELECT s.access='edit' FROM iw_envelope_folder_shares s WHERE s.folder_id=json_extract(e.data,'$.folderId') AND s.operator_id=?3
+  UNION ALL SELECT 1 FROM iw_envelope_folders f WHERE f.id=json_extract(e.data,'$.folderId') AND f.owner_id=?3) HAVING count(*)>0)`
 const bucket = `CASE WHEN json_extract(e.data,'$.status') IN ('prepared','awaiting_signature') AND json_extract(e.data,'$.expiresAt')<=?1 THEN 'expired' WHEN json_extract(e.data,'$.status')='prepared' THEN CASE WHEN ${pendingMine} THEN 'waiting_for_me' ELSE 'draft' END WHEN json_extract(e.data,'$.status')='awaiting_signature' THEN CASE WHEN ${myTurn} THEN 'waiting_for_me' ELSE 'waiting_for_others' END ELSE json_extract(e.data,'$.status') END`
 // Envelopes an agent's preparation token prepared (DELEGATE-001), for the dashboard's agent strip.
 const byAgent = `EXISTS(SELECT 1 FROM json_each(e.data,'$.events') ev WHERE json_extract(ev.value,'$.action')='envelope.prepared' AND (json_extract(ev.value,'$.actor') LIKE 'agent:%' OR json_extract(ev.value,'$.detail.preparedBy.agent.id') IS NOT NULL))`
@@ -44,29 +50,37 @@ export async function searchEnvelopes(env: Env, actor: Actor, params: URLSearchP
   if (template) { where.push(`(json_extract(e.data,'$.template.id')=?${values.length + 1} OR EXISTS(SELECT 1 FROM json_each(e.data,'$.templates') t WHERE json_extract(t.value,'$.id')=?${values.length + 1}))`); values.push(template) }
   if (sender) { where.push(`json_extract(e.data,'$.createdBy')=?${values.length + 1}`); values.push(sender) }
   // ACCESS-001 / ADMIN-001: a sender finds the envelopes they created, those shared with them and (ROUTE-004) those they were asked to approve.
-  if (actor.role === 'sender') where.push(`(json_extract(e.data,'$.createdBy')=?3 OR EXISTS(SELECT 1 FROM iw_effective_shares x WHERE x.envelope_id=e.id AND x.operator_id=?3) OR ${namedMe})`)
+  if (actor.role === 'sender') where.push(`(json_extract(e.data,'$.createdBy')=?3 OR ${shareAccess} IS NOT NULL OR ${namedMe})`)
   if (from) { where.push(`json_extract(e.data,'$.createdAt')>=?${values.length + 1}`); values.push(new Date(from).toISOString()) }
   if (to) { where.push(`json_extract(e.data,'$.createdAt')<?${values.length + 1}`); values.push(new Date(to).toISOString()) }
-  const filtered = `SELECT e.id, e.data, json_extract(e.data,'$.createdAt') AS created, ${bucket} AS bucket, (SELECT access FROM iw_effective_shares x WHERE x.envelope_id=e.id AND x.operator_id=?3) AS share FROM iw_envelopes e${where.length ? ' WHERE ' + where.join(' AND ') : ''}`
+  // The dashboard reads by index: a page is a keyset walk of the newest envelopes, and each bucket count comes from the status index
+  // (or the open envelopes, which are bounded), so a view costs about one index row per envelope kept, not a scan of every document.
+  const createdAt = "json_extract(e.data,'$.createdAt')", state = "json_extract(e.data,'$.status')", expiry = "json_extract(e.data,'$.expiresAt')", open = "('prepared','awaiting_signature')"
+  const terms = where.length ? ' AND ' + where.join(' AND ') : ''
   const counts = Object.fromEntries(buckets.map(b => [b, 0])) as Record<Bucket, number>
   const page: string[] = [], pageValues = [...values]
-  if (status !== 'all') { page.push(`bucket=?${pageValues.length + 1}`); pageValues.push(status) }
+  // A bucket narrows to the statuses that can hold it, so the walk seeks them instead of reading every envelope.
+  if (status !== 'all') {
+    page.push(`(${bucket})=?${pageValues.length + 1}`); pageValues.push(status)
+    if (['completed', 'declined', 'voided', 'imported'].includes(status)) page.push(`${state}='${status}'`)
+    else if (status === 'expired') page.push(`${state} IN ${open} AND ${expiry}<=?1`)
+    else page.push(`${state}${status === 'draft' ? "='prepared'" : status === 'waiting_for_me' ? ` IN ${open}` : "='awaiting_signature'"} AND ${expiry}>?1`)
+  }
   if (cursor) {
     const [created, id] = (() => { try { return JSON.parse(atob(cursor)) as [string, string] } catch { return [] } })()
     insist(typeof created === 'string' && typeof id === 'string', 'This page link is not valid. Start the search again.')
-    page.push(`(created<?${pageValues.length + 1} OR (created=?${pageValues.length + 1} AND id<?${pageValues.length + 2}))`); pageValues.push(created, id)
+    page.push(`(${createdAt}, e.id)<(?${pageValues.length + 1}, ?${pageValues.length + 2})`); pageValues.push(created, id)
   }
-  // One materialized search supplies both totals and the page: one D1 round trip and one evaluation of the
-  // recipient search, access predicates and routing buckets, with totals and results from the same snapshot.
-  type PageRow = { kind: 'envelope'; id: string; data: string; created: string; bucket: Bucket; share: string | null }
-  const result = await env.DB.prepare(`WITH filtered AS MATERIALIZED (${filtered}),
-    page AS (SELECT id, data, created, bucket, share FROM filtered${page.length ? ' WHERE ' + page.join(' AND ') : ''} ORDER BY created DESC, id DESC LIMIT ${limit + 1})
-    SELECT 'count' AS kind, NULL AS id, NULL AS data, NULL AS created, bucket, NULL AS share, count(*) AS n FROM filtered GROUP BY bucket
-    UNION ALL SELECT 'envelope' AS kind, id, data, created, bucket, share, NULL AS n FROM page
-    ORDER BY kind, created DESC, id DESC`).bind(...pageValues).all<PageRow | { kind: 'count'; bucket: Bucket; n: number }>()
-  // Keep documents in separate rows instead of aggregating the whole page into one large SQLite string.
-  for (const row of result.results) if (row.kind === 'count') counts[row.bucket] = row.n
-  const rows = result.results.filter((row): row is PageRow => row.kind === 'envelope')
+  type PageRow = { id: string; data: string; created: string; bucket: Bucket; share: string | null }
+  const pageSql = `SELECT e.id, e.data, ${createdAt} AS created, ${bucket} AS bucket, ${shareAccess} AS share FROM iw_envelopes e WHERE 1=1${terms}${page.length ? ' AND ' + page.join(' AND ') : ''} ORDER BY ${createdAt} DESC, e.id DESC LIMIT ${limit + 1}`
+  const countSql = `SELECT bucket, sum(n) AS n FROM (
+    SELECT 'expired' AS bucket, count(*) AS n FROM iw_envelopes e WHERE ${state} IN ${open} AND ${expiry}<=?1${terms}
+    UNION ALL SELECT bucket, count(*) AS n FROM (SELECT ${bucket} AS bucket FROM iw_envelopes e WHERE ${state} IN ${open} AND ${expiry}>?1${terms}) GROUP BY bucket
+    UNION ALL SELECT ${state} AS bucket, count(*) AS n FROM iw_envelopes e WHERE ${state} NOT IN ${open}${terms} GROUP BY ${state}) GROUP BY bucket`
+  // One batch: one round trip, and the page and the totals come from the same snapshot.
+  const [pageResult, countResult] = await env.DB.batch([env.DB.prepare(pageSql).bind(...pageValues), env.DB.prepare(countSql).bind(...values)])
+  for (const row of countResult.results as { bucket: Bucket; n: number }[]) counts[row.bucket] = row.n
+  const rows = pageResult.results as PageRow[]
   const more = rows.length > limit, shown = rows.slice(0, limit)
   return {
     envelopes: shown.map(row => { const envelope: Envelope = JSON.parse(row.data); return { ...presentEnvelope(env, actor, envelope, accessFrom(actor, envelope, row.share)), bucket: row.bucket } }),

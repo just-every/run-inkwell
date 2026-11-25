@@ -7,6 +7,7 @@ import { authResponse, runtimeBindings } from '../src/auth.server'
 import { importResponse } from '../src/inkwell/imports'
 import { archiveResponse } from '../src/inkwell/archive'
 import { scheduledPass, scheduledRemoteImports } from '../src/inkwell/scheduled'
+import { readBudget } from './read-meter'
 // Test-only wall clock for expiry and fixed-window boundary journeys. This entry point is
 // never shipped; production handlers and their stored expiry values stay unchanged.
 const NativeDate = Date
@@ -18,6 +19,7 @@ globalThis.Date = new Proxy(NativeDate, {
 })
 // Production route handlers and native sessions on actual workerd + D1.
 export default { async fetch(request: Request, env: any, ctx: ExecutionContext) {
+ if(new URL(request.url).pathname==='/__d1-reads')return readBudget(request,env)
  const clock = request.headers.get('x-inkwell-test-time')
  testNow = clock === null ? undefined : Number(clock)
  return complianceRequest(request,env,async()=>await agentResponse(request,runtimeBindings(env)) ?? await hostedResponse(request,runtimeBindings(env)) ?? await authResponse(request,env) ?? await importResponse(request,runtimeBindings(env)) ?? await archiveResponse(request,env) ?? await embedResponse(request,runtimeBindings(env),async(req,scope)=>api.fetch(req,scope,ctx)) ?? api.fetch(request,env,ctx))

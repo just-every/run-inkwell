@@ -145,6 +145,6 @@ export async function dispatchHubspotWriteback(env:Env,envelopeId:string) {
   const row=await claim(env,envelopeId);if(row)await deliver(env,row,e)
 }
 export async function dispatchHubspotWritebacks(env:Env) {
-  const pending=(await env.DB.prepare("SELECT h.envelope_id FROM iw_hubspot_envelopes h JOIN iw_envelopes e ON e.id=h.envelope_id WHERE h.status IN ('waiting','working') AND json_extract(e.data,'$.status')='completed' ORDER BY h.authorized_at LIMIT 10").all<{envelope_id:string}>()).results
+  const pending=(await env.DB.prepare("SELECT h.envelope_id FROM iw_hubspot_envelopes h CROSS JOIN iw_envelopes e ON e.id=h.envelope_id WHERE h.status IN ('waiting','working') AND json_extract(e.data,'$.status')='completed' ORDER BY h.authorized_at LIMIT 10").all<{envelope_id:string}>()).results
   for(const item of pending){const row=await claim(env,item.envelope_id);if(row)await deliver(env,row,await getEnvelope(env.DB,item.envelope_id))}
 }
